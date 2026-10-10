@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 認知邊界 · 問題鏈地圖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script>
+/* =====================================================================
+   資料區：之後要新增／修改問題，只要編輯這個陣列即可。
+   type 可用：能力邊界、理解與意識、推理與判斷、倫理與責任、社會影響
+   （要新增類型，請同時在下方 TYPES 加上顏色）
+   ===================================================================== */
+const QUESTIONS = [
+  {
+    id: "q1",
+    title: "為何 AI 能拿奧數金牌，卻在高中數學出錯？",
+    type: "能力邊界",
+    source: {
+      who: "Demis Hassabis（Google DeepMind 執行長）",
+      outlet: "Google for Developers Podcast（Business Insider 報導）",
+      date: "2025-08-12",
+      url: "https://www.businessinsider.com/google-deepmind-ceo-demis-hassabis-agi-consistency-2025-8",
+      also: [
+        { label: "WIRED Big Interview（2025-06-03）", url: "https://www.wired.com/video/watch/big-interview-demis-hassabis-on-the-future-of-work-in-the-age-of-ai" }
+      ]
+    },
+    oneLiner: "能力「參差不齊」（jagged intelligence），是否代表 AI 還沒真正學會泛化？",
+    extensions: [
+      { q: "一致性要高到什麼程度，才算得上 AGI？", type: "能力邊界" },
+      { q: "AI 能提出全新的科學假說，而不只是證明既有的嗎？", type: "推理與判斷" },
+      { q: "評測（benchmark）高分，能代表真實世界的能力嗎？", type: "能力邊界" },
+      { q: "AI 在高風險場景仍會犯低級錯，錯誤該由誰承擔？", type: "倫理與責任" }
+    ],
+    process: [
+      { k: "問題定義", v: "AI 在不同任務間表現極不一致：頂尖題目能解，簡單題卻失手。" },
+      { k: "前提", v: "AGI 應在所有認知任務上都穩定、一致地表現。" },
+      { k: "推演", v: "一般人幾分鐘就能找到明顯漏洞 → 代表尚未完全泛化 → 需要在推理、規劃、記憶上突破，不只是擴大規模。" },
+      { k: "未解關鍵點", v: "如何定義並量測「一致性」？需要更難、更細的新評測。" }
+    ],
+    userInserted: false,
+    videoUrl: "",
+    imageUrl: ""
+  },
+  {
+    id: "q2",
+    title: "一個字接一個字地預測，算是「推理」嗎？",
+    type: "推理與判斷",
+    source: {
+      who: "Yann LeCun（圖靈獎得主，時任 Meta 首席 AI 科學家）",
+      outlet: "Newsweek · AI Impact 訪談系列",
+      date: "2025-04-02",
+      url: "https://www.newsweek.com/nw-ai/ai-impact-interview-yann-lecun-artificial-intelligence-2054237",
+      also: []
+    },
+    oneLiner: "缺乏世界模型與分層規劃的 LLM，能做到深思熟慮的「System 2」思考嗎？",
+    extensions: [
+      { q: "為何 AI 能通過律師考試，卻做不到一隻貓的日常動作？", type: "能力邊界" },
+      { q: "沒有身體與感官，AI 的「理解」是否永遠缺一塊？", type: "理解與意識" },
+      { q: "若 AI 只執行被賦予的目標，判斷錯誤時責任在誰？", type: "倫理與責任" }
+    ],
+    process: [
+      { k: "問題定義", v: "LLM 每產生一個 token 都用固定運算量，屬於反射式的 System 1。" },
+      { k: "前提", v: "智能＝快速習得新技能＋對世界運作的心智模型，能預測後果並規劃。" },
+      { k: "推演", v: "4 歲孩子透過視覺接收的資料量，約等於大型 LLM 的文字訓練量 → 只靠文字到不了人類水準 → 需要在抽象表徵空間做預測的世界模型（JEPA）。" },
+      { k: "未解關鍵點", v: "世界模型何時能從研究走向大規模實用？他估計約 3–5 年。" }
+    ],
+    userInserted: false,
+    videoUrl: "",
+    imageUrl: ""
+  },
+  {
+    id: "q3",
+    title: "為什麼模型的泛化能力遠不如人？",
+    type: "能力邊界",
+    source: {
+      who: "Ilya Sutskever（Safe Superintelligence 共同創辦人）",
+      outlet: "Dwarkesh Podcast",
+      date: "2025-11-25",
+      url: "https://www.dwarkesh.com/p/ilya-sutskever-2",
+      also: []
+    },
+    oneLiner: "AI 要比人多很多資料才學得會，而且更難被「教會」我們真正想要的——為什麼？",
+    extensions: [
+      { q: "人類不是全知的 AGI，而是靠持續學習；AI 也該如此嗎？", type: "能力邊界" },
+      { q: "AI 在部署中自行學習，行為改變由誰把關？", type: "倫理與責任" },
+      { q: "泛化不可靠，是否正是 AI 難以對齊的根源？", type: "推理與判斷" }
+    ],
+    process: [
+      { k: "問題定義", v: "模型的泛化能力明顯比人差，這是最根本的問題。" },
+      { k: "前提", v: "拆成兩個子問題：樣本效率（為何需要更多資料）與可教性（為何更難教）。" },
+      { k: "推演", v: "強化學習可能過度擬合評測 → 分數與真實能力脫節 → 單靠擴大規模會趨緩，進入「研究時代」→ 方向：在部署中持續學習。" },
+      { k: "未解關鍵點", v: "可靠泛化的機制到底是什麼？這也牽動安全與對齊。" }
+    ],
+    userInserted: false,
+    videoUrl: "https://www.youtube.com/watch?v=aR20FWCCjAs",
+    imageUrl: ""
+  },
+  {
+    id: "q4",
+    title: "大型語言模型真的「理解」語言嗎？",
+    type: "理解與意識",
+    source: {
+      who: "Geoffrey Hinton（諾貝爾物理獎得主）× Nick Frosst（Cohere 共同創辦人）",
+      outlet: "Toronto Tech Week 2025 對談（Digital Journal 報導）",
+      date: "2025-06-25",
+      url: "https://www.digitaljournal.com/article/nobel-laureate-geoffrey-hinton-and-cohere-co-founder-nick-frosst-on-what-ai-understands-and-why-it-matters/",
+      also: []
+    },
+    oneLiner: "AI 處理詞義的方式，和人類理解語言在本質上是否相同？",
+    extensions: [
+      { q: "LLM 的意識程度：比石頭多、比樹少，還是接近人類？", type: "理解與意識" },
+      { q: "數位智能能大量複製、瞬間共享知識，會造成什麼權力失衡？", type: "社會影響" },
+      { q: "能自訂子目標的 AI 代理，會不會去追求更多權力？", type: "倫理與責任" }
+    ],
+    process: [
+      { k: "問題定義", v: "「理解」還是「模仿」？這是讓 AI 學界分裂的問題。" },
+      { k: "前提", v: "Hinton 把詞看成可變形的高維形狀，彼此調整到能互相契合。" },
+      { k: "推演", v: "Hinton：這就是 LLM 與人類共同的理解方式 ⇄ Frosst：像飛機與鳥，功能相似、機制完全不同。" },
+      { k: "未解關鍵點", v: "雙方未達共識：判斷「理解」該看結果，還是看機制？" }
+    ],
+    userInserted: false,
+    videoUrl: "",
+    imageUrl: ""
+  },
+  {
+    id: "q5",
+    title: "AI「看起來有意識」，就已經夠危險了嗎？",
+    type: "社會影響",
+    source: {
+      who: "Mustafa Suleyman（Microsoft AI 執行長）",
+      outlet: "Project Syndicate 評論〈Seemingly Conscious AI Is Coming〉",
+      date: "2025-09-15",
+      url: "https://www.project-syndicate.org/commentary/seemingly-conscious-ai-urgent-threat-tech-industry-must-address-by-mustafa-suleyman-2025-09",
+      also: [
+        { label: "作者個人網站完整長文", url: "https://mustafa-suleyman.ai/seemingly-conscious-ai-is-coming" }
+      ]
+    },
+    oneLiner: "就算 AI 沒有意識，只要人們相信它有，會帶來哪些真實的社會後果？",
+    extensions: [
+      { q: "AI 是否應被禁止宣稱自己有感受？", type: "倫理與責任" },
+      { q: "我們用什麼標準判斷一個系統「真的」有意識？", type: "理解與意識" },
+      { q: "人與 AI 的情感依附，會如何改變人際關係？", type: "社會影響" }
+    ],
+    process: [
+      { k: "問題定義", v: "「看似有意識的 AI」（SCAI）：模仿意識特徵到難以分辨。" },
+      { k: "前提", v: "作者認為目前沒有 AI 具備意識的證據；「是否真有意識」的爭論暫時是分心。" },
+      { k: "推演", v: "流暢語言＋長期記憶＋模擬動機與自主目標 → 使用者相信它有意識 → 出現 AI 權利、公民身分主張與不健康依附。" },
+      { k: "未解關鍵點", v: "產業該如何設計防護機制，避免或化解「它有意識」的錯覺？" }
+    ],
+    userInserted: false,
+    videoUrl: "",
+    imageUrl: ""
+  },
+  {
+    id: "q6",
+    title: "連開發者都不懂 AI 怎麼運作，還能放心部署嗎？",
+    type: "倫理與責任",
+    source: {
+      who: "Dario Amodei（Anthropic 執行長）",
+      outlet: "個人文章〈The Urgency of Interpretability〉",
+      date: "2025-04",
+      url: "https://www.darioamodei.com/post/the-urgency-of-interpretability",
+      also: []
+    },
+    oneLiner: "AI 內部機制不透明，人類要如何為它的決策與風險負責？",
+    extensions: [
+      { q: "法規要求決策可解釋的領域（如房貸審核），能採用 AI 嗎？", type: "社會影響" },
+      { q: "若 AI 可能具有感知，我們能相信它的自我陳述嗎？", type: "理解與意識" },
+      { q: "政府該強制檢查，還是只要求公開揭露安全做法？", type: "倫理與責任" }
+    ],
+    process: [
+      { k: "問題定義", v: "生成式 AI 是「長出來」而非「寫出來」的，內部機制難以解釋。" },
+      { k: "前提", v: "欺騙、追求權力、越獄等風險，多半源自這種不透明。" },
+      { k: "推演", v: "可解釋性研究（特徵、電路）可望成為「AI 的 MRI」→ 但它正與模型能力賽跑 → 作者呼籲研究者、企業與政府加速投入。" },
+      { k: "未解關鍵點", v: "可解釋性能否在強大 AI 出現之前成熟？" }
+    ],
+    userInserted: false,
+    videoUrl: "",
+    imageUrl: ""
+  }
+  /* ---- Merlin 自填問題範本（複製後把 userInserted 設為 true）----
+  ,{
+    id: "m1", title: "", type: "能力邊界",
+    source: { who: "Merlin", outlet: "", date: "", url: "", also: [] },
+    oneLiner: "", extensions: [{ q: "", type: "推理與判斷" }],
+    process: [{k:"問題定義",v:""},{k:"前提",v:""},{k:"推演",v:""},{k:"未解關鍵點",v:""}],
+    userInserted: true, videoUrl: "", imageUrl: ""
+  }
+  ---------------------------------------------------------------- */
+];
+
+/* 類型 → 顏色與圖示 */
+const TYPES = {
+  "能力邊界":   { color: "#3b82f6", icon: "📏" },
+  "理解與意識": { color: "#a855f7", icon: "🧠" },
+  "推理與判斷": { color: "#f59e0b", icon: "🧩" },
+  "倫理與責任": { color: "#ef4444", icon: "⚖️" },
+  "社會影響":   { color: "#10b981", icon: "🌐" },
+  "其他":       { color: "#64748b", icon: "✳️" }
+};
+</script>
+<style>
+:root{
+  --bg:#0f1220; --panel:#171b2e; --panel2:#1e2340; --line:#2c3358;
+  --text:#e8eaf6; --muted:#9aa3c7; --gold:#f5c451; --radius:16px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  background:radial-gradient(1200px 600px at 10% -10%,#2a2160 0,transparent 60%),radial-gradient(900px 500px at 110% 0,#123a4a 0,transparent 55%),var(--bg);
+  color:var(--text);line-height:1.55;min-height:100vh}
+a{color:#8fb4ff}
+.wrap{max-width:1200px;margin:0 auto;padding:28px 22px 60px}
+/* header */
+header.hero{display:grid;grid-template-columns:1.1fr 1fr;gap:22px;align-items:stretch;margin-bottom:22px}
+.brand h1{font-size:34px;font-weight:900;margin:0 0 6px;letter-spacing:1px}
+.brand h1 span{background:linear-gradient(90deg,#8fb4ff,#c18bff,#f5c451);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand p{margin:0;color:var(--muted);font-size:15px}
+.brand .stats{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-width:96px}
+.stat b{display:block;font-size:24px;font-weight:900}
+.stat small{color:var(--muted);font-size:12px}
+.summary{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.summary h3{margin:0 0 10px;font-size:14px;color:var(--muted);font-weight:500}
+.barrow{display:grid;grid-template-columns:110px 1fr 54px;gap:10px;align-items:center;margin:7px 0;font-size:13px;cursor:pointer}
+.barrow:hover .bar{filter:brightness(1.2)}
+.track{background:#0c0f1c;border-radius:99px;height:14px;overflow:hidden;display:flex}
+.bar{height:100%}
+.bar.ext{opacity:.4}
+.barrow .n{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;background:#8fb4ff;margin-right:4px;vertical-align:-1px}
+.legend i.l{opacity:.4}
+/* filter */
+.filters{position:sticky;top:0;z-index:5;display:flex;gap:8px;flex-wrap:wrap;padding:12px 0;margin-bottom:6px;
+  background:linear-gradient(var(--bg) 70%,transparent)}
+.chip{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:99px;padding:7px 14px;font-size:13px;cursor:pointer;
+  display:inline-flex;gap:6px;align-items:center;font-family:inherit;transition:.15s}
+.chip .dot{width:9px;height:9px;border-radius:50%}
+.chip .c{background:#0c0f1c;border-radius:99px;padding:0 7px;font-size:11px;color:var(--muted)}
+.chip.on{background:var(--c,#3b4170);border-color:var(--c,#8fb4ff);color:#fff;box-shadow:0 0 0 3px color-mix(in srgb,var(--c,#8fb4ff) 25%,transparent)}
+.chip.on .c{background:rgba(0,0,0,.25);color:#fff}
+.tools{margin-left:auto;display:flex;gap:8px}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+.btn.gold{border-color:var(--gold);color:var(--gold)}
+/* section titles */
+h2.sec{font-size:18px;margin:26px 0 12px;display:flex;align-items:center;gap:10px}
+h2.sec small{color:var(--muted);font-weight:400;font-size:13px}
+/* cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;
+  border-top:4px solid var(--c);transition:transform .15s, box-shadow .15s}
+.card:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.card .top{padding:14px 16px 10px}
+.tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.tag{font-size:11.5px;font-weight:700;border-radius:6px;padding:2px 8px;background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--c);border:1px solid color-mix(in srgb,var(--c) 45%,transparent);white-space:nowrap}
+.badge-user{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;background:var(--gold);color:#2a1d00}
+.idn{margin-left:auto;font-size:11px;color:var(--muted)}
+.card h4{margin:0 0 6px;font-size:18px;line-height:1.35}
+.one{margin:0;color:#cfd5f5;font-size:14px;display:flex;gap:6px}
+.one::before{content:"💡";flex:none}
+.src{font-size:12px;color:var(--muted);margin-top:10px;display:flex;gap:6px;align-items:flex-start}
+.src a{color:#8fb4ff;text-decoration:none}
+.src a:hover{text-decoration:underline}
+.mini-ext{display:flex;gap:6px;flex-wrap:wrap;padding:0 16px 12px}
+.mini-ext span{width:22px;height:6px;border-radius:99px;background:var(--c)}
+.toggle{border:none;border-top:1px solid var(--line);background:var(--panel2);color:var(--muted);padding:10px;cursor:pointer;font-family:inherit;font-size:13px;margin-top:auto}
+.toggle:hover{color:#fff}
+.details{display:none;padding:14px 16px 16px;border-top:1px solid var(--line);background:#141831}
+.card.open .details{display:block}
+.label{font-size:12px;color:var(--muted);margin:0 0 8px;font-weight:700;letter-spacing:.5px}
+/* process stepper */
+.steps{display:grid;gap:8px;margin-bottom:14px;counter-reset:s}
+.step{display:grid;grid-template-columns:92px 1fr;gap:10px;align-items:start;font-size:13px}
+.step .k{background:var(--sc);color:#0d1020;font-weight:900;border-radius:8px;padding:4px 8px;text-align:center;font-size:12px;position:relative}
+.step:not(:last-child) .k::after{content:"";position:absolute;left:50%;top:100%;width:2px;height:12px;background:var(--line)}
+.step .v{color:#d7dbf3}
+/* extensions list */
+.exts{display:grid;gap:6px;margin-bottom:14px}
+.ext{display:flex;gap:8px;align-items:center;font-size:13.5px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:8px;padding:7px 10px}
+.ext .arrow{color:var(--muted)}
+.ext .tag{margin-left:auto}
+/* media */
+.media{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.slot{border:1.5px dashed var(--line);border-radius:10px;height:78px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:12px;gap:2px;text-decoration:none;overflow:hidden}
+.slot b{font-size:20px}
+.slot.has{border-style:solid;border-color:#3b4a8a;color:#cfe0ff;background:#1a2147}
+.slot img{width:100%;height:100%;object-fit:cover}
+.also{font-size:12px;margin-top:6px}
+/* tree */
+.tree{display:grid;gap:14px}
+.branch{display:grid;grid-template-columns:300px 1fr;gap:0;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+.root{background:color-mix(in srgb,var(--c) 22%,#151a33);border:1.5px solid var(--c);border-radius:12px;padding:10px 12px;font-weight:700;font-size:14px;position:relative;cursor:pointer}
+.root small{display:block;font-weight:400;color:var(--muted);font-size:11px;margin-top:3px}
+.root::after{content:"";position:absolute;right:-28px;top:50%;width:28px;height:2px;background:var(--c)}
+.leaves{margin-left:28px;border-left:2px solid var(--c);padding-left:0;display:grid;gap:6px}
+.leaf{position:relative;margin-left:22px;font-size:13px;background:#141831;border:1px solid var(--line);border-radius:9px;padding:6px 10px;display:flex;gap:8px;align-items:center}
+.leaf::before{content:"";position:absolute;left:-24px;top:50%;width:22px;height:2px;background:var(--lc)}
+.leaf .d{width:8px;height:8px;border-radius:50%;background:var(--lc);flex:none}
+.leaf .t{margin-left:auto;font-size:11px;color:var(--lc);white-space:nowrap}
+.hidden{display:none!important}
+.empty{color:var(--muted);text-align:center;padding:30px;border:1px dashed var(--line);border-radius:var(--radius)}
+/* add dialog */
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:16px;width:min(520px,92vw);padding:20px}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+dialog input,dialog select,dialog textarea{width:100%;background:#0f1328;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;font-family:inherit;font-size:14px}
+dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+footer{color:var(--muted);font-size:12px;margin-top:36px;text-align:center}
+@media (max-width:860px){header.hero{grid-template-columns:1fr}.branch{grid-template-columns:1fr}.root::after{display:none}.leaves{margin:10px 0 0 10px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="brand">
+      <h1>🔮 <span>AI 認知邊界</span> 問題鏈</h1>
+      <p>把公開討論中的關鍵提問，拆成「主問題 → 延伸問題」，並標註問題類型。點卡片看推演流程。</p>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="summary">
+      <h3>📊 各類型問題數量</h3>
+      <div id="bars"></div>
+      <div class="legend"><span><i></i>主問題</span><span><i class="l"></i>延伸問題</span><span>點一列可直接篩選</span></div>
+    </div>
+  </header>
+
+  <nav class="filters" id="filters"></nav>
+
+  <h2 class="sec">🗂️ 問題卡片 <small id="shown"></small></h2>
+  <div class="grid" id="grid"></div>
+
+  <h2 class="sec">🌳 問題鏈地圖 <small>主問題 → 延伸問題（顏色＝類型）</small></h2>
+  <div class="tree" id="tree"></div>
+
+  <footer>內容為公開訪談／文章之摘要改寫，非逐字引述；請以原始來源為準。資料更新：2026-10-10</footer>
+</div>
+
+<dialog id="addDlg">
+  <form method="dialog" id="addForm">
+    <h3 style="margin:0 0 4px">✍️ 新增我的問題</h3>
+    <div style="font-size:12px;color:var(--muted)">儲存在這台瀏覽器（localStorage），會顯示「Merlin 自填」徽章。</div>
+    <label>問題（短句）</label><input name="title" required maxlength="60">
+    <label>類型</label><select name="type" id="typeSel"></select>
+    <label>一句話：這個問題真正在問什麼？</label><input name="oneLiner" maxlength="100">
+    <label>延伸問題（每行一題，可在行尾加「｜類型」）</label><textarea name="exts" rows="3" placeholder="例：AI 會有直覺嗎？｜理解與意識"></textarea>
+    <label>來源（選填）</label><input name="src" placeholder="人名／媒體／日期">
+    <label>來源網址（選填）</label><input name="url" type="url">
+    <div class="row"><button class="btn" value="cancel" formnovalidate>取消</button><button class="btn gold" value="ok">加入</button></div>
+  </form>
+</dialog>
+
+<script>
+(function(){
+  const STORE = "aiBoundary.userQuestions.v1";
+  let userQs = [];
+  try { userQs = JSON.parse(localStorage.getItem(STORE) || "[]"); } catch(e){ userQs = []; }
+  const all = () => QUESTIONS.concat(userQs);
+  const T = t => TYPES[t] || TYPES["其他"];
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const STEP_COLORS = {"問題定義":"#8fb4ff","前提":"#c18bff","推演":"#f5c451","未解關鍵點":"#ff8a8a"};
+  let active = "全部";
+  const tag = t => `<span class="tag" style="--c:${T(t).color}">${T(t).icon} ${esc(t)}</span>`;
+
+  function counts(){
+    const c = {};
+    Object.keys(TYPES).forEach(k => c[k] = {main:0, ext:0});
+    all().forEach(q => {
+      (c[q.type] ||= {main:0,ext:0}).main++;
+      (q.extensions||[]).forEach(e => (c[e.type] ||= {main:0,ext:0}).ext++);
+    });
+    return c;
+  }
+
+  function renderHeader(){
+    const qs = all(), c = counts();
+    const nExt = qs.reduce((a,q)=>a+(q.extensions||[]).length,0);
+    const nSrc = new Set(qs.filter(q=>q.source&&q.source.url).map(q=>q.source.url)).size;
+    document.getElementById("stats").innerHTML = [
+      [qs.length,"主問題"],[nExt,"延伸問題"],[nSrc,"公開來源"],[userQs.length,"Merlin 自填"]
+    ].map(([n,l])=>`<div class="stat"><b>${n}</b><small>${l}</small></div>`).join("");
+    const max = Math.max(1, ...Object.values(c).map(v=>v.main+v.ext));
+    document.getElementById("bars").innerHTML = Object.entries(c)
+      .filter(([k,v]) => v.main+v.ext>0)
+      .map(([k,v]) => `<div class="barrow" data-type="${esc(k)}" title="主問題 ${v.main}／延伸 ${v.ext}">
+        <span>${T(k).icon} ${esc(k)}</span>
+        <div class="track"><div class="bar" style="width:${v.main/max*100}%;background:${T(k).color}"></div><div class="bar ext" style="width:${v.ext/max*100}%;background:${T(k).color}"></div></div>
+        <span class="n">${v.main}＋${v.ext}</span></div>`).join("");
+    document.querySelectorAll(".barrow").forEach(el => el.onclick = () => setFilter(el.dataset.type));
+
+    const types = ["全部", ...Object.keys(c).filter(k => c[k].main+c[k].ext>0)];
+    document.getElementById("filters").innerHTML = types.map(t => {
+      const n = t==="全部" ? qs.length : qs.filter(q=>q.type===t||(q.extensions||[]).some(e=>e.type===t)).length;
+      const col = t==="全部" ? "#5b66b0" : T(t).color;
+      return `<button class="chip ${active===t?"on":""}" style="--c:${col}" data-type="${esc(t)}">${t==="全部"?"":`<span class="dot" style="background:${col}"></span>`}${esc(t)}<span class="c">${n}</span></button>`;
+    }).join("") + `<button class="chip ${active==="__user"?"on":""}" style="--c:#c9952b" data-type="__user">⭐ Merlin 自填<span class="c">${userQs.length}</span></button>
+      <span class="tools"><button class="btn" id="expAll">全部展開</button><button class="btn gold" id="addBtn">＋ 新增問題</button></span>`;
+    document.querySelectorAll(".chip").forEach(el => el.onclick = () => setFilter(el.dataset.type));
+    document.getElementById("addBtn").onclick = openAdd;
+    document.getElementById("expAll").onclick = toggleAll;
+  }
+
+  function matches(q){
+    if (active==="全部") return true;
+    if (active==="__user") return !!q.userInserted;
+    return q.type===active || (q.extensions||[]).some(e=>e.type===active);
+  }
+
+  function slot(kind, url){
+    const icon = kind==="video" ? "🎬" : "🖼️", name = kind==="video" ? "影片" : "圖片";
+    if (!url) return `<div class="slot"><b>${icon}</b>${name}｜即將加入</div>`;
+    if (kind==="image") return `<a class="slot has" href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(url)}" alt="圖片"></a>`;
+    return `<a class="slot has" href="${esc(url)}" target="_blank" rel="noopener"><b>▶</b>觀看${name}</a>`;
+  }
+
+  function card(q){
+    const c = T(q.type).color, s = q.source||{};
+    const srcLine = s.url
+      ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.who)}</a> · ${esc(s.outlet)} · ${esc(s.date)}`
+      : esc([s.who,s.outlet,s.date].filter(Boolean).join(" · ") || "Merlin 自行提出");
+    const exts = (q.extensions||[]);
+    const highlight = e => active!=="全部"&&active!=="__user"&&e.type===active ? ` style="--c:${T(e.type).color};outline:1px solid ${T(e.type).color}"` : ` style="--c:${T(e.type).color}"`;
+    return `<article class="card" id="card-${esc(q.id)}" style="--c:${c}">
+      <div class="top">
+        <div class="tags">${tag(q.type)}${q.userInserted?'<span class="badge-user">⭐ Merlin 自填</span>':""}<span class="idn">${exts.length} 個延伸</span></div>
+        <h4>${esc(q.title)}</h4>
+        <p class="one">${esc(q.oneLiner||"")}</p>
+        <div class="src">📎 <span>${srcLine}</span></div>
+      </div>
+      <div class="mini-ext">${exts.map(e=>`<span style="--c:${T(e.type).color}" title="${esc(e.type)}"></span>`).join("")}</div>
+      <button class="toggle">▼ 展開：推演流程・延伸問題</button>
+      <div class="details">
+        ${(q.process&&q.process.length)?`<p class="label">🧭 推演流程</p><div class="steps">${q.process.map(p=>`<div class="step"><span class="k" style="--sc:${STEP_COLORS[p.k]||"#9aa3c7"}">${esc(p.k)}</span><span class="v">${esc(p.v)}</span></div>`).join("")}</div>`:""}
+        ${exts.length?`<p class="label">🔗 延伸問題</p><div class="exts">${exts.map(e=>`<div class="ext"${highlight(e)}><span class="arrow">↳</span><span>${esc(e.q)}</span>${tag(e.type)}</div>`).join("")}</div>`:""}
+        <p class="label">🎞️ 媒體</p>
+        <div class="media">${slot("video",q.videoUrl)}${slot("image",q.imageUrl)}</div>
+        ${(s.also&&s.also.length)?`<div class="also">其他來源：${s.also.map(a=>`<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.label)}</a>`).join("、")}</div>`:""}
+        ${q.userInserted&&String(q.id).startsWith("u")?`<div style="margin-top:10px;text-align:right"><button class="btn del" data-id="${esc(q.id)}">刪除此自填問題</button></div>`:""}
+      </div>
+    </article>`;
+  }
+
+  function renderBody(){
+    const qs = all().filter(matches);
+    document.getElementById("shown").textContent = `顯示 ${qs.length} / ${all().length}` + (active!=="全部" ? `｜篩選：${active==="__user"?"Merlin 自填":active}（含延伸問題符合者）` : "");
+    const grid = document.getElementById("grid");
+    grid.innerHTML = qs.length ? qs.map(card).join("") : `<div class="empty">這個類型目前還沒有問題。</div>`;
+    grid.querySelectorAll(".card").forEach(el => {
+      el.querySelector(".toggle").onclick = () => {
+        el.classList.toggle("open");
+        el.querySelector(".toggle").textContent = el.classList.contains("open") ? "▲ 收合" : "▼ 展開：推演流程・延伸問題";
+      };
+    });
+    grid.querySelectorAll(".del").forEach(b => b.onclick = () => {
+      userQs = userQs.filter(q => q.id !== b.dataset.id); save(); renderAll();
+    });
+    document.getElementById("tree").innerHTML = qs.map(q => `
+      <div class="branch">
+        <div class="root" style="--c:${T(q.type).color}" data-id="${esc(q.id)}">${T(q.type).icon} ${esc(q.title)}${q.userInserted?' <span class="badge-user">⭐</span>':""}<small>${esc(q.type)}${q.source&&q.source.who?" · "+esc(q.source.who.split("（")[0]):""}</small></div>
+        <div class="leaves" style="--c:${T(q.type).color}">${(q.extensions||[]).map(e=>`<div class="leaf" style="--lc:${T(e.type).color}"><span class="d"></span><span>${esc(e.q)}</span><span class="t">${esc(e.type)}</span></div>`).join("") || '<div class="leaf" style="--lc:#555">（尚無延伸問題）</div>'}</div>
+      </div>`).join("");
+    document.querySelectorAll(".root").forEach(r => r.onclick = () => {
+      const c = document.getElementById("card-"+r.dataset.id);
+      if (c){ if(!c.classList.contains("open")) c.querySelector(".toggle").click(); c.scrollIntoView({behavior:"smooth",block:"center"}); }
+    });
+  }
+
+  function setFilter(t){ active = (active===t && t!=="全部") ? "全部" : t; renderAll(); }
+  function toggleAll(){
+    const cards = [...document.querySelectorAll(".card")];
+    const open = cards.some(c=>!c.classList.contains("open"));
+    cards.forEach(c => { if (c.classList.contains("open") !== open) c.querySelector(".toggle").click(); });
+    document.getElementById("expAll").textContent = open ? "全部收合" : "全部展開";
+  }
+  function save(){ try { localStorage.setItem(STORE, JSON.stringify(userQs)); } catch(e){} }
+
+  function openAdd(){
+    document.getElementById("typeSel").innerHTML = Object.keys(TYPES).map(t=>`<option>${esc(t)}</option>`).join("");
+    const d = document.getElementById("addDlg");
+    if (d.showModal) d.showModal();
+  }
+  document.getElementById("addDlg").addEventListener("close", () => {
+    const d = document.getElementById("addDlg"), F = document.getElementById("addForm"), f = F.elements;
+    if (d.returnValue === "ok" && f.title.value.trim()){
+      const exts = f.exts.value.split("\n").map(s=>s.trim()).filter(Boolean).slice(0,4).map(line => {
+        const [q, t] = line.split(/[｜|]/).map(x=>x&&x.trim());
+        return { q, type: TYPES[t] ? t : "其他" };
+      });
+      userQs.push({
+        id: "u" + Date.now(), title: f.title.value.trim(), type: f.type.value,
+        source: { who: f.src.value.trim() || "Merlin", outlet: "", date: new Date().toISOString().slice(0,10), url: f.url.value.trim(), also: [] },
+        oneLiner: f.oneLiner.value.trim(), extensions: exts,
+        process: [{k:"問題定義",v:"（待補）"},{k:"前提",v:"（待補）"},{k:"推演",v:"（待補）"},{k:"未解關鍵點",v:"（待補）"}],
+        userInserted: true, videoUrl: "", imageUrl: ""
+      });
+      save(); renderAll();
+    }
+    F.reset(); d.returnValue = "";
+  });
+
+  function renderAll(){ renderHeader(); renderBody(); }
+  renderAll();
+  document.body.dataset.ready = "1";
+})();
+</script>
+</body>
+</html>
