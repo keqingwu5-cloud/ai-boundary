@@ -266,5 +266,5 @@
 
   setInterval(refresh, 5000);
   refresh();
-  window.KnowledgeScore = { compute, raw:read, open, close, reset, flush, weights:W };
+  window.KnowledgeScore = { compute, raw:read, open, close, reset, flush, refresh, weights:W };
 })();

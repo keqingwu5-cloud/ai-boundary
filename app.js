@@ -291,7 +291,7 @@ function undo(){
   if (!B(focusId)) focusBrain('main');
   emit('change', { action:'undo' });
 }
-function resetAll(){ undoStack.push(JSON.stringify(state)); state = seedState(); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); }
+function resetAll(){ undoStack.push(JSON.stringify(state)); state = migrate(seedState()); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); emit('change', { action:'reset' }); }
 function exportJSON(value = state){
   // onclick passes a MouseEvent; preserve the original graph-export behavior.
   if (!value || value instanceof Event) value = state;
@@ -312,6 +312,23 @@ function importJSON(obj){
   undoStack.push(JSON.stringify(state));
   state = candidate;
   save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入');
+  emit('change', { action:'import' });
+  return true;
+}
+/* changes that come from elsewhere (Supabase realtime / sync.js). fn(st) patches a state object in place; it is applied to the
+   live state AND to every undo snapshot, so ↶ only reverts your own last action instead of other people's edits.
+   No history entry, no undo step. Emits change { action:'remote' }. */
+function applyExternal(fn, info = {}){
+  fn(state); if (!valid(state)) return false;
+  undoStack = undoStack.map(s => { try { const o = JSON.parse(s); fn(o); return JSON.stringify(o); } catch(e){ return s; } });
+  save(); sync(); renderHistory(); renderCrumbs();
+  if (!B(focusId)) focusBrain('main');
+  if (selected){
+    const n = N(selected), ae = document.activeElement;
+    if (!n) closePanel();
+    else if ((!info.ids || info.ids.includes(selected)) && !(ae && panel.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) select(selected, true);
+  }
+  emit('change', { action:'remote', payload:{ ids:info.ids || null } });
   return true;
 }
 
@@ -774,7 +791,7 @@ function flowHTML(f){
     ${sec('🗣', '各方觀點', views)}
     ${sec('？', '未解關鍵點', f['未解關鍵點'] ? list(f['未解關鍵點']) : '')}</div>`;
 }
-function select(id){
+function select(id, quiet){
   const n = N(id); if (!n) return; selected = id;
   $('#bFeed').href = 'feed.html#node=' + encodeURIComponent(id);
   if (n.brainId !== focusId && B(n.brainId)) focusBrain(n.brainId);
@@ -839,7 +856,7 @@ function select(id){
     else if (a === 'del'){ if (confirm('刪除這個節點與其分支？')) deleteNode(id); }
   });
   panel.classList.add('open'); panel.scrollTop = 0;
-  emit('select', { id });   // 給 knowledge-score.js 等被動觀察者
+  if (!quiet) emit('select', { id });   // 給 knowledge-score.js 等被動觀察者
 }
 function closePanel(){ const was = selected; panel.classList.remove('open'); selected = null; $('#bFeed').href = 'feed.html'; if (was) emit('close', { id:was }); }
 $('#pX').onclick = closePanel;
@@ -904,7 +921,7 @@ $('#bUndo').onclick = undo;
 $('#bExport').onclick = exportJSON;
 $('#bImport').onclick = () => $('#file').click();
 $('#file').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { importJSON(JSON.parse(r.result)); } catch(err){ toast('⚠ 無法讀取 JSON'); } }; r.readAsText(f); e.target.value = ''; };
-$('#bReset').onclick = () => { if (confirm('重置成初始 6 題？（可用復原找回）')) resetAll(); };
+$('#bReset').onclick = () => { if (confirm('重置成初始 6 題？（可用復原找回）' + (window.AISync && window.AISync.canWrite && window.AISync.canWrite() ? '\n⚠ 已登入雲端同步：這會重置所有裝置共用的大腦。' : ''))) resetAll(); };
 $('#bHome').onclick = () => focusBrain('main');
 $('#bFit').onclick = overview;
 $('#bRot').onclick = function(){ controls.autoRotate = !controls.autoRotate; this.classList.toggle('on', controls.autoRotate); autoRotPref = controls.autoRotate; };
@@ -1033,7 +1050,9 @@ window.AIBrain = {
   addConcept, removeConcept, setProcessPattern, getConcepts, getConceptThreads:() => JSON.parse(JSON.stringify(threads)), getConceptLinks:() => conceptLinks.map(l => ({ from:l.from, to:l.to, kind:'concept', concept:l.concept, threadKind:l.threadKind })),
   suggestConcepts, focusConcept, showConcepts, _debug:debug, mergeBrain, crossLink, setStatus, addCounterEvidence, setCollapsed, setMedia, deleteNode,
   focusBrain, focusNode, overview, select, undo, exportJSON, importJSON, reset:resetAll,
-  on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); }
+  on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); },
+  /* sync hooks (sync.js) — not for bots */
+  _applyExternal:applyExternal, _migrate:st => migrate(st), _valid:valid, _toast:toast
 };
 document.body.dataset.ready = '1';
 
