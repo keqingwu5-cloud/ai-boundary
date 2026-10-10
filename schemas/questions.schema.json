@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "content/questions.json — QUESTIONS（原文不動）",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "id",
+      "title",
+      "type",
+      "extensions",
+      "process"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+$"
+      },
+      "title": {
+        "type": "string",
+        "minLength": 1
+      },
+      "type": {
+        "type": "string"
+      },
+      "oneLiner": {
+        "type": "string"
+      },
+      "extensions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "q",
+            "type"
+          ]
+        }
+      },
+      "process": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "k",
+            "v"
+          ]
+        }
+      },
+      "videoUrl": {
+        "type": "string",
+        "maxLength": 2000,
+        "pattern": "^(|https?://[^\\s<>\"'`\\\\]+|[^\\s:<>\"'`\\\\/][^\\s:<>\"'`\\\\]*)$"
+      },
+      "imageUrl": {
+        "type": "string",
+        "maxLength": 2000,
+        "pattern": "^(|https?://[^\\s<>\"'`\\\\]+|[^\\s:<>\"'`\\\\/][^\\s:<>\"'`\\\\]*)$"
+      },
+      "userInserted": {
+        "type": "boolean"
+      },
+      "source": {
+        "type": [
+          "object",
+          "null"
+        ]
+      }
+    }
+  }
+}
