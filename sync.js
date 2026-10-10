@@ -10,6 +10,8 @@ if (SB_URL && SB_KEY) start().catch(e => console.error('[sync]', e));
 
 async function start(){
   const core = await import('./sync-core.js' + V), { esc } = await import('./safe.js' + V);
+  await window.AI_DATA_READY;                                   // 等種子資料，再等大腦／feed 初始化完（它們會設 body.dataset.ready）
+  for (let i = 0; i < 200 && document.body.dataset.ready !== '1'; i++) await new Promise(r => setTimeout(r, 50));
   const BRAIN = !!(window.AIBrain && document.getElementById('c')), SKEY = 'aiBrain.sync.v2:' + GRAPH, $ = s => document.querySelector(s);
   const loadSync = () => { try { const s = JSON.parse(localStorage.getItem(SKEY)); if (s && s.snap) return s; } catch(e){} return null; };
   let pendCache = null;                                   // 待上傳清單的快取：大腦 change 事件、拉取、上傳（存快照）時清掉

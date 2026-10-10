@@ -5,6 +5,7 @@
    - 不改動大腦或 feed 的資料；只聽事件（AIBrain.on('select'/'close'/'change')、<video> 的 timeupdate、AIFeed.current()）。
    - 介面：工具列上一顆小徽章（顯示整體分數），點了才打開「說明區」。不會自動跳出任何東西。
    公開 API：window.KnowledgeScore = { compute(), raw(), open(), close(), reset() } */
+try { await window.AI_DATA_READY; } catch(e){}   // 種子資料（data.js 從 content/*.json 載入）
 (() => {
   const KS = 'aiBrain.knowledge.v1', BRAIN_KEY = 'aiBrain.v1', FEED_KEY = 'aiBrain.feed.v1';
   const PAGE = document.getElementById('c') ? 'brain' : 'feed';
