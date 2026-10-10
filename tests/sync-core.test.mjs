@@ -1,174 +1,115 @@
-// node --test tests/        （Node 20.19+；不需要安裝任何套件）
+// node --test tests/ ：合併、無狀態佇列（snapshot diff）、墓碑、種子遷移、唯讀
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as C from '../sync-core.js';
 
 const node = (id, o = {}) => Object.assign({ id, brainId:'main', parentId:null, kind:'question', title:id, type:'其他', createdBy:'seed', createdAt:1, pos:[0, 0, 0], concepts:[] }, o);
-const base = () => ({ version:2, brains:[C.DEFAULT_MAIN()], nodes:[node('n_q1'), node('n_q2')], links:[{ id:'l1', from:'n_q1', to:'n_q2', kind:'derived', createdAt:1 }],
-  history:[{ ts:1, action:'seed', payload:{ questions:2 } }], concepts:{ 意識:{ color:'#fff', desc:'', createdBy:'seed' } }, patterns:{}, seedExtras:[], seedPatches:[] });
+const base = () => C.repair({ version:2, brains:[C.DEFAULT_MAIN()], nodes:[node('n_q1'), node('n_q2')], links:[{ id:'l1', from:'n_q1', to:'n_q2', kind:'derived', createdAt:1 }],
+  history:[{ ts:1, action:'seed', payload:{ questions:2 } }], concepts:{ 意識:{ color:'#ffffff', desc:'', createdBy:'seed' } }, patterns:{}, seedExtras:[] });
+const norm = st => C.rowsToState([...C.toEntities(st)].map(([k, v]) => { const [kind, id] = C.splitKey(k); return { kind, id, data:v }; }), st.history);
 
-/* tiny in-memory "Supabase": upsert bumps version, like the trigger in schema.sql */
-function server(){
-  const rows = new Map(); let clock = 0;
-  return {
-    rows, all:() => [...rows.values()].map(r => C.clone(r)),
-    upsert(list){ return list.map(r => { const k = C.keyOf(r.kind, r.id), old = rows.get(k);
-      const n = { kind:r.kind, id:r.id, data:r.data ? JSON.parse(C.stable(r.data)) : null /* jsonb re-orders keys */, deleted:!!r.deleted, version:old ? old.version + 1 : 1, updated_at:new Date(1e12 + ++clock * 1000).toISOString() };
-      rows.set(k, n); return C.clone(n); }); }
-  };
-}
-/* a device = local state + persisted queue + shadow, mimicking sync.js */
-function device(srv, st = base(), canWrite = true){
-  const d = { st:C.clone(st), q:C.emptyQueue(), canWrite };
-  d.shadow = C.fingerprint(d.st); d.hs = C.historyKeys(d.st);
-  d.edit = fn => { fn(d.st); const ops = C.diff(d.shadow, d.st); C.enqueue(d.q, ops); C.enqueueHistory(d.q, C.newHistory(d.hs, d.st)); d.shadow = C.fingerprint(d.st); d.hs = C.historyKeys(d.st); };
-  d.load = (migrate) => { const res = C.mergeRemote(d.st, srv.all(), d.q, { full:true, migrate, canWrite:d.canWrite }); d.st = res.state; d.shadow = C.fingerprint(d.st); return res; };
-  d.flush = () => { if (!d.canWrite) return []; const ops = Object.values(d.q.ops); const ret = srv.upsert(ops.map(o => ({ kind:o.kind, id:o.id, data:o.data, deleted:o.deleted }))); C.ack(d.q, ops, ret); return ret; };
-  d.receive = rows => { C.applyRows(d.st, C.acceptRows(d.q, rows)); rows.forEach(r => C.noteVersion(d.q, r)); d.shadow = C.fingerprint(d.st); };
+/* 假的雲端：upsert，像 Supabase 一樣 jsonb 會重排 key */
+function server(){ const rows = new Map(), hist = new Map();
+  return { rows, hist, all:() => [...rows.values()].map(C.clone), H:() => [...hist.values()],
+    upsert(ops){ ops.forEach(o => rows.set(C.keyOf(o.kind, o.id), { kind:o.kind, id:o.id, data:o.deleted ? null : JSON.parse(C.stable(o.data)), deleted:!!o.deleted })); },
+    addHist(list){ list.forEach(h => hist.set(C.hkey(h), h)); } }; }
+/* 一台裝置：本機 state＋snapshot，流程跟 sync.js 一樣 */
+function device(srv, st = norm(base()), canWrite = true, migrate){
+  const d = { st:C.clone(st), sync:null, canWrite };
+  d.pull = () => { const r = srv.all();
+    if (!r.length){ if (d.canWrite) d.sync = { snap:{}, hkeys:[] }; return; }
+    const res = C.merge(d.st, r, srv.H(), d.sync, { migrate, canWrite:d.canWrite }); d.st = res.state; d.sync = res.sync; return res; };
+  d.flush = () => { if (!d.canWrite || !d.sync) return 0; const ops = C.diff(d.sync.snap, d.st), h = C.pendingHistory(d.st, d.sync); srv.upsert(ops); srv.addHist(h); C.ack(d.sync, ops, h); return ops.length; };
+  d.pending = () => d.sync ? C.diff(d.sync.snap, d.st) : [];
   return d;
 }
 const N = (st, id) => st.nodes.find(n => n.id === id);
 
-test('state ⇄ entities round trip (incl. concepts and meta)', () => {
-  const st = base(), ents = C.toEntities(st);
-  assert.ok(ents.has('node:n_q1') && ents.has('link:l1') && ents.has('concept:意識') && ents.has('meta:seedExtras'));
-  assert.ok(!ents.has('meta:version') && !ents.has('meta:history'));
-  const rows = [...ents].map(([k, v]) => { const [kind, id] = C.splitKey(k); return { kind, id, data:v, deleted:false }; });
-  const back = C.rowsToState(rows, st.history);
-  assert.equal(C.stable(C.toEntities(back).get('node:n_q2')), C.stable(st.nodes[1]));
-  assert.deepEqual(back.concepts, st.concepts);
-  assert.equal(back.history.length, 1);
+test('stable()／hkey 跟 key 順序無關', () => {
+  assert.equal(C.stable({ a:1, b:{ c:[1, { e:1, f:2 }] } }), C.stable({ b:{ c:[1, { f:2, e:1 }] }, a:1 }));
+  assert.equal(C.hkey({ ts:5, action:'add', payload:{ a:1, b:2 } }), C.hkey({ ts:'5', action:'add', payload:{ b:2, a:1 } }));
 });
-
-test('stable() ignores key order (jsonb) and history keys dedupe', () => {
-  assert.equal(C.stable({ a:1, b:{ c:2, d:[1, { e:1, f:2 }] } }), C.stable({ b:{ d:[1, { f:2, e:1 }], c:2 }, a:1 }));
-  const h = { ts:5, action:'add', payload:{ nodeId:'x', title:'t' } };
-  assert.equal(C.hkey(h), C.hkey({ ts:'5', action:'add', payload:{ title:'t', nodeId:'x' } }));
-  assert.equal(C.mergeHistory([h], [{ ts:5, action:'add', payload:{ title:'t', nodeId:'x' } }, { ts:2, action:'seed', payload:{} }]).length, 2);
+test('雲端是空的：編輯者整份上傳（種子），唯讀者不動', () => {
+  const srv = server(); const ro = device(srv, undefined, false); ro.pull(); assert.equal(ro.sync, null);
+  const a = device(srv); a.pull(); assert.ok(a.flush() > 5); assert.ok(srv.rows.has('node:n_q1') && srv.hist.size === 1);
+  assert.equal(a.pending().length, 0);
 });
-
-test('empty remote: an authenticated device seeds it, a read-only one does not', () => {
-  const srv = server();
-  const ro = device(srv, base(), false); const r1 = ro.load(); assert.ok(r1.empty); assert.equal(C.pending(ro.q), 0);
-  const a = device(srv); const r2 = a.load(); assert.ok(r2.empty); assert.ok(C.pending(a.q) > 0); assert.equal(Object.keys(a.q.hist).length, 1);
-  a.flush(); assert.equal(C.pending(a.q), 0); assert.ok(srv.rows.has('node:n_q1'));
+test('兩台裝置改不同節點：互不覆蓋', () => {
+  const srv = server(); const a = device(srv); a.pull(); a.flush();
+  const b = device(srv); b.pull();
+  N(a.st, 'n_q1').status = 'resolved'; N(b.st, 'n_q2').title = 'B 改了';
+  a.flush(); b.flush(); a.pull(); b.pull();
+  for (const d of [a, b]){ assert.equal(N(d.st, 'n_q1').status, 'resolved'); assert.equal(N(d.st, 'n_q2').title, 'B 改了'); }
 });
-
-test('two devices editing different nodes do not clobber each other', () => {
-  const srv = server(); const a = device(srv); a.load(); a.flush();
-  const b = device(srv); b.load();
-  a.edit(st => { N(st, 'n_q1').status = 'resolved'; });
-  b.edit(st => { N(st, 'n_q2').title = 'B 改了標題'; });
-  const ra = a.flush(), rb = b.flush();
-  a.receive(rb); b.receive(ra);
-  for (const d of [a, b]){ assert.equal(N(d.st, 'n_q1').status, 'resolved'); assert.equal(N(d.st, 'n_q2').title, 'B 改了標題'); }
+test('離線修改：拉取時保留本機未上傳的修改，其他以雲端為準；連線後上傳', () => {
+  const srv = server(); const a = device(srv); a.pull(); a.flush();
+  const b = device(srv); b.pull();
+  N(b.st, 'n_q1').title = '離線標題'; b.st.nodes.push(node('n_new', { createdBy:'merlin', createdAt:9 }));   // b 離線
+  N(a.st, 'n_q1').title = 'A 標題'; N(a.st, 'n_q2').status = 'researching'; a.flush();
+  b.pull();
+  assert.equal(N(b.st, 'n_q1').title, '離線標題'); assert.equal(N(b.st, 'n_q2').status, 'researching'); assert.ok(N(b.st, 'n_new'));
+  assert.equal(b.pending().length, 2); b.flush();
+  assert.equal(srv.rows.get('node:n_q1').data.title, '離線標題'); assert.ok(srv.rows.get('node:n_new'));
 });
-
-test('remote wins for shared nodes, but queued local (offline) edits are preserved and uploaded later', () => {
-  const srv = server(); const a = device(srv); a.load(); a.flush();
-  const b = device(srv); b.load();
-  // b goes offline and edits q1 + adds a node
-  b.edit(st => { N(st, 'n_q1').title = 'offline 標題'; st.nodes.push(node('n_new', { createdBy:'merlin', createdAt:9 })); });
-  // meanwhile a edits q1 and q2 online
-  a.edit(st => { N(st, 'n_q1').title = 'A 標題'; N(st, 'n_q2').status = 'researching'; }); a.flush();
-  // b reconnects: full merge
-  b.load();
-  assert.equal(N(b.st, 'n_q1').title, 'offline 標題', 'queued local edit kept');
-  assert.equal(N(b.st, 'n_q2').status, 'researching', 'remote edit applied');
-  assert.ok(N(b.st, 'n_new'));
-  b.flush(); assert.equal(C.pending(b.q), 0);
-  assert.equal(srv.rows.get('node:n_q1').data.title, 'offline 標題');   // last writer wins on the same node
-  assert.ok(srv.rows.get('node:n_new'));
-});
-
-test('local-only entities (made before sync was configured) are queued; tombstones delete', () => {
-  const srv = server(); const a = device(srv); a.load(); a.flush();
-  a.edit(st => { st.nodes.push(node('n_tmp', { createdBy:'merlin', createdAt:5 })); }); a.flush();
-  a.edit(st => { st.nodes = st.nodes.filter(n => n.id !== 'n_tmp'); }); a.flush();
+test('第一次同步：共有的節點以雲端為準、只在本機的上傳、雲端墓碑不會被復活', () => {
+  const srv = server(); const a = device(srv); a.pull(); a.flush();
+  a.st.nodes.push(node('n_tmp', { createdAt:5 })); a.flush();
+  a.st.nodes = a.st.nodes.filter(n => n.id !== 'n_tmp'); a.flush();
   assert.equal(srv.rows.get('node:n_tmp').deleted, true);
-  const local = base(); local.nodes.push(node('n_tmp', { createdAt:5 }), node('n_mine', { createdBy:'merlin', createdAt:6 }));
-  const c = device(srv, local); const res = c.load();
-  assert.ok(!N(c.st, 'n_tmp'), 'tombstone removed it, no resurrection');
-  assert.ok(N(c.st, 'n_mine')); assert.deepEqual(res.localOnly.map(o => o.id), ['n_mine']);
-  assert.ok(c.q.ops['node:n_mine']);
+  N(a.st, 'n_q1').title = '雲端標題'; a.flush();
+  const local = norm(base()); N(local, 'n_q1').title = '舊裝置標題'; local.nodes.push(node('n_tmp', { createdAt:5 }), node('n_mine', { createdBy:'merlin', createdAt:6 }));
+  const c = device(srv, local); const res = c.pull();
+  assert.equal(N(c.st, 'n_q1').title, '雲端標題'); assert.ok(!N(c.st, 'n_tmp')); assert.ok(N(c.st, 'n_mine'));
+  assert.deepEqual(res.pending.map(o => o.id), ['n_mine']);
 });
-
-test('stale echoes are ignored; queued keys are not overwritten by realtime', () => {
-  const srv = server(); const a = device(srv); a.load(); a.flush();
-  a.edit(st => { N(st, 'n_q1').title = 'v2'; }); const r2 = a.flush();
-  a.edit(st => { N(st, 'n_q1').title = 'v3'; }); const r3 = a.flush();
-  a.receive(r2);   // late echo of v2 after v3 was acknowledged
-  assert.equal(N(a.st, 'n_q1').title, 'v3');
-  a.edit(st => { N(st, 'n_q2').title = 'local pending'; });
-  a.receive([{ kind:'node', id:'n_q2', data:Object.assign({}, N(base(), 'n_q2'), { title:'remote' }), deleted:false, version:99 }]);
-  assert.equal(N(a.st, 'n_q2').title, 'local pending');
-  void r3;
+test('第一次同步：雲端才有的實體不會被當成本機刪除（不會誤寫墓碑）', () => {
+  const srv = server(); const a = device(srv); a.pull(); a.flush();
+  a.st.nodes.push(node('n_remote_only', { createdBy:'merlin', createdAt:8 })); a.flush();
+  const c = device(srv); const res = c.pull();
+  assert.ok(N(c.st, 'n_remote_only')); assert.ok(!res.pending.some(o => o.deleted));
 });
-
-test('seed migration (SEED_EXTRAS / SEED_PATCHES semantics) runs against the shared brain, additive only', () => {
-  // fake migrate: adds extra node once (tracked in seedExtras) and patches q1 once (tracked in seedPatches)
-  const migrate = st => {
-    st.seedExtras = st.seedExtras || []; st.seedPatches = st.seedPatches || [];
-    if (!st.seedExtras.includes('n_x')){ st.seedExtras.push('n_x'); if (!st.nodes.some(n => n.id === 'n_x')) st.nodes.push(node('n_x', { parentId:'n_q1', kind:'direction', createdAt:3 })); }
-    const q1 = st.nodes.find(n => n.id === 'n_q1');
-    if (q1 && !st.seedPatches.includes('n_q1@p1')){ st.seedPatches.push('n_q1@p1'); if (!q1.reasoning) q1.reasoning = [{ k:'flow', v:'patched' }]; }
-    st.history.push({ ts:7, action:'direction', payload:{ nodeId:'n_x' } });
-    return st;
-  };
-  const srv = server(); const a = device(srv); a.load(); a.flush();          // remote = old seed, no extras
-  a.edit(st => { N(st, 'n_q1').title = 'Merlin 改過'; }); a.flush();
-  const ro = device(srv, base(), false); ro.load(migrate);
-  assert.ok(N(ro.st, 'n_x'), 'read-only device still shows seed additions'); assert.equal(C.pending(ro.q), 0, 'but does not queue them');
-  const b = device(srv); const res = b.load(migrate);
-  assert.ok(res.seedOps.some(o => o.id === 'n_x'));
-  assert.equal(N(b.st, 'n_q1').title, 'Merlin 改過', 'user edit untouched');
-  assert.deepEqual(N(b.st, 'n_q1').reasoning, [{ k:'flow', v:'patched' }]);
-  b.flush();
+test('刪除 → 墓碑，其他裝置跟著移除', () => {
+  const srv = server(); const a = device(srv); a.pull(); a.flush(); const b = device(srv); b.pull();
+  a.st.nodes = a.st.nodes.filter(n => n.id !== 'n_q2'); a.st.links = []; a.flush();
+  b.pull(); assert.ok(!N(b.st, 'n_q2')); assert.equal(b.st.links.length, 0); assert.equal(b.pending().length, 0);
+});
+test('復原：本機回到舊狀態也只是一個普通的待上傳修改', () => {
+  const srv = server(); const a = device(srv); a.pull(); a.flush();
+  const before = C.clone(a.st); N(a.st, 'n_q1').status = 'resolved'; a.flush();
+  a.st = before; assert.deepEqual(a.pending().map(o => o.id), ['n_q1']); a.flush();
+  assert.equal(srv.rows.get('node:n_q1').data.status, 'open');
+});
+test('種子遷移（SEED_EXTRAS／SEED_PATCHES 語意）在本機跑：編輯者上傳結果、唯讀者只在本機、不覆蓋使用者修改、刪掉的不會長回來', () => {
+  const migrate = st => { st.seedExtras = st.seedExtras || [];
+    if (!st.seedExtras.includes('n_x')){ st.seedExtras.push('n_x'); if (!st.nodes.some(n => n.id === 'n_x')) st.nodes.push(node('n_x', { parentId:'n_q1', kind:'direction', createdAt:3, pos:[Math.random(), 0, 0] })); st.history.push({ ts:7, action:'direction', payload:{ nodeId:'n_x' } }); }
+    return st; };
+  const srv = server(); const a = device(srv); a.pull(); a.flush();
+  N(a.st, 'n_q1').title = 'Merlin 改過'; a.flush();
+  const ro = device(srv, norm(base()), false, migrate); ro.pull(); ro.pull();
+  assert.ok(N(ro.st, 'n_x'), '唯讀者也看得到新種子'); assert.deepEqual(ro.pending(), [], '但不算本機修改');
+  assert.equal(N(ro.st, 'n_q1').title, 'Merlin 改過');
+  const b = device(srv, norm(base()), true, migrate); b.pull();
+  assert.ok(b.pending().some(o => o.id === 'n_x')); b.flush();
   assert.ok(srv.rows.get('node:n_x')); assert.deepEqual(srv.rows.get('meta:seedExtras').data, ['n_x']);
-  // user deletes the extra → it must not grow back on the next load anywhere
-  b.edit(st => { st.nodes = st.nodes.filter(n => n.id !== 'n_x'); }); b.flush();
-  const c = device(srv); c.load(migrate);
-  assert.ok(!N(c.st, 'n_x'));
-  assert.equal(Object.keys(c.q.ops).filter(k => k === 'node:n_x').length, 0);
+  assert.ok([...srv.hist.values()].some(h => h.action === 'direction'));
+  b.st.nodes = b.st.nodes.filter(n => n.id !== 'n_x'); b.flush();
+  const c = device(srv, norm(base()), true, migrate); c.pull(); assert.ok(!N(c.st, 'n_x'), '刪掉的種子不會長回來');
 });
-
-test('meta arrays are unioned (concurrent seed bookkeeping)', () => {
-  const st = base(); st.seedPatches = ['a'];
-  C.applyRows(st, [{ kind:'meta', id:'seedPatches', data:['b'], deleted:false }]);
-  assert.deepEqual(st.seedPatches.sort(), ['a', 'b']);
-  C.applyRows(st, [{ kind:'meta', id:'seedPatches', data:null, deleted:true }]);
-  assert.deepEqual(st.seedPatches.sort(), ['a', 'b'], 'never shrinks');
+test('唯讀者的本機修改保留在本機（拉取不會蓋掉），也不會上傳', () => {
+  const srv = server(); const a = device(srv); a.pull(); a.flush();
+  const ro = device(srv, norm(base()), false); ro.pull();
+  N(ro.st, 'n_q2').title = '我自己的筆記'; ro.pull();
+  assert.equal(N(ro.st, 'n_q2').title, '我自己的筆記'); assert.equal(ro.flush(), 0); assert.equal(srv.rows.get('node:n_q2').data.title, 'n_q2');
 });
-
-test('undo snapshots get remote patches, so undo only reverts the local action', () => {
-  const srv = server(); const a = device(srv); a.load(); a.flush();
-  const snapshot = C.clone(a.st);                       // what app.js pushes before a local mutation
-  a.edit(st => { N(st, 'n_q1').status = 'resolved'; });
-  const remote = [{ kind:'node', id:'n_q2', data:Object.assign({}, N(a.st, 'n_q2'), { title:'別人改的' }), deleted:false, version:5 }];
-  C.applyRows(a.st, remote); C.applyRows(snapshot, remote);   // applyExternal does both
-  a.st = snapshot;                                        // ↶ undo
-  assert.equal(N(a.st, 'n_q1').status, undefined);
-  assert.equal(N(a.st, 'n_q2').title, '別人改的');
-  const ops = C.diff(a.shadow, a.st); assert.ok(ops.some(o => o.id === 'n_q1'));   // undo itself is synced as an edit
+test('雲端來的惡意／殘缺資料在合併時就被清洗、補齊（feed 與 3D 場景不會崩潰）', () => {
+  const srv = server(); const a = device(srv); a.pull(); a.flush();
+  srv.upsert([{ kind:'node', id:'n_bad', data:{ title:'bot 只寫了標題', parentId:'n_q1', source:{ url:'javascript:alert(1)' } } },
+    { kind:'brain', id:'b_x', data:{ name:'x', regionColor:'"><script>alert(1)</script>' } }, { kind:'node', id:'n_str', data:'garbage' }]);
+  a.pull();
+  const n = N(a.st, 'n_bad'); assert.ok(n.media && Array.isArray(n.concepts) && Array.isArray(n.pos)); assert.equal(n.source.url, '');
+  assert.equal(a.st.brains.find(b => b.id === 'b_x').regionColor, '#9db7ff'); assert.ok(!N(a.st, 'n_str'));
 });
-
-test('repair keeps the graph renderable', () => {
-  const st = C.rowsToState([{ kind:'node', id:'a', data:node('a', { brainId:'b_gone' }), deleted:false }]);
+test('repair 讓 graph 一定能畫', () => {
+  const st = C.rowsToState([{ kind:'node', id:'a', data:node('a', { brainId:'b_gone' }) }]);
   assert.ok(st.brains.some(b => b.id === 'main')); assert.equal(st.nodes[0].brainId, 'main');
-});
-
-test('feed likes / bookmarks merge per node', () => {
-  const mq = {};
-  const out = C.mergeMarks({ likes:{ a:1, c:3 }, saves:{} }, [{ node_id:'a', liked_at:null, saved_at:10 }, { node_id:'b', liked_at:20, saved_at:null }], mq);
-  assert.deepEqual(out, { likes:{ b:20, c:3 }, saves:{ a:10 } });
-  assert.deepEqual(Object.keys(mq), ['c']);
-  const ops = C.diffMarks(C.marksOf({ likes:{ a:1 }, saves:{} }), C.marksOf({ likes:{}, saves:{ b:2 } }));
-  assert.deepEqual(ops.sort((x, y) => x.node_id.localeCompare(y.node_id)), [{ node_id:'a', liked_at:null, saved_at:null }, { node_id:'b', liked_at:null, saved_at:2 }]);
-});
-
-test('knowledge score merge is a per-field max (idempotent)', () => {
-  const a = { v:1, since:5, nodes:{ x:{ o:2, d:1000, vb:'f0', lv:3 } } }, b = { v:1, since:2, nodes:{ x:{ o:1, d:5000, vb:'0f', lv:9 }, y:{ o:1 } } };
-  const m = C.mergeKnowledge(a, b);
-  assert.deepEqual(m.nodes.x, { o:2, d:5000, vb:'ff', lv:9 }); assert.equal(m.since, 2); assert.ok(m.nodes.y);
-  assert.deepEqual(C.mergeKnowledge(m, b), m);
 });
