@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "content/types.json — 類型 → 顏色與圖示",
+  "type": "object",
+  "required": [
+    "其他"
+  ],
+  "additionalProperties": {
+    "type": "object",
+    "required": [
+      "color",
+      "icon"
+    ],
+    "properties": {
+      "color": {
+        "type": "string",
+        "pattern": "^(#[0-9a-fA-F]{3,8}|hsla?\\([^)]*\\))$"
+      },
+      "icon": {
+        "type": "string",
+        "maxLength": 8
+      }
+    },
+    "additionalProperties": false
+  }
+}
