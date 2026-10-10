@@ -136,3 +136,24 @@ AIBrain.splitNode(id, items, createdBy, 'extension' | 'direction')
 2. 讀留言 → 判斷是新問題、延伸、新方向、推演修正，還是媒體需求。
 3. 寫回大腦：`AIBrain.addQuestion({..., parentId:'<id>', createdBy:'bot'})`、`AIBrain.addDirection('<id>', {...})`、`AIBrain.addCounterEvidence(...)`、`AIBrain.setMedia(...)`，或產出可匯入的 JSON。原文出處記到 `botNotes`（附 discussion 網址）。
 4. 在該串回覆一則「已轉成節點 <id>」，讓留言的人知道。
+
+## 🎬 發佈影集（scripts/publish_episode.sh）
+
+一個指令完成：轉檔 → 放進 `media/videos/` → 更新 `data.js` 的 `SEED_MEDIA` → commit → push。
+
+```bash
+scripts/publish_episode.sh ep02 n_q2          # 第 2 集 → q2
+scripts/publish_episode.sh ep03 n_q3 --no-push  # 只在本機 commit，先不推
+```
+
+- 來源：`$SRC_DIR/<epNN>.mp4`（預設 `/workspace/影像導演/ai-boundary-series`）。對應關係：ep01–ep06 → `n_q1`–`n_q6`。
+- 有 ffmpeg 的話會重新轉成 H.264/AAC，CRF 26（可用 `CRF=` 調整），加 `-movflags +faststart`、寬度最多 720、維持 9:16，並拿第 0.8 秒的畫面存成封面 `<nodeId>.jpg`。不想轉檔就加 `--no-encode`，直接複製。
+- nodeId 必須存在於種子資料（`QUESTIONS` 推出的 `n_qN`／`n_qN_eM`，或 `SEED_EXTRAS` 的 id），找不到會列出所有可用的 id。
+- `SEED_MEDIA` 只在節點的 `media.video`／`media.image` 是空的（或仍是 QUESTIONS 原本的 `videoUrl`／`imageUrl`，例如 q3 的 YouTube 連結）時才會填入；使用者自己貼的網址不會被覆蓋。已經有存檔的使用者，下次載入也會自動拿到新影片。
+- 例外：如果使用者把影片清空，下次載入時會被 `SEED_MEDIA` 補回去，因為存檔裡分辨不出「刻意清空」和「從來沒設定」。
+
+### 種子節點補充（SEED_EXTRAS）
+`data.js` 的 `SEED_EXTRAS` 放不在 `QUESTIONS` 裡的原創節點（`QUESTIONS` 原文不動）。載入時會補進大腦和 feed，接在 `parentId` 底下（如果父節點已經變成子腦，就跟著放進那顆子腦）。已經加過的 id 會記在 `state.seedExtras`，所以使用者刪掉之後不會再長回來。
+
+目前有：
+- `n_x_language`「語言是不是思考的邊界？」：🚀 新方向，接在 q4 底下，類型理解與意識，由 INTP 鏡像研究員提出。來源是影像導演 × INTP 鏡像研究員原創短片（2026-10-10），36 秒，字幕已經燒進畫面；`media.subtitles` 另外附上 SRT，給搜尋和無障礙用。

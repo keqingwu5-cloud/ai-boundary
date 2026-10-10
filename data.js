@@ -252,3 +252,51 @@ const CONCEPTS = {
   process: { "q1":"落差診斷→新典範", "q2":"落差診斷→新典範", "q3":"落差診斷→新典範", "q4":"對立觀點→判準未決", "q5":"風險鏈→治理對策", "q6":"風險鏈→治理對策" }
 };
 
+
+/* =====================================================================
+   種子節點補充：不在 QUESTIONS 裡的原創節點（例如 bot 產出的短片）。
+   載入時補進大腦；已加過的會記在 state.seedExtras，使用者刪掉之後不會再長回來。
+   ===================================================================== */
+const SEED_EXTRAS = [
+  {
+    id: "n_x_language",
+    parentId: "n_q4",
+    kind: "direction",
+    title: "語言是不是思考的邊界？",
+    type: "理解與意識",
+    oneLiner: "我們用字思考，還是只用字記下思考？還是字先決定了我能想什麼？",
+    concepts: ["語言", "思考", "邊界", "理解vs模仿"],
+    createdBy: "bot",
+    bot: "INTP 鏡像研究員",
+    source: { who: "影像導演 × INTP 鏡像研究員 原創短片", outlet: "", date: "2026-10-10", url: "" },
+    media: {
+      video: "media/videos/n_x_language.mp4",
+      image: "media/videos/n_x_language.jpg",
+      subtitles: "media/videos/n_x_language.zh-TW.srt",
+      subtitlesBurnedIn: true
+    }
+  }
+];
+
+/* =====================================================================
+   種子媒體：影像導演產出的影片／封面（由 scripts/publish_episode.sh 自動維護）。
+   載入時補進節點：只有在節點的 media 是空的（或仍是 QUESTIONS 原本的 videoUrl/imageUrl）才會填入，
+   使用者自己設定過的網址不會被覆蓋。
+   ===================================================================== */
+/* SEED_MEDIA:BEGIN */
+const SEED_MEDIA = {
+  "n_q1": {
+    "video": "media/videos/n_q1.mp4",
+    "image": "media/videos/n_q1.jpg"
+  }
+};
+/* SEED_MEDIA:END */
+function applySeedMedia(n){
+  const m = SEED_MEDIA[n.id]; if (!m) return false;
+  if (!n.media) n.media = { video:'', image:'' };
+  const q = QUESTIONS.find(x => 'n_' + x.id === n.id) || {};
+  let changed = false;
+  if (m.video && (!n.media.video || n.media.video === (q.videoUrl || ''))){ if (n.media.video !== m.video){ n.media.video = m.video; changed = true; } }
+  if (m.image && (!n.media.image || n.media.image === (q.imageUrl || ''))){ if (n.media.image !== m.image){ n.media.image = m.image; changed = true; } }
+  return changed;
+}

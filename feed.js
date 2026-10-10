@@ -36,8 +36,15 @@ function seedKey(id){ const m = /^n_(q\d+)(?:_e(\d+))?$/.exec(id); return m ? (m
 function loadState(){
   let s = null; try { s = JSON.parse(localStorage.getItem(KEY)); } catch(e){}
   if (!s || !Array.isArray(s.nodes) || !Array.isArray(s.brains)) s = seedLite();
+  const done = Array.isArray(s.seedExtras) ? s.seedExtras : [];
+  (typeof SEED_EXTRAS !== 'undefined' ? SEED_EXTRAS : []).forEach(x => {
+    if (done.includes(x.id) || s.nodes.some(n => n.id === x.id)) return;
+    const p = s.nodes.find(n => n.id === x.parentId);
+    s.nodes.push(Object.assign(JSON.parse(JSON.stringify(x)), { brainId:p ? p.brainId : 'main', parentId:p ? p.id : null, createdAt:Date.now() }));
+  });
   s.nodes.forEach(n => {
     if (!n.media) n.media = { video:'', image:'' };
+    applySeedMedia(n);
     if (n.kind === 'split') n.kind = 'extension';
     if (!Array.isArray(n.concepts)){ const k = seedKey(n.id); n.concepts = (k && CONCEPTS.tags[k] || []).slice(); }
   });
@@ -93,11 +100,11 @@ function itemHTML(n, i){
         <div class="ring"><div class="orb"><span>${n.kind === 'direction' ? '🚀' : T(n.type).icon}</span></div></div>
         <h3>${esc(n.title)}</h3>
         <span class="wip"><i></i>🎬 影片製作中</span>${ext ? `<a class="ext" href="${esc(ext)}" target="_blank" rel="noopener">▶ 觀看原始影片 ↗</a>` : ''}</div>`;
-  return `<section class="it ${hasV ? 'hasVideo' : 'noVideo'} ${n.kind === 'direction' ? 'dir' : ''}" data-i="${i}" data-id="${esc(n.id)}" style="--c:${c}">
+  return `<section class="it ${hasV ? 'hasVideo' : 'noVideo'} ${n.kind === 'direction' ? 'dir' : ''} ${hasV && n.media.subtitlesBurnedIn ? 'subs' : ''}" data-i="${i}" data-id="${esc(n.id)}" style="--c:${c}">
     <div class="col">${stage}<div class="shade"></div><div class="flash"></div>${hasV ? '<div class="prog"></div>' : ''}
       <div class="cap">
-        <div class="row"><span class="tag" style="--c:${T(n.type).color}">${T(n.type).icon} ${esc(n.type)}</span><span class="tag k ${n.kind}">${KIND[n.kind] || esc(n.kind)}</span></div>
-        <h2>${esc(n.title)}</h2>
+        <div class="row"><span class="tag" style="--c:${T(n.type).color}">${T(n.type).icon} ${esc(n.type)}</span><span class="tag k ${n.kind}">${KIND[n.kind] || esc(n.kind)}</span>${n.bot ? `<span class="tag" style="--c:#7fe0a8">🤖 ${esc(n.bot)}</span>` : ''}</div>
+        <h2 data-capt>${esc(n.title)}</h2>
         ${caption || cr.html ? `<div class="note" data-note>${esc(caption)}${caption ? ' <span class="more">…更多</span>' : ''}<span class="cred">${cr.html}</span></div>` : ''}
         ${n.concepts.length ? `<div class="chips">${n.concepts.map(x => `<button class="chip" data-concept="${esc(x)}" style="--cc:${esc(conceptColor(x))}">${esc(x)}</button>`).join('')}</div>` : ''}
         ${cr.short ? `<div class="src1">${esc(cr.short)}</div>` : ''}
@@ -163,6 +170,8 @@ feed.addEventListener('click', e => {
     else if (a === 'sound') setSound(!soundOn);
     return; }
   if (chip){ set.concepts = [chip.dataset.concept]; savePrefs(); render(id); toast('🧵 只看「' + chip.dataset.concept + '」'); return; }
+  const capt = e.target.closest('[data-capt]');
+  if (capt && el.classList.contains('subs')){ el.querySelector('.cap').classList.toggle('open'); return; }
   if (note){ note.classList.toggle('open'); const m = note.querySelector('.more'); if (m) m.textContent = note.classList.contains('open') ? ' 收起' : '…更多'; return; }
   if (e.target.closest('.rail,.cap')) return;
   if (tapT){ clearTimeout(tapT); tapT = 0; toggleLike(id, el, true); return; }            // double tap = like

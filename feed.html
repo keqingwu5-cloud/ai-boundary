@@ -60,6 +60,13 @@ a{color:inherit}
 .chip{border:none;font-size:12px;padding:2px 9px;border-radius:99px;background:color-mix(in srgb,var(--cc) 25%,rgba(0,0,0,.4));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cc) 55%,transparent)}
 .chip:before{content:"#"}
 .src1{margin-top:7px;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* burned-in subtitles: keep the lower third clear, caption folds into one line until tapped */
+.it.subs .cap:not(.open) :is(.row,.note,.chips,.src1){display:none}
+.it.subs .cap:not(.open) h2{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;margin:0}
+.it.subs .cap:not(.open) h2:after{content:" ▴";color:var(--muted);font-size:11px}
+.it.subs .cap h2{cursor:pointer}
+.it.subs .cap.open{background:linear-gradient(transparent,rgba(0,0,0,.75) 25%);padding-top:30px}
+.it.subs .shade{background:linear-gradient(180deg,rgba(0,0,0,.45) 0,transparent 18%,transparent 80%,rgba(0,0,0,.6) 100%)}
 /* rail */
 .rail{position:absolute;right:8px;bottom:calc(22px + env(safe-area-inset-bottom));z-index:3;display:flex;flex-direction:column;align-items:center;gap:14px}
 .rb{display:flex;flex-direction:column;align-items:center;gap:3px;border:none;background:none;padding:0;font-size:11px;color:#fff;text-decoration:none;text-shadow:0 1px 4px #000}

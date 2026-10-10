@@ -75,6 +75,17 @@ function migrate(st){
   if (!st.patterns) st.patterns = {};
   Object.entries(CONCEPTS.defs).forEach(([k, v]) => { if (!st.concepts[k]) st.concepts[k] = { color:v.color, desc:v.desc, createdBy:'seed' }; });
   Object.entries(CONCEPTS.patterns).forEach(([k, v]) => { if (!st.patterns[k]) st.patterns[k] = { color:v.color, desc:v.desc, createdBy:'seed' }; });
+  st.seedExtras = Array.isArray(st.seedExtras) ? st.seedExtras : [];
+  (typeof SEED_EXTRAS !== 'undefined' ? SEED_EXTRAS : []).forEach(x => {
+    if (st.seedExtras.includes(x.id)) return; st.seedExtras.push(x.id);
+    if (st.nodes.some(n => n.id === x.id)) return;
+    const p = st.nodes.find(n => n.id === x.parentId), now = Date.now();
+    const n = mkNode(Object.assign(JSON.parse(JSON.stringify(x)), { brainId:p ? p.brainId : 'main', parentId:p ? p.id : null, createdAt:now, seedExtra:true,
+      pos:p ? dirPos(p.pos) : jitter(REGION[x.type] || REGION['其他'], 0.1) }));
+    st.nodes.push(n);
+    if (p) st.links.push({ id:'l_' + n.id, from:p.id, to:n.id, kind:'derived', createdAt:now });
+    st.history.push({ ts:now, action:'direction', payload:{ nodeId:n.id, parentId:p ? p.id : null, title:n.title, createdBy:n.createdBy } });
+  });
   let changed = 0;
   st.nodes.forEach(n => {
     const key = seedKey(n.id), seeded = n.createdBy === 'seed' && key;
@@ -82,6 +93,7 @@ function migrate(st){
     if (!Array.isArray(n.concepts)){ n.concepts = seeded && CONCEPTS.tags[key] ? CONCEPTS.tags[key].slice() : []; changed++; }
     if (typeof n.processPattern !== 'string') n.processPattern = seeded && CONCEPTS.process[key] ? CONCEPTS.process[key] : '';
     if (!n.media) n.media = { video:'', image:'' };
+    applySeedMedia(n);
     n.concepts.forEach(c => { if (!st.concepts[c]) st.concepts[c] = { color:pickColor(st), desc:'', createdBy:'merlin' }; });
   });
   if (changed) st.history.push({ ts:Date.now(), action:'migrate', payload:{ nodes:changed } });
