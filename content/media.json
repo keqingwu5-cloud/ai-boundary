@@ -1,0 +1,28 @@
+{
+  "n_q1": {
+    "video": "media/videos/n_q1.mp4",
+    "image": "media/videos/n_q1.jpg",
+    "subtitles": "media/videos/n_q1.zh-TW.srt",
+    "subtitlesBurnedIn": true
+  },
+  "n_q2": {
+    "video": "media/videos/n_q2.mp4",
+    "image": "media/videos/n_q2.jpg"
+  },
+  "n_q3": {
+    "video": "media/videos/n_q3.mp4",
+    "image": "media/videos/n_q3.jpg"
+  },
+  "n_q4": {
+    "video": "media/videos/n_q4.mp4",
+    "image": "media/videos/n_q4.jpg"
+  },
+  "n_q5": {
+    "video": "media/videos/n_q5.mp4",
+    "image": "media/videos/n_q5.jpg"
+  },
+  "n_q6": {
+    "video": "media/videos/n_q6.mp4",
+    "image": "media/videos/n_q6.jpg"
+  }
+}
