@@ -77,13 +77,16 @@ async function device(name, t){
   return { name, ctx, page, errs, posts };
 }
 async function load(d, file = 'index.html'){
-  await d.page.goto(`${ORIGIN}/${file}`, { waitUntil:'domcontentloaded' });
-  await d.page.waitForFunction('document.body.dataset.ready === "1" && window.AISync && window.AISync.enabled && window.AISync.pull', { timeout:30000 });
+  // 機器很忙時（好幾個 WebGL 分頁同時跑）載入可能很慢，所以等久一點
+  await d.page.goto(`${ORIGIN}/${file}`, { waitUntil:'domcontentloaded', timeout:120000 });
+  await d.page.waitForFunction('document.body.dataset.ready === "1" && window.AISync && window.AISync.enabled && window.AISync.pull', { timeout:90000 });
   await sleep(300);
 }
 const st = d => d.page.evaluate(() => ({ sync:document.body.dataset.sync, pending:AISync.pending(), icon:document.getElementById('bSync')?.textContent, nodes:window.AIBrain ? AIBrain.getState().nodes : null }));
-const waitSynced = d => d.page.waitForFunction('document.body.dataset.sync === "synced"', { timeout:15000 }).then(() => true, () => false);
+const waitSynced = d => d.page.waitForFunction('document.body.dataset.sync === "synced"', { timeout:45000 }).then(() => true, () => false);
 const q = (ns, id) => ns.find(n => n.id === id);
+/* 等「真的上傳完」：沒有待上傳、狀態是 ☁️（固定 sleep 在機器很忙時不可靠） */
+const settle = async d => { await sleep(900); return d.page.waitForFunction('AISync.pending() === 0 && document.body.dataset.sync === "synced"', { timeout:60000 }).then(() => true, () => false); };
 const pull = d => d.page.evaluate(() => AISync.pull());
 
 try {
@@ -114,20 +117,20 @@ try {
     const before = AISync.pending(); AIBrain.addQuestion({ title:'快取測試', type:'其他' }); const after = AISync.pending(); return { ms, before, after }; });
   ok(perf.ms < 300 && perf.after === perf.before + 1, `pending()／status() 快取：2000 次 ${perf.ms.toFixed(1)}ms；改了之後立刻重算（${perf.before} → ${perf.after}）`);
   // 4. 新增 → C 看得到；兩台同時改不同節點
-  const aid = await A.page.evaluate(() => AIBrain.addQuestion({ title:'A 新問題', type:'其他' })); await sleep(1200); await waitSynced(A);
+  const aid = await A.page.evaluate(() => AIBrain.addQuestion({ title:'A 新問題', type:'其他' })); await settle(A);
   ok(db.brain_entities.some(r => r.id === aid) && db.brain_history.some(h => h.action === 'add'), 'A: 新增節點 → brain_entities + brain_history');
   await load(C); ok(await waitSynced(C) && (await st(C)).nodes.some(n => n.id === aid), 'C: 載入就看得到 A 的新節點');
   await A.page.evaluate(() => AIBrain.setStatus('n_q1', 'resolved'));
   await C.page.evaluate(() => AIBrain.addCounterEvidence('n_q2', 'C 的反證', 'merlin'));
-  await sleep(1500); await waitSynced(A); await waitSynced(C); await pull(A); await pull(C);
+  await settle(A); await settle(C); await pull(A); await pull(C);
   const nA = (await st(A)).nodes, nC = (await st(C)).nodes;
   ok(q(nA, 'n_q1').status === 'resolved' && q(nC, 'n_q1').status === 'resolved' && q(nA, 'n_q2').counterEvidence.some(c => c.text === 'C 的反證') && q(nC, 'n_q2').counterEvidence.some(c => c.text === 'C 的反證'), '兩台裝置改不同節點 → 都保留');
   // 回到分頁時自動拉取
-  await C.page.evaluate(() => AIBrain.setMedia('n_q5', 'image', 'media/c.jpg')); await sleep(1500); await waitSynced(C);
+  await C.page.evaluate(() => AIBrain.setMedia('n_q5', 'image', 'media/c.jpg')); await settle(C);
   await A.page.evaluate(() => { window.__t = 0; document.dispatchEvent(new Event('visibilitychange')); dispatchEvent(new Event('focus')); }); await sleep(800);
   await A.page.evaluate(() => AISync.pull()); ok(q((await st(A)).nodes, 'n_q5').media.image === 'media/c.jpg', 'A: 拉取時拿到 C 的修改（載入／回到分頁／上傳後都會拉）');
   // 5. 復原
-  await A.page.evaluate(() => AIBrain.undo()); await sleep(1500); await waitSynced(A);
+  await A.page.evaluate(() => AIBrain.undo()); await settle(A);
   ok(db.brain_entities.find(r => r.kind === 'node' && r.id === 'n_q1').data.status === 'open', '↶ 復原會同步到雲端');
   // 6. 離線
   await A.page.setOfflineMode(true); await A.page.evaluate(() => dispatchEvent(new Event('offline')));
@@ -136,7 +139,7 @@ try {
   await A.page.setOfflineMode(false); await A.page.evaluate(() => dispatchEvent(new Event('online')));
   ok(await waitSynced(A) && db.brain_entities.find(r => r.id === 'n_q4').data.media.image === 'media/x.jpg', 'A 重新連線: 自動上傳 ☁️');
   // 7. 刪除 → 墓碑
-  await A.page.evaluate(id => AIBrain.deleteNode(id), aid); await sleep(1500); await waitSynced(A); await pull(C);
+  await A.page.evaluate(id => AIBrain.deleteNode(id), aid); await settle(A); await pull(C);
   ok(db.brain_entities.find(r => r.id === aid).deleted === true && !(await st(C)).nodes.some(n => n.id === aid), '刪除 → 墓碑，C 拉取後也移除');
   // 8. 重置：只影響這台裝置，不會清空共享大腦
   await A.page.evaluate(() => AIBrain.addQuestion({ title:'A 還沒上傳', type:'其他' }));
@@ -149,7 +152,7 @@ try {
   ok(before === afterRows && !db.brain_entities.some(r => r.deleted && r.data === null && r.kind === 'node' && r.id.startsWith('n_q')), `重置（登入編輯者）: 共享大腦沒有被清空（寫入 ${writes.length - nw} 筆，沒有墓碑）`);
   ok((await st(A)).nodes.length === db.brain_entities.filter(r => r.kind === 'node' && !r.deleted).length || userNodes >= 0, 'A: 重置後本機＝雲端版本');
   // 9. 401／JWT 過期：刷新 session 再重試
-  const r0 = stats.refresh; const D = await device('D（token 過期）', T_OLD); await load(D); await D.page.evaluate(() => AIBrain.setStatus('n_q3', 'researching')); await sleep(2000);
+  const r0 = stats.refresh; const D = await device('D（token 過期）', T_OLD); await load(D); await D.page.evaluate(() => AIBrain.setStatus('n_q3', 'researching')); await settle(D);
   ok(stats.refresh > r0 && await waitSynced(D) && db.brain_entities.find(r => r.id === 'n_q3').data.status === 'researching', `401 JWT expired → 自動 refreshSession 後重試成功（refresh ${stats.refresh - r0} 次），不會卡在 🔒`);
   // 10. XSS：有人直接寫進惡意資料
   db.brain_entities.push(
