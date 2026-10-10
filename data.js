@@ -292,6 +292,10 @@ const SEED_MEDIA = {
   "n_q2": {
     "video": "media/videos/n_q2.mp4",
     "image": "media/videos/n_q2.jpg"
+  },
+  "n_q3": {
+    "video": "media/videos/n_q3.mp4",
+    "image": "media/videos/n_q3.jpg"
   }
 };
 /* SEED_MEDIA:END */
