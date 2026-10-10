@@ -1,4 +1,5 @@
 /* 短影音 feed — reads the same state as the 3D brain (localStorage aiBrain.v1, falling back to seed data). */
+import { esc, safeUrl, safeColor, playable } from './safe.js';   // 跳脫／網址與顏色白名單（跟 app.js、sync 共用）
 const KEY = 'aiBrain.v1', FKEY = 'aiBrain.feed.v1';
 /* giscus (GitHub Discussions). Works once the giscus GitHub App is installed on the repo. One discussion per node: term = "node:<id>". */
 const GISCUS = { repo:'keqingwu5-cloud/ai-boundary', repoId:'R_kgDOVDydcA', category:'Announcements', categoryId:'DIC_kwDOVDydcM4DHf-d' };
@@ -13,12 +14,9 @@ const BOTS = [
 const botOf = s => BOTS.find(b => b.slug === s) || BOTS[0];
 const KIND = { question:'主問題', extension:'延伸問題', direction:'🚀 新方向' };
 const $ = s => document.querySelector(s);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 const T = t => TYPES[t] || TYPES['其他'];
 const colorOf = n => n.kind === 'direction' ? DIR_COLOR : T(n.type).color;
-const safeUrl = u => { u = String(u || '').trim(); return !u || /^https?:\/\/[^\s<>"']+$/i.test(u) || (/^[^\s:<>"'`]+$/u.test(u) && !u.startsWith('//')); };
-const playable = u => !!u && safeUrl(u) && /\.(mp4|webm|m4v|mov|ogv)(\?|#|$)/i.test(u);
-const conceptColor = c => (state.concepts && state.concepts[c] && state.concepts[c].color) || (CONCEPTS.defs[c] && CONCEPTS.defs[c].color) || '#9db7ff';
+const conceptColor = c => safeColor((state.concepts && state.concepts[c] && state.concepts[c].color) || (CONCEPTS.defs[c] && CONCEPTS.defs[c].color));
 
 /* ---------- data ---------- */
 function seedLite(){
@@ -33,8 +31,8 @@ function seedLite(){
   return { brains:[{ id:'main', name:'AI 認知邊界', parentBrainId:null }], nodes, concepts:{} };
 }
 function seedKey(id){ const m = /^n_(q\d+)(?:_e(\d+))?$/.exec(id); return m ? (m[2] != null ? m[1] + ':e' + m[2] : m[1]) : null; }
-function loadState(){
-  let s = null; try { s = JSON.parse(localStorage.getItem(KEY)); } catch(e){}
+function loadState(src){   // src：sync.js 從雲端拉下來的大腦（只讀）；沒有就讀 localStorage
+  let s = src ? JSON.parse(JSON.stringify(src)) : null; if (!s) try { s = JSON.parse(localStorage.getItem(KEY)); } catch(e){}
   if (!s || !Array.isArray(s.nodes) || !Array.isArray(s.brains)) s = seedLite();
   const done = Array.isArray(s.seedExtras) ? s.seedExtras : [];
   (typeof SEED_EXTRAS !== 'undefined' ? SEED_EXTRAS : []).forEach(x => {
@@ -61,7 +59,7 @@ prefs.bots = prefs.bots || {};
 const set = Object.assign({ order:'series', continuous:true, types:[], concepts:[], onlyVideo:false, onlySaved:false }, prefs.set);
 if (set.v !== 2){ set.order = 'series'; set.continuous = true; set.v = 2; }
 prefs.set = set;
-const savePrefs = () => { try { localStorage.setItem(FKEY, JSON.stringify(prefs)); } catch(e){} try { dispatchEvent(new Event('aifeed:prefs')); } catch(e){} };  // sync.js 聽 aifeed:prefs 上傳喜歡／收藏
+const savePrefs = () => { try { localStorage.setItem(FKEY, JSON.stringify(prefs)); } catch(e){} };
 
 function treeOrder(){
   const out = [], seen = new Set(), bOrder = [];
@@ -93,7 +91,7 @@ let list = [], cur = 0;
 let wantSound = sessionStorage.getItem('aiFeed.sound') === '1', unlocked = false, userPaused = false, watchT = 0;
 function credit(n){
   const s = n.source;
-  if (s && (s.who || s.outlet)) return { short:'📎 ' + (s.who || s.outlet), html:`📎 ${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.who || '來源')} ↗</a>` : esc(s.who || '')}${[s.outlet, s.date].filter(Boolean).length ? ' · ' + esc([s.outlet, s.date].filter(Boolean).join(' · ')) : ''}` };
+  if (s && (s.who || s.outlet)) return { short:'📎 ' + (s.who || s.outlet), html:`📎 ${s.url && safeUrl(s.url) ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.who || '來源')} ↗</a>` : esc(s.who || '')}${[s.outlet, s.date].filter(Boolean).length ? ' · ' + esc([s.outlet, s.date].filter(Boolean).join(' · ')) : ''}` };
   const p = N(n.parentId);
   if (p){ const ps = p.source && p.source.who ? '（' + p.source.who + '）' : ''; return { short:'🧬 延伸自〈' + p.title + '〉', html:`🧬 延伸自〈${esc(p.title)}〉${esc(ps)}` }; }
   return { short: n.createdBy === 'bot' ? '🤖 bot 提出' : n.createdBy === 'seed' ? '' : '⭐ Merlin 提出', html: n.createdBy === 'bot' ? '🤖 bot 提出' : n.createdBy === 'seed' ? '' : '⭐ Merlin 提出' };
@@ -112,7 +110,7 @@ function itemHTML(n, i){
   return `<section class="it ${hasV ? 'hasVideo' : 'noVideo'} ${n.kind === 'direction' ? 'dir' : ''} ${hasV && n.media.subtitlesBurnedIn ? 'subs' : ''}" data-i="${i}" data-id="${esc(n.id)}" style="--c:${c}">
     <div class="col">${stage}<div class="shade"></div><div class="flash"></div>${hasV ? '<div class="prog"></div>' : ''}
       <div class="cap">
-        <div class="row"><span class="tag" style="--c:${T(n.type).color}">${T(n.type).icon} ${esc(n.type)}</span><span class="tag k ${n.kind}">${KIND[n.kind] || esc(n.kind)}</span>${n.bot ? `<span class="tag" style="--c:#7fe0a8">🤖 ${esc(n.bot)}</span>` : ''}</div>
+        <div class="row"><span class="tag" style="--c:${T(n.type).color}">${T(n.type).icon} ${esc(n.type)}</span><span class="tag k ${esc(n.kind)}">${KIND[n.kind] || esc(n.kind)}</span>${n.bot ? `<span class="tag" style="--c:#7fe0a8">🤖 ${esc(n.bot)}</span>` : ''}</div>
         <h2 data-capt>${esc(n.title)}</h2>
         ${caption || cr.html ? `<div class="note" data-note>${esc(caption)}${caption ? ' <span class="more">…更多</span>' : ''}<span class="cred">${cr.html}</span></div>` : ''}
         ${n.concepts.length ? `<div class="chips">${n.concepts.map(x => `<button class="chip" data-concept="${esc(x)}" style="--cc:${esc(conceptColor(x))}">${esc(x)}</button>`).join('')}</div>` : ''}
@@ -383,9 +381,15 @@ addEventListener('resize', () => go(cur, true));
   if (h0 && N(h0) && !buildList().some(n => n.id === h0)){ set.types = []; set.concepts = []; set.onlyVideo = false; set.onlySaved = false; savePrefs(); }
   render(h0); }
 feed.focus({ preventScroll:true });
-window.AIFeed = { list:() => list.map(n => n.id), current:() => list[cur] && list[cur].id, index:() => cur, go, reload:() => { state = loadState(); render(list[cur] && list[cur].id); },
-  /* sync.js：雲端的喜歡／收藏寫回 localStorage 後呼叫，只更新按鈕狀態，不重新排版 */
-  reloadPrefs:() => { try { const p = JSON.parse(localStorage.getItem(FKEY)) || {}; prefs.likes = p.likes || {}; prefs.saves = p.saves || {}; } catch(e){}
-    document.querySelectorAll('#feed [data-id]').forEach(el => { const id = el.dataset.id; el.querySelector('.like')?.classList.toggle('on', !!prefs.likes[id]); el.querySelector('.save')?.classList.toggle('on', !!prefs.saves[id]); }); }, settings:set, giscus:GISCUS, bots:BOTS, openComments,
+/* 重新載入資料（src＝雲端那份）。內容沒變就不重排；正在播影片時等暫停再重排，免得打斷播放 */
+let lastSig = '';
+function reload(src){
+  const next = loadState(src), sig = JSON.stringify(next.nodes);
+  if (src && sig === lastSig) return; lastSig = sig;
+  const apply = () => { state = next; render(list[cur] && list[cur].id); };
+  if (!player.paused && player.parentNode) player.addEventListener('pause', apply, { once:true }); else apply();
+}
+window.AIFeed = { list:() => list.map(n => n.id), current:() => list[cur] && list[cur].id, index:() => cur, go, reload, 
+  settings:set, giscus:GISCUS, bots:BOTS, openComments,
   player, sound:() => ({ wantSound, unlocked, muted:player.muted }), blocked:() => !!itemEl(cur)?.classList.contains('blocked') };
 document.body.dataset.ready = '1';
