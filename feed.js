@@ -40,6 +40,7 @@ function loadState(){
   (typeof SEED_EXTRAS !== 'undefined' ? SEED_EXTRAS : []).forEach(x => {
     if (done.includes(x.id) || s.nodes.some(n => n.id === x.id)) return;
     const p = s.nodes.find(n => n.id === x.parentId);
+    if (x.kind === 'extension' && !p) return;
     s.nodes.push(Object.assign(JSON.parse(JSON.stringify(x)), { brainId:p ? p.brainId : 'main', parentId:p ? p.id : null, createdAt:Date.now() }));
   });
   s.nodes.forEach(n => {

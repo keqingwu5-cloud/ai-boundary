@@ -77,14 +77,16 @@ function migrate(st){
   Object.entries(CONCEPTS.patterns).forEach(([k, v]) => { if (!st.patterns[k]) st.patterns[k] = { color:v.color, desc:v.desc, createdBy:'seed' }; });
   st.seedExtras = Array.isArray(st.seedExtras) ? st.seedExtras : [];
   (typeof SEED_EXTRAS !== 'undefined' ? SEED_EXTRAS : []).forEach(x => {
-    if (st.seedExtras.includes(x.id)) return; st.seedExtras.push(x.id);
-    if (st.nodes.some(n => n.id === x.id)) return;
+    if (st.seedExtras.includes(x.id)) return;
     const p = st.nodes.find(n => n.id === x.parentId), now = Date.now();
+    if (x.kind === 'extension' && !p) return;  // 延伸問題要等父節點在才加（父節點被刪就不加）
+    st.seedExtras.push(x.id);
+    if (st.nodes.some(n => n.id === x.id)) return;
     const n = mkNode(Object.assign(JSON.parse(JSON.stringify(x)), { brainId:p ? p.brainId : 'main', parentId:p ? p.id : null, createdAt:now, seedExtra:true,
-      pos:p ? dirPos(p.pos) : jitter(REGION[x.type] || REGION['其他'], 0.1) }));
+      pos:p ? (x.kind === 'extension' ? jitter(p.pos, 0.14) : dirPos(p.pos)) : jitter(REGION[x.type] || REGION['其他'], 0.1) }));
     st.nodes.push(n);
     if (p) st.links.push({ id:'l_' + n.id, from:p.id, to:n.id, kind:'derived', createdAt:now });
-    st.history.push({ ts:now, action:'direction', payload:{ nodeId:n.id, parentId:p ? p.id : null, title:n.title, createdBy:n.createdBy } });
+    st.history.push({ ts:now, action:x.kind === 'extension' ? 'split' : 'direction', payload:{ nodeId:n.id, parentId:p ? p.id : null, title:n.title, createdBy:n.createdBy } });
   });
   let changed = 0;
   st.nodes.forEach(n => {

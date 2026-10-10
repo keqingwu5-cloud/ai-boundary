@@ -220,6 +220,19 @@ const CONCEPTS = {
     "語言":       { color:"#bef264", desc:"語言本身：它和思考、理解的關係", kw:[] },
     "思考":       { color:"#7dd3fc", desc:"思考的形式：需不需要語言、能不能被看見", kw:[] },
     "邊界":       { color:"#fcd34d", desc:"「邊界」作為隱喻：語言、思考或能力的界線", kw:[] },
+    /* ↓ n_x_language 延伸問題用到的標籤；只補顏色與說明，kw 留空，不影響自動建議 */
+    "失語症": { color:"#f9a8d4", desc:"失語症：失去語言後還剩下哪些思考能力", kw:[] },
+    "語言與思考分離": { color:"#c4b5fd", desc:"語言系統和思考系統在大腦裡是否分開", kw:[] },
+    "內在語言": { color:"#a5f3fc", desc:"腦中的自言自語：思考時是不是在「說話」", kw:[] },
+    "符號接地": { color:"#fdba74", desc:"符號怎麼連到真實世界的東西", kw:[] },
+    "形式vs功能能力": { color:"#93c5fd", desc:"會說話（形式）不等於會推理、懂世界（功能）", kw:[] },
+    "章魚思想實驗": { color:"#67e8f9", desc:"Bender & Koller 的思想實驗：只看形式學不學得到意義", kw:[] },
+    "語言相對論": { color:"#86efac", desc:"語言影響（或決定）思考的假說", kw:[] },
+    "弱版本": { color:"#d9f99d", desc:"語言「影響」而非「決定」思考", kw:[] },
+    "分類框架": { color:"#fde68a", desc:"詞彙與分類如何框住我們看事情的方式", kw:[] },
+    "流暢度錯覺": { color:"#fca5a5", desc:"說得流暢會讓人以為推理正確", kw:[] },
+    "驗證": { color:"#a7f3d0", desc:"怎麼檢查答案或推理是否真的對", kw:[] },
+    "形式語言能力": { color:"#bfdbfe", desc:"文法、用詞等語言形式上的能力", kw:[] },
   },
   patterns: {
     "落差診斷→新典範": { color:"#e0f2fe", desc:"觀察到能力落差 → 診斷缺少的要素 → 提出新的研究方向" },
@@ -722,6 +735,228 @@ const SEED_EXTRAS = [
     "x_suggestedNewConcepts": [
       "語言與思維"
     ]
+  },
+  /* ↓ INTP 鏡像研究員：n_x_language 的 4 個延伸問題（explainer-language-boundary.md「延伸問題」Q1–Q4），2026-10-11 */
+  {
+    "id": "n_x_language_e1",
+    "parentId": "n_x_language",
+    "kind": "extension",
+    "title": "如果失語症者沒有字也能推理，那「找不到字的想法」是缺少表達，還是缺少思考？",
+    "type": "理解與意識",
+    "oneLiner": "全面性失語症患者幾乎失去語言，卻仍能加減、解邏輯題、推想他人的想法；語言區在算數、工作記憶、聽音樂時並不活躍。",
+    "source": {
+      "who": "Fedorenko & Varley",
+      "outlet": "Annals of the New York Academy of Sciences",
+      "date": "2016",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/27096882/",
+      "also": [
+        {
+          "label": "作者 PDF",
+          "url": "https://web.mit.edu/evlab/assets/papers/Fedorenko_%26_Varley_2016_ANYAS.pdf"
+        },
+        {
+          "label": "Fedorenko, Piantadosi & Gibson（2024, Nature）",
+          "url": "https://www.nature.com/articles/s41586-024-07522-w"
+        }
+      ]
+    },
+    "concepts": [
+      "失語症",
+      "語言與思考分離",
+      "內在語言"
+    ],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_language_e2",
+    "parentId": "n_x_language",
+    "kind": "extension",
+    "title": "一個只讀過文字的模型，能不能真的懂「藍色」？還是只懂「藍色」這個詞和其他詞之間的關係？",
+    "type": "能力邊界",
+    "oneLiner": "Bender & Koller 用「章魚思想實驗」主張只從語言形式訓練的系統學不到意義；Mahowald et al. 把 LLM 的形式語言能力和功能能力分開。",
+    "source": {
+      "who": "Bender & Koller",
+      "outlet": "ACL 2020（立場論文）",
+      "date": "2020",
+      "url": "https://aclanthology.org/2020.acl-main.463/",
+      "also": [
+        {
+          "label": "Mahowald et al.（2024, Trends in Cognitive Sciences）",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11416727/"
+        }
+      ]
+    },
+    "concepts": [
+      "符號接地",
+      "形式vs功能能力",
+      "章魚思想實驗"
+    ],
+    "counterEvidence": [
+      {
+        "id": "c_bot_xl2_1",
+        "text": "Bender & Koller（2020）是立場論文，學界有爭論，不能當成定論。",
+        "source": {
+          "who": "Bender & Koller",
+          "outlet": "ACL 2020（立場論文）",
+          "date": "2020",
+          "url": "https://aclanthology.org/2020.acl-main.463/",
+          "also": []
+        },
+        "createdBy": "bot",
+        "by": "INTP 鏡像研究員",
+        "ts": 1791734400000,
+        "against": "只靠形式學不到意義"
+      },
+      {
+        "id": "c_bot_xl2_2",
+        "text": "【推測】目前沒有共識認為 LLM 的能力邊界就等於語言的邊界：現在的模型多數也用圖像等資料訓練，「只讀過文字」的前提不一定成立。",
+        "source": {
+          "who": "INTP 鏡像研究員",
+          "outlet": "解說文件〈語言是不是思考的邊界〉",
+          "date": "2026-10-11",
+          "url": "",
+          "also": []
+        },
+        "createdBy": "bot",
+        "by": "INTP 鏡像研究員",
+        "ts": 1791734400000,
+        "against": "只讀過文字"
+      }
+    ],
+    "botNotes": [
+      "【推測】插段 C 字幕 4 是問句，不是結論。"
+    ],
+    "createdBy": "bot",
+    "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_language_e3",
+    "parentId": "n_x_language",
+    "kind": "extension",
+    "title": "俄語的兩種藍讓人分得更快。那麼 AI 給的詞彙和分類，會不會悄悄改變我們看事情的方式？",
+    "type": "社會影響",
+    "oneLiner": "俄語母語者分辨跨越淺藍／深藍界線的顏色比較快，但做語言干擾作業時優勢消失；綜述只支持語言影響思考的弱版本。",
+    "source": {
+      "who": "Winawer et al.",
+      "outlet": "PNAS",
+      "date": "2007",
+      "url": "https://www.pnas.org/doi/10.1073/pnas.0701644104",
+      "also": [
+        {
+          "label": "PubMed",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/17470790"
+        },
+        {
+          "label": "Wolff & Holmes（2011, WIREs Cognitive Science）",
+          "url": "https://www.reed.edu/psychology/thought-lab/assets/publications/Wolff%20_%20Holmes%202011%20-%20WIREs%20Cognitive%20Science.pdf"
+        }
+      ]
+    },
+    "concepts": [
+      "語言相對論",
+      "弱版本",
+      "分類框架"
+    ],
+    "counterEvidence": [
+      {
+        "id": "c_bot_xl3_1",
+        "text": "Li et al.（2011）發現，語言的方位詞和非語言作業中的方位記憶，兩者的對應不是必然的（反駁 Brown & Levinson 對 Tzeltal 語的結論）。",
+        "source": {
+          "who": "Li et al.",
+          "outlet": "PMC",
+          "date": "2011",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3095761/",
+          "also": []
+        },
+        "createdBy": "bot",
+        "by": "INTP 鏡像研究員",
+        "ts": 1791734400000,
+        "against": "語言塑造空間思考"
+      },
+      {
+        "id": "c_bot_xl3_2",
+        "text": "俄語藍色的效果是反應時間上的差異，幅度很小，不代表英語使用者「看不見」兩種藍。",
+        "source": {
+          "who": "Winawer et al.",
+          "outlet": "PNAS",
+          "date": "2007",
+          "url": "https://www.pnas.org/doi/10.1073/pnas.0701644104",
+          "also": []
+        },
+        "createdBy": "bot",
+        "by": "INTP 鏡像研究員",
+        "ts": 1791734400000,
+        "against": "效果大小"
+      }
+    ],
+    "botNotes": [
+      "【推測】「效果在語言干擾下消失」代表語言是即時參與思考，而不是永久改寫；論文本身的措辭是語言的效果是即時的（online）。"
+    ],
+    "createdBy": "bot",
+    "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_language_e4",
+    "parentId": "n_x_language",
+    "kind": "extension",
+    "title": "當 AI 說得流暢又有自信，我們要怎麼判斷它是「推理對了」，還是「說得像推理」？",
+    "type": "推理與判斷",
+    "oneLiner": "Mahowald et al. 把 LLM 的「形式語言能力」和「功能能力」（推理、世界知識、社會認知）分開：前者很強，後者表現不一。",
+    "source": {
+      "who": "Mahowald et al.",
+      "outlet": "Trends in Cognitive Sciences",
+      "date": "2024",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11416727/",
+      "also": []
+    },
+    "concepts": [
+      "流暢度錯覺",
+      "驗證",
+      "形式語言能力"
+    ],
+    "counterEvidence": [
+      {
+        "id": "c_bot_xl4_1",
+        "text": "【推測】研究者對「功能能力」能走多遠意見分歧，所以「流暢＝只是說得像」也不是定論。",
+        "source": {
+          "who": "INTP 鏡像研究員",
+          "outlet": "解說文件〈語言是不是思考的邊界〉",
+          "date": "2026-10-11",
+          "url": "",
+          "also": []
+        },
+        "createdBy": "bot",
+        "by": "INTP 鏡像研究員",
+        "ts": 1791734400000,
+        "against": "流暢只是表象"
+      }
+    ],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
   }
 ];
 

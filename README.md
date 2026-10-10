@@ -157,7 +157,7 @@ scripts/publish_episode.sh ep03 n_q3 --no-push  # 只在本機 commit，先不�
 `data.js` 的 `SEED_EXTRAS` 放不在 `QUESTIONS` 裡的原創節點（`QUESTIONS` 原文不動）。載入時會補進大腦和 feed，接在 `parentId` 底下（如果父節點已經變成子腦，就跟著放進那顆子腦）。已經加過的 id 會記在 `state.seedExtras`，所以使用者刪掉之後不會再長回來。
 
 目前有：
-- `n_x_language`「語言是不是思考的邊界？」：🚀 新方向，接在 q4 底下，類型理解與意識，由 INTP 鏡像研究員提出。來源是影像導演 × INTP 鏡像研究員原創短片（2026-10-10），36 秒，字幕已經燒進畫面；`media.subtitles` 另外附上 SRT，給搜尋和無障礙用。
+- `n_x_language`「語言是不是思考的邊界？」：🚀 新方向，接在 q4 底下，類型理解與意識，由 INTP 鏡像研究員提出。來源是影像導演 × INTP 鏡像研究員原創短片（2026-10-10），v2 版 56 秒，字幕已經燒進畫面；`media.subtitles` 另外附上 SRT，給搜尋和無障礙用。
 
 ### 🧭 問題拆解師的推理流程（SEED_PATCHES）
 - `data.js` 的 `SEED_PATCHES` 依節點 id（n_q1…n_q6）補上 `flow`（❓問題定義／◇前提假設／→推理步驟／🗣各方觀點／？未解關鍵點）、bot 反證（含來源連結）與 botNotes。`QUESTIONS` 原文不動。
@@ -169,6 +169,12 @@ scripts/publish_episode.sh ep03 n_q3 --no-push  # 只在本機 commit，先不�
 - 新方向（SEED_EXTRAS，createdBy bot・問題拆解師）：`n_x_cot_faithful`（<n_q2）、`n_x_model_collapse`（<n_q3）、`n_x_alignment_faking`（<n_q3_e2）、`n_x_cognitive_offloading`（<n_q5）、`n_x_latent_thought`（<n_x_language）。
 - `語言`／`思考`／`邊界` 已登記在 `CONCEPTS.defs`（只是固定顏色與說明）。
 - `structure-review.json` 的分裂、合併、改掛父節點、改標籤、`n_rev_*` 節點，以及新方向裡的 `x_crossLinks`／`x_suggestedNewConcepts` **都還沒套用**，要等 Merlin 確認。
+
+### 🌿 n_x_language 的 4 個延伸問題（SEED_EXTRAS，kind extension）
+- 來自 INTP 鏡像研究員〈explainer-language-boundary.md〉「延伸問題」Q1–Q4：`n_x_language_e1`（理解與意識）、`n_x_language_e2`（能力邊界）、`n_x_language_e3`（社會影響）、`n_x_language_e4`（推理與判斷）。類型都已存在於 TYPES。
+- 來源與反證取自同一份文件的「解說依據」與「查證備註」；【推測】的部分照原文標示。12 個新概念標籤已登記在 `CONCEPTS.defs`（kw 留空）。
+- 延伸問題型的種子節點放在父節點旁邊（不像新方向往外推）；父節點被刪掉時不會加入。已加過的記在 `state.seedExtras`，刪掉後不會再長回來。
+- 影片 v2（56 秒，字幕燒進畫面）已取代 v1；`n_x_language.zh-TW.srt` 也換成 v2 版字幕。
 
 ## 📱 iPhone 播放與快取
 
