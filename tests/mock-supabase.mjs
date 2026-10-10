@@ -103,6 +103,16 @@ try {
   ok(s.sync === 'readonly' && /不在編輯名單/.test(bobMenu), 'Bob（登入、非編輯者）: 🔒，選單提示「不在編輯名單」');
   await Bob.page.evaluate(() => AIBrain.addQuestion({ title:'Bob 想改', type:'其他' })); await sleep(1500);
   ok(!Bob.posts.length && !db.brain_entities.some(r => r.data && r.data.title === 'Bob 想改'), 'Bob: 不會嘗試上傳，雲端沒有他的修改');
+  // AISync.reason()／user()／isEditor()：分得出「沒登入」和「登入但不是編輯者」；同步鈕有固定格式的 aria-label
+  const info = d => d.page.evaluate(() => ({ reason:AISync.reason(), user:AISync.user(), ed:AISync.isEditor(), aria:document.getElementById('bSync').getAttribute('aria-label'), title:document.getElementById('bSync').title }));
+  const iA = await info(A), iB = await info(B), iBob = await info(Bob);
+  ok(iA.reason === 'editor' && iA.ed && iA.user.email === 'keqingwu5@gmail.com' && iB.reason === 'anon' && iB.user === null && !iB.ed && iBob.reason === 'not-editor' && iBob.user.email === 'bob@example.com' && !iBob.ed,
+    `AISync.reason(): A=${iA.reason}、B=${iB.reason}、Bob=${iBob.reason}；user()／isEditor() 一致`);
+  ok(/^雲端同步：已同步$/.test(iA.aria) && /^雲端同步：唯讀，1 筆待上傳$/.test(iB.aria) && iBob.aria === '雲端同步：唯讀，1 筆待上傳', `#bSync aria-label：「${iA.aria}」「${iB.aria}」`);
+  // pending()／status() 有快取：連續呼叫不重算；大腦一改就重算
+  const perf = await B.page.evaluate(async () => { const t0 = performance.now(); for (let i = 0; i < 2000; i++){ AISync.pending(); AISync.status(); } const ms = performance.now() - t0;
+    const before = AISync.pending(); AIBrain.addQuestion({ title:'快取測試', type:'其他' }); const after = AISync.pending(); return { ms, before, after }; });
+  ok(perf.ms < 300 && perf.after === perf.before + 1, `pending()／status() 快取：2000 次 ${perf.ms.toFixed(1)}ms；改了之後立刻重算（${perf.before} → ${perf.after}）`);
   // 4. 新增 → C 看得到；兩台同時改不同節點
   const aid = await A.page.evaluate(() => AIBrain.addQuestion({ title:'A 新問題', type:'其他' })); await sleep(1200); await waitSynced(A);
   ok(db.brain_entities.some(r => r.id === aid) && db.brain_history.some(h => h.action === 'add'), 'A: 新增節點 → brain_entities + brain_history');
