@@ -125,7 +125,10 @@ const norm = st => JSON.parse(JSON.stringify(st, (k, v) => (k === 'createdAt' ||
 const ACT = JSON.parse(fs.readFileSync(path.join(ROOT, 'content/activity.json'), 'utf8'));
 {
   const { page, errs } = await open('index.html');
+  const aria0 = await page.evaluate(() => [document.getElementById('bAct').getAttribute('aria-label'), document.getElementById('bAct').getAttribute('aria-expanded')]);
   await page.click('#bAct'); await page.waitForSelector('.ac-panel.open .ac-e');
+  const aria1 = await page.evaluate(() => [document.getElementById('bAct').getAttribute('aria-label'), document.getElementById('bAct').getAttribute('aria-expanded'), document.querySelector('.ac-x').getAttribute('aria-label')]);
+  ok(aria0[0] === '每日動態' && aria0[1] === 'false' && aria1[0] === '每日動態' && aria1[1] === 'true' && aria1[2] === '關閉每日動態', 'index.html: #bAct／.ac-x 有固定的 aria-label，aria-expanded 跟著開關 ' + JSON.stringify([aria0, aria1]));
   const r = await page.evaluate(() => ({ n:AIActivity.entries().length, days:document.querySelectorAll('.ac-day').length, open:document.querySelectorAll('.ac-day[open]').length, shown:document.querySelectorAll('.ac-day[open] .ac-e').length, sub:document.querySelectorAll('.ac-e.sub').length }));
   ok(r.n === ACT.length && r.days === new Set(ACT.map(e => e.date)).size && r.open === 1 && r.shown > 0, `index.html: 📅 依日期分組（${r.days} 天、${r.n} 筆，最新一天展開）`);
   ok(r.sub > 0, 'index.html: 同一天裡的衍生事件縮排在父事件底下');
