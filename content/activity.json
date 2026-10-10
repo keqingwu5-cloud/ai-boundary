@@ -539,5 +539,69 @@
     ],
     "parentId": "pr-2-opened",
     "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-345ee9c",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T01:45:22+08:00",
+    "bot": "intp",
+    "kind": "content",
+    "title": "n_x_language 第二版影片＋4 個延伸問題（n_x_language_e1–e4）",
+    "summary": "影片 v2（56.3 秒、字幕燒進畫面、手機轉檔）、封面與 v2 字幕；commit 註明 4 個延伸節點出自 INTP 鏡像研究員，附來源與反證，登記 12 個概念標籤。直接推到 main。",
+    "nodes": [
+      "n_x_language",
+      "n_x_language_e1",
+      "n_x_language_e2",
+      "n_x_language_e3",
+      "n_x_language_e4"
+    ],
+    "links": [
+      {
+        "label": "commit 345ee9c",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/345ee9cdf1c5103aeaf6cf52c3da2053056325be"
+      }
+    ],
+    "parentId": "content-n-x-language",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-b0ef416",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T01:53:30+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "重新發佈 EP01 → n_q1（60 秒版）",
+    "summary": "用舊版 scripts/publish_episode.sh 發佈，直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q1"
+    ],
+    "links": [
+      {
+        "label": "commit b0ef416",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/b0ef416e24fdf4e4e0cc9d9a0648aac1ec91fa08"
+      }
+    ],
+    "parentId": "git-abd3a61",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-941e521",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T01:58:15+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "EP01 字幕：n_q1.zh-TW.srt、字幕已燒進畫面",
+    "summary": "SEED_MEDIA 加上 subtitles／subtitlesBurnedIn；發佈腳本重新發佈時保留這些欄位。直接推到 main。",
+    "nodes": [
+      "n_q1"
+    ],
+    "links": [
+      {
+        "label": "commit 941e521",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/941e5214efbf14f1da2324ef7b9611cc285367bf"
+      }
+    ],
+    "parentId": "git-b0ef416",
+    "author": "keqingwu5-cloud"
   }
 ]
