@@ -159,6 +159,17 @@ scripts/publish_episode.sh ep03 n_q3 --no-push  # 只在本機 commit，先不�
 目前有：
 - `n_x_language`「語言是不是思考的邊界？」：🚀 新方向，接在 q4 底下，類型理解與意識，由 INTP 鏡像研究員提出。來源是影像導演 × INTP 鏡像研究員原創短片（2026-10-10），36 秒，字幕已經燒進畫面；`media.subtitles` 另外附上 SRT，給搜尋和無障礙用。
 
+### 🧭 問題拆解師的推理流程（SEED_PATCHES）
+- `data.js` 的 `SEED_PATCHES` 依節點 id（n_q1…n_q6）補上 `flow`（❓問題定義／◇前提假設／→推理步驟／🗣各方觀點／？未解關鍵點）、bot 反證（含來源連結）與 botNotes。`QUESTIONS` 原文不動。
+- `applySeedPatch(n, st)` 在每次載入時執行（`migrate`）。只做加法：
+  - `reasoning`／`assumptions` 只有在「空的」或「仍等於原始種子」時才換成新版本；使用者改過的會保留。
+  - 反證依 id、botNotes 依文字附加，不刪不改。
+  - 套用過的記在 `st.seedPatches`（`<節點id>@<patchId>`），不會重複套用。要推新版本就換一個 `patchId`。
+- 面板會把 flow 顯示成可收合的段落；【推測】會標成黃色小標，反證附 `↯ 針對` 與來源連結。
+- 新方向（SEED_EXTRAS，createdBy bot・問題拆解師）：`n_x_cot_faithful`（<n_q2）、`n_x_model_collapse`（<n_q3）、`n_x_alignment_faking`（<n_q3_e2）、`n_x_cognitive_offloading`（<n_q5）、`n_x_latent_thought`（<n_x_language）。
+- `語言`／`思考`／`邊界` 已登記在 `CONCEPTS.defs`（只是固定顏色與說明）。
+- `structure-review.json` 的分裂、合併、改掛父節點、改標籤、`n_rev_*` 節點，以及新方向裡的 `x_crossLinks`／`x_suggestedNewConcepts` **都還沒套用**，要等 Merlin 確認。
+
 ## 📱 iPhone 播放與快取
 
 - **一個共用的 `<video>`**：feed 只有一個播放器，滑到哪一格就搬到哪一格。iOS 的「有聲播放許可」是跟著元素走的，所以第一次點擊開了聲音之後，後面每一集都會繼續有聲，自動接下一集也一樣。

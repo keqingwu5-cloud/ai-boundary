@@ -94,6 +94,7 @@ function migrate(st){
     if (typeof n.processPattern !== 'string') n.processPattern = seeded && CONCEPTS.process[key] ? CONCEPTS.process[key] : '';
     if (!n.media) n.media = { video:'', image:'' };
     applySeedMedia(n);
+    if (typeof applySeedPatch === 'function') applySeedPatch(n, st);
     n.concepts.forEach(c => { if (!st.concepts[c]) st.concepts[c] = { color:pickColor(st), desc:'', createdBy:'merlin' }; });
   });
   if (changed) st.history.push({ ts:Date.now(), action:'migrate', payload:{ nodes:changed } });
@@ -736,6 +737,26 @@ function videoBox(n){
     <form id="mvF"><input id="mvI" value="${esc(u)}" placeholder="🎬 mp4 網址 或 media/videos/xxx.mp4" maxlength="500" inputmode="url"><button title="儲存影片">✓</button></form>
     <a class="tofeed" href="feed.html#node=${encodeURIComponent(n.id)}">📱 用短影音模式看</a></div>`;
 }
+/* 【推測】 markers stay visible as a small badge */
+const spec = s => esc(s).replace(/【(推測[^】]*)】/g, '<em class="spec">$1</em>');
+const srcLink = s => { if (!s || typeof s !== 'object') return s ? esc(s) : '';
+  const meta = [s.outlet, s.date].filter(Boolean).join(' · ');
+  return `${s.url && safeUrl(s.url) ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.who || '來源')} ↗</a>` : esc(s.who || '')}${meta ? `<small>${esc(meta)}</small>` : ''}`; };
+function ceHTML(c){
+  return `<div class="ci"><span>${c.createdBy === 'bot' ? '🤖' : '⭐'}</span><div>${c.against ? `<b class="ag">↯ ${esc(c.against)}</b>` : ''}${spec(c.text)}${c.source ? `<div class="cs">${srcLink(c.source)}</div>` : ''}</div></div>`;
+}
+function flowHTML(f){
+  const split = a => typeof a === 'string' && /②/.test(a) ? a.split(/(?=[①②③④⑤⑥⑦⑧⑨⑩])/).map(s => s.trim()).filter(Boolean) : a;
+  const list = a => (a = split(a), Array.isArray(a)) ? `<ol>${a.map(x => `<li>${spec(String(x).replace(/^[①②③④⑤⑥⑦⑧⑨⑩]\s*/, ''))}</li>`).join('')}</ol>` : `<p>${spec(a)}</p>`;
+  const sec = (icon, k, body, open) => body ? `<details class="fl" ${open ? 'open' : ''}><summary>${icon} ${k}</summary>${body}</details>` : '';
+  const views = Array.isArray(f['各方觀點']) && f['各方觀點'].length ? `<div class="vw">${f['各方觀點'].map(v => `<div class="v"><b>${esc(v.stance || '')}</b><p>${spec(v.claim || '')}</p>${v.source ? `<div class="cs">${srcLink(v.source)}</div>` : ''}</div>`).join('')}</div>` : '';
+  return `<div class="lbl">🧭 推理流程 <i class="by">🤖 問題拆解師</i></div><div class="flow">
+    ${sec('❓', '問題定義', f['問題定義'] ? `<p>${spec(f['問題定義'])}</p>` : '', true)}
+    ${sec('◇', '前提假設', f['前提假設'] ? list(f['前提假設']) : '')}
+    ${sec('→', '推理步驟', f['推理步驟'] ? list(f['推理步驟']) : '')}
+    ${sec('🗣', '各方觀點', views)}
+    ${sec('？', '未解關鍵點', f['未解關鍵點'] ? list(f['未解關鍵點']) : '')}</div>`;
+}
 function select(id){
   const n = N(id); if (!n) return; selected = id;
   $('#bFeed').href = 'feed.html#node=' + encodeURIComponent(id);
@@ -773,10 +794,10 @@ function select(id){
     <div class="cchips">${n.concepts.map(c => `<span class="cc ${conceptUI.focus === 'c:' + c ? 'on' : ''}" style="--c:${esc(state.concepts[c]?.color || '#fff')}"><button data-cf="${esc(c)}">${esc(c)}</button><button data-cr="${esc(c)}" title="移除">×</button></span>`).join('')}
       <form id="ccF"><input id="ccI" list="clist" placeholder="＋ 概念" maxlength="16"><datalist id="clist">${Object.keys(state.concepts).filter(c => !n.concepts.includes(c)).map(c => `<option value="${esc(c)}">`).join('')}</datalist></form></div>
     <div class="pat"><span>⟳ 推演流程</span><select id="patS"><option value="">（無）</option>${Object.keys(state.patterns).map(p => `<option ${n.processPattern === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}<option value="__new">＋ 新流程…</option></select>${n.processPattern ? `<button data-pf="${esc(n.processPattern)}" class="pf ${conceptUI.focus === 'p:' + n.processPattern ? 'on' : ''}">亮線</button>` : ''}</div>
-    ${n.assumptions ? `<div class="lbl">◇ 前提假設</div><p class="txt">${esc(n.assumptions)}</p>` : ''}
-    ${n.reasoning.length ? `<div class="lbl">🧭 推演</div><div class="steps">${n.reasoning.map(r => `<div class="st"><b>${esc(r.k)}</b><span>${esc(r.v)}</span></div>`).join('')}</div>` : ''}
+    ${n.flow ? flowHTML(n.flow) : `${n.assumptions ? `<div class="lbl">◇ 前提假設</div><p class="txt">${spec(n.assumptions)}</p>` : ''}
+    ${n.reasoning.length ? `<div class="lbl">🧭 推演</div><div class="steps">${n.reasoning.map(r => `<div class="st"><b>${esc(r.k)}</b><span>${spec(r.v)}</span></div>`).join('')}</div>` : ''}`}
     <div class="lbl">⚔ 反證 <i>${n.counterEvidence.length}</i></div>
-    <div class="ce">${n.counterEvidence.map(c => `<div class="ci"><span>${c.createdBy === 'bot' ? '🤖' : '⭐'}</span>${esc(c.text)}</div>`).join('') || '<div class="empty">尚無反證</div>'}
+    <div class="ce">${n.counterEvidence.map(c => ceHTML(c)).join('') || '<div class="empty">尚無反證</div>'}
       <form id="ceF"><input id="ceI" placeholder="新增反證…" maxlength="200"><button>＋</button></form></div>
     <div class="lbl">🎞 媒體</div>${videoBox(n)}<div class="media">${slot('image', n.media.image)}</div>
     ${hist.length ? `<div class="lbl">🕘 紀錄</div><div class="mh">${hist.map(h => `<div>${fmt(h.ts)} ${ACT[h.action] || h.action}</div>`).join('')}</div>` : ''}`;
