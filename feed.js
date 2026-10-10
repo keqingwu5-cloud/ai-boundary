@@ -215,10 +215,24 @@ player.addEventListener('pause', () => { document.body.classList.remove('playing
 player.addEventListener('volumechange', renderSound);
 let progEl = null, progT = 0;
 player.addEventListener('timeupdate', () => { const now = performance.now(); if (now - progT < 240 || !player.duration) return; progT = now; progEl = itemEl(cur)?.querySelector('.prog'); progEl?.style.setProperty('--p', (player.currentTime / player.duration).toFixed(3)); });
+/* any drawer / sheet / panel on top of the feed (🌿 分支、💬 留言、⚙ 設定、知識掌握度、雲端同步選單) */
+const overlayOpen = () => !!document.querySelector('.sheet.on, .ks-panel.open, .sy-menu.open');
+let heldAdvance = null, holdT = 0;   // index of the card whose episode ended while a drawer was open
+function advanceFrom(i){
+  if (i !== cur || !set.continuous) return;
+  const nx = nextVideo(i);
+  if (nx >= 0) go(nx); else { player.currentTime = 0; tryPlay(); }
+}
+/* resume continuous play once every drawer is closed (keeps the drawer and the card behind it in sync) */
+function resumeAdvance(){
+  clearTimeout(holdT); if (heldAdvance == null) return;
+  if (overlayOpen()){ holdT = setTimeout(resumeAdvance, 600); return; }
+  const i = heldAdvance; heldAdvance = null; advanceFrom(i);
+}
 player.addEventListener('ended', () => {
   if (!set.continuous) return;
-  const nx = nextVideo(cur);
-  if (nx >= 0) go(nx); else { player.currentTime = 0; tryPlay(); }
+  if (overlayOpen()){ heldAdvance = cur; holdT = setTimeout(resumeAdvance, 600); return; }   // stay on this card while a drawer is open
+  advanceFrom(cur);
 });
 /* stall guard: "playing" but the clock is frozen (seen in WebKit) → one gentle pause/play nudge, no reload */
 let lastT = -1, stuck = 0;
@@ -288,7 +302,7 @@ $('#sndHint').onclick = () => setSound(true);
 
 /* ---------- sheets ---------- */
 function openSheet(id){ closeSheets(true); $('#' + id).classList.add('on'); $('#scrim').classList.add('on'); }
-function closeSheets(keep){ document.querySelectorAll('.sheet.on').forEach(s => s.classList.remove('on')); if (!keep) $('#scrim').classList.remove('on'); }
+function closeSheets(keep){ document.querySelectorAll('.sheet.on').forEach(s => s.classList.remove('on')); if (!keep) $('#scrim').classList.remove('on'); if (!keep) setTimeout(resumeAdvance, 250); }
 $('#scrim').onclick = () => closeSheets();
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => closeSheets());
 document.querySelectorAll('.sheet').forEach(sh => { let y0 = null; sh.addEventListener('touchstart', e => { if (sh.querySelector('.bd').scrollTop <= 0) y0 = e.touches[0].clientY; }, { passive:true });
