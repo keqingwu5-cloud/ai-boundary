@@ -16,10 +16,13 @@ const REGION = {                       // brain-local region centres (front = +z
   '社會影響':   [0.3, 0.06, -0.42],
   '其他':       [0.0, -0.05, 0.1]
 };
-const ACT = { seed:'🌱 播種', add:'✦ 新增問題', split:'❖ 分裂', subbrain:'🧠 生成子腦', merge:'↩ 併回', cross:'🔗 跨腦連結',
+const ACT = { seed:'🌱 播種', add:'✦ 新增問題', split:'❖ 分裂', direction:'🚀 新方向', concept:'🧵 概念', pattern:'⟳ 流程', migrate:'🧵 概念層升級', subbrain:'🧠 生成子腦', merge:'↩ 併回', cross:'🔗 跨腦連結',
   status:'◐ 研究進度', counter:'⚔ 反證', collapse:'◌ 收合', expand:'◉ 展開', media:'🎞 媒體', delete:'✕ 刪除', import:'⇧ 匯入', reset:'↺ 重置', undo:'↶ 復原' };
 const STATUS = { open:'待研究', researching:'研究中', resolved:'已有結論' };
 const colorOf = t => (TYPES[t] || TYPES['其他']).color;
+const DIR_COLOR = '#ff7ae0';
+const KIND = { question:'主問題', extension:'延伸問題', direction:'🚀 新方向' };
+const nodeColor = n => n.kind === 'direction' ? DIR_COLOR : colorOf(n.type);
 const iconOf = t => (TYPES[t] || TYPES['其他']).icon;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -39,7 +42,7 @@ function jitter(c, r, rnd = Math.random){
 function mkNode(o){
   return Object.assign({ id: uid('n'), brainId:'main', parentId:null, kind:'question', title:'', type:'其他', oneLiner:'', source:null,
     assumptions:'', reasoning:[], counterEvidence:[], media:{ video:'', image:'' }, status:'open', createdBy:'merlin',
-    createdAt: Date.now(), collapsed:false, pos:[0,0,0], botNotes:[] }, o);
+    createdAt: Date.now(), collapsed:false, pos:[0,0,0], botNotes:[], concepts:[], processPattern:'' }, o);
 }
 function seedState(){
   const rnd = mulberry(20261010), now = Date.now();
@@ -50,10 +53,10 @@ function seedState(){
     const pos = jitter(REGION[q.type] || REGION['其他'], 0.1, rnd);
     st.nodes.push(mkNode({ id:nid, kind:'question', title:q.title, type:q.type, oneLiner:q.oneLiner, source:q.source,
       assumptions:(q.process.find(p => p.k === '前提') || {}).v || '', reasoning:q.process.map(p => ({ k:p.k, v:p.v })),
-      media:{ video:q.videoUrl || '', image:q.imageUrl || '' }, createdBy:'seed', seedId:q.id, createdAt:now, pos }));
+      media:{ video:q.videoUrl || '', image:q.imageUrl || '' }, createdBy:'seed', seedId:q.id, createdAt:now, pos, concepts:(CONCEPTS.tags[q.id] || []).slice(), processPattern:CONCEPTS.process[q.id] || '' }));
     (q.extensions || []).forEach((e, i) => {
       const cid = nid + '_e' + i;
-      st.nodes.push(mkNode({ id:cid, parentId:nid, kind:'extension', title:e.q, type:e.type, createdBy:'seed', createdAt:now, pos:jitter(pos, 0.14, rnd) }));
+      st.nodes.push(mkNode({ id:cid, parentId:nid, kind:'extension', title:e.q, type:e.type, createdBy:'seed', createdAt:now, pos:jitter(pos, 0.14, rnd), concepts:(CONCEPTS.tags[q.id + ':e' + i] || []).slice() }));
       st.links.push({ id:'l_' + cid, from:nid, to:cid, kind:'derived', createdAt:now });
     });
   });
@@ -62,7 +65,29 @@ function seedState(){
 }
 function valid(s){ return s && Array.isArray(s.brains) && Array.isArray(s.nodes) && Array.isArray(s.links) && Array.isArray(s.history) && s.brains.some(b => b.id === 'main'); }
 function load(){ try { const s = JSON.parse(localStorage.getItem(KEY)); return valid(s) ? s : null; } catch(e){ return null; } }
-let state = load() || seedState();
+/* concept layer migration: adds concepts[] / processPattern to old saves without touching user edits */
+function seedKey(id){ const m = /^n_(q\d+)(?:_e(\d+))?$/.exec(id); return m ? (m[2] !== undefined ? m[1] + ':e' + m[2] : m[1]) : null; }
+function migrate(st){
+  if (!st.concepts) st.concepts = {};
+  if (!st.patterns) st.patterns = {};
+  Object.entries(CONCEPTS.defs).forEach(([k, v]) => { if (!st.concepts[k]) st.concepts[k] = { color:v.color, desc:v.desc, createdBy:'seed' }; });
+  Object.entries(CONCEPTS.patterns).forEach(([k, v]) => { if (!st.patterns[k]) st.patterns[k] = { color:v.color, desc:v.desc, createdBy:'seed' }; });
+  let changed = 0;
+  st.nodes.forEach(n => {
+    const key = seedKey(n.id), seeded = n.createdBy === 'seed' && key;
+    if (n.kind === 'split') n.kind = 'extension';
+    if (!Array.isArray(n.concepts)){ n.concepts = seeded && CONCEPTS.tags[key] ? CONCEPTS.tags[key].slice() : []; changed++; }
+    if (typeof n.processPattern !== 'string') n.processPattern = seeded && CONCEPTS.process[key] ? CONCEPTS.process[key] : '';
+    if (!n.media) n.media = { video:'', image:'' };
+    n.concepts.forEach(c => { if (!st.concepts[c]) st.concepts[c] = { color:pickColor(st), desc:'', createdBy:'merlin' }; });
+  });
+  if (changed) st.history.push({ ts:Date.now(), action:'migrate', payload:{ nodes:changed } });
+  st.version = 2;
+  return st;
+}
+const CPAL = ['#5eead4','#a3e635','#fde047','#fdba74','#67e8f9','#f0abfc','#86efac','#c4b5fd','#f9a8d4','#fca5a5','#fb7185','#93c5fd','#fb923c','#f472b6','#cbd5e1','#bef264','#7dd3fc','#fcd34d','#d8b4fe','#99f6e4'];
+function pickColor(st){ const used = new Set(Object.values(st.concepts || {}).map(c => c.color)); return CPAL.find(c => !used.has(c)) || `hsl(${Math.floor(Math.random() * 360)},85%,72%)`; }
+let state = migrate(load() || seedState());
 let undoStack = []; try { undoStack = JSON.parse(localStorage.getItem(UKEY) || '[]'); } catch(e){ undoStack = []; }
 let saveT = 0;
 function save(now = false){
@@ -99,25 +124,75 @@ function addQuestion(d){
     assumptions:d.assumptions || '', reasoning:d.reasoning || [], createdBy:d.createdBy || 'merlin',
     pos: jitter(isMain ? (REGION[d.type] || REGION['其他']) : [0, 0.08, 0], isMain ? 0.12 : 0.35) });
   const exts = (d.extensions || []).filter(e => e && e.title);
+  n.concepts = [...new Set((d.concepts || []).map(c => String(c).trim()).filter(Boolean))];
   mutate('add', { nodeId:n.id, title:n.title, brainId:brain }, () => {
+    n.concepts.forEach(c => ensureConcept(c, n.createdBy));
     state.nodes.push(n);
-    if (n.parentId) state.links.push({ id:uid('l'), from:n.parentId, to:n.id, kind:'derived', createdAt:Date.now() });
+    if (n.parentId){ n.kind = 'extension'; state.links.push({ id:uid('l'), from:n.parentId, to:n.id, kind:'derived', createdAt:Date.now() }); }
     exts.forEach(e => { const c = mkNode({ brainId:brain, parentId:n.id, kind:'extension', title:e.title, type:TYPES[e.type] ? e.type : n.type, createdBy:n.createdBy, pos:jitter(n.pos, 0.13) });
       state.nodes.push(c); state.links.push({ id:uid('l'), from:n.id, to:c.id, kind:'derived', createdAt:Date.now() }); });
   });
   pendingBursts.push(n.id);
   return n.id;
 }
-function splitNode(id, items, createdBy = 'merlin'){
+function splitNode(id, items, createdBy = 'merlin', kind = 'extension'){
+  kind = kind === 'direction' ? 'direction' : 'extension';
   const p = N(id); if (!p || !items.length) return [];
   const ids = [];
-  mutate('split', { nodeId:id, title:p.title, children:items.map(i => i.title) }, () => {
+  mutate(kind === 'direction' ? 'direction' : 'split', { nodeId:id, title:p.title, kind, children:items.map(i => i.title) }, () => {
     p.collapsed = false;
-    items.forEach(it => { const c = mkNode({ brainId:p.brainId, parentId:id, kind:'split', title:it.title, type:TYPES[it.type] ? it.type : p.type, createdBy, pos:jitter(p.pos, 0.15) });
+    items.forEach(it => { const c = mkNode({ brainId:p.brainId, parentId:id, kind, title:it.title, type:TYPES[it.type] ? it.type : p.type, createdBy, oneLiner:it.oneLiner || '',
+      concepts:[...new Set(it.concepts || (kind === 'direction' ? p.concepts : []) || [])], media:{ video:'', image:it.image || '' },
+      pos:kind === 'direction' ? dirPos(p.pos) : jitter(p.pos, 0.15) });
+      c.concepts.forEach(x => ensureConcept(x, createdBy));
       state.nodes.push(c); ids.push(c.id); state.links.push({ id:uid('l'), from:id, to:c.id, kind:'derived', createdAt:Date.now() }); });
   });
   pendingBursts.push(id);
   return ids;
+}
+function dirPos(p){  // new directions sit further out, pointing away from the brain centre
+  const v = new THREE.Vector3(p[0], p[1] - 0.1, p[2]); if (v.length() < 0.05) v.set(Math.random() - .5, 0.3, Math.random() - .5);
+  v.normalize().multiplyScalar(0.12).add(new THREE.Vector3((Math.random() - .5) * 0.06, (Math.random() - .5) * 0.06, (Math.random() - .5) * 0.06));
+  return clampInside([p[0] + v.x, p[1] + v.y, p[2] + v.z]);
+}
+/* a proposed new research direction branching from a node (bots: createdBy:'bot'; 影像導演 bot can fill media.image later) */
+function addDirection(parentId, d = {}){
+  if (typeof d === 'string') d = { title:d };
+  if (!N(parentId) || !d.title) return null;
+  return splitNode(parentId, [{ title:d.title, type:d.type, oneLiner:d.oneLiner, concepts:d.concepts, image:d.image }], d.createdBy || 'merlin', 'direction')[0] || null;
+}
+/* ---------- concept layer ---------- */
+function ensureConcept(name, by = 'merlin', color){ if (!state.concepts[name]) state.concepts[name] = { color:color || pickColor(state), desc:'', createdBy:by }; }
+function addConcept(id, name, by = 'merlin'){
+  const n = N(id); name = String(name || '').trim().slice(0, 16); if (!n || !name) return false;
+  if (n.concepts.includes(name)) return false;
+  mutate('concept', { nodeId:id, title:n.title, concept:name, op:'add' }, () => { ensureConcept(name, by); n.concepts.push(name); });
+  return true;
+}
+function removeConcept(id, name){
+  const n = N(id); if (!n || !n.concepts.includes(name)) return false;
+  mutate('concept', { nodeId:id, title:n.title, concept:name, op:'remove' }, () => { n.concepts = n.concepts.filter(c => c !== name); });
+  return true;
+}
+function setProcessPattern(id, pattern){
+  const n = N(id); if (!n) return; pattern = String(pattern || '').trim();
+  mutate('pattern', { nodeId:id, title:n.title, pattern }, () => { if (pattern && !state.patterns[pattern]) state.patterns[pattern] = { color:'#e2e8f0', desc:'', createdBy:'merlin' }; n.processPattern = pattern; });
+}
+function getConcepts(){
+  const out = {};
+  Object.entries(state.concepts).forEach(([k, v]) => { out[k] = { kind:'concept', color:v.color, desc:v.desc, nodes:state.nodes.filter(n => n.concepts.includes(k)).map(n => n.id) }; });
+  Object.entries(state.patterns).forEach(([k, v]) => { out['⟳' + k] = { kind:'process', name:k, color:v.color, desc:v.desc, nodes:state.nodes.filter(n => n.processPattern === k).map(n => n.id) }; });
+  return out;
+}
+function suggestConcepts(text, exclude = []){
+  text = String(text || ''); const low = text.toLowerCase();
+  const sc = Object.keys(state.concepts).map(k => {
+    let s = text.includes(k) ? 5 : 0;
+    ((CONCEPTS.defs[k] || {}).kw || []).forEach(w => { if (low.includes(w.toLowerCase())) s += 2; });
+    k.split(/vs|與|和|\s+/).filter(x => x.length >= 2).forEach(part => { if (text.includes(part)) s += 1; });
+    return [k, s];
+  }).filter(([k, s]) => s > 0 && !exclude.includes(k)).sort((a, b) => b[1] - a[1]);
+  return sc.slice(0, 6).map(x => x[0]);
 }
 function makeSubBrain(id){
   const n = N(id); if (!n) return null;
@@ -139,7 +214,7 @@ function makeSubBrain(id){
   const bid = uid('b');
   const sub = descendants(id, true);
   mutate('subbrain', { nodeId:id, title:n.title, brainId:bid, from:parent.id }, () => {
-    state.brains.push({ id:bid, name:n.title, parentBrainId:parent.id, position:pos, scale:parent.scale * 0.5, regionColor:colorOf(n.type), rootNodeId:id, createdAt:Date.now() });
+    state.brains.push({ id:bid, name:n.title, parentBrainId:parent.id, position:pos, scale:parent.scale * 0.5, regionColor:nodeColor(n), rootNodeId:id, createdAt:Date.now() });
     n.brainId = bid; n.pos = [0, 0.1, 0]; n.collapsed = false;
     // radial re-layout of the subtree inside the new brain
     const depthOf = x => { let d = 0, c = x; while (c && c.id !== id){ c = N(c.parentId); d++; } return d; };
@@ -202,7 +277,7 @@ function exportJSON(){
 function importJSON(obj){
   if (!valid(obj)){ toast('⚠ 檔案格式不符'); return false; }
   undoStack.push(JSON.stringify(state));
-  state = obj; state.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
+  state = migrate(obj); state.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
   save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入');
   return true;
 }
@@ -284,6 +359,8 @@ function stem(){ const g = new THREE.CylinderGeometry(0.075, 0.05, 0.4, 20, 4); 
 const WS = MOBILE ? 96 : 144, HS = MOBILE ? 72 : 108;
 const GEO = { L:hemisphere(-1, WS, HS), R:hemisphere(1, WS, HS), C:cerebellum(), S:stem() };
 const NODE_GEO = new THREE.IcosahedronGeometry(1, 2);
+const DIR_GEO = new THREE.OctahedronGeometry(1.25, 0); DIR_GEO.scale(0.75, 1.6, 0.75);
+const BEAM_GEO = new THREE.CylinderGeometry(0.0, 0.32, 1, 10, 1, true); BEAM_GEO.translate(0, 0.5, 0);
 const shellVS = `attribute float fold; varying vec3 vN; varying vec3 vV; varying float vF; varying vec3 vP;
   void main(){ vec4 mv=modelViewMatrix*vec4(position,1.); vN=normalize(normalMatrix*normal); vV=normalize(-mv.xyz); vF=fold; vP=position; gl_Position=projectionMatrix*mv; }`;
 const shellFS = `uniform vec3 uColor; uniform float uTime; uniform float uOpacity; varying vec3 vN; varying vec3 vV; varying float vF; varying vec3 vP;
@@ -354,16 +431,18 @@ function disposeBrain(id){
   brainObjs.delete(id);
 }
 function createNode(n, bo){
-  const color = new THREE.Color(colorOf(n.type));
-  const mesh = new THREE.Mesh(NODE_GEO, new THREE.MeshBasicMaterial({ color, transparent:true }));
+  const color = new THREE.Color(nodeColor(n)); const isDir = n.kind === 'direction';
+  const mesh = new THREE.Mesh(isDir ? DIR_GEO : NODE_GEO, new THREE.MeshBasicMaterial({ color, transparent:true }));
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map:GLOW, color, transparent:true, opacity:0.9, depthWrite:false, blending:THREE.AdditiveBlending }));
   glow.scale.set(7, 7, 1); mesh.add(glow);
+  let beam = null;
+  if (isDir){ beam = new THREE.Mesh(BEAM_GEO, new THREE.MeshBasicMaterial({ color:DIR_COLOR, transparent:true, opacity:0.45, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide })); beam.scale.set(1, 13, 1); mesh.add(beam); }
   mesh.userData.nodeId = n.id; glow.userData.nodeId = n.id;
   bo.nodes.add(mesh);
-  const o = { mesh, glow, brainId:n.brainId, phase:Math.random() * 6.28, size:0 };
+  const o = { mesh, glow, beam, isDir, brainId:n.brainId, phase:Math.random() * 6.28, size:0 };
   nodeObjs.set(n.id, o); return o;
 }
-function nodeSize(n){ const isRoot = state.brains.some(b => b.rootNodeId === n.id); return isRoot ? 0.042 : n.kind === 'question' ? 0.03 : 0.021; }
+function nodeSize(n){ const isRoot = state.brains.some(b => b.rootNodeId === n.id); return isRoot ? 0.042 : n.kind === 'question' ? 0.03 : n.kind === 'direction' ? 0.026 : 0.021; }
 function hiddenByCollapse(n){ let c = N(n.parentId); while (c){ if (c.brainId !== n.brainId) return false; if (c.collapsed) return true; c = N(c.parentId); } return false; }
 let filterType = null;
 
@@ -413,11 +492,11 @@ function sync(){
     } else if (o.mesh.position.distanceTo(target) > 1e-4 && !tweens.some(t => t.obj === o)){
       tween({ dur:900, ease:easeIO, from:o.mesh.position.clone(), to:target, obj:o, step:(e, tw) => tw.obj.mesh.position.lerpVectors(tw.from, tw.to, e) });
     }
-    const col = new THREE.Color(colorOf(n.type));
+    const col = new THREE.Color(nodeColor(n));
     o.mesh.material.color.copy(col); o.glow.material.color.copy(col);
     o.size = nodeSize(n);
     o.visible = !hiddenByCollapse(n);
-    o.dim = filterType && n.type !== filterType;
+    o.dim = (filterType && n.type !== filterType) || (conceptUI.focus && !inFocus(n));
     o.status = n.status; o.user = n.createdBy !== 'seed'; o.collapsed = n.collapsed && kids(n.id).some(k => k.brainId === n.brainId);
   });
   [...nodeObjs.keys()].forEach(id => { if (!alive.has(id)){ const o = nodeObjs.get(id); o.mesh.parent && o.mesh.parent.remove(o.mesh); o.mesh.material.dispose(); o.glow.material.dispose(); nodeObjs.delete(id); } });
@@ -435,8 +514,41 @@ function sync(){
   });
   // bursts for freshly created / split nodes
   while (pendingBursts.length){ const id = pendingBursts.shift(); const o = nodeObjs.get(id); if (o){ o.mesh.updateWorldMatrix(true, false); const n = N(id); burstAt(o.mesh.getWorldPosition(new THREE.Vector3()), colorOf(n.type), 0.8 * (B(n.brainId)?.scale || 1)); } }
-  updateCounts();
+  computeThreads();
+  updateCounts(); renderConcepts();
 }
+/* ---------- concept threads (derived, recomputed on every sync so they follow moves / splits / sub-brains) ---------- */
+const conceptUI = { on:true, focus:null };
+let threads = [], conceptLinks = [];
+function inFocus(n){ const f = conceptUI.focus; if (!f) return true; return f.startsWith('p:') ? n.processPattern === f.slice(2) : n.concepts.includes(f.slice(2)); }
+function threadColor(key){ const nm = key.slice(2); return key[0] === 'c' ? (state.concepts[nm]?.color || '#ffffff') : (state.patterns[nm]?.color || '#e2e8f0'); }
+function computeThreads(){
+  const wp = n => { const b = B(n.brainId) || B('main'); return new THREE.Vector3(...n.pos).multiplyScalar(WORLD * b.scale).add(new THREE.Vector3(...b.position)); };
+  const groups = {};
+  state.nodes.forEach(n => {
+    const o = nodeObjs.get(n.id); if (!o || !o.visible) return;
+    (n.concepts || []).forEach(c => (groups['c:' + c] = groups['c:' + c] || []).push(n));
+    if (n.processPattern) (groups['p:' + n.processPattern] = groups['p:' + n.processPattern] || []).push(n);
+  });
+  threads = Object.entries(groups).filter(([, a]) => a.length > 1).map(([key, arr]) => {
+    const P = new Map(arr.map(n => [n.id, wp(n)]));
+    const c = arr.reduce((s, n) => s.add(P.get(n.id)), new THREE.Vector3()).divideScalar(arr.length);
+    let cur = arr.reduce((a, b) => P.get(a.id).distanceTo(c) >= P.get(b.id).distanceTo(c) ? a : b).id;
+    const order = [cur], left = new Set(arr.map(n => n.id)); left.delete(cur);
+    while (left.size){ let best = null, bd = Infinity; left.forEach(i => { const d = P.get(i).distanceTo(P.get(cur)); if (d < bd){ bd = d; best = i; } }); order.push(best); left.delete(best); cur = best; }
+    return { key, name:key.slice(2), kind:key[0] === 'c' ? 'concept' : 'process', color:threadColor(key), ids:order, h:hashStr(key) };
+  });
+  conceptLinks = threads.flatMap(th => th.ids.slice(1).map((id, i) => ({ from:th.ids[i], to:id, kind:'concept', concept:th.name, threadKind:th.kind, key:th.key, color:th.color, h:th.h })));
+}
+function hashStr(s){ let h = 2166136261; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 1000) / 1000; }
+function focusConcept(key){
+  if (key && !key.includes(':')) key = (state.concepts[key] ? 'c:' : 'p:') + key;
+  conceptUI.focus = conceptUI.focus === key ? null : (key || null);
+  if (conceptUI.focus) conceptUI.on = true;
+  sync(); renderConceptPill();
+  return conceptUI.focus;
+}
+function showConcepts(v){ conceptUI.on = v === undefined ? !conceptUI.on : !!v; if (!conceptUI.on){ conceptUI.focus = null; sync(); renderConceptPill(); } renderConcepts(); return conceptUI.on; }
 
 /* ---------- bursts ---------- */
 function burstAt(pos, color, size = 1){
@@ -450,7 +562,7 @@ function burstAt(pos, color, size = 1){
 }
 
 /* ---------- cross-brain arcs + flowing particles ---------- */
-const MAXA = 6000;
+const MAXA = 16000;
 const arcGeo = new THREE.BufferGeometry();
 arcGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXA * 3), 3)); arcGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXA * 3), 3));
 const arcs = new THREE.LineSegments(arcGeo, new THREE.LineBasicMaterial({ vertexColors:true, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false }));
@@ -463,6 +575,7 @@ const pMat = new THREE.ShaderMaterial({ uniforms:{ uPR:{ value:renderer.getPixel
   fragmentShader:`varying vec3 vC; void main(){ float d=length(gl_PointCoord-.5); if(d>.5) discard; float a=smoothstep(.5,0.,d); gl_FragColor=vec4(vC*(0.6+a), a); }` });
 const flow = new THREE.Points(pGeo, pMat); flow.frustumCulled = false; scene.add(flow);
 const GOLD = new THREE.Color('#ffd36e');
+const sideV = new THREE.Vector3(); const debug = { conceptSegments:0 };
 const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3(), tmpC = new THREE.Vector3(), tmpV = new THREE.Vector3();
 function bez(a, c, b, t, out){ const u = 1 - t; return out.set(u*u*a.x + 2*u*t*c.x + t*t*b.x, u*u*a.y + 2*u*t*c.y + t*t*b.y, u*u*a.z + 2*u*t*c.z + t*t*b.z); }
 
@@ -498,6 +611,26 @@ function updateLinks(time){
       ac.set([col.r*k, col.g*k, col.b*k, col.r*k, col.g*k, col.b*k], ai * 3); ai += 2; }
     emitP(tmpA, tmpC, tmpB, col, isX ? (MOBILE ? 4 : 7) : 3, isX ? 2.2 : 1.4, isX ? 0.16 : 0.12, seed);
   });
+  // concept / process threads
+  let cSeg = 0;
+  if (conceptUI.on) conceptLinks.forEach((l, li) => {
+    const a = nodeObjs.get(l.from), b = nodeObjs.get(l.to); if (!a || !b || !a.visible || !b.visible) return;
+    const foc = conceptUI.focus, isF = !foc || foc === l.key;
+    const k = foc ? (isF ? 1 : 0.05) : 0.42; if (k < 0.06 && !isF) { /* still draw faint */ }
+    a.mesh.getWorldPosition(tmpA); b.mesh.getWorldPosition(tmpB);
+    const d = tmpA.distanceTo(tmpB);
+    tmpC.copy(tmpA).add(tmpB).multiplyScalar(0.5); tmpC.y += d * (0.1 + 0.22 * l.h);
+    sideV.subVectors(tmpB, tmpA); sideV.set(-sideV.z, 0, sideV.x); if (sideV.lengthSq() > 1e-8) sideV.normalize().multiplyScalar(d * (l.h - 0.5) * 0.45); tmpC.add(sideV);
+    col.set(l.color);
+    const SEG = 22, proc = l.threadKind === 'process';
+    for (let s = 0; s < SEG && ai < MAXA - 2; s++){
+      if (proc && s % 2) continue;                       // process threads are dotted
+      bez(tmpA, tmpC, tmpB, s / SEG, tmpV); ap.set([tmpV.x, tmpV.y, tmpV.z], ai * 3); bez(tmpA, tmpC, tmpB, (s + 1) / SEG, tmpV); ap.set([tmpV.x, tmpV.y, tmpV.z], ai * 3 + 3);
+      ac.set([col.r*k, col.g*k, col.b*k, col.r*k, col.g*k, col.b*k], ai * 3); ai += 2; cSeg++;
+    }
+    if (isF) emitP(tmpA, tmpC, tmpB, col, foc ? (MOBILE ? 3 : 5) : (MOBILE ? 1 : 2), foc ? 1.9 : 1.15, proc ? 0.09 : 0.13, (l.h + li * 0.137) % 1);
+  });
+  debug.conceptSegments = cSeg;
   // tethers brain -> parent brain
   state.brains.forEach((b, bi) => { if (!b.parentBrainId) return; const o = brainObjs.get(b.id), po = brainObjs.get(b.parentBrainId); if (!o || !po) return;
     tmpA.copy(po.group.position); tmpB.copy(o.group.position); const d = tmpA.distanceTo(tmpB); tmpC.copy(tmpA).add(tmpB).multiplyScalar(0.5); tmpC.y -= d * 0.15;
@@ -586,6 +719,7 @@ function select(id){
   const n = N(id); if (!n) return; selected = id;
   if (n.brainId !== focusId && B(n.brainId)) focusBrain(n.brainId);
   const s = n.source || {}; const par = N(n.parentId); const ch = kids(id);
+  const subQ = ch.filter(k => k.kind !== 'direction'), dirs = ch.filter(k => k.kind === 'direction');
   const xl = state.links.filter(l => l.kind === 'cross' && (l.from === id || l.to === id)).map(l => N(l.from === id ? l.to : l.from)).filter(Boolean);
   const brain = B(n.brainId); const isRoot = state.brains.find(b => b.rootNodeId === id);
   const hist = state.history.filter(h => h.payload && (h.payload.nodeId === id || (h.payload.children && h.action === 'split' && h.payload.nodeId === id))).slice(-4);
@@ -594,11 +728,11 @@ function select(id){
   const also = (s.also || []).map(a => `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.label)}</a>`).join('、');
   const by = n.createdBy === 'bot' ? '🤖 bot' : n.createdBy === 'seed' ? '📚 公開來源' : '⭐ Merlin';
   pBody.innerHTML = `
-    <div class="row1">${tag(n.type)}<span class="tag by ${n.createdBy}">${by}</span><span class="tag kind">${{ question:'主問題', extension:'延伸', split:'分裂' }[n.kind] || n.kind}</span></div>
+    <div class="row1">${tag(n.type)}<span class="tag by ${n.createdBy}">${by}</span><span class="tag kind ${n.kind}">${KIND[n.kind] || esc(n.kind)}</span></div>
     <h2>${esc(n.title)}</h2>
     ${n.oneLiner ? `<p class="one">${esc(n.oneLiner)}</p>` : ''}
     <div class="acts">
-      <button data-a="split" title="分裂成子問題">❖ 分裂</button>
+      <button data-a="split" title="分裂成子問題或新方向">❖ 分裂</button>
       ${ch.some(k => k.brainId === n.brainId) ? `<button data-a="${n.collapsed ? 'expand' : 'collapse'}">${n.collapsed ? '◉ 展開' : '◌ 收合'}</button>` : ''}
       ${isRoot ? `<button data-a="merge">↩ 併回${B(brain.parentBrainId)?.id === 'main' ? '主腦' : '上層'}</button>` : `<button data-a="sub" title="獨立成子腦">🧠 子腦</button>`}
       <button data-a="link" title="跨腦連結">🔗 連結</button>
@@ -609,9 +743,14 @@ function select(id){
     ${srcHTML ? `<div class="src">📎 ${srcHTML}${also ? '<br>其他：' + also : ''}</div>` : ''}
     <div class="prov">
       <div><span>🧬 來自</span>${par ? nodeLink(par) + (par.brainId !== n.brainId ? ` <em>（${esc(B(par.brainId)?.id === 'main' ? '主腦' : B(par.brainId)?.name || '')}）</em>` : '') : `<em>${esc(brain.id === 'main' ? '主腦' : brain.name)}・根問題</em>`}</div>
-      ${ch.length ? `<div><span>🌿 衍生 ${ch.length}</span>${ch.map(nodeLink).join('')}</div>` : ''}
+      ${subQ.length ? `<div><span>🌿 子問題 ${subQ.length}</span>${subQ.map(nodeLink).join('')}</div>` : ''}
+      ${dirs.length ? `<div><span>🚀 新方向 ${dirs.length}</span>${dirs.map(nodeLink).join('')}</div>` : ''}
       ${xl.length ? `<div><span>🔗 跨腦</span>${xl.map(nodeLink).join('')}</div>` : ''}
     </div>
+    <div class="lbl">🧵 概念</div>
+    <div class="cchips">${n.concepts.map(c => `<span class="cc ${conceptUI.focus === 'c:' + c ? 'on' : ''}" style="--c:${esc(state.concepts[c]?.color || '#fff')}"><button data-cf="${esc(c)}">${esc(c)}</button><button data-cr="${esc(c)}" title="移除">×</button></span>`).join('')}
+      <form id="ccF"><input id="ccI" list="clist" placeholder="＋ 概念" maxlength="16"><datalist id="clist">${Object.keys(state.concepts).filter(c => !n.concepts.includes(c)).map(c => `<option value="${esc(c)}">`).join('')}</datalist></form></div>
+    <div class="pat"><span>⟳ 推演流程</span><select id="patS"><option value="">（無）</option>${Object.keys(state.patterns).map(p => `<option ${n.processPattern === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}<option value="__new">＋ 新流程…</option></select>${n.processPattern ? `<button data-pf="${esc(n.processPattern)}" class="pf ${conceptUI.focus === 'p:' + n.processPattern ? 'on' : ''}">亮線</button>` : ''}</div>
     ${n.assumptions ? `<div class="lbl">◇ 前提假設</div><p class="txt">${esc(n.assumptions)}</p>` : ''}
     ${n.reasoning.length ? `<div class="lbl">🧭 推演</div><div class="steps">${n.reasoning.map(r => `<div class="st"><b>${esc(r.k)}</b><span>${esc(r.v)}</span></div>`).join('')}</div>` : ''}
     <div class="lbl">⚔ 反證 <i>${n.counterEvidence.length}</i></div>
@@ -620,6 +759,11 @@ function select(id){
     <div class="lbl">🎞 媒體</div><div class="media">${slot('video', n.media.video)}${slot('image', n.media.image)}</div>
     ${hist.length ? `<div class="lbl">🕘 紀錄</div><div class="mh">${hist.map(h => `<div>${fmt(h.ts)} ${ACT[h.action] || h.action}</div>`).join('')}</div>` : ''}`;
   pBody.querySelectorAll('.nl').forEach(a => a.onclick = ev => { ev.preventDefault(); select(a.dataset.n); });
+  pBody.querySelectorAll('[data-cf]').forEach(b => b.onclick = () => { focusConcept('c:' + b.dataset.cf); select(id); });
+  pBody.querySelectorAll('[data-pf]').forEach(b => b.onclick = () => { focusConcept('p:' + b.dataset.pf); select(id); });
+  pBody.querySelectorAll('[data-cr]').forEach(b => b.onclick = () => { removeConcept(id, b.dataset.cr); select(id); });
+  $('#ccF').onsubmit = ev => { ev.preventDefault(); const v = $('#ccI').value.trim(); if (v && addConcept(id, v)){ toast('🧵 已連上「' + v + '」概念線'); } select(id); };
+  $('#patS').onchange = ev => { let v = ev.target.value; if (v === '__new'){ v = (prompt('新的推演流程名稱（例：類比推論→反例檢驗）') || '').trim(); if (!v){ select(id); return; } } setProcessPattern(id, v); select(id); };
   pBody.querySelectorAll('[data-st]').forEach(b => b.onclick = () => { setStatus(id, b.dataset.st); select(id); });
   pBody.querySelectorAll('[data-media]').forEach(b => b.onclick = () => { const u = prompt(b.dataset.media === 'video' ? '影片網址' : '圖片網址', n.media[b.dataset.media] || ''); if (u !== null){ setMedia(id, b.dataset.media, u.trim()); select(id); } });
   $('#ceF').onsubmit = ev => { ev.preventDefault(); const v = $('#ceI').value.trim(); if (v){ addCounterEvidence(id, v); select(id); } };
@@ -650,13 +794,22 @@ $('#bLink').onclick = () => { if (linkMode){ linkMode = null; document.body.clas
 
 // dialogs
 function openDlg(id){ const d = $(id); d.showModal ? d.showModal() : d.setAttribute('open', ''); }
-$('#bAdd').onclick = () => { $('#qType').innerHTML = TYPE_LIST.map(t => `<option>${esc(t)}</option>`).join(''); $('#addWhere').textContent = focusId === 'main' ? '主腦' : B(focusId).name; openDlg('#addDlg'); };
+let addSel = new Set();
+function renderSugg(){
+  const f = $('#addForm').elements; const txt = [f.qtitle.value, f.oneLiner.value, f.assume.value, f.exts.value].join(' ');
+  const sug = suggestConcepts(txt); const all = [...new Set([...addSel, ...sug])];
+  $('#sugg').innerHTML = all.length ? all.map(c => `<button type="button" class="cc1 ${addSel.has(c) ? 'on' : ''}" data-c="${esc(c)}" style="--c:${esc(state.concepts[c]?.color || '#fff')}">${addSel.has(c) ? '✓ ' : '＋ '}${esc(c)}</button>`).join('') : '<span class="empty">輸入問題後會自動建議概念</span>';
+  $('#sugg').querySelectorAll('[data-c]').forEach(b => b.onclick = () => { const c = b.dataset.c; addSel.has(c) ? addSel.delete(c) : addSel.add(c); renderSugg(); });
+}
+['qtitle', 'oneLiner', 'assume', 'exts'].forEach(nm => $('#addForm').elements[nm].addEventListener('input', () => { clearTimeout(renderSugg.t); renderSugg.t = setTimeout(renderSugg, 180); }));
+$('#bAdd').onclick = () => { addSel = new Set(); renderSugg(); $('#qType').innerHTML = TYPE_LIST.map(t => `<option>${esc(t)}</option>`).join(''); $('#addWhere').textContent = focusId === 'main' ? '主腦' : B(focusId).name; openDlg('#addDlg'); };
 $('#addDlg').addEventListener('close', () => {
   const d = $('#addDlg'), f = $('#addForm').elements;
   if (d.returnValue === 'ok' && f.qtitle.value.trim()){
     const exts = f.exts.value.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 6).map(l => { const p = l.split(/[｜|]/).map(x => x.trim()); return { title:p[0], type:p[1] }; });
     const id = addQuestion({ title:f.qtitle.value.trim(), type:f.qtype.value, oneLiner:f.oneLiner.value.trim(), assumptions:f.assume.value.trim(),
-      source:{ who:f.src.value.trim() || 'Merlin', outlet:'', date:new Date().toISOString().slice(0,10), url:f.url.value.trim(), also:[] }, extensions:exts });
+      source:{ who:f.src.value.trim() || 'Merlin', outlet:'', date:new Date().toISOString().slice(0,10), url:f.url.value.trim(), also:[] }, extensions:exts,
+      concepts:[...addSel, ...f.cextra.value.split(/[,，、]/).map(s => s.trim()).filter(Boolean)] });
     setTimeout(() => select(id), 60); toast('✦ 新的神經節點已長出');
   }
   $('#addForm').reset(); d.returnValue = '';
@@ -667,7 +820,8 @@ $('#splitDlg').addEventListener('close', () => {
   const d = $('#splitDlg'); const v = $('#splitForm').elements.lines.value;
   if (d.returnValue === 'ok' && splitTarget){
     const items = v.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 6).map(l => { const p = l.split(/[｜|]/).map(x => x.trim()); return { title:p[0], type:p[1] }; });
-    if (items.length){ splitNode(splitTarget, items); select(splitTarget); toast('❖ 節點已分裂'); }
+    const kind = ($('#splitForm').elements.skind.value || 'extension');
+    if (items.length){ splitNode(splitTarget, items, 'merlin', kind); select(splitTarget); toast(kind === 'direction' ? '🚀 新方向已分裂出去' : '❖ 已分裂出子問題'); }
   }
   d.returnValue = '';
 });
@@ -694,6 +848,27 @@ $('#bFit').onclick = overview;
 $('#bRot').onclick = function(){ controls.autoRotate = !controls.autoRotate; this.classList.toggle('on', controls.autoRotate); autoRotPref = controls.autoRotate; };
 let autoRotPref = !REDUCED;
 
+function renderConcepts(){
+  const el = $('#cList'); if (!el) return;
+  const cs = getConcepts();
+  const chip = (key, name, c) => `<button class="cchip ${conceptUI.focus === key ? 'on' : ''} ${c.nodes.length < 2 ? 'solo' : ''}" data-k="${esc(key)}" style="--c:${esc(c.color)}" title="${esc(c.desc || '')}"><i></i>${esc(name)}<b>${c.nodes.length}</b></button>`;
+  el.innerHTML = '<div class="csec">🧵 概念</div>' + Object.entries(cs).filter(([, c]) => c.kind === 'concept' && c.nodes.length).sort((a, b) => b[1].nodes.length - a[1].nodes.length).map(([k, c]) => chip('c:' + k, k, c)).join('')
+    + '<div class="csec">⟳ 推演流程</div>' + Object.entries(cs).filter(([, c]) => c.kind === 'process' && c.nodes.length).map(([k, c]) => chip('p:' + c.name, c.name, c)).join('');
+  el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => focusConcept(b.dataset.k));
+  $('#cOn').textContent = conceptUI.on ? '● 顯示' : '○ 隱藏'; $('#cOn').classList.toggle('on', conceptUI.on);
+  $('#bConc').classList.toggle('on', conceptUI.on);
+}
+function renderConceptPill(){
+  const p = $('#cpill'); const f = conceptUI.focus;
+  if (!f){ p.classList.remove('on'); return; }
+  const th = threads.find(x => x.key === f); const nm = f.slice(2);
+  p.innerHTML = `<i style="--c:${esc(threadColor(f))}"></i>${f[0] === 'p' ? '⟳ ' : '🧵 '}${esc(nm)} <b>${th ? th.ids.length : 0}</b><button id="cpX">✕</button>`;
+  p.style.setProperty('--c', threadColor(f)); p.classList.add('on');
+  $('#cpX').onclick = () => focusConcept(null);
+}
+$('#bConc').onclick = () => { $('#cdraw').classList.toggle('open'); renderConcepts(); };
+$('#cX').onclick = () => $('#cdraw').classList.remove('open');
+$('#cOn').onclick = () => showConcepts();
 function renderCrumbs(){
   const chain = []; let b = B(focusId); while (b){ chain.unshift(b); b = B(b.parentBrainId); }
   $('#crumbs').innerHTML = chain.map((x, i) => `<button data-b="${esc(x.id)}" style="--c:${x.regionColor}">${x.id === 'main' ? '🧠 主腦' : esc(x.name.length > 8 ? x.name.slice(0, 8) + '…' : x.name)}</button>`).join('<i>›</i>');
@@ -711,7 +886,7 @@ let initDone = false;
 function resize(){ const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
-const viewOff = { x:0, y:0 }; const MOBILE_LAYOUT = () => innerWidth <= 700;
+const viewOff = { x:0, y:0 }; const dirV = new THREE.Vector3(), UPV = new THREE.Vector3(0, 1, 0); const MOBILE_LAYOUT = () => innerWidth <= 700;
 const v3 = new THREE.Vector3();
 function frame(){
   const now = performance.now(), t = clock.getElapsedTime();
@@ -735,6 +910,9 @@ function frame(){
       o.label.style.transform = `translate(${(v3.x * 0.5 + 0.5) * innerWidth}px,${(-v3.y * 0.5 + 0.5) * innerHeight}px) translate(-50%,-100%)`; o.label.style.opacity = vis ? 1 : 0; }
   });
   nodeObjs.forEach((o, id) => {
+    if (o.isDir){ dirV.copy(o.mesh.position); dirV.y -= 0.1; if (dirV.lengthSq() < 1e-6) dirV.set(0, 1, 0); dirV.normalize();
+      o.mesh.quaternion.setFromUnitVectors(UPV, dirV); o.mesh.rotateY(t * 0.8);
+      o.beam.material.opacity = (o.dim ? 0.06 : 0.3 + 0.25 * Math.sin(t * 3 + o.phase)); o.beam.scale.set(1, 11 + 3 * Math.sin(t * 2 + o.phase), 1); }
     const growing = o.mesh.scale.x < o.size * 0.999;
     const target = o.visible ? o.size * (selected === id ? 1.6 : hover === id ? 1.35 : 1) * (o.collapsed ? 1.2 : 1) : 0.0001;
     o.mesh.scale.setScalar(o.mesh.scale.x + (target - o.mesh.scale.x) * (growing ? 0.08 : 0.15));
@@ -763,7 +941,9 @@ setTimeout(() => $('#hint').classList.add('off'), 6500);
 /* ================= public API (hooks for future AI bots) ================= */
 window.AIBrain = {
   version:1, getState:() => JSON.parse(JSON.stringify(state)),
-  addQuestion, splitNode, makeSubBrain, mergeBrain, crossLink, setStatus, addCounterEvidence, setCollapsed, setMedia, deleteNode,
+  addQuestion, splitNode, addDirection, makeSubBrain,
+  addConcept, removeConcept, setProcessPattern, getConcepts, getConceptThreads:() => JSON.parse(JSON.stringify(threads)), getConceptLinks:() => conceptLinks.map(l => ({ from:l.from, to:l.to, kind:'concept', concept:l.concept, threadKind:l.threadKind })),
+  suggestConcepts, focusConcept, showConcepts, _debug:debug, mergeBrain, crossLink, setStatus, addCounterEvidence, setCollapsed, setMedia, deleteNode,
   focusBrain, overview, select, undo, exportJSON, importJSON, reset:resetAll,
   on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); }
 };

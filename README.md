@@ -54,3 +54,39 @@
 `window.AIBrain` 公開 API：
 `getState() / addQuestion({...,createdBy:'bot'}) / splitNode(id, items, 'bot') / makeSubBrain(id) / mergeBrain(id) / crossLink(a,b) / addCounterEvidence(id, text, 'bot', source) / setStatus(id, s) / on('change', cb)`。
 bot 產生的內容以 `createdBy:'bot'` 標示（介面顯示 🤖），`botNotes[]` 預留給研究筆記。
+
+## 🧵 概念線（Concept threads）
+
+「相同概念或流程，拉成一條線」。
+
+- 每個節點有 `concepts: string[]` 與選填的 `processPattern: string`。種子標籤放在獨立的 `CONCEPTS` 區塊（`index.html` 第二個 `<script>`），`QUESTIONS` 原始資料一個位元都沒改。
+- 概念線是**推導出來的**（`kind: 'concept'`），不存進 `links`：每次 `sync()` 依目前可見節點，以「最近鄰串接」把同概念節點串成**一條鏈**（不是全連網），跨子腦也照樣相連；節點移動、分裂、變成子腦後自動重畫。
+- 每個概念有自己的顏色、光暈與流動粒子；推演流程線以虛線呈現。
+- 🧵 按鈕：打開概念抽屜 → 全部開／關、點一個概念即高亮該線並淡化其他。
+- 節點面板：概念 chips（點＝高亮、✕＝移除）、新增標籤（有自動完成）、推演流程選單。
+- 新增問題時依文字自動建議概念，點選即採用，也可手打其他概念。
+- 舊存檔（v1）載入時自動遷移：只補缺的欄位，使用者改過的內容不動，歷程記一筆 `migrate`。
+
+### 分裂的兩種結果
+
+節點 `kind`：`'question'`（主問題）｜`'extension'`（從問題分裂出的子問題）｜`'direction'`（提出的新方向）。
+
+- 分裂時選「🌿 子問題」或「🚀 新方向」。
+- 新方向是粉紫色的菱形星、帶一道向外的光束，繼承父節點的概念，可再「升為子腦」。
+- 面板顯示「分裂自」與兩份清單：子問題／新方向。
+- 新方向保留 `media.image` 欄位（給未來的影像導演 bot 填圖）。種子資料沒有編造任何新方向。
+
+### API 新增
+
+```js
+AIBrain.addDirection(parentId, { title, type, oneLiner, concepts, image, createdBy })
+AIBrain.addConcept(nodeId, name) / removeConcept(nodeId, name)
+AIBrain.setProcessPattern(nodeId, name)
+AIBrain.getConcepts()          // 概念與流程登錄表
+AIBrain.getConceptThreads()    // [{key, name, kind, color, ids}]
+AIBrain.getConceptLinks()      // 推導出的 concept 連線
+AIBrain.suggestConcepts(text)
+AIBrain.focusConcept(name | 'p:流程' | null)
+AIBrain.showConcepts(true|false)
+AIBrain.splitNode(id, items, createdBy, 'extension' | 'direction')
+```
