@@ -2,10 +2,11 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI 認知邊界 · 問題鏈地圖</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI 認知邊界 · 3D 問題樹</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script>window.__errs=[];addEventListener("error",function(e){window.__errs.push(String(e.message||e));});</script>
 <script>
 /* =====================================================================
    資料區：之後要新增／修改問題，只要編輯這個陣列即可。
@@ -202,307 +203,520 @@ const TYPES = {
 };
 </script>
 <style>
-:root{
-  --bg:#0f1220; --panel:#171b2e; --panel2:#1e2340; --line:#2c3358;
-  --text:#e8eaf6; --muted:#9aa3c7; --gold:#f5c451; --radius:16px;
-}
+:root{--bg:#070914;--panel:#141a33;--panel2:#1c2346;--line:#2c3460;--text:#eef0ff;--muted:#9aa3c7;--gold:#f5c451;--bar:58px}
 *{box-sizing:border-box}
-html,body{margin:0}
-body{font-family:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
-  background:radial-gradient(1200px 600px at 10% -10%,#2a2160 0,transparent 60%),radial-gradient(900px 500px at 110% 0,#123a4a 0,transparent 55%),var(--bg);
-  color:var(--text);line-height:1.55;min-height:100vh}
-a{color:#8fb4ff}
-.wrap{max-width:1200px;margin:0 auto;padding:28px 22px 60px}
-/* header */
-header.hero{display:grid;grid-template-columns:1.1fr 1fr;gap:22px;align-items:stretch;margin-bottom:22px}
-.brand h1{font-size:34px;font-weight:900;margin:0 0 6px;letter-spacing:1px}
-.brand h1 span{background:linear-gradient(90deg,#8fb4ff,#c18bff,#f5c451);-webkit-background-clip:text;background-clip:text;color:transparent}
-.brand p{margin:0;color:var(--muted);font-size:15px}
-.brand .stats{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-width:96px}
-.stat b{display:block;font-size:24px;font-weight:900}
-.stat small{color:var(--muted);font-size:12px}
-.summary{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
-.summary h3{margin:0 0 10px;font-size:14px;color:var(--muted);font-weight:500}
-.barrow{display:grid;grid-template-columns:110px 1fr 54px;gap:10px;align-items:center;margin:7px 0;font-size:13px;cursor:pointer}
-.barrow:hover .bar{filter:brightness(1.2)}
-.track{background:#0c0f1c;border-radius:99px;height:14px;overflow:hidden;display:flex}
-.bar{height:100%}
-.bar.ext{opacity:.4}
-.barrow .n{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
-.legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:8px}
-.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;background:#8fb4ff;margin-right:4px;vertical-align:-1px}
-.legend i.l{opacity:.4}
-/* filter */
-.filters{position:sticky;top:0;z-index:5;display:flex;gap:8px;flex-wrap:wrap;padding:12px 0;margin-bottom:6px;
-  background:linear-gradient(var(--bg) 70%,transparent)}
-.chip{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:99px;padding:7px 14px;font-size:13px;cursor:pointer;
-  display:inline-flex;gap:6px;align-items:center;font-family:inherit;transition:.15s}
-.chip .dot{width:9px;height:9px;border-radius:50%}
-.chip .c{background:#0c0f1c;border-radius:99px;padding:0 7px;font-size:11px;color:var(--muted)}
-.chip.on{background:var(--c,#3b4170);border-color:var(--c,#8fb4ff);color:#fff;box-shadow:0 0 0 3px color-mix(in srgb,var(--c,#8fb4ff) 25%,transparent)}
-.chip.on .c{background:rgba(0,0,0,.25);color:#fff}
-.tools{margin-left:auto;display:flex;gap:8px}
-.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit}
-.btn.gold{border-color:var(--gold);color:var(--gold)}
-/* section titles */
-h2.sec{font-size:18px;margin:26px 0 12px;display:flex;align-items:center;gap:10px}
-h2.sec small{color:var(--muted);font-weight:400;font-size:13px}
-/* cards */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;
-  border-top:4px solid var(--c);transition:transform .15s, box-shadow .15s}
-.card:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.35)}
-.card .top{padding:14px 16px 10px}
-.tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
-.tag{font-size:11.5px;font-weight:700;border-radius:6px;padding:2px 8px;background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--c);border:1px solid color-mix(in srgb,var(--c) 45%,transparent);white-space:nowrap}
-.badge-user{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;background:var(--gold);color:#2a1d00}
-.idn{margin-left:auto;font-size:11px;color:var(--muted)}
-.card h4{margin:0 0 6px;font-size:18px;line-height:1.35}
-.one{margin:0;color:#cfd5f5;font-size:14px;display:flex;gap:6px}
-.one::before{content:"💡";flex:none}
-.src{font-size:12px;color:var(--muted);margin-top:10px;display:flex;gap:6px;align-items:flex-start}
+html,body{margin:0;height:100%;overflow:hidden}
+body{font-family:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;color:var(--text);
+  background:radial-gradient(900px 600px at 50% 110%,#1b1446 0,transparent 70%),radial-gradient(700px 500px at 0% 0%,#0f2c3d 0,transparent 60%),var(--bg)}
+button{font-family:inherit}
+/* top bar */
+.bar{position:fixed;top:0;left:0;right:0;height:var(--bar);z-index:30;display:flex;align-items:center;gap:12px;padding:0 14px;
+  background:linear-gradient(#070914ee,#07091400)}
+.bar h1{margin:0;font-size:18px;font-weight:900;white-space:nowrap}
+.bar h1 span{background:linear-gradient(90deg,#8fb4ff,#c18bff,#f5c451);-webkit-background-clip:text;background-clip:text;color:transparent}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;padding:4px 2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:#141a33cc;color:var(--text);border-radius:99px;padding:5px 11px;font-size:13px;cursor:pointer;display:flex;gap:5px;align-items:center;transition:.2s}
+.chip i{font-style:normal;font-size:11px;background:#0008;border-radius:99px;padding:0 6px;color:var(--muted)}
+.chip.on{background:var(--c);border-color:var(--c);color:#fff;box-shadow:0 0 14px color-mix(in srgb,var(--c) 60%,transparent)}
+.chip.on i{color:#fff}
+.tools{display:flex;gap:6px;flex:none}
+.ib{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:#141a33cc;color:var(--text);cursor:pointer;font-size:16px;display:grid;place-items:center}
+.ib.gold{border-color:var(--gold);color:var(--gold)}
+.ib.on{background:#2b3570}
+/* stage */
+#vp{position:fixed;inset:0;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+#vp:active{cursor:grabbing}
+#cv{position:absolute;inset:0;width:100%;height:100%}
+#layer{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.node{position:absolute;left:0;top:0;transform-origin:50% 50%;pointer-events:auto;cursor:pointer;will-change:transform,opacity;
+  display:flex;align-items:center;gap:6px;border-radius:12px;padding:5px 10px;font-size:13px;line-height:1.3;white-space:nowrap;
+  background:#121834e6;border:1px solid color-mix(in srgb,var(--c) 70%,transparent);color:var(--text)}
+.node .lb{overflow:hidden;text-overflow:ellipsis}
+.node .tg{font-style:normal;font-size:11px;min-width:20px;height:18px;border-radius:9px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 30%,#0008);color:#fff;padding:0 5px}
+.node:hover{border-color:#fff}
+.node.sel{box-shadow:0 0 0 2px #fff,0 0 22px var(--c)}
+.k-root{font-size:17px;font-weight:900;padding:9px 16px;border-radius:16px;background:linear-gradient(135deg,#2a2370,#123a4a);border:1.5px solid #c18bff;box-shadow:0 0 30px #8f6bff88}
+.k-type{font-weight:700;font-size:14px;background:color-mix(in srgb,var(--c) 30%,#0e1430);box-shadow:0 0 16px color-mix(in srgb,var(--c) 45%,transparent)}
+.k-type .ct{font-style:normal;font-size:11px;background:#0007;border-radius:99px;padding:0 6px}
+.k-q{white-space:normal;width:190px;font-weight:500;border-left:4px solid var(--c)}
+.k-q .lb{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.k-ext{white-space:normal;width:160px;font-size:11.5px;color:#cfd5f5;background:#0e1330d9;border-style:dashed}
+.k-ext .lb{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.k-ext .dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c)}
+.k-pg{font-size:12px;background:#1a1f40e6}
+.k-step{font-size:11px;font-weight:700;color:#0b0e20;background:var(--c);border:none;padding:3px 9px}
+.ub{font-size:10px;font-weight:900;background:var(--gold);color:#2a1d00;border-radius:5px;padding:1px 5px;flex:none}
+.fresh{animation:fresh 2.4s ease-out 2}
+@keyframes fresh{0%{box-shadow:0 0 0 0 var(--gold)}60%{box-shadow:0 0 0 14px transparent}100%{box-shadow:0 0 0 0 transparent}}
+/* floating controls */
+.ctl{position:fixed;left:14px;bottom:14px;z-index:20;display:flex;flex-direction:column;gap:6px}
+.hint{position:fixed;left:62px;bottom:18px;z-index:20;font-size:12px;color:var(--muted);background:#0009;border-radius:8px;padding:5px 9px;transition:opacity 1s;pointer-events:none}
+/* panel */
+#panel{position:fixed;z-index:40;background:#10152ef5;border:1px solid var(--line);backdrop-filter:blur(8px);overflow:auto;transition:transform .35s cubic-bezier(.2,.8,.2,1);
+  right:0;top:0;bottom:0;width:370px;transform:translateX(105%);padding:18px 18px 26px;border-radius:18px 0 0 18px}
+#panel.open{transform:none}
+#panel .x{position:sticky;top:0;float:right;margin:-4px -4px 0 0}
+.ptag{display:inline-block;font-size:12px;font-weight:700;border-radius:6px;padding:2px 8px;color:var(--c);background:color-mix(in srgb,var(--c) 18%,transparent);border:1px solid color-mix(in srgb,var(--c) 50%,transparent);margin:0 6px 6px 0}
+#panel h2{font-size:19px;line-height:1.4;margin:6px 0 8px}
+.one{font-size:14px;color:#d5daf7;margin:0 0 12px;display:flex;gap:6px}
+.one:before{content:"💡"}
+.src{font-size:12.5px;color:var(--muted);background:#0b0f24;border-radius:10px;padding:8px 10px;margin-bottom:14px}
 .src a{color:#8fb4ff;text-decoration:none}
-.src a:hover{text-decoration:underline}
-.mini-ext{display:flex;gap:6px;flex-wrap:wrap;padding:0 16px 12px}
-.mini-ext span{width:22px;height:6px;border-radius:99px;background:var(--c)}
-.toggle{border:none;border-top:1px solid var(--line);background:var(--panel2);color:var(--muted);padding:10px;cursor:pointer;font-family:inherit;font-size:13px;margin-top:auto}
-.toggle:hover{color:#fff}
-.details{display:none;padding:14px 16px 16px;border-top:1px solid var(--line);background:#141831}
-.card.open .details{display:block}
-.label{font-size:12px;color:var(--muted);margin:0 0 8px;font-weight:700;letter-spacing:.5px}
-/* process stepper */
-.steps{display:grid;gap:8px;margin-bottom:14px;counter-reset:s}
-.step{display:grid;grid-template-columns:92px 1fr;gap:10px;align-items:start;font-size:13px}
-.step .k{background:var(--sc);color:#0d1020;font-weight:900;border-radius:8px;padding:4px 8px;text-align:center;font-size:12px;position:relative}
-.step:not(:last-child) .k::after{content:"";position:absolute;left:50%;top:100%;width:2px;height:12px;background:var(--line)}
-.step .v{color:#d7dbf3}
-/* extensions list */
-.exts{display:grid;gap:6px;margin-bottom:14px}
-.ext{display:flex;gap:8px;align-items:center;font-size:13.5px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:8px;padding:7px 10px}
-.ext .arrow{color:var(--muted)}
-.ext .tag{margin-left:auto}
-/* media */
+.lbl{font-size:12px;color:var(--muted);font-weight:700;margin:14px 0 8px}
+.steps{display:grid;gap:7px}
+.st{display:grid;grid-template-columns:86px 1fr;gap:9px;font-size:13px;align-items:start;border-radius:8px;padding:3px}
+.st b{background:var(--c);color:#0b0e20;border-radius:7px;text-align:center;font-size:11.5px;padding:3px 4px}
+.st.hl{background:#ffffff14;outline:1px solid #ffffff40}
+.exl{display:grid;gap:6px}
+.ex{font-size:13px;background:#0b0f24;border-left:3px solid var(--c);border-radius:8px;padding:7px 9px;cursor:pointer;display:flex;gap:8px;align-items:center}
+.ex .ptag{margin:0 0 0 auto;flex:none}
 .media{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.slot{border:1.5px dashed var(--line);border-radius:10px;height:78px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:12px;gap:2px;text-decoration:none;overflow:hidden}
-.slot b{font-size:20px}
+.slot{border:1.5px dashed var(--line);border-radius:10px;height:74px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-decoration:none;overflow:hidden}
+.slot b{font-size:19px}
 .slot.has{border-style:solid;border-color:#3b4a8a;color:#cfe0ff;background:#1a2147}
 .slot img{width:100%;height:100%;object-fit:cover}
-.also{font-size:12px;margin-top:6px}
-/* tree */
-.tree{display:grid;gap:14px}
-.branch{display:grid;grid-template-columns:300px 1fr;gap:0;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
-.root{background:color-mix(in srgb,var(--c) 22%,#151a33);border:1.5px solid var(--c);border-radius:12px;padding:10px 12px;font-weight:700;font-size:14px;position:relative;cursor:pointer}
-.root small{display:block;font-weight:400;color:var(--muted);font-size:11px;margin-top:3px}
-.root::after{content:"";position:absolute;right:-28px;top:50%;width:28px;height:2px;background:var(--c)}
-.leaves{margin-left:28px;border-left:2px solid var(--c);padding-left:0;display:grid;gap:6px}
-.leaf{position:relative;margin-left:22px;font-size:13px;background:#141831;border:1px solid var(--line);border-radius:9px;padding:6px 10px;display:flex;gap:8px;align-items:center}
-.leaf::before{content:"";position:absolute;left:-24px;top:50%;width:22px;height:2px;background:var(--lc)}
-.leaf .d{width:8px;height:8px;border-radius:50%;background:var(--lc);flex:none}
-.leaf .t{margin-left:auto;font-size:11px;color:var(--lc);white-space:nowrap}
-.hidden{display:none!important}
-.empty{color:var(--muted);text-align:center;padding:30px;border:1px dashed var(--line);border-radius:var(--radius)}
-/* add dialog */
-dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:16px;width:min(520px,92vw);padding:20px}
-dialog::backdrop{background:rgba(0,0,0,.6)}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer}
+.btn.gold{border-color:var(--gold);color:var(--gold)}
+/* list view */
+#list{position:fixed;inset:var(--bar) 0 0 0;z-index:25;overflow:auto;padding:10px 16px 80px;background:#070914f2;display:none}
+#list.on{display:block}
+#list h3{font-size:14px;margin:16px 0 6px;color:var(--c)}
+#list .li{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:10px;padding:9px 11px;margin:6px 0;cursor:pointer;font-size:14px}
+#list .li small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+/* dialog */
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:16px;width:min(500px,92vw);padding:20px}
+dialog::backdrop{background:rgba(0,0,0,.65)}
 dialog label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
-dialog input,dialog select,dialog textarea{width:100%;background:#0f1328;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;font-family:inherit;font-size:14px}
+dialog input,dialog select,dialog textarea{width:100%;background:#0b0f24;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;font-family:inherit;font-size:14px}
 dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
-footer{color:var(--muted);font-size:12px;margin-top:36px;text-align:center}
-@media (max-width:860px){header.hero{grid-template-columns:1fr}.branch{grid-template-columns:1fr}.root::after{display:none}.leaves{margin:10px 0 0 10px}}
+@media (max-width:700px){
+  :root{--bar:96px}
+  .bar{flex-wrap:wrap;height:auto;padding:8px 10px 4px;gap:6px}
+  .bar h1{font-size:16px;flex:1}
+  .chips{order:3;flex-basis:100%}
+  .ib{width:32px;height:32px;font-size:14px}
+  .node{font-size:12px;padding:4px 8px}
+  .k-root{font-size:15px}
+  .k-type{font-size:12.5px}
+  .k-q{width:140px;font-size:11.5px}
+  .k-ext{width:118px;font-size:10.5px}
+  .k-step{font-size:10px}
+  #panel{left:0;right:0;top:auto;bottom:0;width:auto;max-height:56vh;border-radius:18px 18px 0 0;transform:translateY(105%)}
+  .hint{left:58px;font-size:11px}
+}
+@media (prefers-reduced-motion:reduce){#panel{transition:none}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="hero">
-    <div class="brand">
-      <h1>🔮 <span>AI 認知邊界</span> 問題鏈</h1>
-      <p>把公開討論中的關鍵提問，拆成「主問題 → 延伸問題」，並標註問題類型。點卡片看推演流程。</p>
-      <div class="stats" id="stats"></div>
-    </div>
-    <div class="summary">
-      <h3>📊 各類型問題數量</h3>
-      <div id="bars"></div>
-      <div class="legend"><span><i></i>主問題</span><span><i class="l"></i>延伸問題</span><span>點一列可直接篩選</span></div>
-    </div>
-  </header>
+<header class="bar">
+  <h1>🔮 <span>AI 認知邊界</span></h1>
+  <div class="chips" id="chips"></div>
+  <div class="tools">
+    <button class="ib" id="bList" title="清單檢視">☰</button>
+    <button class="ib" id="bExp" title="全部展開／收合">⤢</button>
+    <button class="ib gold" id="bAdd" title="新增我的問題">＋</button>
+  </div>
+</header>
 
-  <nav class="filters" id="filters"></nav>
+<div id="vp"><canvas id="cv"></canvas><div id="layer"></div></div>
 
-  <h2 class="sec">🗂️ 問題卡片 <small id="shown"></small></h2>
-  <div class="grid" id="grid"></div>
-
-  <h2 class="sec">🌳 問題鏈地圖 <small>主問題 → 延伸問題（顏色＝類型）</small></h2>
-  <div class="tree" id="tree"></div>
-
-  <footer>內容為公開訪談／文章之摘要改寫，非逐字引述；請以原始來源為準。資料更新：2026-10-10</footer>
+<div class="ctl">
+  <button class="ib" id="zIn" title="放大">＋</button>
+  <button class="ib" id="zOut" title="縮小">－</button>
+  <button class="ib" id="zFit" title="置中">◎</button>
+  <button class="ib on" id="bRot" title="自動旋轉">⟳</button>
 </div>
+<div class="hint" id="hint">拖曳旋轉・滾輪／雙指縮放・點節點展開</div>
+
+<aside id="panel"><button class="ib x" id="pX" title="關閉">✕</button><div id="pBody"></div></aside>
+<div id="list"></div>
 
 <dialog id="addDlg">
   <form method="dialog" id="addForm">
     <h3 style="margin:0 0 4px">✍️ 新增我的問題</h3>
-    <div style="font-size:12px;color:var(--muted)">儲存在這台瀏覽器（localStorage），會顯示「Merlin 自填」徽章。</div>
-    <label>問題（短句）</label><input name="title" required maxlength="60">
-    <label>類型</label><select name="type" id="typeSel"></select>
-    <label>一句話：這個問題真正在問什麼？</label><input name="oneLiner" maxlength="100">
-    <label>延伸問題（每行一題，可在行尾加「｜類型」）</label><textarea name="exts" rows="3" placeholder="例：AI 會有直覺嗎？｜理解與意識"></textarea>
-    <label>來源（選填）</label><input name="src" placeholder="人名／媒體／日期">
+    <div style="font-size:12px;color:var(--muted)">存在這台瀏覽器，會以「⭐ Merlin 自填」長進樹裡。</div>
+    <label>問題（短句）</label><input name="qtitle" required maxlength="60">
+    <label>類型</label><select name="qtype" id="typeSel"></select>
+    <label>一句話：真正在問什麼？</label><input name="oneLiner" maxlength="100">
+    <label>延伸問題（每行一題，可加「｜類型」）</label><textarea name="exts" rows="3" placeholder="例：AI 會有直覺嗎？｜理解與意識"></textarea>
+    <label>來源（選填）</label><input name="src" placeholder="人名／媒體">
     <label>來源網址（選填）</label><input name="url" type="url">
-    <div class="row"><button class="btn" value="cancel" formnovalidate>取消</button><button class="btn gold" value="ok">加入</button></div>
+    <div class="row"><button class="btn" value="cancel" formnovalidate>取消</button><button class="btn gold" value="ok">種下 🌱</button></div>
   </form>
 </dialog>
 
 <script>
 (function(){
-  const STORE = "aiBoundary.userQuestions.v1";
-  let userQs = [];
-  try { userQs = JSON.parse(localStorage.getItem(STORE) || "[]"); } catch(e){ userQs = []; }
-  const all = () => QUESTIONS.concat(userQs);
-  const T = t => TYPES[t] || TYPES["其他"];
-  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const STEP_COLORS = {"問題定義":"#8fb4ff","前提":"#c18bff","推演":"#f5c451","未解關鍵點":"#ff8a8a"};
-  let active = "全部";
-  const tag = t => `<span class="tag" style="--c:${T(t).color}">${T(t).icon} ${esc(t)}</span>`;
+"use strict";
+/* ---------- helpers & state ---------- */
+const STORE="aiBoundary.userQuestions.v1";
+let userQs=[]; try{userQs=JSON.parse(localStorage.getItem(STORE)||"[]");}catch(e){userQs=[];}
+const all=()=>QUESTIONS.concat(userQs);
+const T=t=>TYPES[t]||TYPES["其他"];
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const STEP_C={"問題定義":"#8fb4ff","前提":"#c18bff","推演":"#f5c451","未解關鍵點":"#ff8a8a"};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isMobile=()=>innerWidth<700;
 
-  function counts(){
-    const c = {};
-    Object.keys(TYPES).forEach(k => c[k] = {main:0, ext:0});
-    all().forEach(q => {
-      (c[q.type] ||= {main:0,ext:0}).main++;
-      (q.extensions||[]).forEach(e => (c[e.type] ||= {main:0,ext:0}).ext++);
+const vp=document.getElementById("vp"), cv=document.getElementById("cv"), ctx=cv.getContext("2d"), layer=document.getElementById("layer");
+const S={expanded:new Set(["root"]),active:"全部",sel:null,panel:false,autoRot:!reduced,autoFit:true,lastI:-1e9,fresh:null};
+Object.keys(TYPES).forEach(t=>S.expanded.add("t:"+t));
+const cam={yaw:-0.5,pitch:0.32,k:0.6,kT:0.8,yc:0,ycT:0,panX:0,panY:0,ox:0,oxT:0,oy:0,oyT:0,yawT:null,rot:0};
+const DUR=750; let LEVEL=140, F=1500, FT=1500;
+let W=0,H=0,DPR=1, ring=180, ringCur=180, maxDepth=1;
+const meta=new Map();     // id -> animation & element state
+let nodesById=new Map();  // id -> current node object
+
+function colorOf(n){ if(n.kind==="root")return "#c18bff"; if(n.kind==="step")return STEP_C[n.label]||"#9aa3c7"; return T(n.type).color; }
+
+/* ---------- tree model ---------- */
+function buildTree(){
+  const qs=all().filter(q=>S.active==="全部"||(S.active==="__user"?q.userInserted:q.type===S.active));
+  const by={}; qs.forEach(q=>(by[q.type]=by[q.type]||[]).push(q));
+  const root={id:"root",kind:"root",label:"AI 認知邊界",children:[]};
+  Object.keys(TYPES).concat(Object.keys(by).filter(t=>!TYPES[t])).forEach(t=>{
+    if(!by[t])return;
+    const tn={id:"t:"+t,kind:"type",type:t,label:t,count:by[t].length,children:[]};
+    by[t].forEach(q=>{
+      const qn={id:"q:"+q.id,kind:"q",q,type:q.type,label:q.title,children:[]};
+      (q.extensions||[]).forEach((e,i)=>qn.children.push({id:"e:"+q.id+":"+i,kind:"ext",q,ext:e,type:e.type,label:e.q,children:[]}));
+      if(q.process&&q.process.length) qn.children.push({id:"p:"+q.id,kind:"pg",q,type:q.type,label:"推演",children:
+        q.process.map((p,i)=>({id:"s:"+q.id+":"+i,kind:"step",q,step:i,type:q.type,label:p.k,children:[]}))});
+      tn.children.push(qn);
     });
-    return c;
-  }
-
-  function renderHeader(){
-    const qs = all(), c = counts();
-    const nExt = qs.reduce((a,q)=>a+(q.extensions||[]).length,0);
-    const nSrc = new Set(qs.filter(q=>q.source&&q.source.url).map(q=>q.source.url)).size;
-    document.getElementById("stats").innerHTML = [
-      [qs.length,"主問題"],[nExt,"延伸問題"],[nSrc,"公開來源"],[userQs.length,"Merlin 自填"]
-    ].map(([n,l])=>`<div class="stat"><b>${n}</b><small>${l}</small></div>`).join("");
-    const max = Math.max(1, ...Object.values(c).map(v=>v.main+v.ext));
-    document.getElementById("bars").innerHTML = Object.entries(c)
-      .filter(([k,v]) => v.main+v.ext>0)
-      .map(([k,v]) => `<div class="barrow" data-type="${esc(k)}" title="主問題 ${v.main}／延伸 ${v.ext}">
-        <span>${T(k).icon} ${esc(k)}</span>
-        <div class="track"><div class="bar" style="width:${v.main/max*100}%;background:${T(k).color}"></div><div class="bar ext" style="width:${v.ext/max*100}%;background:${T(k).color}"></div></div>
-        <span class="n">${v.main}＋${v.ext}</span></div>`).join("");
-    document.querySelectorAll(".barrow").forEach(el => el.onclick = () => setFilter(el.dataset.type));
-
-    const types = ["全部", ...Object.keys(c).filter(k => c[k].main+c[k].ext>0)];
-    document.getElementById("filters").innerHTML = types.map(t => {
-      const n = t==="全部" ? qs.length : qs.filter(q=>q.type===t||(q.extensions||[]).some(e=>e.type===t)).length;
-      const col = t==="全部" ? "#5b66b0" : T(t).color;
-      return `<button class="chip ${active===t?"on":""}" style="--c:${col}" data-type="${esc(t)}">${t==="全部"?"":`<span class="dot" style="background:${col}"></span>`}${esc(t)}<span class="c">${n}</span></button>`;
-    }).join("") + `<button class="chip ${active==="__user"?"on":""}" style="--c:#c9952b" data-type="__user">⭐ Merlin 自填<span class="c">${userQs.length}</span></button>
-      <span class="tools"><button class="btn" id="expAll">全部展開</button><button class="btn gold" id="addBtn">＋ 新增問題</button></span>`;
-    document.querySelectorAll(".chip").forEach(el => el.onclick = () => setFilter(el.dataset.type));
-    document.getElementById("addBtn").onclick = openAdd;
-    document.getElementById("expAll").onclick = toggleAll;
-  }
-
-  function matches(q){
-    if (active==="全部") return true;
-    if (active==="__user") return !!q.userInserted;
-    return q.type===active || (q.extensions||[]).some(e=>e.type===active);
-  }
-
-  function slot(kind, url){
-    const icon = kind==="video" ? "🎬" : "🖼️", name = kind==="video" ? "影片" : "圖片";
-    if (!url) return `<div class="slot"><b>${icon}</b>${name}｜即將加入</div>`;
-    if (kind==="image") return `<a class="slot has" href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(url)}" alt="圖片"></a>`;
-    return `<a class="slot has" href="${esc(url)}" target="_blank" rel="noopener"><b>▶</b>觀看${name}</a>`;
-  }
-
-  function card(q){
-    const c = T(q.type).color, s = q.source||{};
-    const srcLine = s.url
-      ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.who)}</a> · ${esc(s.outlet)} · ${esc(s.date)}`
-      : esc([s.who,s.outlet,s.date].filter(Boolean).join(" · ") || "Merlin 自行提出");
-    const exts = (q.extensions||[]);
-    const highlight = e => active!=="全部"&&active!=="__user"&&e.type===active ? ` style="--c:${T(e.type).color};outline:1px solid ${T(e.type).color}"` : ` style="--c:${T(e.type).color}"`;
-    return `<article class="card" id="card-${esc(q.id)}" style="--c:${c}">
-      <div class="top">
-        <div class="tags">${tag(q.type)}${q.userInserted?'<span class="badge-user">⭐ Merlin 自填</span>':""}<span class="idn">${exts.length} 個延伸</span></div>
-        <h4>${esc(q.title)}</h4>
-        <p class="one">${esc(q.oneLiner||"")}</p>
-        <div class="src">📎 <span>${srcLine}</span></div>
-      </div>
-      <div class="mini-ext">${exts.map(e=>`<span style="--c:${T(e.type).color}" title="${esc(e.type)}"></span>`).join("")}</div>
-      <button class="toggle">▼ 展開：推演流程・延伸問題</button>
-      <div class="details">
-        ${(q.process&&q.process.length)?`<p class="label">🧭 推演流程</p><div class="steps">${q.process.map(p=>`<div class="step"><span class="k" style="--sc:${STEP_COLORS[p.k]||"#9aa3c7"}">${esc(p.k)}</span><span class="v">${esc(p.v)}</span></div>`).join("")}</div>`:""}
-        ${exts.length?`<p class="label">🔗 延伸問題</p><div class="exts">${exts.map(e=>`<div class="ext"${highlight(e)}><span class="arrow">↳</span><span>${esc(e.q)}</span>${tag(e.type)}</div>`).join("")}</div>`:""}
-        <p class="label">🎞️ 媒體</p>
-        <div class="media">${slot("video",q.videoUrl)}${slot("image",q.imageUrl)}</div>
-        ${(s.also&&s.also.length)?`<div class="also">其他來源：${s.also.map(a=>`<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.label)}</a>`).join("、")}</div>`:""}
-        ${q.userInserted&&String(q.id).startsWith("u")?`<div style="margin-top:10px;text-align:right"><button class="btn del" data-id="${esc(q.id)}">刪除此自填問題</button></div>`:""}
-      </div>
-    </article>`;
-  }
-
-  function renderBody(){
-    const qs = all().filter(matches);
-    document.getElementById("shown").textContent = `顯示 ${qs.length} / ${all().length}` + (active!=="全部" ? `｜篩選：${active==="__user"?"Merlin 自填":active}（含延伸問題符合者）` : "");
-    const grid = document.getElementById("grid");
-    grid.innerHTML = qs.length ? qs.map(card).join("") : `<div class="empty">這個類型目前還沒有問題。</div>`;
-    grid.querySelectorAll(".card").forEach(el => {
-      el.querySelector(".toggle").onclick = () => {
-        el.classList.toggle("open");
-        el.querySelector(".toggle").textContent = el.classList.contains("open") ? "▲ 收合" : "▼ 展開：推演流程・延伸問題";
-      };
-    });
-    grid.querySelectorAll(".del").forEach(b => b.onclick = () => {
-      userQs = userQs.filter(q => q.id !== b.dataset.id); save(); renderAll();
-    });
-    document.getElementById("tree").innerHTML = qs.map(q => `
-      <div class="branch">
-        <div class="root" style="--c:${T(q.type).color}" data-id="${esc(q.id)}">${T(q.type).icon} ${esc(q.title)}${q.userInserted?' <span class="badge-user">⭐</span>':""}<small>${esc(q.type)}${q.source&&q.source.who?" · "+esc(q.source.who.split("（")[0]):""}</small></div>
-        <div class="leaves" style="--c:${T(q.type).color}">${(q.extensions||[]).map(e=>`<div class="leaf" style="--lc:${T(e.type).color}"><span class="d"></span><span>${esc(e.q)}</span><span class="t">${esc(e.type)}</span></div>`).join("") || '<div class="leaf" style="--lc:#555">（尚無延伸問題）</div>'}</div>
-      </div>`).join("");
-    document.querySelectorAll(".root").forEach(r => r.onclick = () => {
-      const c = document.getElementById("card-"+r.dataset.id);
-      if (c){ if(!c.classList.contains("open")) c.querySelector(".toggle").click(); c.scrollIntoView({behavior:"smooth",block:"center"}); }
-    });
-  }
-
-  function setFilter(t){ active = (active===t && t!=="全部") ? "全部" : t; renderAll(); }
-  function toggleAll(){
-    const cards = [...document.querySelectorAll(".card")];
-    const open = cards.some(c=>!c.classList.contains("open"));
-    cards.forEach(c => { if (c.classList.contains("open") !== open) c.querySelector(".toggle").click(); });
-    document.getElementById("expAll").textContent = open ? "全部收合" : "全部展開";
-  }
-  function save(){ try { localStorage.setItem(STORE, JSON.stringify(userQs)); } catch(e){} }
-
-  function openAdd(){
-    document.getElementById("typeSel").innerHTML = Object.keys(TYPES).map(t=>`<option>${esc(t)}</option>`).join("");
-    const d = document.getElementById("addDlg");
-    if (d.showModal) d.showModal();
-  }
-  document.getElementById("addDlg").addEventListener("close", () => {
-    const d = document.getElementById("addDlg"), F = document.getElementById("addForm"), f = F.elements;
-    if (d.returnValue === "ok" && f.title.value.trim()){
-      const exts = f.exts.value.split("\n").map(s=>s.trim()).filter(Boolean).slice(0,4).map(line => {
-        const [q, t] = line.split(/[｜|]/).map(x=>x&&x.trim());
-        return { q, type: TYPES[t] ? t : "其他" };
-      });
-      userQs.push({
-        id: "u" + Date.now(), title: f.title.value.trim(), type: f.type.value,
-        source: { who: f.src.value.trim() || "Merlin", outlet: "", date: new Date().toISOString().slice(0,10), url: f.url.value.trim(), also: [] },
-        oneLiner: f.oneLiner.value.trim(), extensions: exts,
-        process: [{k:"問題定義",v:"（待補）"},{k:"前提",v:"（待補）"},{k:"推演",v:"（待補）"},{k:"未解關鍵點",v:"（待補）"}],
-        userInserted: true, videoUrl: "", imageUrl: ""
-      });
-      save(); renderAll();
-    }
-    F.reset(); d.returnValue = "";
+    root.children.push(tn);
   });
+  return root;
+}
 
-  function renderAll(){ renderHeader(); renderBody(); }
-  renderAll();
-  document.body.dataset.ready = "1";
+function nodeHTML(n){
+  const tg=n.children.length?'<i class="tg"></i>':"";
+  switch(n.kind){
+    case "root": return '<span>🔮</span><span class="lb">'+esc(n.label)+'</span>'+tg;
+    case "type": return '<span>'+T(n.type).icon+'</span><span class="lb">'+esc(n.label)+'</span><i class="ct">'+n.count+'</i>'+tg;
+    case "q": return (n.q.userInserted?'<span class="ub">⭐</span>':"")+'<span class="lb">'+esc(n.label)+'</span>'+tg;
+    case "ext": return '<span class="dot"></span><span class="lb">'+esc(n.label)+'</span>';
+    case "pg": return '<span>🧭</span><span class="lb">推演</span>'+tg;
+    default: return '<span class="lb">'+esc(n.label)+'</span>';
+  }
+}
+
+/* ---------- layout + animation targets ---------- */
+function rebuild(){
+  const now=performance.now();
+  const root=buildTree(); const vis=[];
+  (function walk(n,d,p){n.depth=d;n.parent=p;n.open=S.expanded.has(n.id)&&n.children.length>0;vis.push(n);if(n.open)n.children.forEach(c=>walk(c,d+1,n));})(root,0,null);
+  (function wt(n){n.wt=n.open?n.children.reduce((s,c)=>s+wt(c),0):1;return n.wt;})(root);
+  (function ang(n,a0,a1){n.a=(a0+a1)/2;if(n.open){let a=a0;n.children.forEach(c=>{const da=(a1-a0)*c.wt/n.wt;ang(c,a,a+da);a+=da;});}})(root,-Math.PI,Math.PI);
+  const mobS=isMobile()?0.6:1; ring=clamp(root.wt*11,170,320)*mobS; LEVEL=140*(isMobile()?0.75:1); maxDepth=0;
+  vis.forEach(n=>{const r=n.depth===0?0:(n.depth-0.15)*ring;n.tx=r*Math.sin(n.a);n.tz=r*Math.cos(n.a);n.ty=n.depth*LEVEL;maxDepth=Math.max(maxDepth,n.depth);});
+  FT=Math.max(1400,3*(maxDepth-0.15)*ring);
+  const ids=new Set(vis.map(n=>n.id));
+  nodesById=new Map(vis.map(n=>[n.id,n]));
+  // existing / entering
+  vis.forEach((n,idx)=>{
+    let m=meta.get(n.id);
+    const to={x:n.tx,y:n.ty,z:n.tz};
+    if(m&&!m.removed){
+      const c=curPos(m,now); m.from=c; m.g0=curGrow(m,now); m.to=to; m.g1=1; m.t0=now; m.delay=0; m.exiting=false;
+    }else{
+      let p=n.parent, start=to; while(p){const pm=meta.get(p.id);if(pm&&!pm.fresh){start=curPos(pm,now);break;}p=p.parent;}
+      if(!n.parent) start={x:0,y:-60,z:0};
+      const el=document.createElement("div"); el.className="node k-"+n.kind; el.dataset.id=n.id;
+      el.addEventListener("click",ev=>{ev.stopPropagation();if(drag.moved)return;onNode(n.id);});
+      layer.appendChild(el);
+      const sib=n.parent?n.parent.children.indexOf(n):0;
+      m={el,from:start,to,g0:0,g1:1,t0:now,delay:Math.min(sib*55,400)+(n.parent&&meta.get(n.parent.id)&&meta.get(n.parent.id).fresh?220:0),
+         phase:Math.random()*6.28,seed:Math.random(),fresh:true};
+      meta.set(n.id,m);
+    }
+    m.parentId=n.parent?n.parent.id:null; m.depth=n.depth; m.kind=n.kind; m.color=colorOf(n);
+    m.el.style.setProperty("--c",m.color);
+    m.el.innerHTML=nodeHTML(n);
+    m.el.title=n.kind==="ext"?n.label+"（"+n.type+"）":n.kind==="q"?n.label:"";
+    const tg=m.el.querySelector(".tg"); if(tg) tg.textContent=n.open?"−":"+"+n.children.length;
+    m.el.classList.toggle("sel",S.sel===n.id);
+  });
+  vis.forEach(n=>{meta.get(n.id).fresh=false;});
+  // exiting
+  meta.forEach((m,id)=>{
+    if(ids.has(id)||m.exiting)return;
+    let pid=m.parentId; while(pid&&!ids.has(pid)){const pm=meta.get(pid);pid=pm?pm.parentId:null;}
+    const tn=pid?nodesById.get(pid):null;
+    m.from=curPos(m,now); m.g0=curGrow(m,now); m.to=tn?{x:tn.tx,y:tn.ty,z:tn.tz}:{x:0,y:0,z:0}; m.g1=0; m.t0=now; m.delay=0; m.exiting=true;
+  });
+  if(S.fresh){const fm=meta.get("q:"+S.fresh);if(fm)fm.el.classList.add("fresh");S.fresh=null;}
+  if(S.autoFit) fit();
+  renderChips(); renderList();
+}
+function prog(m,now){return ease(clamp((now-m.t0-m.delay)/DUR,0,1));}
+function curPos(m,now){const e=prog(m,now);return{x:m.from.x+(m.to.x-m.from.x)*e,y:m.from.y+(m.to.y-m.from.y)*e,z:m.from.z+(m.to.z-m.from.z)*e};}
+function curGrow(m,now){const e=prog(m,now);return m.g0+(m.g1-m.g0)*e;}
+
+/* ---------- camera ---------- */
+function fit(){
+  let R=0,y0=1e9,y1=-1e9; nodesById.forEach(n=>{R=Math.max(R,Math.hypot(n.tx,n.tz));y0=Math.min(y0,n.ty);y1=Math.max(y1,n.ty);});
+  const mob=isMobile(), bar=mob?96:58;
+  const availW=W-(S.panel&&!mob?370:0)-(mob?16:80), availH=(S.panel&&mob?H*0.44-bar:H-bar)-(mob?30:70);
+  R+=mob?55:100;
+  const vh=(y1-y0)*Math.cos(cam.pitch)+2*R*Math.sin(cam.pitch)+60;
+  cam.kT=clamp(Math.min(availW/(2*R),availH/vh)*1.0,0.28,1.35);
+  cam.ycT=(y0+y1)/2; cam.panX=0; cam.panY=0;
+  updateOffsets();
+}
+function updateOffsets(){
+  const mob=isMobile(), bar=mob?96:58;
+  cam.oxT=S.panel&&!mob?-185:0;
+  cam.oyT=(S.panel&&mob)?(bar+H*0.44)/2-H/2:bar/2;
+}
+function proj(p){
+  const cy=Math.cos(cam.yaw),sy=Math.sin(cam.yaw);
+  const x1=p.x*cy+p.z*sy, z1=-p.x*sy+p.z*cy, y0=p.y-cam.yc;
+  const cp=Math.cos(cam.pitch),sp=Math.sin(cam.pitch);
+  const y2=y0*cp+z1*sp, z2=-y0*sp+z1*cp;
+  const pf=clamp(F/(F+z2),0.4,1.8), s=cam.k*pf;
+  return{x:W/2+cam.ox+cam.panX+x1*s,y:H/2+cam.oy+cam.panY-y2*s,pf,z:z2};
+}
+function faceNode(id){
+  const n=nodesById.get(id); if(!n||n.depth===0)return;
+  let t=Math.PI-n.a; while(t-cam.yaw>Math.PI)t-=2*Math.PI; while(t-cam.yaw<-Math.PI)t+=2*Math.PI;
+  cam.yawT=t;
+}
+
+/* ---------- rendering ---------- */
+const sprites={};
+function sprite(c){
+  if(sprites[c])return sprites[c];
+  const s=document.createElement("canvas");s.width=s.height=48;const g=s.getContext("2d");
+  const gr=g.createRadialGradient(24,24,0,24,24,24);gr.addColorStop(0,"rgba(255,255,255,1)");gr.addColorStop(.25,c);gr.addColorStop(1,"rgba(0,0,0,0)");
+  g.fillStyle=gr;g.fillRect(0,0,48,48);return sprites[c]=s;
+}
+function resize(){
+  DPR=Math.min(devicePixelRatio||1,isMobile()?1.5:2);W=innerWidth;H=innerHeight;
+  cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+let lastT=performance.now();
+function frame(){
+  const now=performance.now();
+  const dt=Math.min(.05,(now-lastT)/1000); lastT=now;
+  // camera smoothing
+  const idle=now-S.lastI>3000&&!S.panel&&!drag.active;
+  const want=S.autoRot&&idle&&cam.yawT==null?0.12:0; cam.rot+=(want-cam.rot)*Math.min(1,dt*2); cam.yaw+=cam.rot*dt;
+  if(cam.yawT!=null){cam.yaw+=(cam.yawT-cam.yaw)*Math.min(1,dt*5);if(Math.abs(cam.yawT-cam.yaw)<.002)cam.yawT=null;}
+  const a=Math.min(1,dt*6); cam.k+=(cam.kT-cam.k)*a; cam.yc+=(cam.ycT-cam.yc)*a; cam.ox+=(cam.oxT-cam.ox)*a; cam.oy+=(cam.oyT-cam.oy)*a;
+  ringCur+=(ring-ringCur)*a; F+=(FT-F)*a;
+  ctx.clearRect(0,0,W,H);
+  const mob=isMobile(), t=now/1000;
+  // guide rings
+  ctx.lineWidth=1;
+  for(let d=1;d<=maxDepth;d++){
+    const r=(d-0.15)*ringCur, y=d*LEVEL; ctx.beginPath();
+    for(let i=0;i<=64;i++){const an=i/64*Math.PI*2;const p=proj({x:r*Math.sin(an),y,z:r*Math.cos(an)});i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);}
+    ctx.strokeStyle="rgba(150,170,255,"+(0.09-d*0.012)+")";ctx.stroke();
+  }
+  // compute screen positions
+  const P=new Map(); const done=[];
+  meta.forEach((m,id)=>{
+    const c=curPos(m,now), g=curGrow(m,now);
+    if(!reduced&&m.depth>0) c.y+=Math.sin(t*1.1+m.phase)*5;
+    const p=proj(c); p.g=g; P.set(id,p);
+    if(m.exiting&&prog(m,now)>=1) done.push(id);
+  });
+  let R=ringCur*Math.max(1,maxDepth);
+  // links + particles
+  ctx.lineCap="round";
+  const parts=[];
+  meta.forEach((m,id)=>{
+    if(!m.parentId)return; const a1=P.get(m.parentId), b=P.get(id); if(!a1||!b)return;
+    const pm=meta.get(m.parentId);
+    const cx=a1.x*0.35+b.x*0.65, cy=a1.y; // branch-like curve
+    const depthA=clamp(1-0.5*((b.z/R)+1)/2,0.35,1);
+    const al=b.g*depthA;
+    if(al<=0.01)return;
+    ctx.globalAlpha=al*0.55; ctx.strokeStyle=m.color; ctx.lineWidth=Math.max(0.8,(4.2-m.depth*0.8)*b.pf*clamp(cam.k,.5,1.2));
+    ctx.beginPath();ctx.moveTo(a1.x,a1.y);ctx.quadraticCurveTo(cx,cy,b.x,b.y);ctx.stroke();
+    if(b.g>0.95&&!m.exiting&&!(pm&&pm.exiting)) parts.push([a1,cx,cy,b,m,al]);
+  });
+  ctx.globalCompositeOperation="lighter";
+  const speed=reduced?0:0.22;
+  parts.forEach(([a1,cx,cy,b,m,al])=>{
+    const n=mob?1:(m.depth<=2?2:1), trail=mob?1:3;
+    for(let i=0;i<n;i++){
+      for(let j=0;j<trail;j++){
+        let u=(t*speed+m.seed+i/n)%1-j*0.025; if(u<0)continue;
+        const v=1-u, x=v*v*a1.x+2*v*u*cx+u*u*b.x, y=v*v*a1.y+2*v*u*cy+u*u*b.y;
+        const sz=(mob?7:9)*b.pf*(1-j*0.28)*clamp(cam.k,.6,1.2);
+        ctx.globalAlpha=al*(1-j*0.3)*Math.sin(Math.PI*u)*0.95+0.05;
+        ctx.drawImage(sprite(m.color),x-sz,y-sz,sz*2,sz*2);
+      }
+    }
+  });
+  ctx.globalCompositeOperation="source-over"; ctx.globalAlpha=1;
+  // labels
+  const ks=clamp(cam.k,0.55,1.15);
+  meta.forEach((m,id)=>{
+    const p=P.get(id); const depthA=clamp(1-0.6*((p.z/R)+1)/2,0.3,1);
+    const sc=Math.max(0.001,clamp(p.pf,0.65,1.3)*ks*(0.3+0.7*p.g));
+    m.el.style.transform="translate3d("+p.x.toFixed(1)+"px,"+p.y.toFixed(1)+"px,0) translate(-50%,-50%) scale("+sc.toFixed(3)+")";
+    m.el.style.opacity=(p.g*depthA).toFixed(3);
+    m.el.style.zIndex=String(Math.round(5000-p.z));
+    m.el.style.pointerEvents=p.g>0.5&&!m.exiting?"auto":"none";
+  });
+  done.forEach(id=>{const m=meta.get(id);m.el.remove();meta.delete(id);});
+  if(window.__errs.length)document.body.dataset.errs=window.__errs.join(' | ');
+  requestAnimationFrame(frame);
+}
+
+/* ---------- interaction ---------- */
+const drag={active:false,moved:false};const ptrs=new Map();let pinch=null;
+function touchI(){S.lastI=performance.now();}
+vp.addEventListener("pointerdown",e=>{
+  touchI();ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY});
+  drag.active=true;drag.moved=false;drag.pan=e.button===2||e.shiftKey;cam.yawT=null;
+  if(ptrs.size===2){const[a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,k:cam.kT,mx:(a.x+b.x)/2,my:(a.y+b.y)/2,px:cam.panX,py:cam.panY};}
+});
+addEventListener("pointermove",e=>{
+  const p=ptrs.get(e.pointerId);if(!p)return;touchI();
+  const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
+  if(ptrs.size===1){
+    if(!drag.moved&&Math.hypot(p.x-p.sx,p.y-p.sy)>6)drag.moved=true;
+    if(!drag.moved)return;
+    if(drag.pan){cam.panX+=dx;cam.panY+=dy;S.autoFit=false;}
+    else{cam.yaw+=dx*0.006;cam.pitch=clamp(cam.pitch+dy*0.003,0.08,1.1);}
+  }else if(ptrs.size===2&&pinch){
+    drag.moved=true;S.autoFit=false;const[a,b]=[...ptrs.values()];
+    const k=clamp(pinch.k*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d,0.2,3);cam.k=cam.kT=k;
+    cam.panX=pinch.px+((a.x+b.x)/2-pinch.mx);cam.panY=pinch.py+((a.y+b.y)/2-pinch.my);
+  }
+});
+function up(e){ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;if(!ptrs.size)drag.active=false;touchI();}
+addEventListener("pointerup",up);addEventListener("pointercancel",up);
+vp.addEventListener("contextmenu",e=>e.preventDefault());
+vp.addEventListener("wheel",e=>{
+  e.preventDefault();touchI();S.autoFit=false;
+  const k2=clamp(cam.kT*Math.exp(-e.deltaY*0.0012),0.2,3), f=k2/cam.kT;
+  const mx=e.clientX-(W/2+cam.ox), my=e.clientY-(H/2+cam.oy);
+  cam.panX=(cam.panX-mx)*f+mx; cam.panY=(cam.panY-my)*f+my; cam.kT=k2; cam.k=cam.k*f;
+},{passive:false});
+vp.addEventListener("click",()=>{if(!drag.moved&&S.panel)closePanel();});
+
+function onNode(id){
+  touchI(); const n=nodesById.get(id); if(!n)return;
+  if(n.children.length&&n.kind!=="ext"&&n.kind!=="step"){
+    if(S.expanded.has(id)){S.expanded.delete(id);}else{S.expanded.add(id);}
+  }
+  if(n.kind==="q"||n.kind==="ext"||n.kind==="step"||n.kind==="pg"){S.sel=id;openPanel(n);faceNode(n.kind==="q"?id:"q:"+n.q.id);}
+  S.autoFit=true; rebuild();
+  if(n.kind==="q"||n.kind==="type") setTimeout(()=>faceNode(id),30);
+}
+
+/* ---------- panel ---------- */
+const tagH=t=>'<span class="ptag" style="--c:'+T(t).color+'">'+T(t).icon+" "+esc(t)+"</span>";
+function slot(kind,url){
+  const ic=kind==="video"?"🎬":"🖼️",nm=kind==="video"?"影片":"圖片";
+  if(!url)return'<div class="slot"><b>'+ic+'</b>'+nm+'・即將加入</div>';
+  if(kind==="image")return'<a class="slot has" href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+esc(url)+'" alt=""></a>';
+  return'<a class="slot has" href="'+esc(url)+'" target="_blank" rel="noopener"><b>▶</b>觀看'+nm+'</a>';
+}
+function openPanel(n){
+  const q=n.q, s=q.source||{}, b=document.getElementById("pBody");
+  let h="";
+  if(n.kind==="ext"){
+    h+=tagH(n.ext.type)+'<h2>↳ '+esc(n.ext.q)+'</h2><div class="src">延伸自：<a href="#" data-goq="'+esc(q.id)+'">'+esc(q.title)+'</a></div>';
+  }
+  h+=(n.kind==="ext"?'<div class="lbl">🌱 主問題</div>':"")+tagH(q.type)+(q.userInserted?'<span class="ptag" style="--c:#f5c451">⭐ Merlin 自填</span>':"");
+  h+=(n.kind==="ext"?'<div style="font-weight:700;margin:4px 0 8px">'+esc(q.title)+'</div>':'<h2>'+esc(q.title)+'</h2>');
+  if(q.oneLiner)h+='<p class="one">'+esc(q.oneLiner)+'</p>';
+  const srcTxt=s.url?'<a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.who||"來源")+' ↗</a><br>'+esc([s.outlet,s.date].filter(Boolean).join(" · ")):esc([s.who,s.outlet,s.date].filter(Boolean).join(" · ")||"Merlin 自行提出");
+  const also=(s.also||[]).map(x=>'<a href="'+esc(x.url)+'" target="_blank" rel="noopener">'+esc(x.label)+'</a>').join("、");
+  h+='<div class="src">📎 '+srcTxt+(also?'<br>其他：'+also:"")+'</div>';
+  if(q.process&&q.process.length) h+='<div class="lbl">🧭 推演流程</div><div class="steps">'+q.process.map((p,i)=>'<div class="st'+(n.kind==="step"&&n.step===i?" hl":"")+'" style="--c:'+(STEP_C[p.k]||"#9aa3c7")+'"><b>'+esc(p.k)+'</b><span>'+esc(p.v)+'</span></div>').join("")+'</div>';
+  if(n.kind!=="ext"&&(q.extensions||[]).length) h+='<div class="lbl">🔗 延伸問題</div><div class="exl">'+q.extensions.map((e,i)=>'<div class="ex" style="--c:'+T(e.type).color+'" data-goe="'+esc(q.id)+':'+i+'">↳ '+esc(e.q)+tagH(e.type)+'</div>').join("")+'</div>';
+  h+='<div class="lbl">🎞️ 媒體</div><div class="media">'+slot("video",q.videoUrl)+slot("image",q.imageUrl)+'</div>';
+  if(q.userInserted&&String(q.id).charAt(0)==="u") h+='<div style="margin-top:14px;text-align:right"><button class="btn" data-del="'+esc(q.id)+'">刪除此自填問題</button></div>';
+  b.innerHTML=h;
+  b.querySelectorAll("[data-goq]").forEach(a=>a.onclick=ev=>{ev.preventDefault();focusQ(a.dataset.goq);});
+  b.querySelectorAll("[data-goe]").forEach(a=>a.onclick=()=>{const[qid,i]=a.dataset.goe.split(":");S.expanded.add("q:"+qid);rebuild();const en=nodesById.get("e:"+qid+":"+i);if(en){S.sel=en.id;openPanel(en);rebuild();}});
+  b.querySelectorAll("[data-del]").forEach(x=>x.onclick=()=>{userQs=userQs.filter(u=>u.id!==x.dataset.del);save();closePanel();rebuild();});
+  const st=b.querySelector(".st.hl"); if(st) setTimeout(()=>st.scrollIntoView({block:"center",behavior:"smooth"}),50);
+  const pnl=document.getElementById("panel"); pnl.classList.add("open"); pnl.scrollTop=0;
+  S.panel=true; updateOffsets(); if(S.autoFit)fit();
+}
+function closePanel(){document.getElementById("panel").classList.remove("open");S.panel=false;S.sel=null;meta.forEach(m=>m.el.classList.remove("sel"));updateOffsets();if(S.autoFit)fit();touchI();}
+document.getElementById("pX").onclick=closePanel;
+function focusQ(qid){
+  const q=all().find(x=>x.id===qid); if(!q)return;
+  if(S.active!=="全部"&&S.active!==q.type&&!(S.active==="__user"&&q.userInserted))S.active="全部";
+  S.expanded.add("t:"+q.type);S.expanded.add("q:"+qid);S.sel="q:"+qid;S.autoFit=true;rebuild();
+  const n=nodesById.get("q:"+qid); if(n){openPanel(n);faceNode(n.id);}
+  document.getElementById("list").classList.remove("on");document.getElementById("bList").classList.remove("on");
+}
+
+/* ---------- chips / list ---------- */
+function renderChips(){
+  const qs=all(), c={}; qs.forEach(q=>c[q.type]=(c[q.type]||0)+1);
+  const items=[["全部","#5b66b0","🌳",qs.length]].concat(Object.keys(c).sort((a,b)=>Object.keys(TYPES).indexOf(a)-Object.keys(TYPES).indexOf(b)).map(t=>[t,T(t).color,T(t).icon,c[t]]));
+  items.push(["__user","#c9952b","⭐",userQs.length]);
+  const el=document.getElementById("chips");
+  el.innerHTML=items.map(([t,col,ic,n])=>'<button class="chip'+(S.active===t?" on":"")+'" style="--c:'+col+'" data-t="'+esc(t)+'">'+ic+" "+(t==="__user"?"自填":t==="全部"?"全部":esc(t))+'<i>'+n+'</i></button>').join("");
+  el.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{touchI();const t=b.dataset.t;S.active=(S.active===t&&t!=="全部")?"全部":t;
+    if(S.active!=="全部"){all().forEach(q=>{if(S.active==="__user"?q.userInserted:q.type===S.active)S.expanded.add("q:"+q.id);});}
+    S.autoFit=true;rebuild();});
+}
+function renderList(){
+  const el=document.getElementById("list"); if(!el.classList.contains("on"))return;
+  const by={}; all().forEach(q=>(by[q.type]=by[q.type]||[]).push(q));
+  el.innerHTML=Object.keys(by).map(t=>'<h3 style="--c:'+T(t).color+'">'+T(t).icon+" "+esc(t)+'</h3>'+by[t].map(q=>'<div class="li" style="--c:'+T(t).color+'" data-q="'+esc(q.id)+'">'+(q.userInserted?'<span class="ub">⭐</span> ':"")+esc(q.title)+'<small>↳ '+(q.extensions||[]).length+' 延伸 · '+esc((q.source&&q.source.who||"Merlin").split("（")[0])+'</small></div>').join("")).join("");
+  el.querySelectorAll(".li").forEach(d=>d.onclick=()=>focusQ(d.dataset.q));
+}
+document.getElementById("bList").onclick=function(){const l=document.getElementById("list");l.classList.toggle("on");this.classList.toggle("on");this.textContent=l.classList.contains("on")?"🌳":"☰";renderList();};
+document.getElementById("bExp").onclick=function(){
+  touchI(); const root=buildTree(); const ids=[]; (function w(n){if(n.children.length){ids.push(n.id);n.children.forEach(w);}})(root);
+  const allOpen=ids.every(i=>S.expanded.has(i));
+  if(allOpen){S.expanded=new Set(["root"]);Object.keys(TYPES).forEach(t=>S.expanded.add("t:"+t));}else ids.forEach(i=>S.expanded.add(i));
+  S.autoFit=true;rebuild();
+};
+document.getElementById("zIn").onclick=()=>{touchI();S.autoFit=false;cam.kT=clamp(cam.kT*1.25,0.2,3);};
+document.getElementById("zOut").onclick=()=>{touchI();S.autoFit=false;cam.kT=clamp(cam.kT/1.25,0.2,3);};
+document.getElementById("zFit").onclick=()=>{touchI();S.autoFit=true;cam.pitch=0.32;fit();};
+document.getElementById("bRot").onclick=function(){S.autoRot=!S.autoRot;this.classList.toggle("on",S.autoRot);S.lastI=0;};
+
+/* ---------- add question ---------- */
+function save(){try{localStorage.setItem(STORE,JSON.stringify(userQs));}catch(e){}}
+document.getElementById("bAdd").onclick=()=>{
+  document.getElementById("typeSel").innerHTML=Object.keys(TYPES).map(t=>"<option>"+esc(t)+"</option>").join("");
+  const d=document.getElementById("addDlg"); if(d.showModal)d.showModal();
+};
+document.getElementById("addDlg").addEventListener("close",()=>{
+  const d=document.getElementById("addDlg"),F0=document.getElementById("addForm"),f=F0.elements;
+  if(d.returnValue==="ok"&&f.qtitle.value.trim()){
+    const exts=f.exts.value.split("\n").map(s=>s.trim()).filter(Boolean).slice(0,4).map(line=>{const p=line.split(/[｜|]/).map(x=>x.trim());return{q:p[0],type:TYPES[p[1]]?p[1]:"其他"};});
+    const id="u"+Date.now();
+    userQs.push({id,title:f.qtitle.value.trim(),type:f.qtype.value,
+      source:{who:f.src.value.trim()||"Merlin",outlet:"",date:new Date().toISOString().slice(0,10),url:f.url.value.trim(),also:[]},
+      oneLiner:f.oneLiner.value.trim(),extensions:exts,
+      process:[{k:"問題定義",v:"（待補）"},{k:"前提",v:"（待補）"},{k:"推演",v:"（待補）"},{k:"未解關鍵點",v:"（待補）"}],
+      userInserted:true,videoUrl:"",imageUrl:""});
+    save(); S.fresh=id; focusQ(id);
+  }
+  F0.reset(); d.returnValue="";
+});
+
+/* ---------- boot ---------- */
+resize();
+addEventListener("resize",()=>{clearTimeout(resize.t);resize.t=setTimeout(()=>{resize();S.autoFit=true;fit();},150);});
+const hm=location.hash.match(/open=([\w-]+)/);
+if(/all/.test(location.hash)){const r=buildTree();(function w(n){if(n.children.length){S.expanded.add(n.id);n.children.forEach(w);}})(r);}
+rebuild();
+cam.k=cam.kT*0.5; cam.yc=cam.ycT; cam.ox=cam.oxT; cam.oy=cam.oyT;
+if(hm){const q=all().find(x=>x.id===hm[1]);if(q){S.expanded.add("p:"+q.id);focusQ(q.id);}}
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{});
+setTimeout(()=>{document.getElementById("hint").style.opacity=0;},7000);
+requestAnimationFrame(frame);
+document.body.dataset.ready="1";
 })();
 </script>
 </body>
