@@ -5,21 +5,25 @@
 const CFG = window.AI_BOUNDARY_CONFIG || {};
 const SB_URL = String(CFG.SUPABASE_URL || '').trim(), SB_KEY = String(CFG.SUPABASE_ANON_KEY || '').trim(), GRAPH = String(CFG.GRAPH_ID || 'main');
 const V = new URL(import.meta.url).search;
-window.AISync = { enabled:false, canWrite:() => false, status:() => 'off' };
+window.AISync = { enabled:false, canWrite:() => false, status:() => 'off', reason:() => 'off', pending:() => 0, user:() => null, isEditor:() => false };
 if (SB_URL && SB_KEY) start().catch(e => console.error('[sync]', e));
 
 async function start(){
   const core = await import('./sync-core.js' + V), { esc } = await import('./safe.js' + V);
   const BRAIN = !!(window.AIBrain && document.getElementById('c')), SKEY = 'aiBrain.sync.v2:' + GRAPH, $ = s => document.querySelector(s);
   const loadSync = () => { try { const s = JSON.parse(localStorage.getItem(SKEY)); if (s && s.snap) return s; } catch(e){} return null; };
-  const saveSync = s => { try { localStorage.setItem(SKEY, JSON.stringify(s)); } catch(e){ console.warn('[sync] snapshot not saved', e); } };
-  let sb = null, user = null, editor = false, online = navigator.onLine, busy = 0, loaded = false, remoteEmpty = false, err = '', notice = '';
+  let pendCache = null;                                   // 待上傳清單的快取：大腦 change 事件、拉取、上傳（存快照）時清掉
+  const dirty = () => { pendCache = null; };
+  const saveSync = s => { dirty(); try { localStorage.setItem(SKEY, JSON.stringify(s)); } catch(e){ console.warn('[sync] snapshot not saved', e); } };
+  let checking = false, sb = null, user = null, editor = false, online = navigator.onLine, busy = 0, loaded = false, remoteEmpty = false, err = '', notice = '';
   const canWrite = () => !!(sb && user && editor);
-  const pendingOps = () => { if (!BRAIN) return []; const s = loadSync(); return s ? core.diff(s.snap, AIBrain.getState()) : []; };
+  const pendingOps = () => { if (!BRAIN) return []; if (pendCache) return pendCache; const s = loadSync(); return (pendCache = s ? core.diff(s.snap, AIBrain.getState()) : []); };
+  /* 'anon' 沒登入／'checking' 已登入、正在查編輯名單／'not-editor' 已登入但不在 brain_editors／'editor' 可以寫（停用時是 'off'） */
+  const reason = () => !user ? 'anon' : checking ? 'checking' : editor ? 'editor' : 'not-editor';
   const status = () => !online ? 'offline' : !sb || busy || !loaded ? 'syncing' : err ? 'offline' : !canWrite() ? 'readonly' : pendingOps().length ? 'syncing' : 'synced';
   const ICON = { synced:'☁️', syncing:'⏳', offline:'⚠️', readonly:'🔒' };
   const LABEL = { synced:'已同步到雲端', syncing:'同步中…', offline:'離線或連不上雲端（修改先存在這台裝置）', readonly:'唯讀：修改只存在這台裝置' };
-  Object.assign(window.AISync, { enabled:true, canWrite, status, graph:GRAPH, pending:() => pendingOps().length });
+  Object.assign(window.AISync, { enabled:true, canWrite, status, reason, graph:GRAPH, pending:() => pendingOps().length, user:() => user && { id:user.id, email:user.email || '' }, isEditor:() => canWrite() });
 
   /* ---------- UI（zh-TW）：工具列一顆狀態鈕＋小選單 ---------- */
   const style = document.createElement('style'); style.textContent = `
@@ -32,16 +36,23 @@ async function start(){
 .sy-menu button.w{width:100%;margin-top:8px}body.sync-ro #saved:after{content:"（唯讀：只存在這台裝置）";color:#ffd36e}`;
   document.head.appendChild(style);
   const btn = Object.assign(document.createElement('button'), { className:'ib sy-btn', type:'button', id:'bSync', textContent:'⏳' });
+  btn.setAttribute('aria-label', '雲端同步：同步中'); btn.setAttribute('aria-haspopup', 'dialog'); btn.setAttribute('aria-expanded', 'false');
   const anchor = BRAIN ? $('#bHist') : $('#bSet');
   if (anchor) anchor.parentNode.insertBefore(btn, anchor); else { btn.style.cssText = 'position:fixed;top:12px;right:12px;z-index:40'; document.body.appendChild(btn); }
   const menu = Object.assign(document.createElement('div'), { className:'sy-menu' }); menu.setAttribute('role', 'dialog'); menu.setAttribute('aria-label', '雲端同步');
   document.body.appendChild(menu);
-  btn.onclick = e => { e.stopPropagation(); menu.classList.toggle('open'); render(); };
-  document.addEventListener('click', e => { if (!menu.contains(e.target) && e.target !== btn) menu.classList.remove('open'); });
-  addEventListener('keydown', e => { if (e.key === 'Escape') menu.classList.remove('open'); });
+  const setOpen = on => { menu.classList.toggle('open', on); btn.setAttribute('aria-expanded', String(on)); };
+  btn.onclick = e => { e.stopPropagation(); setOpen(!menu.classList.contains('open')); render(); };
+  document.addEventListener('click', e => { if (!menu.contains(e.target) && !btn.contains(e.target)) setOpen(false); });
+  addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
+  const ARIA = { synced:'已同步', syncing:'同步中', offline:'離線', readonly:'唯讀' };
+  let lastKey = '';
   function render(){
-    const s = status(), n = pendingOps().length;
+    const s = status(), n = pendingOps().length, r = reason();
     btn.innerHTML = ICON[s] + (n ? `<sup>${n}</sup>` : ''); btn.title = LABEL[s] + (n ? `・${n} 筆本機修改` : '');
+    btn.setAttribute('aria-label', '雲端同步：' + ARIA[s] + (n ? `，${n} 筆待上傳` : ''));   // 固定格式的 zh-TW 標籤，跟 title 一起更新
+    const key = s + '|' + r + '|' + n;
+    if (key !== lastKey){ lastKey = key; dispatchEvent(new CustomEvent('aisync:change', { detail:{ status:s, reason:r, pending:n } })); }
     document.body.classList.toggle('sync-ro', s === 'readonly'); document.body.dataset.sync = s;
     if (!menu.classList.contains('open')) return;
     let h = `<h4>${ICON[s]} ${esc(LABEL[s])}</h4>`;
@@ -71,12 +82,13 @@ async function start(){
   /* ---------- 大腦的修改 → 排程上傳（佇列是無狀態的：每次都是 diff(snapshot, 現在)） ---------- */
   let roToast = 0, flushT = 0;
   if (BRAIN) AIBrain.on('change', d => {
+    dirty();
     if (!d || d.action === 'remote') return render();
     if (d.action === 'import'){                        // 同步模式下匯入只做加法：雲端已有、檔案裡沒有的實體留著，不寫墓碑
       const s = loadSync(); if (s) AIBrain._applyExternal(st => { const have = core.fingerprint(st);
         Object.entries(s.snap).forEach(([k, v]) => { if (!(k in have)){ const [kind, id] = core.splitKey(k); core.putEntity(st, kind, id, JSON.parse(v)); } }); });
     }
-    if (!canWrite() && Date.now() - roToast > 20000){ roToast = Date.now(); setTimeout(() => say(user ? '🔒 你不在編輯名單：修改只存在這台裝置' : '🔒 未登入：修改只存在這台裝置'), 900); }
+    if (!canWrite() && Date.now() - roToast > 20000){ roToast = Date.now(); setTimeout(() => say(reason() === 'anon' ? '🔒 未登入：修改只存在這台裝置' : reason() === 'checking' ? '⏳ 正在確認編輯權限…' : '🔒 你不在編輯名單：修改只存在這台裝置'), 900); }
     clearTimeout(flushT); flushT = setTimeout(flush, 800); render();
   });
 
@@ -103,7 +115,8 @@ async function start(){
   }
   async function checkEditor(){
     editor = false; if (!user) return;
-    const { data, error } = await call(() => sb.rpc('is_brain_editor'));
+    checking = true; render();
+    const { data, error } = await call(() => sb.rpc('is_brain_editor')).finally(() => { checking = false; });
     editor = !error && data === true;
     notice = error ? '' : editor ? '' : '你已登入，但不在編輯名單（brain_editors）：目前是唯讀';
   }
@@ -182,8 +195,9 @@ async function start(){
   let lastPull = 0; const maybePull = () => { if (Date.now() - lastPull > 5000){ lastPull = Date.now(); pull(); } };
   addEventListener('online', () => { online = true; err = ''; pull().then(flush); });
   addEventListener('offline', () => { online = false; render(); });
+  addEventListener('storage', e => { if (e.key === SKEY || e.key === 'aiBrain.v1'){ dirty(); render(); } });   // 別的分頁改了快照或大腦
   addEventListener('focus', maybePull);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) maybePull(); });
   render(); await checkEditor(); lastPull = Date.now(); await pull();
-  Object.assign(window.AISync, { pull, flush, user:() => user, isEditor:() => editor });
+  Object.assign(window.AISync, { pull, flush });
 }

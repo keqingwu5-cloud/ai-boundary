@@ -258,6 +258,17 @@ scripts/publish_episode.sh ep03 n_q3 --no-push  # 只在本機 commit，先不�
 - 大腦工具列（🕘 左邊）和 feed 工具列（⚙ 左邊）多一顆同步按鈕：☁️ 已同步／⏳ 同步中／⚠️ 離線（修改先存在這台裝置）／🔒 唯讀。右上角小數字＝還沒上傳的修改數。
 - 點一下打開選單：輸入 email 寄登入連結、登出、↻ 重新同步。
 - 登入過期：自動用 refresh token 換新 token 再重試一次；換不到才提示「登入已過期，請重新登入」。只有資料庫真的拒絕（403／RLS）才會變成 🔒。
+- **給介面／bot 用的 JS API**（`window.AISync`，`config.js` 空白時也存在，`enabled:false`）：
+  | 呼叫 | 回傳 |
+  |---|---|
+  | `AISync.status()` | `'off'`（沒設定）／`'synced'`／`'syncing'`／`'offline'`／`'readonly'` |
+  | `AISync.reason()` | 為什麼能不能寫：`'off'`（沒設定）／`'anon'`（沒登入）／`'checking'`（已登入、正在查編輯名單）／`'not-editor'`（已登入但不在 `brain_editors`）／`'editor'`（可以寫） |
+  | `AISync.user()` | `null` 或 `{ id, email }` |
+  | `AISync.isEditor()` | `true`＝已登入而且在編輯名單（＝`canWrite()`） |
+  | `AISync.pending()` | 還沒上傳的修改數（有快取：大腦 `change` 事件、拉取、上傳、別的分頁改了資料時才重算，`status()` 也一樣） |
+  | `AISync.pull()`／`flush()` | 手動拉取／上傳 |
+  狀態、原因或待上傳數改變時，`window` 會發出 `aisync:change` 事件（`detail:{ status, reason, pending }`），介面可以聽這個事件，不用一直輪詢。
+  同步按鈕 `#bSync` 的 `aria-label` 固定是「雲端同步：已同步／同步中／離線／唯讀」（有待上傳時加「，N 筆待上傳」），跟 `title` 一起更新；`aria-expanded` 表示選單有沒有打開。
 - **重置**（🕘 → 重置）只重置這台裝置：捨棄本機修改、改用雲端版本，**不會**清掉共享大腦或其他裝置（↶ 還能找回）。
 
 ### 資料模型（雲端）
