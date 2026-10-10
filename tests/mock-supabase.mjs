@@ -116,6 +116,7 @@ try {
   const perf = await B.page.evaluate(async () => { const t0 = performance.now(); for (let i = 0; i < 2000; i++){ AISync.pending(); AISync.status(); } const ms = performance.now() - t0;
     const before = AISync.pending(); AIBrain.addQuestion({ title:'快取測試', type:'其他' }); const after = AISync.pending(); return { ms, before, after }; });
   ok(perf.ms < 300 && perf.after === perf.before + 1, `pending()／status() 快取：2000 次 ${perf.ms.toFixed(1)}ms；改了之後立刻重算（${perf.before} → ${perf.after}）`);
+  await Bob.page.close();   // 之後用不到 Bob：關掉省 CPU（每個分頁都在跑 3D）
   // 4. 新增 → C 看得到；兩台同時改不同節點
   const aid = await A.page.evaluate(() => AIBrain.addQuestion({ title:'A 新問題', type:'其他' })); await settle(A);
   ok(db.brain_entities.some(r => r.id === aid) && db.brain_history.some(h => h.action === 'add'), 'A: 新增節點 → brain_entities + brain_history');
@@ -137,13 +138,13 @@ try {
   await A.page.evaluate(() => AIBrain.setMedia('n_q4', 'image', 'media/x.jpg')); await sleep(1200); s = await st(A);
   ok(s.sync === 'offline' && s.pending > 0, `A 離線: ⚠️、${s.pending} 筆待上傳`);
   await A.page.setOfflineMode(false); await A.page.evaluate(() => dispatchEvent(new Event('online')));
-  ok(await waitSynced(A) && db.brain_entities.find(r => r.id === 'n_q4').data.media.image === 'media/x.jpg', 'A 重新連線: 自動上傳 ☁️');
+  ok(await settle(A) && db.brain_entities.find(r => r.id === 'n_q4').data.media.image === 'media/x.jpg', 'A 重新連線: 自動上傳 ☁️');
   // 7. 刪除 → 墓碑
   await A.page.evaluate(id => AIBrain.deleteNode(id), aid); await settle(A); await pull(C);
   ok(db.brain_entities.find(r => r.id === aid).deleted === true && !(await st(C)).nodes.some(n => n.id === aid), '刪除 → 墓碑，C 拉取後也移除');
   // 8. 重置：只影響這台裝置，不會清空共享大腦
   await A.page.evaluate(() => AIBrain.addQuestion({ title:'A 還沒上傳', type:'其他' }));
-  await A.page.setOfflineMode(false);
+  await A.page.setOfflineMode(false); await settle(A);       // 重新連線會先把離線時的修改傳上去；等它傳完再比對，免得把那筆的連結算成「重置寫的」
   const before = JSON.stringify(db.brain_entities.filter(r => !/還沒上傳/.test(JSON.stringify(r.data))).map(r => [r.kind, r.id, r.deleted]));
   const nw = writes.length;
   await A.page.evaluate(() => AIBrain.reset()); await sleep(1500);
@@ -154,6 +155,7 @@ try {
   // 9. 401／JWT 過期：刷新 session 再重試
   const r0 = stats.refresh; const D = await device('D（token 過期）', T_OLD); await load(D); await D.page.evaluate(() => AIBrain.setStatus('n_q3', 'researching')); await settle(D);
   ok(stats.refresh > r0 && await waitSynced(D) && db.brain_entities.find(r => r.id === 'n_q3').data.status === 'researching', `401 JWT expired → 自動 refreshSession 後重試成功（refresh ${stats.refresh - r0} 次），不會卡在 🔒`);
+  await D.page.close();
   // 10. XSS：有人直接寫進惡意資料
   db.brain_entities.push(
     { graph_id:'main', kind:'node', id:'n_evil', deleted:false, data:{ title:'<img src=x onerror="window.__xss=1">', kind:'question"><img src=x onerror="window.__xss=2">', createdBy:'bot"><img src=x onerror="window.__xss=3">',
