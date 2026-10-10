@@ -180,7 +180,7 @@ scripts/publish_episode.sh ep04 n_q4 --parent git-abd3a61   # 動態的「衍生
 - `SEED_MEDIA`（`content/media.json`）只在節點的 `media.video`／`media.image` 是空的（或仍是 QUESTIONS 原本的 `videoUrl`／`imageUrl`，例如 q3 的 YouTube 連結）時才會填入；使用者自己貼的網址不會被覆蓋。已經有存檔的使用者，下次載入也會自動拿到新影片。
 - 例外：如果使用者把影片清空，下次載入時會被 `SEED_MEDIA` 補回去，因為存檔裡分辨不出「刻意清空」和「從來沒設定」。
 
-- EP1–EP6（n_q1…n_q6）都已換成 60 秒版（中文旁白、字幕燒進畫面），`media/videos/n_qN.zh-TW.srt` 附上同一份字幕。`SEED_MEDIA` 可以帶 `subtitles`／`subtitlesBurnedIn`；重新發佈時腳本會保留這兩個欄位。
+- EP1–EP6（n_q1…n_q6）都已換成 60 秒版（中文旁白、字幕燒進畫面），`media/videos/n_qN.zh-TW.srt` 附上同一份字幕。`content/media.json`（`SEED_MEDIA`）可以帶 `subtitles`／`subtitlesBurnedIn`；重新發佈時腳本會保留這兩個欄位。
 
 ### 種子節點補充（SEED_EXTRAS）
 `content/seed-extras.json`（`SEED_EXTRAS`）放不在 `QUESTIONS` 裡的原創節點；之後 bot 要新增節點，寫在自己的補丁檔 `patches/<bot>-<date>.json` 的 `seedExtras`，載入時接在後面（`QUESTIONS` 原文不動）。載入時會補進大腦和 feed，接在 `parentId` 底下（如果父節點已經變成子腦，就跟著放進那顆子腦）。已經加過的 id 會記在 `state.seedExtras`，所以使用者刪掉之後不會再長回來。
@@ -200,6 +200,7 @@ scripts/publish_episode.sh ep04 n_q4 --parent git-abd3a61   # 動態的「衍生
 - `structure-review.json` 的分裂、合併、改掛父節點、改標籤、`n_rev_*` 節點，以及新方向裡的 `x_crossLinks`／`x_suggestedNewConcepts` **都還沒套用**，要等 Merlin 確認。
 
 ### 🌿 n_x_language 的 4 個延伸問題（SEED_EXTRAS，kind extension）
+- 放在 `patches/intp-2026-10-11.json`（`seedExtras` 4 個節點＋`conceptDefs` 12 個標籤），載入時接在 `content/seed-extras.json` 後面。
 - 來自 INTP 鏡像研究員〈explainer-language-boundary.md〉「延伸問題」Q1–Q4：`n_x_language_e1`（理解與意識）、`n_x_language_e2`（能力邊界）、`n_x_language_e3`（社會影響）、`n_x_language_e4`（推理與判斷）。類型都已存在於 TYPES。
 - 來源與反證取自同一份文件的「解說依據」與「查證備註」；【推測】的部分照原文標示。12 個新概念標籤已登記在 `CONCEPTS.defs`（kw 留空）。
 - 延伸問題型的種子節點放在父節點旁邊（不像新方向往外推）；父節點被刪掉時不會加入。已加過的記在 `state.seedExtras`，刪掉後不會再長回來。
