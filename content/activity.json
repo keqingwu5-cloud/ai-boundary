@@ -603,5 +603,129 @@
     ],
     "parentId": "git-b0ef416",
     "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-16e8f7b",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T02:56:32+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "重新發佈 EP02 → n_q2（60 秒版）",
+    "summary": "用舊版 scripts/publish_episode.sh 發佈，直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q2"
+    ],
+    "links": [
+      {
+        "label": "commit 16e8f7b",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/16e8f7b15640dd1d3c376ae3c4e07d3a8aa56cbc"
+      }
+    ],
+    "parentId": "git-104c959",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-6eb66e4",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T02:57:22+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "重新發佈 EP03 → n_q3（60 秒版）",
+    "summary": "用舊版 scripts/publish_episode.sh 發佈，直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q3"
+    ],
+    "links": [
+      {
+        "label": "commit 6eb66e4",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/6eb66e4580995dc3bbfa192bac6cb970687cc9c0"
+      }
+    ],
+    "parentId": "git-ef6ef60",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-11209af",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T02:58:05+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "重新發佈 EP04 → n_q4（60 秒版）",
+    "summary": "用舊版 scripts/publish_episode.sh 發佈，直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q4"
+    ],
+    "links": [
+      {
+        "label": "commit 11209af",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/11209af4db687c04bdfdcd81cbe3843842bdb3c2"
+      }
+    ],
+    "parentId": "git-bfb79b9",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-b94edb4",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T02:58:52+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "重新發佈 EP05 → n_q5（60 秒版）",
+    "summary": "用舊版 scripts/publish_episode.sh 發佈，直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q5"
+    ],
+    "links": [
+      {
+        "label": "commit b94edb4",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/b94edb4edf8e52bf2cb6feb3e90f69be3213a2d7"
+      }
+    ],
+    "parentId": "git-421b7a5",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-6172155",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T03:07:11+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "重新發佈 EP06 → n_q6（60 秒版）",
+    "summary": "用舊版 scripts/publish_episode.sh 發佈，直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q6"
+    ],
+    "links": [
+      {
+        "label": "commit 6172155",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/61721551f2704e1cecf3d8fc4f76dceb47168056"
+      }
+    ],
+    "parentId": "git-398be14",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-0572d46",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T03:08:40+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "EP02–EP06 字幕：n_q2…n_q6 的 zh-TW SRT、字幕已燒進畫面",
+    "summary": "SEED_MEDIA 為 n_q1–n_q6 標上 subtitles／subtitlesBurnedIn。直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q2",
+      "n_q3",
+      "n_q4",
+      "n_q5",
+      "n_q6"
+    ],
+    "links": [
+      {
+        "label": "commit 0572d46",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/0572d46849d34ad55a574c2c0773e7cfffafffb5"
+      }
+    ],
+    "parentId": "git-941e521",
+    "author": "keqingwu5-cloud"
   }
 ]

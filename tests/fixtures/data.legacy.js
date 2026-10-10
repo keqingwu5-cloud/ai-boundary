@@ -2188,23 +2188,33 @@ const SEED_MEDIA = {
   },
   "n_q2": {
     "video": "media/videos/n_q2.mp4",
-    "image": "media/videos/n_q2.jpg"
+    "image": "media/videos/n_q2.jpg",
+    "subtitles": "media/videos/n_q2.zh-TW.srt",
+    "subtitlesBurnedIn": true
   },
   "n_q3": {
     "video": "media/videos/n_q3.mp4",
-    "image": "media/videos/n_q3.jpg"
+    "image": "media/videos/n_q3.jpg",
+    "subtitles": "media/videos/n_q3.zh-TW.srt",
+    "subtitlesBurnedIn": true
   },
   "n_q4": {
     "video": "media/videos/n_q4.mp4",
-    "image": "media/videos/n_q4.jpg"
+    "image": "media/videos/n_q4.jpg",
+    "subtitles": "media/videos/n_q4.zh-TW.srt",
+    "subtitlesBurnedIn": true
   },
   "n_q5": {
     "video": "media/videos/n_q5.mp4",
-    "image": "media/videos/n_q5.jpg"
+    "image": "media/videos/n_q5.jpg",
+    "subtitles": "media/videos/n_q5.zh-TW.srt",
+    "subtitlesBurnedIn": true
   },
   "n_q6": {
     "video": "media/videos/n_q6.mp4",
-    "image": "media/videos/n_q6.jpg"
+    "image": "media/videos/n_q6.jpg",
+    "subtitles": "media/videos/n_q6.zh-TW.srt",
+    "subtitlesBurnedIn": true
   }
 };
 /* SEED_MEDIA:END */
