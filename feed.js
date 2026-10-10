@@ -61,7 +61,7 @@ prefs.bots = prefs.bots || {};
 const set = Object.assign({ order:'series', continuous:true, types:[], concepts:[], onlyVideo:false, onlySaved:false }, prefs.set);
 if (set.v !== 2){ set.order = 'series'; set.continuous = true; set.v = 2; }
 prefs.set = set;
-const savePrefs = () => { try { localStorage.setItem(FKEY, JSON.stringify(prefs)); } catch(e){} };
+const savePrefs = () => { try { localStorage.setItem(FKEY, JSON.stringify(prefs)); } catch(e){} try { dispatchEvent(new Event('aifeed:prefs')); } catch(e){} };  // sync.js 聽 aifeed:prefs 上傳喜歡／收藏
 
 function treeOrder(){
   const out = [], seen = new Set(), bOrder = [];
@@ -369,6 +369,9 @@ addEventListener('resize', () => go(cur, true));
   if (h0 && N(h0) && !buildList().some(n => n.id === h0)){ set.types = []; set.concepts = []; set.onlyVideo = false; set.onlySaved = false; savePrefs(); }
   render(h0); }
 feed.focus({ preventScroll:true });
-window.AIFeed = { list:() => list.map(n => n.id), current:() => list[cur] && list[cur].id, index:() => cur, go, reload:() => { state = loadState(); render(list[cur] && list[cur].id); }, settings:set, giscus:GISCUS, bots:BOTS, openComments,
+window.AIFeed = { list:() => list.map(n => n.id), current:() => list[cur] && list[cur].id, index:() => cur, go, reload:() => { state = loadState(); render(list[cur] && list[cur].id); },
+  /* sync.js：雲端的喜歡／收藏寫回 localStorage 後呼叫，只更新按鈕狀態，不重新排版 */
+  reloadPrefs:() => { try { const p = JSON.parse(localStorage.getItem(FKEY)) || {}; prefs.likes = p.likes || {}; prefs.saves = p.saves || {}; } catch(e){}
+    document.querySelectorAll('#feed [data-id]').forEach(el => { const id = el.dataset.id; el.querySelector('.like')?.classList.toggle('on', !!prefs.likes[id]); el.querySelector('.save')?.classList.toggle('on', !!prefs.saves[id]); }); }, settings:set, giscus:GISCUS, bots:BOTS, openComments,
   player, sound:() => ({ wantSound, unlocked, muted:player.muted }), blocked:() => !!itemEl(cur)?.classList.contains('blocked') };
 document.body.dataset.ready = '1';
