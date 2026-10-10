@@ -254,7 +254,7 @@ function mergeBrain(bid){
   const b = B(bid); if (!b || bid === 'main') return;
   const target = B(b.parentBrainId) || B('main');
   const root = N(b.rootNodeId);
-  mutate('merge', { brainId:bid, title:b.name, into:target.id }, () => {
+  mutate('merge', { nodeId:b.rootNodeId, brainId:bid, title:b.name, into:target.id, intoName:target.id === 'main' ? '主腦' : target.name }, () => {   // nodeId: shows up in the node's own history + clickable in 🕘
     const anchor = root && root.parentId && N(root.parentId) && N(root.parentId).brainId === target.id ? N(root.parentId).pos
       : (target.id === 'main' ? (REGION[root ? root.type : '其他'] || REGION['其他']) : [0, 0.08, 0]);
     state.nodes.filter(n => n.brainId === bid).forEach(n => { n.brainId = target.id; n.pos = jitter(anchor, n.id === b.rootNodeId ? 0.06 : 0.17); });
@@ -909,7 +909,7 @@ $('#splitDlg').addEventListener('close', () => {
 function renderHistory(){
   const el = $('#hList'); if (!el) return;
   el.innerHTML = state.history.slice().reverse().slice(0, 150).map(h => {
-    const p = h.payload || {}; const t = p.title || p.fromTitle && (p.fromTitle + ' ⇄ ' + p.toTitle) || (p.questions ? p.questions + ' 題' : '') || '';
+    const p = h.payload || {}; const t = (h.action === 'merge' && p.title ? p.title + ' → ' + (p.intoName || (p.into === 'main' ? '主腦' : B(p.into)?.name || '上層腦')) : '') || p.title || p.fromTitle && (p.fromTitle + ' ⇄ ' + p.toTitle) || (p.questions ? p.questions + ' 題' : '') || '';
     return `<div class="hi" ${p.nodeId && N(p.nodeId) ? `data-n="${esc(p.nodeId)}"` : ''}><time>${fmt(h.ts)}</time><b>${ACT[h.action] || esc(h.action)}</b><span>${esc(t)}</span></div>`;
   }).join('');
   el.querySelectorAll('[data-n]').forEach(d => d.onclick = () => select(d.dataset.n));
