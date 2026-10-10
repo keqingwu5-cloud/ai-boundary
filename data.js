@@ -304,6 +304,10 @@ const SEED_MEDIA = {
   "n_q5": {
     "video": "media/videos/n_q5.mp4",
     "image": "media/videos/n_q5.jpg"
+  },
+  "n_q6": {
+    "video": "media/videos/n_q6.mp4",
+    "image": "media/videos/n_q6.jpg"
   }
 };
 /* SEED_MEDIA:END */
