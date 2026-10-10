@@ -1,13 +1,28 @@
 /* 3D 動態認知大腦 v1 — plain Three.js (ES modules, vendored), no build step. */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { esc, safeUrl, safeColor, playable } from './safe.js';
+import { esc, safeUrl, safeColor, playable, sanitizeEntity } from './safe.js';
+import { initInterior } from './brain/interior.js';
+import { QPARAM, levels, initialLevel, createWatch } from './brain/quality.js';
 await window.AI_DATA_READY;           // data.js：等 content/*.json、patches/*.json 載入完（QUESTIONS、TYPES… 才會有值）
 
 /* ================= constants ================= */
 const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
 const MOBILE = matchMedia('(max-width: 700px), (pointer: coarse)').matches;
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* [proto] adaptive node sizing + screen-space picking */
+const COARSE = matchMedia('(pointer: coarse)').matches;
+const MIN_NODE_PX = COARSE || MOBILE ? 7 : 4.5;      // min on-screen radius of a node (px)
+const MIN_FAR_PX = COARSE || MOBILE ? 3.5 : 2.5;     // min radius of de-emphasised (LOD) nodes
+const TAP_PX = COARSE || MOBILE ? 26 : 14;           // tap radius => ~52px / 28px hit target
+const LOD_NEAR_PX = 260;                             // a brain bigger than this on screen shows full detail
+const UIKEY = 'aiBrain.ui.v1';
+/* [proto] adaptive quality: ?q=high|mid|low pins a level; otherwise phones start at mid, laptops at high, and FPS watchdog steps down */
+const QLV = levels(MOBILE || COARSE);   // [proto] quality levels + watchdog: brain/quality.js
+let QL = initialLevel();
+const Q = QLV[QL];
+const ui = (() => { try { return Object.assign({ declutter:true, glow:false }, JSON.parse(localStorage.getItem(UIKEY))); } catch(e){ return { declutter:true, glow:false }; } })();
+const saveUI = () => { try { localStorage.setItem(UIKEY, JSON.stringify(ui)); } catch(e){} };
 const WORLD = 3;                       // main brain world scale
 const TYPE_LIST = Object.keys(TYPES);
 const REGION = {                       // brain-local region centres (front = +z)
@@ -41,6 +56,53 @@ function jitter(c, r, rnd = Math.random){
   const u = rnd()*Math.PI*2, v = Math.acos(2*rnd()-1), rr = r*(0.5+0.5*rnd());
   return clampInside([c[0]+rr*Math.sin(v)*Math.cos(u), c[1]+rr*Math.cos(v)*0.7, c[2]+rr*Math.sin(v)*Math.sin(u)]);
 }
+/* [proto] sub-brain layout: push overlapping brains apart (main stays fixed, smaller brains move more) */
+const brainR = b => WORLD * b.scale * 0.92;
+/* `mov` (optional Set of ids): only those may move, everything else stays put. Used after an edit so that only the new
+   nodes / brains get placed; untouched nodes keep their positions and are not re-uploaded by sync (no write races). */
+function relaxBrains(st, gap = 0.7, mov = null, tol = 1e-6){
+  const bs = st.brains; let moved = false;
+  for (let it = 0; it < 120; it++){
+    let any = false;
+    for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++){
+      const a = bs[i], b = bs[j], min = brainR(a) + brainR(b) + gap * Math.min(a.scale, b.scale) * 2;
+      let dx = b.position[0] - a.position[0], dy = (b.position[1] - a.position[1]) * 1.4, dz = b.position[2] - a.position[2];
+      let d = Math.hypot(dx, dy, dz);
+      if (d >= min - tol) continue;   // tolerance: float rounding must not re-nudge settled pairs (migrate has to be idempotent for sync)
+      if (d < 1e-4){ const ang = (i * 7 + j * 13) % 360 * Math.PI / 180; dx = Math.cos(ang); dy = 0; dz = Math.sin(ang); d = 1; }
+      const push = (min - d) * 0.55, ux = dx / d, uy = dy / d / 1.4, uz = dz / d;
+      let wa = a.id === 'main' ? 0 : b.id === 'main' ? 1 : b.scale / (a.scale + b.scale);
+      if (mov){ const ma = mov.has(a.id) && a.id !== 'main', mb = mov.has(b.id) && b.id !== 'main'; if (!ma && !mb) continue; wa = ma && mb ? wa : ma ? 1 : 0; }
+      const wb = 1 - wa;
+      a.position = [a.position[0] - ux * push * wa, a.position[1] - uy * push * wa, a.position[2] - uz * push * wa];
+      b.position = [b.position[0] + ux * push * wb, b.position[1] + uy * push * wb, b.position[2] + uz * push * wb];
+      any = moved = true;
+    }
+    if (!any) break;
+  }
+  return moved;
+}
+/* [proto] keep nodes inside one brain from sitting on top of each other */
+function relaxNodes(st, brainId, minD = 0.075, mov = null, tol = 1e-6){
+  const ns = st.nodes.filter(n => n.brainId === brainId); if (ns.length < 2) return false; let moved = false;
+  for (let it = 0; it < 40; it++){
+    let any = false;
+    for (let i = 0; i < ns.length; i++) for (let j = i + 1; j < ns.length; j++){
+      const a = ns[i].pos, b = ns[j].pos; let dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2]; let d = Math.hypot(dx, dy, dz);
+      if (d >= minD - tol) continue;   // same tolerance as relaxBrains
+      if (d < 1e-5){ dx = ((i * 31 + j * 17) % 7 - 3) / 3 || 0.5; dy = 0.2; dz = ((i * 13 + j * 29) % 5 - 2) / 2 || 0.5; const L = Math.hypot(dx, dy, dz) / 1e-5; dx /= L; dy /= L; dz /= L; d = 1e-5; }   // unit direction scaled to d, so the push is exactly minD - d
+      let ki = 0.5, kj = 0.5;
+      if (mov){ const mi = mov.has(ns[i].id), mj = mov.has(ns[j].id); if (!mi && !mj) continue; if (!mi){ ki = 0; kj = 1; } else if (!mj){ ki = 1; kj = 0; } }
+      const k = (minD - d) / d;
+      if (ki) ns[i].pos = clampInside([a[0] - dx * k * ki, a[1] - dy * k * ki, a[2] - dz * k * ki]);
+      if (kj) ns[j].pos = clampInside([b[0] + dx * k * kj, b[1] + dy * k * kj, b[2] + dz * k * kj]);
+      any = moved = true;
+    }
+    if (!any) break;
+  }
+  return moved;
+}
+function relaxAll(st, mov = null, tol = 1e-6){ relaxBrains(st, 0.7, mov, tol); st.brains.forEach(b => relaxNodes(st, b.id, b.id === 'main' ? 0.075 : 0.11, mov, tol)); }
 function mkNode(o){
   return Object.assign({ id: uid('n'), brainId:'main', parentId:null, kind:'question', title:'', type:'其他', oneLiner:'', source:null,
     assumptions:'', reasoning:[], counterEvidence:[], media:{ video:'', image:'' }, status:'open', createdBy:'merlin',
@@ -99,6 +161,7 @@ function migrate(st){
     n.concepts.forEach(c => { if (!st.concepts[c]) st.concepts[c] = { color:pickColor(st), desc:'', createdBy:'merlin' }; });
   });
   if (changed) st.history.push({ ts:Date.now(), action:'migrate', payload:{ nodes:changed } });
+  relaxAll(st, null, 0.015);   // [proto] de-overlap brains + nodes (positions only); 0.015 slack: only real overlaps move, not the ≤0.011 leftovers of add-time relax (no extra upload)
   st.version = 2;
   return st;
 }
@@ -106,24 +169,40 @@ const CPAL = ['#5eead4','#a3e635','#fde047','#fdba74','#67e8f9','#f0abfc','#86ef
 function pickColor(st){ const used = new Set(Object.values(st.concepts || {}).map(c => c.color)); return CPAL.find(c => !used.has(c)) || `hsl(${Math.floor(Math.random() * 360)},85%,72%)`; }
 let state = migrate(load() || seedState());
 let undoStack = []; try { undoStack = JSON.parse(localStorage.getItem(UKEY) || '[]'); } catch(e){ undoStack = []; }
-let saveT = 0;
-function save(now = false){
-  clearTimeout(saveT);
-  const f = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); localStorage.setItem(UKEY, JSON.stringify(undoStack.slice(-12))); flashSaved(); } catch(e){ toast('⚠ 儲存失敗：' + e.message); } };
-  now ? f() : (saveT = setTimeout(f, 250));
-}
-save(true);
+let undoDirty = false;
+/* [proto perf] the state (~70 KB) is written synchronously on every change, so a reload / the feed page always sees it.
+   The undo snapshots (5 × ~70 KB = 85 % of what used to be written per tap) are only written when the page is hidden or
+   left (pagehide / visibilitychange), the two moments a reload can follow; in between they live in memory. */
+const UNDO_KEEP = 12, UNDO_PERSIST = 5;
+function writeUndo(){ if (!undoDirty) return; undoDirty = false; try { localStorage.setItem(UKEY, JSON.stringify(undoStack.slice(-UNDO_PERSIST))); } catch(e){} }
+function save(){ undoDirty = true; try { localStorage.setItem(KEY, JSON.stringify(state)); flashSaved(); } catch(e){ toast('⚠ 儲存失敗：' + e.message); } }
+addEventListener('pagehide', writeUndo);
+document.addEventListener('visibilitychange', () => { if (document.hidden) writeUndo(); });
+/* undo snapshots skip the (ever-growing) history log; undo restores the snapshot and keeps the current log */
+const snap = () => { const { history, ...rest } = state; return JSON.stringify(rest); };
+function pushUndo(){ undoStack.push(snap()); if (undoStack.length > UNDO_KEEP) undoStack.shift(); }
+save();
 const listeners = {};
 function emit(ev, data){ (listeners[ev] || []).forEach(f => { try { f(data); } catch(e){ console.error(e); } }); }
 function mutate(action, payload, fn){
-  undoStack.push(JSON.stringify(state)); if (undoStack.length > 12) undoStack.shift();
+  pushUndo();
+  const placeable = ['add', 'split', 'direction', 'merge'].includes(action);
+  const before = placeable ? new Map([...state.nodes.map(n => [n.id, n.brainId]), ...state.brains.map(b => [b.id, 'brain'])]) : null;
   fn();
+  if (placeable){   // [proto] place only what this edit created or moved to another brain; everything else keeps its position
+    const mov = new Set([...state.nodes.filter(n => before.get(n.id) !== n.brainId).map(n => n.id), ...state.brains.filter(b => !before.has(b.id)).map(b => b.id)]);
+    if (mov.size) relaxAll(state, mov);
+  }
   state.history.push({ ts:Date.now(), action, payload });
   save(); sync(); renderHistory(); renderCrumbs();
   emit('change', { action, payload });
 }
-const N = id => state.nodes.find(n => n.id === id);
-const B = id => state.brains.find(b => b.id === id);
+/* [proto perf] id -> object Map indexes instead of Array.find on every lookup (hundreds per frame / per render).
+   Rebuilt lazily whenever the array is replaced or changes length (push / filter / undo / import all do one of those). */
+const IX = { n:{ a:null, len:-1 }, b:{ a:null, len:-1 } };
+function ix(c, arr){ if (c.a !== arr || c.len !== arr.length){ c.a = arr; c.len = arr.length; c.m = new Map(); arr.forEach(x => c.m.set(x.id, x)); } return c.m; }
+const N = id => ix(IX.n, state.nodes).get(id);
+const B = id => ix(IX.b, state.brains).get(id);
 const kids = id => state.nodes.filter(n => n.parentId === id);
 function descendants(id, sameBrain){
   const root = N(id), out = [], st = [id];
@@ -238,6 +317,7 @@ function makeSubBrain(id){
     const byDepth = {}; sub.forEach(s => { const d = depthOf(s); (byDepth[d] = byDepth[d] || []).push(s); });
     Object.keys(byDepth).forEach(d => { const arr = byDepth[d]; arr.forEach((s, i) => { const a = i / arr.length * Math.PI * 2 + d * 0.7;
       s.brainId = bid; s.pos = clampInside([Math.sin(a) * 0.2 * d, 0.1 + (i % 2 ? 0.12 : -0.1) * Math.min(d, 2), Math.cos(a) * 0.3 * d]); }); });
+    relaxAll(state, new Set([bid, ...sub.map(s => s.id), id]));   // [proto] only the new sub-brain and its nodes move
   });
   pendingFly.set(bid, id);
   focusBrain(bid, 1400);
@@ -279,7 +359,7 @@ function deleteNode(id){
 }
 function undo(){
   if (!undoStack.length){ toast('沒有可復原的步驟'); return; }
-  state = JSON.parse(undoStack.pop());
+  const h = state.history, s = JSON.parse(undoStack.pop()); state = s.history ? s : { ...s, history:h };   // old full snapshots still work
   save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已復原');
   if (!B(focusId)) focusBrain('main');
   emit('change', { action:'undo' });
@@ -295,7 +375,7 @@ function exportJSON(){
 }
 function importJSON(obj){
   if (!valid(obj)){ toast('⚠ 檔案格式不符'); return false; }
-  undoStack.push(JSON.stringify(state));
+  pushUndo();
   state = migrate(obj); state.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
   save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入');
   emit('change', { action:'import' });
@@ -305,8 +385,10 @@ function importJSON(obj){
    live state AND to every undo snapshot, so ↶ only reverts your own last action instead of other people's edits.
    No history entry, no undo step. Emits change { action:'remote' }. */
 function applyExternal(fn, info = {}){
-  fn(state); if (!valid(state)) return false;
-  if (!info.keepUndo) undoStack = undoStack.map(s => { try { const o = JSON.parse(s); fn(o); return JSON.stringify(o); } catch(e){ return s; } });
+  fn(state); IX.n.a = IX.b.a = null;   // [proto] putEntity replaces array items in place -> drop the id Map indexes
+  if (!valid(state)) return false;
+  // [proto] lighter undo snapshots have no history log: patch them with a throw-away history and strip it again
+  if (!info.keepUndo) undoStack = undoStack.map(s => { try { const o = JSON.parse(s), lite = !o.history; if (lite) o.history = []; fn(o); if (lite) delete o.history; return JSON.stringify(o); } catch(e){ return s; } });
   save(); sync(); renderHistory(); renderCrumbs();
   if (!B(focusId)) focusBrain('main');
   if (selected){
@@ -322,6 +404,8 @@ function applyExternal(fn, info = {}){
 const canvas = $('#c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:!MOBILE, alpha:false, powerPreference:'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, MOBILE ? 1.5 : 2));
+/* [proto] one shared pixel-ratio uniform for every point shader, so dynamic resolution only has to update one value */
+const DPR_MAX = renderer.getPixelRatio(), UPR = { value:DPR_MAX };
 renderer.setClearColor(0x03040b, 1);
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x03040b, 0.018);
@@ -353,7 +437,7 @@ const GLOW = glowTexture();
     const c = palette[i % 4]; col.set([c.r, c.g, c.b], i * 3); ph[i] = Math.random() * 6.28;
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('aPhase', new THREE.BufferAttribute(ph, 1));
-  const m = new THREE.ShaderMaterial({ uniforms:{ uTime:{ value:0 }, uPR:{ value:renderer.getPixelRatio() } }, transparent:true, depthWrite:false, fog:false,
+  const m = new THREE.ShaderMaterial({ uniforms:{ uTime:{ value:0 }, uPR:UPR }, transparent:true, depthWrite:false, fog:false,
     vertexShader:`attribute float aPhase; attribute vec3 color; uniform float uTime; uniform float uPR; varying vec3 vC; varying float vA;
       void main(){ vC=color; vA=0.45+0.55*sin(uTime*1.3+aPhase); vec4 mv=modelViewMatrix*vec4(position,1.); gl_PointSize=(1.2+1.6*fract(aPhase*7.13))*uPR; gl_Position=projectionMatrix*mv; }`,
     fragmentShader:`varying vec3 vC; varying float vA; void main(){ float d=length(gl_PointCoord-.5); if(d>.5) discard; gl_FragColor=vec4(vC, vA*smoothstep(.5,.0,d)); }` });
@@ -391,6 +475,7 @@ function cerebellum(){
     const d = 1 + 0.03 * n; p.setXYZ(i, vx * 0.36 * d, vy * 0.17 * d - 0.27, vz * 0.22 * d - 0.5); fold[i] = n; }
   g.setAttribute('fold', new THREE.BufferAttribute(fold, 1)); g.computeVertexNormals(); return g;
 }
+function fill(g, n, v){ g.setAttribute(n, new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(v), 1)); return g; }
 function stem(){ const g = new THREE.CylinderGeometry(0.075, 0.05, 0.4, 20, 4); g.rotateX(0.35); g.translate(0, -0.42, -0.3); g.setAttribute('fold', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(0.3), 1)); return g; }
 const WS = MOBILE ? 96 : 144, HS = MOBILE ? 72 : 108;
 const GEO = { L:hemisphere(-1, WS, HS), R:hemisphere(1, WS, HS), C:cerebellum(), S:stem() };
@@ -420,12 +505,13 @@ function makeInner(count, color){
   const pos = new Float32Array(count * 3), ph = new Float32Array(count), col = new Float32Array(count * 3);
   const c1 = new THREE.Color(color), c2 = new THREE.Color('#5fd4ff'), tmp = new THREE.Color();
   for (let i = 0; i < count; i++){
-    let p; do { p = [(Math.random() * 2 - 1) * 0.55, Math.random() * 0.9 - 0.32, (Math.random() * 2 - 1) * 0.78]; }
-    while ((p[0] / 0.55) ** 2 + ((p[1] - 0.1) / 0.5) ** 2 + (p[2] / 0.78) ** 2 > 0.85);
+    let p, e; const shell = Math.random() < 0.55;   // [proto] 55% of points hug the cortex (grey-matter feel)
+    do { p = [(Math.random() * 2 - 1) * 0.55, Math.random() * 0.9 - 0.32, (Math.random() * 2 - 1) * 0.78]; e = (p[0] / 0.55) ** 2 + ((p[1] - 0.1) / 0.5) ** 2 + (p[2] / 0.78) ** 2; }
+    while (e > 0.85 || (shell && e < 0.6));
     pos.set(p, i * 3); ph[i] = Math.random() * 6.28; tmp.copy(c1).lerp(c2, Math.random()); col.set([tmp.r, tmp.g, tmp.b], i * 3);
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aPhase', new THREE.BufferAttribute(ph, 1)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const m = new THREE.ShaderMaterial({ uniforms:{ uTime:{ value:0 }, uSize:{ value:MOBILE ? 26 : 30 }, uPR:{ value:renderer.getPixelRatio() } }, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+  const m = new THREE.ShaderMaterial({ uniforms:{ uTime:{ value:0 }, uSize:{ value:MOBILE ? 26 : 30 }, uPR:UPR }, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
     vertexShader:`attribute float aPhase; attribute vec3 color; uniform float uTime; uniform float uSize; uniform float uPR; varying float vA; varying vec3 vC;
       void main(){ vec4 mv=modelViewMatrix*vec4(position,1.); float p=0.5+0.5*sin(uTime*2.2+aPhase+position.z*6.0); vA=0.15+0.85*p*p*p; vC=color;
         gl_PointSize=uSize*uPR*(0.35+0.65*p)/-mv.z; gl_Position=projectionMatrix*mv; }`,
@@ -439,13 +525,19 @@ function makeInner(count, color){
   const web = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color, transparent:true, opacity:0.12, blending:THREE.AdditiveBlending, depthWrite:false }));
   return { pts, web, mat:m };
 }
+/* ================= [proto] brain interior: layered structures, fibre tracts, travelling signals ================= */
+/* [proto] brain interior lives in brain/interior.js */
+const { makeInterior } = initInterior({ THREE, Q, UPR, GLOW, GEO, shellVS, shellFS, nodeColor, clampInside, bez });
+function upd(attr, n){ attr.clearUpdateRanges(); if (n > 0){ attr.addUpdateRange(0, n * attr.itemSize); attr.needsUpdate = true; } }
 function createBrain(b){
   const group = new THREE.Group(); group.userData.brainId = b.id;
   const mat = new THREE.ShaderMaterial({ uniforms:{ uColor:{ value:new THREE.Color(b.regionColor) }, uTime:{ value:0 }, uOpacity:{ value:1 } },
     vertexShader:shellVS, fragmentShader:shellFS, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide });
-  ['L', 'R', 'C', 'S'].forEach(k => { const m = new THREE.Mesh(GEO[k], mat); m.userData.brainId = b.id; m.userData.shell = true; group.add(m); });
-  const inner = makeInner(b.id === 'main' ? (MOBILE ? 700 : 1600) : (MOBILE ? 220 : 500), b.regionColor);
-  group.add(inner.pts, inner.web);
+  const anat = new THREE.Group(); group.add(anat);   // [proto] everything anatomical lives here (breathes); nodes stay put
+  ['L', 'R', 'C', 'S'].forEach(k => { const m = new THREE.Mesh(GEO[k], mat); m.userData.brainId = b.id; m.userData.shell = true; anat.add(m); });
+  const inner = makeInner(Math.round(b.id === 'main' ? Q.cloud : Q.cloud * 0.25), b.regionColor);
+  anat.add(inner.pts, inner.web);
+  const interior = makeInterior(b, b.id === 'main' ? 1 : Q.sub); anat.add(interior.group);
   const nodes = new THREE.Group(); group.add(nodes);
   const lg = new THREE.BufferGeometry(); const MAXL = 4000;
   lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXL * 3), 3)); lg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXL * 3), 3));
@@ -456,14 +548,14 @@ function createBrain(b){
   const label = document.createElement('div'); label.className = 'blabel'; labelsEl.appendChild(label);
   label.onclick = () => focusBrain(b.id);
   scene.add(group);
-  const o = { group, mat, inner, nodes, links, halo, label, regions:new Map(), phase:Math.random() * 6.28 };
+  const o = { group, mat, inner, nodes, links, halo, label, anat, interior, regions:new Map(), phase:Math.random() * 6.28 };
   brainObjs.set(b.id, o); return o;
 }
 function disposeBrain(id){
   const o = brainObjs.get(id); if (!o) return;
   const b0 = o.group; const parent = o.parentPos || new THREE.Vector3();
   tween({ dur:900, ease:easeIO, from:b0.position.clone(), to:parent, s0:b0.scale.x, s1:0.01, step:(e, tw) => { b0.position.lerpVectors(tw.from, tw.to, e); b0.scale.setScalar(tw.s0 + (tw.s1 - tw.s0) * e); },
-    done:() => { scene.remove(b0); o.inner.pts.geometry.dispose(); o.inner.web.geometry.dispose(); o.links.geometry.dispose(); o.label.remove(); } });
+    done:() => { scene.remove(b0); o.inner.pts.geometry.dispose(); o.inner.web.geometry.dispose(); o.links.geometry.dispose(); o.interior.dispose(); o.label.remove(); } });
   brainObjs.delete(id);
 }
 function createNode(n, bo){
@@ -497,12 +589,17 @@ function sync(){
         const from = so.mesh.getWorldPosition(new THREE.Vector3());
         o.group.position.copy(from); o.group.scale.setScalar(0.02);
         burstAt(from, b.regionColor, 1.6);
-        tween({ dur:1600, ease:easeIO, from, to:target, step:(e, tw) => { o.group.position.lerpVectors(tw.from, tw.to, e); const k = Math.max(0.02, ts * (e < 0.3 ? e / 0.3 * 0.35 : 0.35 + 0.65 * easeBack((e - 0.3) / 0.7))); o.group.scale.setScalar(k); } });
+        tween({ dur:1600, ease:easeIO, from, to:target, brainObj:o, step:(e, tw) => { o.group.position.lerpVectors(tw.from, o.target || tw.to, e); const k = Math.max(0.02, ts * (e < 0.3 ? e / 0.3 * 0.35 : 0.35 + 0.65 * easeBack((e - 0.3) / 0.7))); o.group.scale.setScalar(k); } });
       } else { o.group.position.copy(target); o.group.scale.setScalar(ts); }
       pendingFly.delete(b.id);
+    } else if (o.group.position.distanceTo(target) > 1e-3 && !tweens.some(t => t.brainObj === o)){   // [proto] slide away from overlaps
+      const from = o.group.position.clone();
+      tween({ dur:1100, ease:easeIO, brainObj:o, step:e => o.group.position.lerpVectors(from, o.target, e) });
     }
+    o.target = target;
     const pb = B(b.parentBrainId); o.parentPos = pb ? new THREE.Vector3(...pb.position) : new THREE.Vector3();
-    o.label.textContent = b.id === 'main' ? '' : '🧠 ' + (b.name.length > 12 ? b.name.slice(0, 12) + '…' : b.name);
+    const LMAX = MOBILE ? 7 : 12;   // [proto] shorter labels on phones
+    o.label.textContent = b.id === 'main' ? '' : '🧠 ' + (b.name.length > LMAX ? b.name.slice(0, LMAX) + '…' : b.name);
     o.label.style.setProperty('--c', safeColor(b.regionColor));
   });
   [...brainObjs.keys()].forEach(id => { if (!seen.has(id)) disposeBrain(id); });
@@ -533,7 +630,7 @@ function sync(){
     o.size = nodeSize(n);
     o.visible = !hiddenByCollapse(n);
     o.dim = (filterType && n.type !== filterType) || (conceptUI.focus && !inFocus(n));
-    o.status = n.status; o.user = n.createdBy !== 'seed'; o.collapsed = n.collapsed && kids(n.id).some(k => k.brainId === n.brainId);
+    o.kind = n.kind; o.status = n.status; o.user = n.createdBy !== 'seed'; o.collapsed = n.collapsed && kids(n.id).some(k => k.brainId === n.brainId);
   });
   [...nodeObjs.keys()].forEach(id => { if (!alive.has(id)){ const o = nodeObjs.get(id); o.mesh.parent && o.mesh.parent.remove(o.mesh); o.mesh.material.dispose(); o.glow.material.dispose(); nodeObjs.delete(id); } });
   // regions: one soft glow per type per brain
@@ -550,8 +647,22 @@ function sync(){
   });
   // bursts for freshly created / split nodes
   while (pendingBursts.length){ const id = pendingBursts.shift(); const o = nodeObjs.get(id); if (o){ o.mesh.updateWorldMatrix(true, false); const n = N(id); burstAt(o.mesh.getWorldPosition(new THREE.Vector3()), colorOf(n.type), 0.8 * (B(n.brainId)?.scale || 1)); } }
-  computeThreads();
+  brainObjs.forEach((bo, bid) => bo.interior.setNodes(state.nodes.filter(n => n.brainId === bid && (n.kind === 'question' || n.kind === 'direction' || state.brains.some(x => x.rootNodeId === n.id)))));   // [proto]
+  computeThreads(); applyFocus();
   updateCounts(); renderConcepts();
+}
+/* [proto] focus mode: when a node is selected, everything unrelated fades back */
+let related = null;
+function applyFocus(){
+  related = null;
+  const n = selected && N(selected);
+  if (n && ui.declutter){
+    related = new Set([n.id]); if (n.parentId) related.add(n.parentId);
+    kids(n.id).forEach(k => related.add(k.id));
+    state.links.forEach(l => { if (l.from === n.id) related.add(l.to); if (l.to === n.id) related.add(l.from); });
+    state.nodes.forEach(m => { if (m.concepts.some(c => n.concepts.includes(c))) related.add(m.id); });
+  }
+  nodeObjs.forEach((o, id) => { o.fdim = !!related && !related.has(id); });
 }
 /* ---------- concept threads (derived, recomputed on every sync so they follow moves / splits / sub-brains) ---------- */
 const conceptUI = { on:true, focus:null };
@@ -606,10 +717,41 @@ arcs.frustumCulled = false; scene.add(arcs);
 const MAXP = MOBILE ? 260 : 700;
 const pGeo = new THREE.BufferGeometry();
 pGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXP * 3), 3)); pGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXP * 3), 3)); pGeo.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array(MAXP), 1));
-const pMat = new THREE.ShaderMaterial({ uniforms:{ uPR:{ value:renderer.getPixelRatio() } }, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+const pMat = new THREE.ShaderMaterial({ uniforms:{ uPR:UPR }, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
   vertexShader:`attribute vec3 color; attribute float aSize; uniform float uPR; varying vec3 vC; void main(){ vC=color; vec4 mv=modelViewMatrix*vec4(position,1.); gl_PointSize=aSize*uPR*60.0/-mv.z; gl_Position=projectionMatrix*mv; }`,
   fragmentShader:`varying vec3 vC; void main(){ float d=length(gl_PointCoord-.5); if(d>.5) discard; float a=smoothstep(.5,0.,d); gl_FragColor=vec4(vC*(0.6+a), a); }` });
 const flow = new THREE.Points(pGeo, pMat); flow.frustumCulled = false; scene.add(flow);
+/* [proto] screen-space "fat" glowing ribbons for highlighted lines (WebGL line width is always 1px) */
+const RMAX = MOBILE ? 2400 : 4800;
+const RW = { focus:MOBILE ? 14 : 11, sel:MOBILE ? 11 : 8, concept:MOBILE ? 10 : 7, cross:MOBILE ? 8 : 6 };   // half-width incl. glow (px)
+const rGeo = new THREE.BufferGeometry();
+{ const corner = new Float32Array(RMAX * 8), idx = new Uint32Array(RMAX * 6);
+  for (let i = 0; i < RMAX; i++){ corner.set([-1, 0, 1, 0, -1, 1, 1, 1], i * 8); const v = i * 4; idx.set([v, v + 1, v + 2, v + 2, v + 1, v + 3], i * 6); }
+  rGeo.setIndex(new THREE.BufferAttribute(idx, 1));
+  rGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(RMAX * 12), 3));
+  rGeo.setAttribute('aB', new THREE.BufferAttribute(new Float32Array(RMAX * 12), 3));
+  rGeo.setAttribute('aCorner', new THREE.BufferAttribute(corner, 2));
+  rGeo.setAttribute('aCol', new THREE.BufferAttribute(new Float32Array(RMAX * 12), 3));
+  rGeo.setAttribute('aW', new THREE.BufferAttribute(new Float32Array(RMAX * 4), 1)); }
+const rMat = new THREE.ShaderMaterial({ uniforms:{ uRes:{ value:new THREE.Vector2(innerWidth, innerHeight) }, uTime:{ value:0 } }, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide,
+  vertexShader:`attribute vec3 aB; attribute vec2 aCorner; attribute vec3 aCol; attribute float aW; uniform vec2 uRes; varying vec3 vC; varying float vS; varying float vT;
+    void main(){ vec4 a=projectionMatrix*modelViewMatrix*vec4(position,1.); vec4 b=projectionMatrix*modelViewMatrix*vec4(aB,1.);
+      if(a.w<=0.01||b.w<=0.01){ gl_Position=vec4(2.,2.,2.,1.); return; }
+      vec2 sa=a.xy/a.w*uRes*.5, sb=b.xy/b.w*uRes*.5; vec2 d=sb-sa; float L=length(d); vec2 dir=L>1e-4?d/L:vec2(1.,0.); vec2 n=vec2(-dir.y,dir.x);
+      vec4 p=a; if(aCorner.y>.5) p=b; float ext=(aCorner.y>.5?1.:-1.)*aW*.35;
+      p.xy+=(n*aCorner.x*aW+dir*ext)*2./uRes*p.w; gl_Position=p; vC=aCol; vS=aCorner.x; vT=aCorner.y; }`,
+  fragmentShader:`varying vec3 vC; varying float vS; varying float vT; void main(){ float d=abs(vS); float core=1.-smoothstep(.16,.3,d); float glow=pow(max(0.,1.-d),1.7)*.6;
+      gl_FragColor=vec4(vC*(core*1.4+glow*1.2)+vec3(core*.12), clamp(core+glow,0.,1.)); }` });
+const ribbons = new THREE.Mesh(rGeo, rMat); ribbons.frustumCulled = false; ribbons.renderOrder = 5; scene.add(ribbons);
+let ri = 0; const rTmp1 = new THREE.Vector3(), rTmp2 = new THREE.Vector3();
+function ribCurve(A, C, B, col, w, k = 1, SEG = 16){
+  const pa = rGeo.attributes.position.array, pb = rGeo.attributes.aB.array, pc = rGeo.attributes.aCol.array, pw = rGeo.attributes.aW.array;
+  for (let s = 0; s < SEG && ri < RMAX; s++){
+    bez(A, C, B, s / SEG, rTmp1); bez(A, C, B, (s + 1) / SEG, rTmp2);
+    for (let v = 0; v < 4; v++){ const j = ri * 4 + v; pa.set([rTmp1.x, rTmp1.y, rTmp1.z], j * 3); pb.set([rTmp2.x, rTmp2.y, rTmp2.z], j * 3); pc.set([col.r * k, col.g * k, col.b * k], j * 3); pw[j] = w; }
+    ri++;
+  }
+}
 const GOLD = new THREE.Color('#ffd36e');
 const sideV = new THREE.Vector3(); const debug = { conceptSegments:0 };
 const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3(), tmpC = new THREE.Vector3(), tmpV = new THREE.Vector3();
@@ -623,14 +765,18 @@ function updateLinks(time){
     for (let k = 0; k < n && pi < MAXP; k++){ const t = ((time * speed + seed + k / n) % 1); bez(a, c, b, t, tmpV); pp[pi*3] = tmpV.x; pp[pi*3+1] = tmpV.y; pp[pi*3+2] = tmpV.z;
       const f = Math.sin(Math.PI * t); pc[pi*3] = col.r * f; pc[pi*3+1] = col.g * f; pc[pi*3+2] = col.b * f; ps[pi] = size; pi++; }
   };
-  const col = new THREE.Color();
+  const col = new THREE.Color(); ri = 0;
   state.links.forEach((l, li) => {
     const a = nodeObjs.get(l.from), b = nodeObjs.get(l.to); if (!a || !b || !a.visible || !b.visible) return;
     const seed = (li * 0.6180339) % 1;
+    const hl = selected && (l.from === selected || l.to === selected);   // [proto] links of the selected node glow
     if (l.kind === 'derived' && a.brainId === b.brainId){
       const L = intra.get(a.brainId); if (!L) return;
+      if (!hl && (a.lodFar || b.lodFar)) return;                          // [proto] LOD: far-away detail links hidden
       const A = a.mesh.position, Bp = b.mesh.position; tmpC.copy(A).add(Bp).multiplyScalar(0.5).multiplyScalar(0.82);
-      col.set(colorOf(N(l.to)?.type)); const dim = (a.dim || b.dim) ? 0.15 : 1;
+      col.set(colorOf(N(l.to)?.type)); const dim = (a.dim || b.dim) ? 0.15 : (a.fdim || b.fdim) ? 0.2 : 1;
+      if (hl){ a.mesh.getWorldPosition(tmpA); b.mesh.getWorldPosition(tmpB); tmpC.copy(tmpA).add(tmpB).multiplyScalar(0.5); tmpC.lerp(brainObjs.get(a.brainId).group.position, 0.18);
+        ribCurve(tmpA, tmpC, tmpB, col, RW.sel, 0.9, 12); tmpC.copy(A).add(Bp).multiplyScalar(0.5).multiplyScalar(0.82); }
       const SEG = 8;
       for (let s = 0; s < SEG && L.i < 3990; s++){ bez(A, tmpC, Bp, s / SEG, tmpA); bez(A, tmpC, Bp, (s + 1) / SEG, tmpB);
         L.p.set([tmpA.x, tmpA.y, tmpA.z, tmpB.x, tmpB.y, tmpB.z], L.i * 3); const k = 0.35 * dim; L.c.set([col.r*k, col.g*k, col.b*k, col.r*k, col.g*k, col.b*k], L.i * 3); L.i += 2; }
@@ -642,31 +788,39 @@ function updateLinks(time){
     a.mesh.getWorldPosition(tmpA); b.mesh.getWorldPosition(tmpB);
     const d = tmpA.distanceTo(tmpB); tmpC.copy(tmpA).add(tmpB).multiplyScalar(0.5); tmpC.y += d * 0.28;
     const isX = l.kind === 'cross'; if (isX) col.copy(GOLD); else col.set(colorOf(N(l.to)?.type));
-    const SEG = 28, k = isX ? 1 : 0.55;
+    if (isX || hl) ribCurve(tmpA, tmpC, tmpB, col, hl ? RW.sel : RW.cross, (a.fdim || b.fdim) && !hl ? 0.3 : 1, 24);   // [proto]
+    const SEG = 28, k = (isX ? 1 : 0.55) * ((a.fdim || b.fdim) && !hl ? 0.25 : 1);
     for (let s = 0; s < SEG && ai < MAXA - 2; s++){ bez(tmpA, tmpC, tmpB, s / SEG, tmpV); ap.set([tmpV.x, tmpV.y, tmpV.z], ai * 3); bez(tmpA, tmpC, tmpB, (s + 1) / SEG, tmpV); ap.set([tmpV.x, tmpV.y, tmpV.z], ai * 3 + 3);
       ac.set([col.r*k, col.g*k, col.b*k, col.r*k, col.g*k, col.b*k], ai * 3); ai += 2; }
     emitP(tmpA, tmpC, tmpB, col, isX ? (MOBILE ? 4 : 7) : 3, isX ? 2.2 : 1.4, isX ? 0.16 : 0.12, seed);
   });
   // concept / process threads
   let cSeg = 0;
+  const selKeys = selected && !conceptUI.focus && ui.declutter ? new Set(threads.filter(t => t.ids.includes(selected)).map(t => t.key)) : null;
   if (conceptUI.on) conceptLinks.forEach((l, li) => {
     const a = nodeObjs.get(l.from), b = nodeObjs.get(l.to); if (!a || !b || !a.visible || !b.visible) return;
-    const foc = conceptUI.focus, isF = !foc || foc === l.key;
-    const k = foc ? (isF ? 1 : 0.05) : 0.42; if (k < 0.06 && !isF) { /* still draw faint */ }
+    const foc = conceptUI.focus;
+    // [proto] declutter: focus thread => glowing ribbon; selected node => only its own threads; overview => faint, far detail hidden
+    let isF = !foc || foc === l.key, rib = 0;
+    if (foc){ if (isF) rib = RW.focus; else if (ui.declutter) return; }
+    else if (selKeys){ if (!selKeys.has(l.key)) return; rib = RW.concept; }
+    else if (ui.declutter && (a.lodFar || b.lodFar)) return;
+    const k = foc ? (isF ? 1 : 0.05) : rib ? 0.8 : ui.declutter ? 0.3 : 0.42;
     a.mesh.getWorldPosition(tmpA); b.mesh.getWorldPosition(tmpB);
     const d = tmpA.distanceTo(tmpB);
     tmpC.copy(tmpA).add(tmpB).multiplyScalar(0.5); tmpC.y += d * (0.1 + 0.22 * l.h);
     sideV.subVectors(tmpB, tmpA); sideV.set(-sideV.z, 0, sideV.x); if (sideV.lengthSq() > 1e-8) sideV.normalize().multiplyScalar(d * (l.h - 0.5) * 0.45); tmpC.add(sideV);
     col.set(l.color);
+    if (rib) ribCurve(tmpA, tmpC, tmpB, col, rib, 1, 22);
     const SEG = 22, proc = l.threadKind === 'process';
     for (let s = 0; s < SEG && ai < MAXA - 2; s++){
       if (proc && s % 2) continue;                       // process threads are dotted
       bez(tmpA, tmpC, tmpB, s / SEG, tmpV); ap.set([tmpV.x, tmpV.y, tmpV.z], ai * 3); bez(tmpA, tmpC, tmpB, (s + 1) / SEG, tmpV); ap.set([tmpV.x, tmpV.y, tmpV.z], ai * 3 + 3);
       ac.set([col.r*k, col.g*k, col.b*k, col.r*k, col.g*k, col.b*k], ai * 3); ai += 2; cSeg++;
     }
-    if (isF) emitP(tmpA, tmpC, tmpB, col, foc ? (MOBILE ? 3 : 5) : (MOBILE ? 1 : 2), foc ? 1.9 : 1.15, proc ? 0.09 : 0.13, (l.h + li * 0.137) % 1);
+    if (isF) emitP(tmpA, tmpC, tmpB, col, foc ? (MOBILE ? 3 : 5) : (MOBILE ? 1 : 2), foc ? 2.6 : rib ? 1.8 : 1.15, proc ? 0.09 : 0.13, (l.h + li * 0.137) % 1);
   });
-  debug.conceptSegments = cSeg;
+  debug.conceptSegments = cSeg; debug.ribbonSegments = ri;
   // tethers brain -> parent brain
   state.brains.forEach((b, bi) => { if (!b.parentBrainId) return; const o = brainObjs.get(b.id), po = brainObjs.get(b.parentBrainId); if (!o || !po) return;
     tmpA.copy(po.group.position); tmpB.copy(o.group.position); const d = tmpA.distanceTo(tmpB); tmpC.copy(tmpA).add(tmpB).multiplyScalar(0.5); tmpC.y -= d * 0.15;
@@ -675,9 +829,11 @@ function updateLinks(time){
       const k = 0.22; ac.set([col.r*k, col.g*k, col.b*k, col.r*k, col.g*k, col.b*k], ai * 3); ai += 2; }
     emitP(tmpA, tmpC, tmpB, col, 2, 1.6, 0.1, bi * 0.37);
   });
-  arcGeo.setDrawRange(0, ai); arcGeo.attributes.position.needsUpdate = true; arcGeo.attributes.color.needsUpdate = true;
-  pGeo.setDrawRange(0, pi); pGeo.attributes.position.needsUpdate = true; pGeo.attributes.color.needsUpdate = true; pGeo.attributes.aSize.needsUpdate = true;
-  brainObjs.forEach((bo, id) => { const L = intra.get(id); const g = bo.links.geometry; g.setDrawRange(0, L.i); g.attributes.position.needsUpdate = true; g.attributes.color.needsUpdate = true; });
+  // [proto perf] upload only the drawn range (was: the whole ~0.5 MB of buffers every frame)
+  rGeo.setDrawRange(0, ri * 6); ['position', 'aB', 'aCol', 'aW'].forEach(k => upd(rGeo.attributes[k], ri * 4));
+  arcGeo.setDrawRange(0, ai); upd(arcGeo.attributes.position, ai); upd(arcGeo.attributes.color, ai);
+  pGeo.setDrawRange(0, pi); upd(pGeo.attributes.position, pi); upd(pGeo.attributes.color, pi); upd(pGeo.attributes.aSize, pi);
+  brainObjs.forEach((bo, id) => { const L = intra.get(id); const g = bo.links.geometry; g.setDrawRange(0, L.i); upd(g.attributes.position, L.i); upd(g.attributes.color, L.i); });
 }
 
 /* ---------- camera flights ---------- */
@@ -702,8 +858,10 @@ function fitDist(r){
 function overview(){
   const box = new THREE.Box3(); state.brains.forEach(b => { const r = WORLD * b.scale * 0.8; const p = new THREE.Vector3(...b.position); box.expandByPoint(p.clone().addScalar(r)); box.expandByPoint(p.clone().addScalar(-r)); });
   const c = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() * 0.5;
-  const dist = fitDist(r * 0.9);
+  const portrait = innerHeight > innerWidth * 1.2;
+  const dist = fitDist(r * (portrait ? 0.75 : 0.9));
   const dir = camera.position.clone().sub(controls.target).normalize();
+  if (portrait && state.brains.length > 1){ dir.y = 0; if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1); dir.normalize(); dir.y = 1.5; dir.normalize(); }   // [proto] top-down-ish => uses phone height
   fly = { t0:performance.now(), dur:1300, fromT:controls.target.clone(), toT:c, fromP:camera.position.clone(), toP:c.clone().add(dir.multiplyScalar(Math.max(dist, 6))) };
   focusId = 'main'; renderCrumbs(); $('#bHome').classList.add('hide');
 }
@@ -713,12 +871,26 @@ const ray = new THREE.Raycaster(); const ndc = new THREE.Vector2();
 function pick(x, y){
   const r = canvas.getBoundingClientRect(); ndc.set((x - r.left) / r.width * 2 - 1, -(y - r.top) / r.height * 2 + 1);
   ray.setFromCamera(ndc, camera);
-  const targets = []; nodeObjs.forEach(o => { if (o.visible) targets.push(o.glow); });
-  const hit = ray.intersectObjects(targets, false).sort((a, b) => a.distance - b.distance)[0];
-  if (hit) return { node:hit.object.userData.nodeId };
-  const shells = []; brainObjs.forEach(o => o.group.children.forEach(c => { if (c.userData.shell) shells.push(c); }));
+  const hit = pickNodeAt(x, y, r);   // [proto] nearest node on screen within TAP_PX, not a 1:1 raycast
+  if (hit) return { node:hit };
+  const shells = []; brainObjs.forEach(o => o.anat.children.forEach(c => { if (c.userData.shell) shells.push(c); }));
   const sh = ray.intersectObjects(shells, false)[0];
   return sh ? { brain:sh.object.userData.brainId } : null;
+}
+const pv = new THREE.Vector3();
+debug.screenOf = id => { const o = nodeObjs.get(id); if (!o) return null; const v = o.mesh.getWorldPosition(new THREE.Vector3()).project(camera); return { x:(v.x * 0.5 + 0.5) * innerWidth, y:(-v.y * 0.5 + 0.5) * innerHeight, r:o.mesh.scale.x * (brainObjs.get(o.brainId)?.group.scale.x || 1) / (camera.position.distanceTo(o.mesh.getWorldPosition(new THREE.Vector3())) * 2 * Math.tan(camera.fov * Math.PI / 360) / innerHeight) }; };   // [proto] test hook
+function pickNodeAt(x, y, r){
+  const wppK = 2 * Math.tan(camera.fov * Math.PI / 360) / innerHeight; let best = null, bs = Infinity;
+  nodeObjs.forEach((o, id) => {
+    if (!o.visible || !o.mesh.visible) return;
+    o.mesh.getWorldPosition(pv); const d3 = camera.position.distanceTo(pv); pv.project(camera); if (pv.z > 1) return;
+    const sx = (pv.x * 0.5 + 0.5) * r.width + r.left, sy = (-pv.y * 0.5 + 0.5) * r.height + r.top;
+    const gs = brainObjs.get(o.brainId)?.group.scale.x || 1, rad = o.mesh.scale.x * gs / (d3 * wppK);
+    const dpx = Math.hypot(sx - x, sy - y); if (dpx > TAP_PX + rad) return;
+    const score = Math.max(0, dpx - rad) + (o.kind === 'question' ? -5 : o.kind === 'direction' ? -2 : 3) + (o.lodFar ? 9 : 0) + (o.dim || o.fdim ? 7 : 0) + d3 * 0.05;
+    if (score < bs){ bs = score; best = id; }
+  });
+  return best;
 }
 let down = null, linkMode = null, selected = null, hover = null;
 canvas.addEventListener('pointerdown', e => { down = { x:e.clientX, y:e.clientY, t:performance.now() }; });
@@ -949,12 +1121,62 @@ function updateCounts(){
 
 /* ================= loop ================= */
 let initDone = false;
-function resize(){ const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+function resize(){ const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); UPR.value = renderer.getPixelRatio(); camera.aspect = w / h; camera.updateProjectionMatrix(); rMat.uniforms.uRes.value.set(w, h); if (bloom){ bloom.composer.setPixelRatio(renderer.getPixelRatio()); bloom.composer.setSize(w, h); } }
+/* [proto] bloom: laptop opt-in (✨ toggle, saved in aiBrain.ui.v1) or ?q=high; lazily loaded. The FPS watchdog gives up bloom first,
+   then render resolution, then the quality level (mid -> low). */
+let bloom = null;
+async function enableBloom(){
+  try {
+    const [{ EffectComposer }, { RenderPass }, { UnrealBloomPass }, { ShaderPass }, { CopyShader }] = await Promise.all([
+      import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'),
+      import('three/addons/postprocessing/UnrealBloomPass.js'), import('three/addons/postprocessing/ShaderPass.js'), import('three/addons/shaders/CopyShader.js')]);
+    // our custom ShaderMaterials write display-space colours (as on the plain canvas path), so keep the whole chain in sRGB
+    // and finish with a plain copy instead of OutputPass (which would gamma-boost them and lift the black background)
+    const rt = new THREE.WebGLRenderTarget(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio(), { type:THREE.HalfFloatType, colorSpace:THREE.SRGBColorSpace });
+    const composer = new EffectComposer(renderer, rt); composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(innerWidth, innerHeight);
+    composer.addPass(new RenderPass(scene, camera));
+    const pass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.45, 0.4, 0.72); composer.addPass(pass); composer.addPass(new ShaderPass(CopyShader));
+    bloom = { composer, pass, on:wantBloom() }; debug.bloom = bloom;
+  } catch(e){ console.warn('bloom unavailable', e); }
+}
+let bloomDropped = false;
+function wantBloom(){ return !COARSE && !bloomDropped && QL !== 'low' && (QPARAM ? QL === 'high' : !!ui.glow); }
+function setGlow(on){
+  ui.glow = on; saveUI(); bloomDropped = false; syncGlowBtn();
+  if (wantBloom() && !bloom) enableBloom(); else if (bloom) bloom.on = wantBloom();
+  toast(on ? '✨ 光暈特效：開（較耗效能）' : '光暈特效：關');
+}
+function syncGlowBtn(){ const b = $('#bGlow'); if (b){ b.classList.toggle('on', !!ui.glow); b.setAttribute('aria-pressed', String(!!ui.glow)); } }
+if (wantBloom()) enableBloom();
+function setQuality(lv){
+  QL = lv; document.body.dataset.q = lv;
+  if (bloom) bloom.on = wantBloom();
+  brainObjs.forEach(bo => bo.interior.setLevel(lv === 'low' ? 0.45 : 1));
+  if (lv === 'low'){ renderer.setPixelRatio(1); resize(); }
+}
+/* [proto perf] targets: laptop ~60 fps, phone 30+ (brain/quality.js). Slow: drop bloom, then lower the render resolution in
+   0.25 steps (cheap, invisible at high DPR), only then the level. Fast: raise resolution again. */
+function setDpr(d){ d = Math.max(1, Math.min(DPR_MAX, Math.round(d * 4) / 4)); if (d === renderer.getPixelRatio()) return false; renderer.setPixelRatio(d); resize(); debug.dpr = d; return true; }
+const qw = createWatch({ coarse:COARSE, onFps:f => { debug.fps = +f.toFixed(1); },
+  onSlow(){ if (bloom && bloom.on){ bloomDropped = true; bloom.on = false; return; }
+            if (!setDpr(renderer.getPixelRatio() - 0.25) && QL !== 'low') setQuality(QL === 'high' ? 'mid' : 'low'); },
+  onFast(){ setDpr(renderer.getPixelRatio() + 0.25); } });
+const qWatch = now => qw.tick(now, document.hidden);
+/* [proto perf] stop the render loop while the page is hidden / in bfcache (e.g. after jumping to the feed) and restart on return */
+let running = true;
+function resumeLoop(){ if (running || document.hidden) return; running = true; qw.reset(); requestAnimationFrame(frame); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) running = false; else resumeLoop(); });
+addEventListener('pagehide', () => { running = false; });
+addEventListener('pageshow', () => resumeLoop());
+document.body.dataset.q = QL;
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
 const viewOff = { x:0, y:0 }; const dirV = new THREE.Vector3(), UPV = new THREE.Vector3(0, 1, 0); const MOBILE_LAYOUT = () => innerWidth <= 700;
 const v3 = new THREE.Vector3();
 function frame(){
+  if (!running || document.hidden){ running = false; return; }
+  // phone: when the details sheet covers the whole screen the 3D view is invisible -> ~10 fps keeps it alive without burning battery
+  if (MOBILE_LAYOUT() && panel.classList.contains('full') && (frame.n = (frame.n || 0) + 1) % 6){ requestAnimationFrame(frame); return; }
   const now = performance.now(), t = clock.getElapsedTime();
   // tweens
   for (let i = tweens.length - 1; i >= 0; i--){ const tw = tweens[i]; const e = Math.min(1, Math.max(0, (now - tw.t0) / tw.dur)); if (now < tw.t0) continue; tw.step((tw.ease || easeIO)(e), tw); if (e >= 1){ tweens.splice(i, 1); tw.done && tw.done(); } }
@@ -968,33 +1190,55 @@ function frame(){
   skyMat.uniforms.uTime.value = t;
   brainObjs.forEach((o, id) => {
     o.mat.uniforms.uTime.value = t + o.phase; o.inner.mat.uniforms.uTime.value = t + o.phase;
+    o.interior.tick(t + o.phase); if (!REDUCED) o.anat.scale.setScalar(1 + 0.014 * Math.sin(t * 0.9 + o.phase));   // [proto] breathing
     o.halo.material.opacity = (id === 'main' ? 0.16 : 0.26) * (0.8 + 0.2 * Math.sin(t * 1.5 + o.phase));
     o.regions.forEach((sp, ty) => { const w = sp.userData.want || 0; sp.material.opacity += (w * (0.75 + 0.25 * Math.sin(t * 2 + sp.position.x * 9)) - sp.material.opacity) * 0.05; if (filterType && ty !== filterType) sp.material.opacity *= 0.9; });
     // label
     if (id !== 'main'){ v3.copy(o.group.position); v3.y += o.group.scale.x * 0.75; v3.project(camera);
       const vis = v3.z < 1 && Math.abs(v3.x) < 1.1 && Math.abs(v3.y) < 1.1;
-      o.label.style.transform = `translate(${(v3.x * 0.5 + 0.5) * innerWidth}px,${(-v3.y * 0.5 + 0.5) * innerHeight}px) translate(-50%,-100%)`; o.label.style.opacity = vis ? 1 : 0; }
+      o.lx = (v3.x * 0.5 + 0.5) * innerWidth; o.ly = (-v3.y * 0.5 + 0.5) * innerHeight; o.lvis = vis;
+      o.label.style.transform = `translate(${o.lx}px,${o.ly}px) translate(-50%,-100%)`; const op = vis ? '1' : '0'; if (o.label.style.opacity !== op) o.label.style.opacity = op; }
   });
+  // [proto] LOD: how big is each brain on screen?
+  const wppK = 2 * Math.tan(camera.fov * Math.PI / 360) / innerHeight;
+  brainObjs.forEach(bo => { const d = camera.position.distanceTo(bo.group.position); bo.px = bo.group.scale.x * 0.8 / Math.max(0.01, d * wppK); bo.far = bo.px < LOD_NEAR_PX; });
+  rMat.uniforms.uTime.value = t;
+  // [proto] brain labels: biggest brains first, hide any label that would overlap one already placed
+  if (!frame.lt || now - frame.lt > 120){ frame.lt = now; const placed = [];
+    [...brainObjs.entries()].filter(([id]) => id !== 'main').sort((a, b) => (b[0] === focusId) - (a[0] === focusId) || b[1].px - a[1].px).forEach(([id, o]) => {
+      if (!o.lvis) return;
+      if (o.ltxt !== o.label.textContent){ o.ltxt = o.label.textContent; o.lw = o.label.offsetWidth; o.lh = o.label.offsetHeight; }   // measured only when the text changes
+      if (!o.lw) return; const r = { left:o.lx - o.lw / 2, right:o.lx + o.lw / 2, top:o.ly - o.lh, bottom:o.ly };
+      const hit = placed.some(q => r.left < q.right + 4 && r.right > q.left - 4 && r.top < q.bottom + 2 && r.bottom > q.top - 2);
+      o.label.classList.toggle('lhide', hit || o.px < 14); if (!hit) placed.push(r); }); }
   nodeObjs.forEach((o, id) => {
+    const bo = brainObjs.get(o.brainId), gs = bo ? bo.group.scale.x : 1;
+    o.lodFar = ui.declutter && o.kind === 'extension' && !!bo && bo.far && !(related && related.has(id)) && selected !== id;
+    o.mesh.getWorldPosition(v3); const dist = camera.position.distanceTo(v3);
+    const minLocal = (o.lodFar ? MIN_FAR_PX : MIN_NODE_PX) * dist * wppK / gs;   // never smaller than N px on screen
     if (o.isDir){ dirV.copy(o.mesh.position); dirV.y -= 0.1; if (dirV.lengthSq() < 1e-6) dirV.set(0, 1, 0); dirV.normalize();
       o.mesh.quaternion.setFromUnitVectors(UPV, dirV); o.mesh.rotateY(t * 0.8);
       o.beam.material.opacity = (o.dim ? 0.06 : 0.3 + 0.25 * Math.sin(t * 3 + o.phase)); o.beam.scale.set(1, 11 + 3 * Math.sin(t * 2 + o.phase), 1); }
     const growing = o.mesh.scale.x < o.size * 0.999;
-    const target = o.visible ? o.size * (selected === id ? 1.6 : hover === id ? 1.35 : 1) * (o.collapsed ? 1.2 : 1) : 0.0001;
+    const base = Math.max(o.size * (o.lodFar ? 0.6 : 1), minLocal);
+    const target = o.visible ? base * (selected === id ? 1.6 : hover === id ? 1.35 : 1) * (o.collapsed ? 1.2 : 1) : 0.0001;
     o.mesh.scale.setScalar(o.mesh.scale.x + (target - o.mesh.scale.x) * (growing ? 0.08 : 0.15));
     o.mesh.visible = o.mesh.scale.x > 0.0005;
     const pulse = 0.75 + 0.25 * Math.sin(t * 2.4 + o.phase);
-    o.glow.material.opacity = (o.dim ? 0.12 : 1) * (o.status === 'resolved' ? 1 : o.status === 'researching' ? 0.9 * pulse + 0.1 : 0.85 * pulse);
-    o.mesh.material.opacity = o.dim ? 0.2 : 1;
+    o.glow.material.opacity = (o.dim ? 0.12 : o.fdim ? 0.18 : o.lodFar ? 0.5 : 1) * (o.status === 'resolved' ? 1 : o.status === 'researching' ? 0.9 * pulse + 0.1 : 0.85 * pulse);
+    o.mesh.material.opacity = o.dim ? 0.2 : o.fdim ? 0.28 : 1;
     o.glow.scale.setScalar(o.collapsed ? 9 + 2 * Math.sin(t * 4 + o.phase) : selected === id ? 9 : 7);
   });
   updateLinks(t);
   // selected / hovered node label
   const lid = hover || selected; const nl = $('#nlabel');
   if (lid && nodeObjs.get(lid) && nodeObjs.get(lid).mesh.visible){ nodeObjs.get(lid).mesh.getWorldPosition(v3); v3.project(camera);
-    nl.style.transform = `translate(${(v3.x * 0.5 + 0.5) * innerWidth}px,${(-v3.y * 0.5 + 0.5) * innerHeight}px) translate(-50%,-140%)`; const n = N(lid); nl.textContent = n ? n.title : ''; nl.style.setProperty('--c', colorOf(n?.type)); nl.style.opacity = 1; }
-  else nl.style.opacity = 0;
-  renderer.render(scene, camera);
+    nl.style.transform = `translate(${(v3.x * 0.5 + 0.5) * innerWidth}px,${(-v3.y * 0.5 + 0.5) * innerHeight}px) translate(-50%,-140%)`; const n = N(lid);
+    const key = lid + '|' + (n ? n.title : ''); if (nl.dataset.for !== key){ nl.dataset.for = key; nl.textContent = n ? n.title : ''; nl.style.setProperty('--c', colorOf(n?.type)); }   // no per-frame text writes (they invalidate layout)
+    if (nl.style.opacity !== '1') nl.style.opacity = 1; }
+  else if (nl.style.opacity !== '0') nl.style.opacity = 0;
+  qWatch(now);
+  if (bloom && bloom.on) bloom.composer.render(); else renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 sync(); initDone = true; renderHistory(); renderCrumbs();
@@ -1002,6 +1246,7 @@ camera.position.set(0, 2.6, 0).add(new THREE.Vector3(0, 0.22, 1).normalize().mul
 $('#bHome').classList.add('hide');
 if (state.brains.length > 1) setTimeout(overview, 200);
 requestAnimationFrame(frame);
+requestAnimationFrame(() => requestAnimationFrame(() => $('#boot')?.classList.add('off')));   // [proto]
 setTimeout(() => $('#hint').classList.add('off'), 6500);
 
 /* ---------- deep link: index.html#node=ID focuses that node ---------- */
@@ -1032,7 +1277,7 @@ window.AIBrain = {
   version:1, getState:() => JSON.parse(JSON.stringify(state)),
   addQuestion, splitNode, addDirection, makeSubBrain,
   addConcept, removeConcept, setProcessPattern, getConcepts, getConceptThreads:() => JSON.parse(JSON.stringify(threads)), getConceptLinks:() => conceptLinks.map(l => ({ from:l.from, to:l.to, kind:'concept', concept:l.concept, threadKind:l.threadKind })),
-  suggestConcepts, focusConcept, showConcepts, _debug:debug, mergeBrain, crossLink, setStatus, addCounterEvidence, setCollapsed, setMedia, deleteNode,
+  suggestConcepts, focusConcept, showConcepts, _debug:debug, quality:lv => (QLV[lv] ? setQuality(lv) : QL), mergeBrain, crossLink, setStatus, addCounterEvidence, setCollapsed, setMedia, deleteNode,
   focusBrain, focusNode, overview, select, undo, exportJSON, importJSON, reset:resetAll,
   on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); },
   /* sync hooks (sync.js) — not for bots */

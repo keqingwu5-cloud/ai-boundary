@@ -5,17 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>3D 動態認知大腦 · AI 認知邊界</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%A7%A0%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<!-- [proto perf] no web font: Noto Sans TC from Google Fonts was ~1.4 MB of woff2 that downloaded BEFORE the first poster/video.
+     System CJK fonts look the same family (Android = Noto Sans CJK, iOS/macOS = PingFang TC, Windows = JhengHei). -->
 <script>window.__errs=[];addEventListener("error",function(e){window.__errs.push(String(e.message||e));});addEventListener("unhandledrejection",function(e){window.__errs.push("rej:"+String(e.reason&&e.reason.message||e.reason));});</script>
-<script>window.__V="20261011031253";(function(){try{fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v||j.v===window.__V)return;var k="aiBoundary.reloadFor."+j.v;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");var u=new URL(location.href);u.searchParams.set("v",j.v);location.replace(u.toString());}).catch(function(){});}catch(e){}})();</script>
-<script src="./data.js?v=20261011031253"></script>
-<script src="./config.js?v=20261011031253"></script>
-<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/controls/OrbitControls.js":"./vendor/OrbitControls.js","./safe.js":"./safe.js?v=20261011031253"}}</script>
+<script>window.__V="20261011020327";(function(){try{fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v||j.v===window.__V)return;var k="aiBoundary.reloadFor."+j.v;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");var u=new URL(location.href);u.searchParams.set("v",j.v);location.replace(u.toString());}).catch(function(){});}catch(e){}})();</script>
+<script src="./data.js?v=20261011020327"></script>
+<link rel="modulepreload" href="./vendor/three.module.min.js">
+<link rel="modulepreload" href="./brain/quality.js?v=20261011020327">
+<link rel="modulepreload" href="./brain/interior.js?v=20261011020327">
+<link rel="prefetch" href="./feed.js?v=20261011020327">
+<script src="./config.js?v=20261011020327"></script>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/controls/OrbitControls.js":"./vendor/OrbitControls.js","./safe.js":"./safe.js?v=20261011020327","three/addons/":"./vendor/addons/","./brain/interior.js":"./brain/interior.js?v=20261011020327","./brain/quality.js":"./brain/quality.js?v=20261011020327"}}</script>
 <style>
 :root{--glass:rgba(14,18,40,.58);--line:rgba(160,180,255,.16);--text:#eef0ff;--muted:#8f98c4;--gold:#f5c451;--glow:#9db7ff}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;overflow:hidden;background:#03040b;color:var(--text);font-family:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif}
+html,body{margin:0;height:100%;overflow:hidden;background:#03040b;color:var(--text);font-family:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Noto Sans CJK TC","Microsoft JhengHei",sans-serif}
 button{font-family:inherit;color:inherit}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
 .glass{background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);box-shadow:0 0 30px rgba(110,130,255,.1),inset 0 1px 0 rgba(255,255,255,.06)}
@@ -50,6 +54,7 @@ body.linking #c{cursor:crosshair}
 #labels{position:fixed;inset:0;pointer-events:none;z-index:10}
 .blabel{position:absolute;left:0;top:0;pointer-events:auto;cursor:pointer;font-size:12px;padding:3px 10px;border-radius:99px;white-space:nowrap;background:rgba(10,12,30,.6);border:1px solid color-mix(in srgb,var(--c) 55%,transparent);color:#fff;box-shadow:0 0 12px color-mix(in srgb,var(--c) 40%,transparent);transition:opacity .3s}
 .blabel:empty{display:none}
+.blabel.lhide{opacity:0!important;pointer-events:none}
 #nlabel{position:fixed;left:0;top:0;z-index:11;pointer-events:none;max-width:240px;font-size:12px;line-height:1.35;padding:4px 10px;border-radius:10px;background:rgba(8,10,26,.78);border:1px solid color-mix(in srgb,var(--c) 60%,transparent);text-shadow:0 0 6px #000;opacity:0;transition:opacity .2s}
 /* panel */
 #panel{position:fixed;z-index:40;overflow:auto;right:10px;top:66px;bottom:10px;width:370px;padding:16px 16px 24px;border-radius:20px;transform:translateX(112%);transition:transform .45s cubic-bezier(.2,.8,.2,1)}
@@ -202,10 +207,15 @@ a.ib{display:inline-grid;place-items:center;text-decoration:none;color:inherit}
 #mvF input{flex:1;min-width:0;background:rgba(0,0,0,.3);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:6px 9px;font-size:12.5px;font-family:inherit}
 #mvF button{border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:10px;padding:0 10px;cursor:pointer}
 .tofeed{font-size:12.5px;color:#ffb3ef;text-decoration:none}
+#boot{position:fixed;inset:0;z-index:90;display:grid;place-content:center;justify-items:center;gap:10px;background:#03040b;font-size:54px;transition:opacity .5s;animation:bootP 1.4s ease-in-out infinite}
+#boot small{font-size:13px;color:var(--muted)}
+#boot.off{opacity:0;pointer-events:none;animation:none}
+@keyframes bootP{50%{filter:drop-shadow(0 0 24px #9d8cff)}}
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
+<div id="boot" aria-hidden="true">🧠<small>大腦長出來中…</small></div>
+<canvas id="c" aria-label="3D 認知大腦：每個發光點是一個問題"></canvas>
 <div id="labels"></div><div id="nlabel"></div>
 <header class="bar glass">
   <h1>🧠 <span>認知大腦</span></h1>
@@ -258,9 +268,9 @@ a.ib{display:inline-grid;place-items:center;text-decoration:none;color:inherit}
   <label>每行一個（可加「｜類型」）</label><textarea name="lines" rows="4" required></textarea>
   <div class="row"><button value="cancel" formnovalidate>取消</button><button value="ok" class="go">分裂 ❖</button></div>
 </form></dialog>
-<script type="module" src="./app.js?v=20261011031253"></script>
-<script type="module" src="./knowledge-score.js?v=20261011031253"></script>
-<script type="module" src="./activity.js?v=20261011031253"></script>
-<script type="module" src="./sync.js?v=20261011031253"></script>
+<script type="module" src="./app.js?v=20261011013909"></script>
+<script type="module" src="./knowledge-score.js?v=20261011013909"></script>
+<script type="module" src="./activity.js?v=20261011013909"></script>
+<script type="module" src="./sync.js?v=20261011013909"></script>
 </body>
 </html>
