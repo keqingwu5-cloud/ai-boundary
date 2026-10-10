@@ -153,7 +153,7 @@ scripts/publish_episode.sh ep03 n_q3 --no-push  # 只在本機 commit，先不�
 - `SEED_MEDIA` 只在節點的 `media.video`／`media.image` 是空的（或仍是 QUESTIONS 原本的 `videoUrl`／`imageUrl`，例如 q3 的 YouTube 連結）時才會填入；使用者自己貼的網址不會被覆蓋。已經有存檔的使用者，下次載入也會自動拿到新影片。
 - 例外：如果使用者把影片清空，下次載入時會被 `SEED_MEDIA` 補回去，因為存檔裡分辨不出「刻意清空」和「從來沒設定」。
 
-- EP1（n_q1）已換成 60 秒版（中文旁白、字幕燒進畫面），`media/videos/n_q1.zh-TW.srt` 附上同一份字幕。`SEED_MEDIA` 可以帶 `subtitles`／`subtitlesBurnedIn`；重新發佈時腳本會保留這兩個欄位。
+- EP1–EP6（n_q1…n_q6）都已換成 60 秒版（中文旁白、字幕燒進畫面），`media/videos/n_qN.zh-TW.srt` 附上同一份字幕。`SEED_MEDIA` 可以帶 `subtitles`／`subtitlesBurnedIn`；重新發佈時腳本會保留這兩個欄位。
 
 ### 種子節點補充（SEED_EXTRAS）
 `data.js` 的 `SEED_EXTRAS` 放不在 `QUESTIONS` 裡的原創節點（`QUESTIONS` 原文不動）。載入時會補進大腦和 feed，接在 `parentId` 底下（如果父節點已經變成子腦，就跟著放進那顆子腦）。已經加過的 id 會記在 `state.seedExtras`，所以使用者刪掉之後不會再長回來。
