@@ -521,5 +521,23 @@
     ],
     "parentId": "git-f7b0f6c",
     "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "pr-3-opened",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T01:39:02+08:00",
+    "bot": "unknown",
+    "kind": "code",
+    "title": "開 draft PR #3：bot 協作流程（分支＋PR、資料拆檔、CI、每日動態）",
+    "summary": "疊在 PR #2 上（base supabase-sync），必須在 #2 之後合併。publish_episode.sh 改成開 PR、data.js 拆成 content／patches、CI、CONTRIBUTING、這個每日動態清單。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "PR #3",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/pull/3"
+      }
+    ],
+    "parentId": "pr-2-opened",
+    "author": "keqingwu5-cloud"
   }
 ]
