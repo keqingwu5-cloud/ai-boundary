@@ -90,3 +90,49 @@ AIBrain.focusConcept(name | 'p:流程' | null)
 AIBrain.showConcepts(true|false)
 AIBrain.splitNode(id, items, createdBy, 'extension' | 'direction')
 ```
+
+## 📱 短影音模式（feed.html）
+
+網址：https://keqingwu5-cloud.github.io/ai-boundary/feed.html （大腦右上角 📱 也能進去，🧠 回到大腦）
+
+- 直式、全螢幕、一格一格吸附（CSS scroll-snap）。手機上下滑，桌機用滾輪或 ↑↓ 鍵；空白鍵播放／暫停，M 開關聲音，L 喜歡。
+- 每一格是一個節點（主問題／延伸問題／新方向）。
+  - 有 `media.video`（mp4/webm 網址，或 repo 內的相對路徑）：進到畫面就靜音自動播放、離開就暫停、會循環播放、9:16 滿版（`object-fit: cover`）。點一下開聲音，再點一下暫停，點兩下按喜歡。
+  - 還沒有影片：顯示依類型上色的動態卡片（標題、概念、「影片製作中」）。如果 `media.video` 是 YouTube 之類的外部頁面，會多一顆「觀看原始影片」按鈕。
+- 下方字幕區：標題、類型、概念 chips、說明（`node.caption`，沒有的話用 `oneLiner`；點一下展開，會顯示來源）。
+- 右側按鈕：🧠 在 3D 大腦打開（`index.html#node=ID`）、🌿 子問題／新方向、❤ 喜歡、🔖 收藏（存在 localStorage `aiBrain.feed.v1`）、💬 留言、🔊 聲音。
+- ⚙ 設定：依類型、概念篩選，只看有影片、只看收藏，排序可選大腦樹狀順序或最新。
+- 跟大腦讀同一份資料（localStorage `aiBrain.v1`；沒有的話用種子資料），所以會保持同步：在大腦掛上影片，回到 feed 就看得到。
+- 深層連結：`feed.html#node=ID` 會直接跳到那一格；`index.html#node=ID` 會在大腦裡展開、選取並把鏡頭飛到那個節點。
+- 種子資料在 `data.js`，大腦和 feed 共用（`QUESTIONS` 原文不動）。
+
+### 掛影片
+在大腦點節點 → 面板「🎞 媒體」→ 貼上網址按 ✓。只接受 `http(s)://` 或 repo 內的相對路徑（例如 `media/videos/n_q1.mp4`），其他 scheme 一律拒絕。
+
+### 🎬 影像導演 bot 介面
+1. 把產出的影片放進 `media/videos/`，建議檔名 `<nodeId>.mp4`（H.264 + AAC，直式 9:16，加上 `-movflags +faststart`）。
+2. 讓節點的 `media.video` 指到它：`AIBrain.setMedia('<nodeId>', 'video', 'media/videos/<nodeId>.mp4')`，或匯入 JSON 時直接寫在 `nodes[].media.video`。封面圖可以放 `media.image`。
+3. commit 並 push 到 main，GitHub Pages 更新後 feed 會自動顯示（`playable()` 認副檔名 mp4/webm/m4v/mov/ogv）。
+
+## 💬 留言（giscus / GitHub Discussions）
+
+- 每一格的 💬 會打開底部留言抽屜，背後用 giscus 接 GitHub Discussions。設定：mapping `specific`、`strict`，分類 `Announcements`（`repoId R_kgDOVDydcA`，`categoryId DIC_kwDOVDydcM4DHf-d`），設定值在 `feed.js` 的 `GISCUS`。
+- **每一題 × 每個 bot 各自一串**：討論串的 term／標題是 `node:<nodeId> bot:<slug>`。
+
+| slug | bot | 負責 |
+|---|---|---|
+| `radar` | AI 邊界雷達 | 新問題、延伸、來源 |
+| `decomposer` | 問題拆解師 | 推演流程、問題類型 |
+| `director` | 影像導演 | 影片與畫面 |
+| `intp` | INTP 鏡像研究員 | 關於 Merlin 自己的思考 |
+
+- 留言框上方有一行灰字「留言將交給：影像導演（影片與畫面）」，下面有 chips 可以切換。預設：有影片的節點交給影像導演，其他交給 AI 邊界雷達。每一題最後選的 bot 會記在 localStorage。
+- 啟用條件：Merlin 必須在 https://github.com/apps/giscus 安裝 giscus App 並授權 `keqingwu5-cloud/ai-boundary`（Discussions 已開啟）。還沒安裝的時候，抽屜裡會顯示提示，giscus 也會在 console 印出 "giscus is not installed on this repository"。
+- 想用專屬分類的話：在 GitHub 網頁的 Discussions → Categories 新增（例如「影片留言」，建議選 Announcement 格式，這樣只有 giscus 能開新串），再用 `gh api graphql` 查出新的 `categoryId`，填進 `feed.js` 的 `GISCUS`。
+
+### 🔁 把留言轉成問題（給 bot 的介面）
+之後各個 bot 定期讀 Discussions，把回饋變成新節點：
+1. `gh api graphql` 列出分類下的 discussions，用標題篩出自己的那幾串：`title` 含有 `bot:<自己的 slug>`，再從 `node:<id>` 解析出節點。
+2. 讀留言 → 判斷是新問題、延伸、新方向、推演修正，還是媒體需求。
+3. 寫回大腦：`AIBrain.addQuestion({..., parentId:'<id>', createdBy:'bot'})`、`AIBrain.addDirection('<id>', {...})`、`AIBrain.addCounterEvidence(...)`、`AIBrain.setMedia(...)`，或產出可匯入的 JSON。原文出處記到 `botNotes`（附 discussion 網址）。
+4. 在該串回覆一則「已轉成節點 <id>」，讓留言的人知道。

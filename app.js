@@ -27,6 +27,9 @@ const iconOf = t => (TYPES[t] || TYPES['其他']).icon;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const $ = s => document.querySelector(s);
+/* media URLs: http(s) or repo-relative paths (e.g. media/videos/q1.mp4); anything with another scheme is rejected */
+const safeUrl = u => { u = String(u || '').trim(); return !u || /^https?:\/\/[^\s<>"']+$/i.test(u) || (/^[^\s:<>"'`]+$/u.test(u) && !u.startsWith('//')); };
+const playable = u => !!u && safeUrl(u) && /\.(mp4|webm|m4v|mov|ogv)(\?|#|$)/i.test(u);
 
 /* ================= data model ================= */
 function mulberry(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -251,7 +254,7 @@ function setCollapsed(id, v){ const n = N(id); if (!n) return; mutate(v ? 'colla
 function setStatus(id, s){ const n = N(id); if (!n || !STATUS[s]) return; mutate('status', { nodeId:id, title:n.title, status:s }, () => { n.status = s; }); }
 function addCounterEvidence(id, text, createdBy = 'merlin', source = ''){ const n = N(id); if (!n || !text) return;
   mutate('counter', { nodeId:id, title:n.title, text }, () => n.counterEvidence.push({ id:uid('c'), text, source, createdBy, ts:Date.now() })); }
-function setMedia(id, kind, url){ const n = N(id); if (!n) return; mutate('media', { nodeId:id, kind }, () => { n.media[kind] = url; }); }
+function setMedia(id, kind, url){ const n = N(id); if (!n) return false; url = String(url || '').trim(); if (!safeUrl(url)) return false; mutate('media', { nodeId:id, kind, url }, () => { n.media[kind] = url; }); return true; }
 function deleteNode(id){
   const n = N(id); if (!n || n.createdBy === 'seed') return;
   if (state.brains.some(b => b.rootNodeId === id)){ toast('這是子腦核心，請先併回'); return; }
@@ -715,8 +718,15 @@ function slot(kind, url){
   const body = !url ? `<b>${ic}</b>${nm}・即將加入` : kind === 'image' ? `<img src="${esc(url)}" alt="">` : `<b>▶</b>觀看${nm}`;
   return `<div class="slot ${url ? 'has' : ''}">${url && kind === 'video' ? `<a href="${esc(url)}" target="_blank" rel="noopener">${body}</a>` : url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${body}</a>` : body}<button class="mini" data-media="${kind}" title="設定網址">✎</button></div>`;
 }
+function videoBox(n){
+  const u = n.media.video || '';
+  return `<div class="vbox">${playable(u) ? `<video src="${esc(u)}" muted loop playsinline preload="metadata" controls></video>` : u && safeUrl(u) ? `<a class="vext" href="${esc(u)}" target="_blank" rel="noopener">▶ 外部影片 ↗</a>` : ''}
+    <form id="mvF"><input id="mvI" value="${esc(u)}" placeholder="🎬 mp4 網址 或 media/videos/xxx.mp4" maxlength="500" inputmode="url"><button title="儲存影片">✓</button></form>
+    <a class="tofeed" href="feed.html#node=${encodeURIComponent(n.id)}">📱 用短影音模式看</a></div>`;
+}
 function select(id){
   const n = N(id); if (!n) return; selected = id;
+  $('#bFeed').href = 'feed.html#node=' + encodeURIComponent(id);
   if (n.brainId !== focusId && B(n.brainId)) focusBrain(n.brainId);
   const s = n.source || {}; const par = N(n.parentId); const ch = kids(id);
   const subQ = ch.filter(k => k.kind !== 'direction'), dirs = ch.filter(k => k.kind === 'direction');
@@ -756,7 +766,7 @@ function select(id){
     <div class="lbl">⚔ 反證 <i>${n.counterEvidence.length}</i></div>
     <div class="ce">${n.counterEvidence.map(c => `<div class="ci"><span>${c.createdBy === 'bot' ? '🤖' : '⭐'}</span>${esc(c.text)}</div>`).join('') || '<div class="empty">尚無反證</div>'}
       <form id="ceF"><input id="ceI" placeholder="新增反證…" maxlength="200"><button>＋</button></form></div>
-    <div class="lbl">🎞 媒體</div><div class="media">${slot('video', n.media.video)}${slot('image', n.media.image)}</div>
+    <div class="lbl">🎞 媒體</div>${videoBox(n)}<div class="media">${slot('image', n.media.image)}</div>
     ${hist.length ? `<div class="lbl">🕘 紀錄</div><div class="mh">${hist.map(h => `<div>${fmt(h.ts)} ${ACT[h.action] || h.action}</div>`).join('')}</div>` : ''}`;
   pBody.querySelectorAll('.nl').forEach(a => a.onclick = ev => { ev.preventDefault(); select(a.dataset.n); });
   pBody.querySelectorAll('[data-cf]').forEach(b => b.onclick = () => { focusConcept('c:' + b.dataset.cf); select(id); });
@@ -765,7 +775,8 @@ function select(id){
   $('#ccF').onsubmit = ev => { ev.preventDefault(); const v = $('#ccI').value.trim(); if (v && addConcept(id, v)){ toast('🧵 已連上「' + v + '」概念線'); } select(id); };
   $('#patS').onchange = ev => { let v = ev.target.value; if (v === '__new'){ v = (prompt('新的推演流程名稱（例：類比推論→反例檢驗）') || '').trim(); if (!v){ select(id); return; } } setProcessPattern(id, v); select(id); };
   pBody.querySelectorAll('[data-st]').forEach(b => b.onclick = () => { setStatus(id, b.dataset.st); select(id); });
-  pBody.querySelectorAll('[data-media]').forEach(b => b.onclick = () => { const u = prompt(b.dataset.media === 'video' ? '影片網址' : '圖片網址', n.media[b.dataset.media] || ''); if (u !== null){ setMedia(id, b.dataset.media, u.trim()); select(id); } });
+  pBody.querySelectorAll('[data-media]').forEach(b => b.onclick = () => { const u = prompt(b.dataset.media === 'video' ? '影片網址' : '圖片網址', n.media[b.dataset.media] || ''); if (u !== null){ if (!setMedia(id, b.dataset.media, u.trim())) toast('只接受 http(s) 網址或 repo 內相對路徑'); select(id); } });
+  $('#mvF').onsubmit = ev => { ev.preventDefault(); const v = $('#mvI').value.trim(); if (v === (n.media.video || '')) return; if (setMedia(id, 'video', v)){ toast(v ? '🎬 影片已掛上，短影音會同步顯示' : '🎬 已移除影片'); select(id); } else toast('只接受 http(s) 網址或 repo 內相對路徑'); };
   $('#ceF').onsubmit = ev => { ev.preventDefault(); const v = $('#ceI').value.trim(); if (v){ addCounterEvidence(id, v); select(id); } };
   pBody.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
     const a = b.dataset.a;
@@ -779,7 +790,7 @@ function select(id){
   });
   panel.classList.add('open'); panel.scrollTop = 0;
 }
-function closePanel(){ panel.classList.remove('open'); selected = null; }
+function closePanel(){ panel.classList.remove('open'); selected = null; $('#bFeed').href = 'feed.html'; }
 $('#pX').onclick = closePanel;
 const fmt = ts => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
@@ -938,13 +949,36 @@ if (state.brains.length > 1) setTimeout(overview, 200);
 requestAnimationFrame(frame);
 setTimeout(() => $('#hint').classList.add('off'), 6500);
 
+/* ---------- deep link: index.html#node=ID focuses that node ---------- */
+function focusNode(id){
+  const n = N(id); if (!n) return false;
+  for (let p = N(n.parentId); p; p = N(p.parentId)) if (p.collapsed && p.brainId === n.brainId) setCollapsed(p.id, false);
+  const switching = n.brainId !== focusId;
+  select(id);
+  setTimeout(() => {
+    const o = nodeObjs.get(id), b = B(n.brainId); if (!o || !b) return;
+    const target = o.mesh.getWorldPosition(new THREE.Vector3());
+    const dir = camera.position.clone().sub(controls.target).normalize(); if (dir.y < 0.15) dir.y = 0.3; dir.normalize();
+    fly = { t0:performance.now(), dur:1400, fromT:controls.target.clone(), toT:target, fromP:camera.position.clone(), toP:target.clone().add(dir.multiplyScalar(fitDist(WORLD * b.scale * 0.42))) };
+  }, switching ? 1400 : 60);
+  $('#bFeed').href = 'feed.html#node=' + encodeURIComponent(id);
+  return true;
+}
+function handleHash(){
+  const m = /(?:^#|&)node=([^&]+)/.exec(location.hash); if (!m) return;
+  const id = decodeURIComponent(m[1]);
+  if (!focusNode(id)) toast('找不到這個節點');
+}
+addEventListener('hashchange', handleHash);
+setTimeout(handleHash, state.brains.length > 1 ? 400 : 100);
+
 /* ================= public API (hooks for future AI bots) ================= */
 window.AIBrain = {
   version:1, getState:() => JSON.parse(JSON.stringify(state)),
   addQuestion, splitNode, addDirection, makeSubBrain,
   addConcept, removeConcept, setProcessPattern, getConcepts, getConceptThreads:() => JSON.parse(JSON.stringify(threads)), getConceptLinks:() => conceptLinks.map(l => ({ from:l.from, to:l.to, kind:'concept', concept:l.concept, threadKind:l.threadKind })),
   suggestConcepts, focusConcept, showConcepts, _debug:debug, mergeBrain, crossLink, setStatus, addCounterEvidence, setCollapsed, setMedia, deleteNode,
-  focusBrain, overview, select, undo, exportJSON, importJSON, reset:resetAll,
+  focusBrain, focusNode, overview, select, undo, exportJSON, importJSON, reset:resetAll,
   on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); }
 };
 document.body.dataset.ready = '1';
