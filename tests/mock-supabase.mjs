@@ -170,6 +170,7 @@ try {
   ok(!xs.x && !xs.bad.length && !xs.imgs && !/onmouseover/.test(xs.crumbs), '大腦: 惡意節點／子腦／概念不會執行腳本，也沒有 javascript:/data: 連結 ' + JSON.stringify({ x:xs.x, bad:xs.bad }));
   ok(xs.partial && xs.partial.media && Array.isArray(xs.partial.concepts), '大腦: bot 寫的殘缺節點被補齊欄位，場景照常運作');
   await load(B, 'feed.html'); await sleep(1500);
+  await B.page.evaluate(() => { if (!AIFeed.list().includes('n_evil')) document.getElementById('cnt').click(); }); await sleep(300);   // new visitors see episodes only → switch to 📚 all
   const fx = await B.page.evaluate(() => ({ x:window.__xss || 0, n:AIFeed.list().length, has:AIFeed.list().includes('n_evil'), bad:[...document.querySelectorAll('a[href],img[src]')].map(e => e.getAttribute('href') || e.getAttribute('src')).filter(u => /^\s*(javascript|data):/i.test(u)) }));
   await B.page.evaluate(() => AIFeed.go(AIFeed.list().indexOf('n_evil'), true)); await sleep(600);
   const fx2 = await B.page.evaluate(() => window.__xss || 0);
