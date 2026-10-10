@@ -801,8 +801,9 @@ function select(id){
     else if (a === 'del'){ if (confirm('刪除這個節點與其分支？')) deleteNode(id); }
   });
   panel.classList.add('open'); panel.scrollTop = 0;
+  emit('select', { id });   // 給 knowledge-score.js 等被動觀察者
 }
-function closePanel(){ panel.classList.remove('open'); selected = null; $('#bFeed').href = 'feed.html'; }
+function closePanel(){ const was = selected; panel.classList.remove('open'); selected = null; $('#bFeed').href = 'feed.html'; if (was) emit('close', { id:was }); }
 $('#pX').onclick = closePanel;
 const fmt = ts => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
