@@ -66,15 +66,17 @@ css.textContent = `
 document.head.appendChild(css);
 
 const panel = document.createElement('aside');
-panel.className = 'ac-panel'; panel.setAttribute('aria-label', '每日動態');
-panel.innerHTML = `<header><h3>📅 每日動態</h3><button class="ac-x" data-x title="關閉">✕</button></header>
-  <div class="ac-tabs"><button data-v="day" class="on">📅 依日期</button><button data-v="tree">🌳 衍生樹</button><button data-v="all" title="全部展開／收合">⇕</button></div>
+panel.className = 'ac-panel'; panel.id = 'acPanel'; panel.setAttribute('aria-label', '每日動態'); panel.setAttribute('aria-hidden', 'true');
+panel.innerHTML = `<header><h3>📅 每日動態</h3><button class="ac-x" data-x title="關閉" aria-label="關閉每日動態">✕</button></header>
+  <div class="ac-tabs" role="group" aria-label="檢視方式"><button data-v="day" class="on" aria-pressed="true">📅 依日期</button><button data-v="tree" aria-pressed="false">🌳 衍生樹</button><button data-v="all" title="全部展開／收合" aria-label="全部展開或收合">⇕</button></div>
   <div class="ac-list"></div>`;
 document.body.appendChild(panel);
 const list = panel.querySelector('.ac-list');
 
 const btn = document.createElement('button');
-btn.className = 'ib'; btn.id = 'bAct'; btn.title = '每日動態'; btn.textContent = '📅';
+btn.className = 'ib'; btn.id = 'bAct'; btn.type = 'button'; btn.title = '每日動態'; btn.textContent = '📅';
+// 固定的 zh-TW 標籤（不跟 title 走）；開關狀態用 aria-expanded 表示
+btn.setAttribute('aria-label', '每日動態'); btn.setAttribute('aria-haspopup', 'dialog'); btn.setAttribute('aria-controls', 'acPanel'); btn.setAttribute('aria-expanded', 'false');
 const anchor = document.getElementById(PAGE === 'brain' ? 'bHist' : 'bSet');
 if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(btn, anchor); else { btn.style.cssText = 'position:fixed;top:12px;right:60px;z-index:40'; document.body.appendChild(btn); }
 
@@ -87,10 +89,10 @@ function load(force){
 
 function entryHTML(e, depth, kids, extParent){
   const b = bot(e.bot), id = esc(e.id);
-  const nodes = (Array.isArray(e.nodes) ? e.nodes : []).map(n => `<button class="nd" data-node="${esc(n)}" title="打開這個節點">${esc(n)}</button>`).join('');
+  const nodes = (Array.isArray(e.nodes) ? e.nodes : []).map(n => `<button class="nd" data-node="${esc(n)}" title="打開這個節點" aria-label="打開節點 ${esc(n)}">${esc(n)}</button>`).join('');
   const links = (Array.isArray(e.links) ? e.links : []).map(l => { const u = cleanUrl(l && l.url); return /^https:\/\//i.test(u) ? `<a class="lk" href="${esc(u)}" target="_blank" rel="noopener noreferrer">↗ ${esc(l.label || u)}</a>` : ''; }).join('');
   const par = extParent ? `<button class="par" data-goto="${esc(extParent.id)}" title="${esc(extParent.date)}">↳ 衍生自：${esc(String(extParent.title).slice(0, 24))}</button>` : '';
-  const tg = kids ? `<button class="ac-tg" data-tg="${id}">${collapsed.has(e.id) ? '▸' : '▾'} ${kids} 個衍生</button>` : '';
+  const tg = kids ? `<button class="ac-tg" data-tg="${id}" aria-expanded="${!collapsed.has(e.id)}">${collapsed.has(e.id) ? '▸' : '▾'} ${kids} 個衍生</button>` : '';
   return `<div class="ac-e${depth ? ' sub' : ''}" id="ac-${id}" style="--d:${depth};--c:${esc(b.color)}">
     <div class="ac-h"><time>${esc(view === 'tree' ? e.date.slice(5) + ' ' : '')}${esc(tpe(e.ts))}</time><span class="ac-b">${esc(b.icon)} ${esc(b.name)}</span><span class="ac-k">${esc(KINDS[e.kind] || e.kind)}</span>${tg}</div>
     <div class="ac-t">${esc(e.title)}</div>${e.summary ? `<p class="ac-s">${esc(e.summary)}</p>` : ''}
@@ -115,7 +117,7 @@ function render(){
   if (!entries) return;
   if (!entries.length){ list.innerHTML = '<div class="ac-empty">還沒有動態。</div>'; return; }
   const byId = Object.fromEntries(entries.map(e => [e.id, e]));
-  panel.querySelectorAll('.ac-tabs [data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === view));
+  panel.querySelectorAll('.ac-tabs [data-v="day"], .ac-tabs [data-v="tree"]').forEach(b => { b.classList.toggle('on', b.dataset.v === view); b.setAttribute('aria-pressed', String(b.dataset.v === view)); });
   if (view === 'tree'){
     const f = forest(entries, byId);
     f.roots.sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts)).forEach(r => f.walk(r, 0));
@@ -166,8 +168,8 @@ panel.addEventListener('toggle', ev => {           // 記住每一天的展開�
   if (ev.target.open){ collapsed.delete('day:' + d); collapsed.add('open:' + d); } else { collapsed.add('day:' + d); collapsed.delete('open:' + d); }
 }, true);
 
-function open(){ panel.classList.add('open'); btn.classList.add('on'); load().then(render); }
-function close(){ panel.classList.remove('open'); btn.classList.remove('on'); }
+function open(){ panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false'); btn.classList.add('on'); btn.setAttribute('aria-expanded', 'true'); load().then(render); }
+function close(){ panel.classList.remove('open'); panel.setAttribute('aria-hidden', 'true'); btn.classList.remove('on'); btn.setAttribute('aria-expanded', 'false'); }
 function toggle(){ panel.classList.contains('open') ? close() : open(); }
 btn.addEventListener('click', toggle);
 addEventListener('keydown', e => { if (e.key === 'Escape' && panel.classList.contains('open')) close(); });
