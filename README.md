@@ -147,7 +147,8 @@ scripts/publish_episode.sh ep03 n_q3 --no-push  # 只在本機 commit，先不�
 ```
 
 - 來源：`$SRC_DIR/<epNN>.mp4`（預設 `/workspace/影像導演/ai-boundary-series`）。對應關係：ep01–ep06 → `n_q1`–`n_q6`。
-- 有 ffmpeg 的話會重新轉成 H.264/AAC，CRF 26（可用 `CRF=` 調整），加 `-movflags +faststart`、寬度最多 720、維持 9:16，並拿第 0.8 秒的畫面存成封面 `<nodeId>.jpg`。不想轉檔就加 `--no-encode`，直接複製。
+- 有 ffmpeg 的話會轉成手機串流用的格式：H.264 Main@3.1、yuv420p、固定 30fps、每 1 秒一個關鍵格（`-g 30`）、CRF 23（可用 `CRF=` 調整）、`-maxrate 2.5M -bufsize 5M`、AAC 128k/44.1kHz、`+faststart`、寬度最多 720、維持 9:16。影片長度不變，60 秒以上也可以；來源沒有音軌的話會補一條靜音音軌。另外拿第 0.8 秒的畫面存成封面 `<nodeId>.jpg`。不想轉檔就加 `--no-encode`，直接複製。
+- 發佈時會自動執行 `scripts/bump_version.sh`，更新快取版本（見下方）。
 - nodeId 必須存在於種子資料（`QUESTIONS` 推出的 `n_qN`／`n_qN_eM`，或 `SEED_EXTRAS` 的 id），找不到會列出所有可用的 id。
 - `SEED_MEDIA` 只在節點的 `media.video`／`media.image` 是空的（或仍是 QUESTIONS 原本的 `videoUrl`／`imageUrl`，例如 q3 的 YouTube 連結）時才會填入；使用者自己貼的網址不會被覆蓋。已經有存檔的使用者，下次載入也會自動拿到新影片。
 - 例外：如果使用者把影片清空，下次載入時會被 `SEED_MEDIA` 補回去，因為存檔裡分辨不出「刻意清空」和「從來沒設定」。
@@ -157,3 +158,13 @@ scripts/publish_episode.sh ep03 n_q3 --no-push  # 只在本機 commit，先不�
 
 目前有：
 - `n_x_language`「語言是不是思考的邊界？」：🚀 新方向，接在 q4 底下，類型理解與意識，由 INTP 鏡像研究員提出。來源是影像導演 × INTP 鏡像研究員原創短片（2026-10-10），36 秒，字幕已經燒進畫面；`media.subtitles` 另外附上 SRT，給搜尋和無障礙用。
+
+## 📱 iPhone 播放與快取
+
+- **一個共用的 `<video>`**：feed 只有一個播放器，滑到哪一格就搬到哪一格。iOS 的「有聲播放許可」是跟著元素走的，所以第一次點擊開了聲音之後，後面每一集都會繼續有聲，自動接下一集也一樣。
+- 換集時先設定 `src` 並呼叫 `load()`，再 `play()`。不加 `autoplay` 屬性，因為 WebKit 在 `autoplay` 跟程式呼叫的 `play()` 互搶時，可能卡在第一格。
+- `play()` 被拒絕時（例如 iOS 低耗電模式），中間會出現大 ▶，點一下就播。另有看門狗：2.5 秒內沒播起來就顯示 ▶，不會只停在封面圖。播放中如果時間軸停住，會輕推一次（pause→play），不會重新載入。
+- **聲音**：第一次點畫面任何地方就解鎖整段工作階段的聲音；右上角 🔇/🔊 和右側按鈕可以切換；被擋下時會顯示「🔇 點一下開聲音」。
+- **連續播放**（⚙ 設定，預設開）：影集（`data.js` 的 `SERIES`：EP1–6 是 q1–q6，番外是 `n_x_language`）播完會自動捲到下一集。關掉的話改成單集循環。預設排序是「🎬 影集順序」。
+- **順暢度**：播放中不在影片上方做 backdrop blur，畫面外的格子和佔位動畫都會暫停；進度條用 `transform` 更新，且有節流；不另外用第二個 `<video>` 預載下一集，免得跟正在播的搶頻寬。
+- **快取**：`scripts/bump_version.sh` 會把兩個頁面的 `?v=`、`window.__V` 和 `version.json` 改成同一個時間戳。頁面每次載入都會用 `no-store` 讀 `version.json`，如果比自己新，就加上 `?v=` 重新整理一次（同一個版本只會重整一次）。

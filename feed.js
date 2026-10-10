@@ -57,7 +57,8 @@ const kids = id => state.nodes.filter(n => n.parentId === id);
 
 const prefs = (() => { try { return Object.assign({ likes:{}, saves:{}, set:{}, bots:{} }, JSON.parse(localStorage.getItem(FKEY))); } catch(e){ return { likes:{}, saves:{}, set:{}, bots:{} }; } })();
 prefs.bots = prefs.bots || {};
-const set = Object.assign({ order:'tree', types:[], concepts:[], onlyVideo:false, onlySaved:false }, prefs.set);
+const set = Object.assign({ order:'series', continuous:true, types:[], concepts:[], onlyVideo:false, onlySaved:false }, prefs.set);
+if (set.v !== 2){ set.order = 'series'; set.continuous = true; set.v = 2; }
 prefs.set = set;
 const savePrefs = () => { try { localStorage.setItem(FKEY, JSON.stringify(prefs)); } catch(e){} };
 
@@ -71,8 +72,12 @@ function treeOrder(){
   state.nodes.forEach(walk);
   return out;
 }
+const SER = typeof SERIES !== 'undefined' ? SERIES : { episodes:[], extras:[] };
+const SER_IDS = [...SER.episodes, ...(SER.extras || [])];
+function epLabel(id){ const i = SER.episodes.indexOf(id); return i >= 0 ? `EP ${i + 1}/${SER.episodes.length}` : (SER.extras || []).includes(id) ? '番外' : ''; }
+function seriesOrder(){ const rest = treeOrder(); return [...SER_IDS.map(N).filter(n => n && playable(n.media.video)), ...rest.filter(n => !SER_IDS.includes(n.id) || !playable(n.media.video))]; }
 function buildList(){
-  let L = set.order === 'newest' ? state.nodes.map((n, i) => [n, i]).sort((a, b) => (b[0].createdAt || 0) - (a[0].createdAt || 0) || b[1] - a[1]).map(x => x[0]) : treeOrder();
+  let L = set.order === 'series' ? seriesOrder() : set.order === 'newest' ? state.nodes.map((n, i) => [n, i]).sort((a, b) => (b[0].createdAt || 0) - (a[0].createdAt || 0) || b[1] - a[1]).map(x => x[0]) : treeOrder();
   if (set.types.length) L = L.filter(n => set.types.includes(n.type) || (n.kind === 'direction' && set.types.includes('__dir')));
   if (set.concepts.length) L = L.filter(n => n.concepts.some(c => set.concepts.includes(c)));
   if (set.onlyVideo) L = L.filter(n => playable(n.media.video));
@@ -82,7 +87,9 @@ function buildList(){
 
 /* ---------- render ---------- */
 const feed = $('#feed');
-let list = [], cur = 0, soundOn = false;
+let list = [], cur = 0;
+/* sound: wantSound = the viewer's preference (kept for the session); unlocked = a user gesture has happened */
+let wantSound = sessionStorage.getItem('aiFeed.sound') === '1', unlocked = false, userPaused = false, watchT = 0;
 function credit(n){
   const s = n.source;
   if (s && (s.who || s.outlet)) return { short:'📎 ' + (s.who || s.outlet), html:`📎 ${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.who || '來源')} ↗</a>` : esc(s.who || '')}${[s.outlet, s.date].filter(Boolean).length ? ' · ' + esc([s.outlet, s.date].filter(Boolean).join(' · ')) : ''}` };
@@ -95,7 +102,8 @@ function itemHTML(n, i){
   const img = n.media.image && safeUrl(n.media.image) ? n.media.image : '';
   const ch = kids(n.id), cr = credit(n);
   const caption = n.caption || n.oneLiner || '';
-  const stage = hasV ? `<video data-src="${esc(v)}" muted loop playsinline preload="none" ${img ? `poster="${esc(img)}"` : ''}></video>`
+  const ep = epLabel(n.id);
+  const stage = hasV ? `${img ? `<img class="poster" src="${esc(img)}" alt="" ${i > 1 ? 'loading="lazy"' : ''}>` : ''}<button class="bigplay" data-play aria-label="播放">▶</button>${ep ? `<span class="ep">${ep}</span>` : ''}`
     : `${img ? `<img class="bgimg" src="${esc(img)}" alt="" loading="lazy">` : ''}<div class="ph" ${img ? 'style="background:linear-gradient(transparent,rgba(5,6,15,.6))"' : ''}><div class="dots"></div>
         <div class="ring"><div class="orb"><span>${n.kind === 'direction' ? '🚀' : T(n.type).icon}</span></div></div>
         <h3>${esc(n.title)}</h3>
@@ -115,7 +123,7 @@ function itemHTML(n, i){
         <button class="rb like ${prefs.likes[n.id] ? 'on' : ''}" data-act="like" title="喜歡"><b>❤</b>喜歡</button>
         <button class="rb save ${prefs.saves[n.id] ? 'on' : ''}" data-act="save" title="收藏"><b>🔖</b>收藏</button>
         <button class="rb" data-act="comments" title="留言"><b>💬</b>留言</button>
-        ${hasV ? `<button class="rb" data-act="sound" title="聲音"><b>${soundOn ? '🔊' : '🔇'}</b>聲音</button>` : ''}
+        ${hasV ? `<button class="rb snd" data-act="sound" title="聲音"><b>${wantSound && unlocked ? '🔊' : '🔇'}</b>聲音</button>` : ''}
       </div>
     </div></section>`;
 }
@@ -142,24 +150,100 @@ function activate(i){
   const id = list[i].id;
   $('#toBrain').href = 'index.html#node=' + encodeURIComponent(id);
   history.replaceState(null, '', '#node=' + encodeURIComponent(id));
-  [...feed.children].forEach((el, j) => {
-    const v = el.querySelector('video'); if (!v) return;
-    if (Math.abs(j - i) <= 1 && !v.src) { v.src = v.dataset.src; }           // preload neighbours only
-    if (Math.abs(j - i) > 2 && v.src){ v.pause(); v.removeAttribute('src'); v.load(); }
-    if (j === i){ v.muted = !soundOn; v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }); }
-    else v.pause();
-  });
+  feed.querySelector('.it.cur')?.classList.remove('cur'); itemEl(i)?.classList.add('cur');
+  mount(i);
 }
+
+/* ---------- playback: one shared <video> (iOS keeps the audio unlock per element, so reusing it keeps sound on across items) ---------- */
+const player = document.createElement('video');
+player.className = 'player';
+['muted', 'playsinline', 'webkit-playsinline'].forEach(a => player.setAttribute(a, ''));   // no autoplay attribute: WebKit can stall at the first frame when it races our explicit play()
+player.muted = true; player.defaultMuted = true; player.playsInline = true; player.preload = 'auto';
+const abs = u => new URL(u, location.href).href;
+const isVid = i => !!list[i] && playable(list[i].media.video);
+function nextVideo(i){ for (let j = i + 1; j < list.length; j++) if (isVid(j)) return j; return -1; }
+const continuousAt = i => set.continuous && nextVideo(i) >= 0;
+function applyMute(){ const m = !(wantSound && unlocked); player.muted = m; if (m) player.setAttribute('muted', ''); else player.removeAttribute('muted'); }
+function renderSound(){
+  const on = !player.muted;
+  feed.querySelectorAll('.snd b').forEach(b => b.textContent = on ? '🔊' : '🔇');
+  $('#bSound').textContent = on ? '🔊' : '🔇'; $('#bSound').classList.toggle('lit', on);
+  $('#sndHint').classList.toggle('on', !!player.parentNode && !player.paused && player.muted && (!unlocked || wantSound));
+}
+function setBlocked(on){ const el = itemEl(cur); if (el) el.classList.toggle('blocked', on); }
+function mount(i){
+  clearTimeout(watchT);
+  const el = itemEl(i);
+  if (!el || !isVid(i)){ player.pause(); if (player.parentNode) player.remove(); document.body.classList.remove('playing'); renderSound(); return; }
+  const n = list[i], col = el.querySelector('.col');
+  if (player.parentNode !== col) col.insertBefore(player, col.querySelector('.shade'));
+  if (player.getAttribute('src') !== n.media.video){
+    if (n.media.image && safeUrl(n.media.image)) player.poster = n.media.image; else player.removeAttribute('poster');
+    player.setAttribute('src', n.media.video); player.load();            // src assigned + load() BEFORE play()
+    el.querySelector('.prog')?.style.setProperty('--p', 0);
+  } else if (player.ended) player.currentTime = 0;
+  player.loop = !continuousAt(i);
+  userPaused = false; applyMute(); tryPlay();
+  // no second <video> preloading the next episode: on phones it competes with the playing one for bandwidth/decoder (stutter).
+  // files are faststart + 1 s keyframes, so the next episode starts quickly on its own.
+}
+/* must stay synchronous up to play(): inside a tap handler this is what lets iOS start (and unmute) playback */
+function tryPlay(){
+  if (!player.parentNode) return;
+  const myCur = cur; setBlocked(false); applyMute();
+  let p; try { p = player.play(); } catch(e){ p = Promise.reject(e); }
+  if (p && p.then) p.then(() => { setBlocked(false); renderSound(); }).catch(err => {
+    if (myCur !== cur || (err && err.name === 'AbortError')) return;      // superseded by a newer src
+    if (!player.muted){                                                     // sound refused: keep playing muted, offer the hint
+      player.muted = true; player.setAttribute('muted', '');
+      player.play().then(() => { setBlocked(false); renderSound(); }).catch(() => { setBlocked(true); renderSound(); });
+    } else { setBlocked(true); renderSound(); }                               // autoplay denied (e.g. iOS Low Power Mode): show ▶
+  });
+  clearTimeout(watchT);
+  watchT = setTimeout(() => { if (myCur === cur && player.parentNode && player.paused && !userPaused) setBlocked(true); renderSound(); }, 2500);  // never leave a silent poster
+  renderSound();
+}
+function setSound(on){ wantSound = on; unlocked = true; sessionStorage.setItem('aiFeed.sound', on ? '1' : '0'); applyMute(); if (player.parentNode && player.paused && !userPaused) tryPlay(); renderSound(); }
+function togglePlay(el){
+  if (!player.parentNode || el !== itemEl(cur)) return;
+  if (player.paused){ userPaused = false; tryPlay(); flash(el, '▶'); } else { userPaused = true; player.pause(); flash(el, '⏸'); }
+}
+player.addEventListener('playing', () => { setBlocked(false); document.body.classList.add('playing'); renderSound(); });
+player.addEventListener('pause', () => { document.body.classList.remove('playing'); renderSound(); });
+player.addEventListener('volumechange', renderSound);
+let progEl = null, progT = 0;
+player.addEventListener('timeupdate', () => { const now = performance.now(); if (now - progT < 240 || !player.duration) return; progT = now; progEl = itemEl(cur)?.querySelector('.prog'); progEl?.style.setProperty('--p', (player.currentTime / player.duration).toFixed(3)); });
+player.addEventListener('ended', () => {
+  if (!set.continuous) return;
+  const nx = nextVideo(cur);
+  if (nx >= 0) go(nx); else { player.currentTime = 0; tryPlay(); }
+});
+/* stall guard: "playing" but the clock is frozen (seen in WebKit) → one gentle pause/play nudge, no reload */
+let lastT = -1, stuck = 0;
+setInterval(() => {
+  if (!player.parentNode || player.paused || document.hidden){ stuck = 0; lastT = -1; return; }
+  if (Math.abs(player.currentTime - lastT) < 0.01){ if (++stuck === 2){ player.pause(); tryPlay(); } } else stuck = 0;
+  lastT = player.currentTime;
+}, 750);
+/* the first tap anywhere unlocks audio for the whole session (sync, inside the gesture) */
+let gestureUnlock = false;
+document.addEventListener('click', e => {
+  gestureUnlock = false;
+  if (unlocked) return;
+  unlocked = true; gestureUnlock = true;
+  if (!e.target.closest('.snd,#bSound')){ wantSound = true; sessionStorage.setItem('aiFeed.sound', '1'); }
+  applyMute(); if (player.parentNode && (player.paused || player.muted)){ userPaused = false; tryPlay(); }
+  renderSound();
+}, true);
 function flash(el, s){ const f = el.querySelector('.flash'); f.textContent = s; f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
 function toast(m){ const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2000); }
-function setSound(on){ soundOn = on; feed.querySelectorAll('[data-act=sound] b').forEach(b => b.textContent = on ? '🔊' : '🔇'); const v = itemEl(cur)?.querySelector('video'); if (v){ v.muted = !on; if (on || v.paused) v.play().catch(() => { soundOn = false; v.muted = true; feed.querySelectorAll('[data-act=sound] b').forEach(b => b.textContent = '🔇'); v.play().catch(() => {}); toast('瀏覽器擋下了聲音，再點一次試試'); }); } }
-function togglePlay(el){ const v = el.querySelector('video'); if (!v) return; if (v.muted && !soundOn){ setSound(true); flash(el, '🔊'); return; } if (v.paused){ v.play().catch(() => {}); flash(el, '▶'); } else { v.pause(); flash(el, '⏸'); } }
 function toggleLike(id, el, force){ const on = force ?? !prefs.likes[id]; if (on) prefs.likes[id] = Date.now(); else delete prefs.likes[id]; savePrefs(); el.querySelector('.like').classList.toggle('on', on); if (on) flash(el, '❤️'); }
 
 /* ---------- interaction ---------- */
-let tapT = 0;
+let lastTap = 0;
 feed.addEventListener('click', e => {
   const el = e.target.closest('.it'); if (!el) return; const id = el.dataset.id;
+  if (e.target.closest('[data-play]')){ userPaused = false; tryPlay(); return; }
   const act = e.target.closest('[data-act]'); const chip = e.target.closest('[data-concept]'); const note = e.target.closest('[data-note]');
   if (e.target.closest('a')) return;
   if (act){ const a = act.dataset.act;
@@ -167,15 +251,18 @@ feed.addEventListener('click', e => {
     else if (a === 'save'){ const on = !prefs.saves[id]; if (on) prefs.saves[id] = Date.now(); else delete prefs.saves[id]; savePrefs(); act.classList.toggle('on', on); toast(on ? '🔖 已收藏' : '已取消收藏'); }
     else if (a === 'branches') openBranches(id);
     else if (a === 'comments') openComments(id);
-    else if (a === 'sound') setSound(!soundOn);
+    else if (a === 'sound') setSound(player.muted);
     return; }
   if (chip){ set.concepts = [chip.dataset.concept]; savePrefs(); render(id); toast('🧵 只看「' + chip.dataset.concept + '」'); return; }
   const capt = e.target.closest('[data-capt]');
   if (capt && el.classList.contains('subs')){ el.querySelector('.cap').classList.toggle('open'); return; }
   if (note){ note.classList.toggle('open'); const m = note.querySelector('.more'); if (m) m.textContent = note.classList.contains('open') ? ' 收起' : '…更多'; return; }
   if (e.target.closest('.rail,.cap')) return;
-  if (tapT){ clearTimeout(tapT); tapT = 0; toggleLike(id, el, true); return; }            // double tap = like
-  tapT = setTimeout(() => { tapT = 0; togglePlay(el); }, 240);
+  const now = performance.now();
+  if (now - lastTap < 320){ lastTap = 0; toggleLike(id, el, true); if (player.paused && el === itemEl(cur)){ userPaused = false; tryPlay(); } return; }   // double tap = like (undo the pause)
+  lastTap = now;
+  if (gestureUnlock){ if (isVid(cur)) flash(el, player.muted ? '▶' : '🔊'); return; }                                    // first tap only unlocks sound
+  togglePlay(el);
 });
 let wheelLock = 0, wheelAcc = 0;
 feed.addEventListener('wheel', e => {
@@ -191,10 +278,11 @@ addEventListener('keydown', e => {
   if (['ArrowDown', 'PageDown', 'j'].includes(e.key)){ e.preventDefault(); go(cur + 1); }
   else if (['ArrowUp', 'PageUp', 'k'].includes(e.key)){ e.preventDefault(); go(cur - 1); }
   else if (e.key === ' '){ e.preventDefault(); const el = itemEl(cur); if (el) togglePlay(el); }
-  else if (e.key === 'm' || e.key === 'M') setSound(!soundOn);
+  else if (e.key === 'm' || e.key === 'M') setSound(player.muted);
   else if (e.key === 'l' || e.key === 'L'){ const el = itemEl(cur); if (el) toggleLike(el.dataset.id, el); }
 });
-feed.addEventListener('timeupdate', e => { const v = e.target; const p = v.closest('.it')?.querySelector('.prog'); if (p && v.duration) p.style.width = (v.currentTime / v.duration * 100) + '%'; }, true);
+$('#bSound').onclick = () => setSound(player.muted);
+$('#sndHint').onclick = () => setSound(true);
 
 /* ---------- sheets ---------- */
 function openSheet(id){ closeSheets(true); $('#' + id).classList.add('on'); $('#scrim').classList.add('on'); }
@@ -243,7 +331,8 @@ addEventListener('message', e => {
 
 function renderSettings(){
   const opt = (k, label, on, c) => `<button class="opt ${on ? 'on' : ''}" data-k="${esc(k)}" ${c ? `style="--oc:${esc(c)}"` : ''}>${label}</button>`;
-  $('#oOrder').innerHTML = opt('order:tree', '🌳 大腦樹狀順序', set.order === 'tree') + opt('order:newest', '🆕 最新', set.order === 'newest');
+  $('#oOrder').innerHTML = opt('order:series', '🎬 影集順序', set.order === 'series') + opt('order:tree', '🌳 大腦樹狀順序', set.order === 'tree') + opt('order:newest', '🆕 最新', set.order === 'newest');
+  $('#oPlay').innerHTML = opt('continuous', '⏭ 連續播放', set.continuous);
   $('#oShow').innerHTML = opt('onlyVideo', `🎬 只看有影片（${state.nodes.filter(n => playable(n.media.video)).length}）`, set.onlyVideo) + opt('onlySaved', `🔖 只看收藏（${Object.keys(prefs.saves).filter(N).length}）`, set.onlySaved);
   const types = [...new Set(state.nodes.map(n => n.type))];
   $('#oType').innerHTML = opt('types:*', '全部', !set.types.length) + types.map(t => opt('types:' + t, T(t).icon + ' ' + esc(t), set.types.includes(t), T(t).color)).join('') + opt('types:__dir', '🚀 新方向', set.types.includes('__dir'), DIR_COLOR);
@@ -253,6 +342,7 @@ function renderSettings(){
 $('#setSheet').addEventListener('click', e => {
   const b = e.target.closest('[data-k]'); if (!b) return; const k = b.dataset.k; const [f, v] = k.split(/:(.*)/s);
   if (f === 'order') set.order = v;
+  else if (f === 'continuous'){ set.continuous = !set.continuous; player.loop = !continuousAt(cur); savePrefs(); renderSettings(); return; }
   else if (f === 'onlyVideo' || f === 'onlySaved') set[f] = !set[f];
   else { if (v === '*') set[f] = []; else set[f] = set[f].includes(v) ? set[f].filter(x => x !== v) : [...set[f], v]; }
   savePrefs(); renderSettings(); render(list[cur] && list[cur].id);
@@ -271,12 +361,13 @@ function openHash(){
 addEventListener('hashchange', openHash);
 addEventListener('storage', e => { if (e.key === KEY){ state = loadState(); render(list[cur] && list[cur].id); } });
 addEventListener('pageshow', e => { if (e.persisted){ state = loadState(); render(list[cur] && list[cur].id); } });
-document.addEventListener('visibilitychange', () => { const v = itemEl(cur)?.querySelector('video'); if (v){ if (document.hidden) v.pause(); else v.play().catch(() => {}); } });
+document.addEventListener('visibilitychange', () => { if (!player.parentNode) return; if (document.hidden) player.pause(); else if (!userPaused) tryPlay(); });
 addEventListener('resize', () => go(cur, true));
 
 { const h0 = hashId();
   if (h0 && N(h0) && !buildList().some(n => n.id === h0)){ set.types = []; set.concepts = []; set.onlyVideo = false; set.onlySaved = false; savePrefs(); }
   render(h0); }
 feed.focus({ preventScroll:true });
-window.AIFeed = { list:() => list.map(n => n.id), current:() => list[cur] && list[cur].id, index:() => cur, go, reload:() => { state = loadState(); render(list[cur] && list[cur].id); }, settings:set, giscus:GISCUS, bots:BOTS, openComments };
+window.AIFeed = { list:() => list.map(n => n.id), current:() => list[cur] && list[cur].id, index:() => cur, go, reload:() => { state = loadState(); render(list[cur] && list[cur].id); }, settings:set, giscus:GISCUS, bots:BOTS, openComments,
+  player, sound:() => ({ wantSound, unlocked, muted:player.muted }), blocked:() => !!itemEl(cur)?.classList.contains('blocked') };
 document.body.dataset.ready = '1';

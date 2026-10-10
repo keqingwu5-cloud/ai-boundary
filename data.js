@@ -283,6 +283,12 @@ const SEED_EXTRAS = [
    載入時補進節點：只有在節點的 media 是空的（或仍是 QUESTIONS 原本的 videoUrl/imageUrl）才會填入，
    使用者自己設定過的網址不會被覆蓋。
    ===================================================================== */
+/* 影集：feed 預設依這個順序連續播放（episodes 顯示 EP n/N，extras 顯示「番外」） */
+const SERIES = {
+  name: "AI 認知邊界",
+  episodes: ["n_q1", "n_q2", "n_q3", "n_q4", "n_q5", "n_q6"],
+  extras: ["n_x_language"]
+};
 /* SEED_MEDIA:BEGIN */
 const SEED_MEDIA = {
   "n_q1": {

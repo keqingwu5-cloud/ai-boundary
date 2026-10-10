@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <script>window.__errs=[];addEventListener("error",function(e){window.__errs.push(String(e.message||e));});addEventListener("unhandledrejection",function(e){window.__errs.push("rej:"+String(e.reason&&e.reason.message||e.reason));});</script>
-<script src="./data.js?v=202610102358"></script>
+<script>window.__V="20261011001653";(function(){try{fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v||j.v===window.__V)return;var k="aiBoundary.reloadFor."+j.v;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");var u=new URL(location.href);u.searchParams.set("v",j.v);location.replace(u.toString());}).catch(function(){});}catch(e){}})();</script>
+<script src="./data.js?v=20261011001653"></script>
 <style>
 :root{--glass:rgba(14,18,40,.58);--line:rgba(160,180,255,.18);--text:#eef0ff;--muted:#a3abd6;--gold:#f5c451;--colw:min(100vw,calc(100dvh * 9 / 16))}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -20,7 +21,7 @@ a{color:inherit}
 #feed{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;scroll-snap-type:y mandatory;overscroll-behavior:contain;scrollbar-width:none}
 #feed::-webkit-scrollbar{display:none}
 .it{position:relative;height:100dvh;scroll-snap-align:start;scroll-snap-stop:always;display:flex;justify-content:center;overflow:hidden}
-.it:before{content:"";position:absolute;inset:-20%;background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--c) 28%,transparent),transparent 55%);filter:blur(30px);opacity:.7}
+.it:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--c) 22%,transparent),transparent 60%);opacity:.7}
 .col{position:relative;width:var(--colw);height:100%;overflow:hidden;background:#05060f}
 @media (min-width:701px){.col{border-left:1px solid var(--line);border-right:1px solid var(--line);box-shadow:0 0 60px color-mix(in srgb,var(--c) 25%,transparent)}}
 .col video,.col .bgimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
@@ -44,6 +45,24 @@ a{color:inherit}
 @keyframes float{50%{translate:0 -8px}}
 @keyframes blink{50%{opacity:.25}}
 @keyframes drift{to{transform:translateY(-40px)}}
+/* video */
+.col .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.col video.player{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent}
+.bigplay{position:absolute;left:50%;top:44%;translate:-50% -50%;z-index:5;width:88px;height:88px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(10,12,30,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:34px;padding-left:6px;display:none;box-shadow:0 0 30px rgba(0,0,0,.5)}
+.it.blocked .bigplay{display:block;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 14px rgba(255,255,255,.08),0 0 30px rgba(0,0,0,.5)}}
+.ep{position:absolute;z-index:3;top:calc(62px + env(safe-area-inset-top));left:12px;font-size:11.5px;font-weight:700;letter-spacing:1px;padding:3px 9px;border-radius:99px;background:rgba(0,0,0,.45);border:1px solid color-mix(in srgb,var(--c) 60%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--c) 40%,transparent)}
+.prog{height:3px;width:100%!important;transform:scaleX(var(--p,0));transform-origin:0 50%;will-change:transform}
+#sndHint{position:fixed;z-index:21;top:calc(58px + env(safe-area-inset-top));left:50%;translate:-50% -8px;opacity:0;pointer-events:none;transition:.3s;border-radius:99px;padding:6px 14px;font-size:13px;color:#fff}
+#sndHint.on{opacity:1;translate:-50% 0;pointer-events:auto}
+#bSound.lit{border-color:rgba(127,224,168,.6);box-shadow:0 0 12px rgba(127,224,168,.35)}
+/* performance: nothing animates or blurs on top of a playing video; off-screen items are frozen */
+.it:not(.cur) *,.it:not(.cur){animation-play-state:paused!important}
+body.playing .top,body.playing #sndHint,body.playing .rb b{backdrop-filter:none;-webkit-backdrop-filter:none}
+body.playing .top{background:rgba(10,12,28,.72)}
+body.playing .rb b{background:rgba(10,12,28,.6)}
+body.playing .dots,body.playing .ph *{animation-play-state:paused!important}
+@media (min-width:701px){body.playing .it.cur .col{box-shadow:none}}
 /* caption */
 .cap{position:absolute;left:0;right:68px;bottom:0;padding:0 14px calc(18px + env(safe-area-inset-bottom));z-index:2}
 .row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px}
@@ -125,14 +144,17 @@ a{color:inherit}
 <header class="top glass">
   <a class="ib" id="toBrain" href="index.html" title="回到 3D 大腦">🧠</a>
   <h1>短影音<small id="cnt"></small></h1>
+  <button class="ib" id="bSound" title="聲音開關">🔇</button>
   <button class="ib" id="bSet" title="篩選與排序">⚙</button>
 </header>
+<button id="sndHint" class="glass">🔇 點一下開聲音</button>
 <div class="keys">↑↓ 切換・空白鍵 播放/暫停・M 聲音</div>
 <div class="scrim" id="scrim"></div>
 <section class="sheet glass" id="setSheet" aria-label="設定"><div class="grab"></div>
   <header><h3>⚙ 短影音設定</h3><button class="ib" data-close>✕</button></header>
   <div class="bd">
     <div class="lbl">排序</div><div class="opts" id="oOrder"></div>
+    <div class="lbl">播放</div><div class="opts" id="oPlay"></div>
     <div class="lbl">顯示</div><div class="opts" id="oShow"></div>
     <div class="lbl">類型</div><div class="opts" id="oType"></div>
     <div class="lbl">🧵 概念</div><div class="opts" id="oConc"></div>
@@ -154,6 +176,6 @@ a{color:inherit}
   </div>
 </section>
 <div id="toast" class="glass"></div>
-<script type="module" src="./feed.js?v=202610102358"></script>
+<script type="module" src="./feed.js?v=20261011001653"></script>
 </body>
 </html>
