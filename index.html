@@ -8,14 +8,14 @@
 <!-- [proto perf] no web font: Noto Sans TC from Google Fonts was ~1.4 MB of woff2 that downloaded BEFORE the first poster/video.
      System CJK fonts look the same family (Android = Noto Sans CJK, iOS/macOS = PingFang TC, Windows = JhengHei). -->
 <script>window.__errs=[];addEventListener("error",function(e){window.__errs.push(String(e.message||e));});addEventListener("unhandledrejection",function(e){window.__errs.push("rej:"+String(e.reason&&e.reason.message||e.reason));});</script>
-<script>window.__V="20261011020327";(function(){try{fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v||j.v===window.__V)return;var k="aiBoundary.reloadFor."+j.v;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");var u=new URL(location.href);u.searchParams.set("v",j.v);location.replace(u.toString());}).catch(function(){});}catch(e){}})();</script>
-<script src="./data.js?v=20261011020327"></script>
+<script>window.__V="20261011055133";(function(){try{fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v||j.v===window.__V)return;var k="aiBoundary.reloadFor."+j.v;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");var u=new URL(location.href);u.searchParams.set("v",j.v);location.replace(u.toString());}).catch(function(){});}catch(e){}})();</script>
+<script src="./data.js?v=20261011055133"></script>
 <link rel="modulepreload" href="./vendor/three.module.min.js">
-<link rel="modulepreload" href="./brain/quality.js?v=20261011020327">
-<link rel="modulepreload" href="./brain/interior.js?v=20261011020327">
-<link rel="prefetch" href="./feed.js?v=20261011020327">
-<script src="./config.js?v=20261011020327"></script>
-<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/controls/OrbitControls.js":"./vendor/OrbitControls.js","./safe.js":"./safe.js?v=20261011020327","three/addons/":"./vendor/addons/","./brain/interior.js":"./brain/interior.js?v=20261011020327","./brain/quality.js":"./brain/quality.js?v=20261011020327"}}</script>
+<link rel="modulepreload" href="./brain/quality.js?v=20261011055133">
+<link rel="modulepreload" href="./brain/interior.js?v=20261011055133">
+<link rel="prefetch" href="./feed.js?v=20261011055133">
+<script src="./config.js?v=20261011055133"></script>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/controls/OrbitControls.js":"./vendor/OrbitControls.js","./safe.js":"./safe.js?v=20261011055133","three/addons/":"./vendor/addons/","./brain/interior.js":"./brain/interior.js?v=20261011055133","./brain/quality.js":"./brain/quality.js?v=20261011055133"}}</script>
 <style>
 :root{--glass:rgba(14,18,40,.58);--line:rgba(160,180,255,.16);--text:#eef0ff;--muted:#8f98c4;--gold:#f5c451;--glow:#9db7ff}
 *{box-sizing:border-box}
@@ -31,7 +31,7 @@ button{font-family:inherit;color:inherit}
 #crumbs button{flex:none;border:1px solid color-mix(in srgb,var(--c) 50%,transparent);background:color-mix(in srgb,var(--c) 14%,transparent);border-radius:99px;padding:3px 10px;font-size:12px;cursor:pointer}
 #crumbs i{color:var(--muted);font-style:normal}
 .tools{display:flex;gap:5px;flex:none}
-.ib{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.04);cursor:pointer;font-size:15px;display:grid;place-items:center;transition:.2s;position:relative}
+.ib{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.04);cursor:pointer;font-size:16px;display:grid;place-items:center;transition:.2s;position:relative}
 .ib:hover{border-color:var(--glow);box-shadow:0 0 14px rgba(157,183,255,.55)}
 .ib.gold{border-color:rgba(245,196,81,.6);color:var(--gold);box-shadow:0 0 12px rgba(245,196,81,.25)}
 .ib.on{background:rgba(157,183,255,.18);border-color:var(--glow)}
@@ -140,19 +140,6 @@ dialog input,dialog select,dialog textarea{width:100%;background:rgba(0,0,0,.35)
 dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 dialog .row button{border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:99px;padding:7px 14px;cursor:pointer}
 dialog .row .go{border-color:rgba(245,196,81,.6);color:var(--gold);box-shadow:0 0 12px rgba(245,196,81,.25)}
-@media (max-width:700px){
-  .bar{top:8px;left:8px;right:8px;flex-wrap:wrap;padding:6px 6px 6px 12px;gap:6px}
-  .bar h1{font-size:14px}
-  #crumbs{order:3;flex-basis:100%}
-  .tools{margin-left:auto}
-  .ib{width:31px;height:31px;font-size:13px}
-  #panel{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:58vh;transform:translateY(115%)}
-  #hist{left:8px;right:8px;width:auto;top:100px}
-  #legend{bottom:10px;right:8px;max-width:calc(100% - 64px)}
-  #legend .meta{display:none}
-  #hint{display:none}
-  #saved,#toast{top:104px}
-}
 
 /* concept layer */
 #cdraw{position:fixed;z-index:39;left:10px;top:66px;width:270px;max-height:calc(100% - 140px);border-radius:20px;padding:12px;display:flex;flex-direction:column;transform:translateX(-112%);transition:transform .45s cubic-bezier(.2,.8,.2,1)}
@@ -194,10 +181,6 @@ dialog .row .go{border-color:rgba(245,196,81,.6);color:var(--gold);box-shadow:0 
 .skind input:checked+span{border-color:#ff7ae0;background:rgba(255,122,224,.12);box-shadow:0 0 12px rgba(255,122,224,.35)}
 .skind label:first-child input:checked+span{border-color:#7fe0a8;background:rgba(127,224,168,.12);box-shadow:0 0 12px rgba(127,224,168,.3)}
 .tag.kind.direction{--c:#ff7ae0}
-@media (max-width:700px){
-  #cdraw{left:8px;right:8px;width:auto;top:auto;bottom:58px;max-height:44vh;transform:translateY(130%)}
-  #cpill{top:104px}
-}
 
 a.ib{display:inline-grid;place-items:center;text-decoration:none;color:inherit}
 .vbox{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
@@ -207,10 +190,151 @@ a.ib{display:inline-grid;place-items:center;text-decoration:none;color:inherit}
 #mvF input{flex:1;min-width:0;background:rgba(0,0,0,.3);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:6px 9px;font-size:12.5px;font-family:inherit}
 #mvF button{border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:10px;padding:0 10px;cursor:pointer}
 .tofeed{font-size:12.5px;color:#ffb3ef;text-decoration:none}
+/* ================= [proto] UX layer ================= */
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:vtOut .26s ease both}
+::view-transition-new(root){animation:vtIn .34s ease both}
+@keyframes vtOut{to{opacity:0;transform:scale(1.03);filter:blur(6px)}}
+@keyframes vtIn{from{opacity:0;transform:scale(.98)}}
+body{transition:opacity .18s}
+body.leaving{opacity:0}
+:focus-visible{outline:2px solid #ffe2a0;outline-offset:2px}
 #boot{position:fixed;inset:0;z-index:90;display:grid;place-content:center;justify-items:center;gap:10px;background:#03040b;font-size:54px;transition:opacity .5s;animation:bootP 1.4s ease-in-out infinite}
 #boot small{font-size:13px;color:var(--muted)}
 #boot.off{opacity:0;pointer-events:none;animation:none}
 @keyframes bootP{50%{filter:drop-shadow(0 0 24px #9d8cff)}}
+/* view switch (same component on both pages => morphs with view transitions) */
+.seg{view-transition-name:seg;flex:none;display:flex;padding:3px;border-radius:99px;background:rgba(0,0,0,.35);border:1px solid var(--line)}
+.seg a{display:flex;align-items:center;gap:4px;min-height:36px;padding:0 13px;border-radius:99px;text-decoration:none;color:var(--muted);font-size:13.5px;font-weight:700;white-space:nowrap}
+.seg a.on{color:#fff;background:linear-gradient(90deg,rgba(157,140,255,.45),rgba(255,122,224,.35));box-shadow:0 0 14px rgba(170,150,255,.45)}
+.desk-only{}
+.phone-only{display:none!important}
+#moreMenu{position:fixed;z-index:45;top:64px;right:10px;display:none;flex-direction:column;padding:6px;border-radius:16px;min-width:190px}
+#moreMenu.on{display:flex}
+#moreMenu button[hidden]{display:none}
+#moreMenu button{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;border:none;background:none;border-radius:12px;font-size:15px;cursor:pointer;text-align:left}
+#moreMenu button:hover,#moreMenu button:active{background:rgba(255,255,255,.07)}
+/* panel: visual first */
+.hero{position:relative;display:block;width:100%;aspect-ratio:16/10;border-radius:16px;overflow:hidden;background:#000;margin:2px 0 10px;border:1px solid var(--line)}
+.hero video,.hero img{width:100%;height:100%;object-fit:cover;display:block}
+.hero.none{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;aspect-ratio:auto;height:92px;border:1px dashed rgba(160,180,255,.35);background:rgba(0,0,0,.25);cursor:pointer;font-size:14px}
+.hero.none b{font-size:24px;font-weight:400}.hero.none small{color:var(--muted);font-size:12px}
+.heroPlay{position:absolute;left:50%;top:50%;translate:-50% -50%;width:64px;height:64px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:rgba(10,12,30,.55);backdrop-filter:blur(6px);font-size:24px;cursor:pointer;box-shadow:0 0 24px rgba(157,183,255,.5)}
+.heroPlay.playing{opacity:.25}.hero:hover .heroPlay.playing{opacity:1}
+.heroFeed{position:absolute;left:8px;bottom:8px;padding:8px 12px;border-radius:99px;background:rgba(10,12,30,.7);border:1px solid rgba(255,122,224,.6);color:#ffd6f5;text-decoration:none;font-size:13px;font-weight:700}
+.heroEdit{position:absolute;right:8px;top:8px;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:rgba(10,12,30,.65);cursor:pointer;font-size:15px}
+.acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
+.acts button,.acts a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:56px;border-radius:14px;padding:4px;font-size:12px;text-decoration:none;color:inherit;border:1px solid var(--line);background:rgba(255,255,255,.05);cursor:pointer}
+.acts b{font-size:18px;font-weight:400;line-height:1}
+.acts .actFeed{border-color:rgba(255,122,224,.5);color:#ffd6f5}
+.status{display:grid;grid-template-columns:repeat(3,1fr)}
+.status button{min-height:40px;font-size:12.5px}
+.sec{border-top:1px solid var(--line);padding:2px 0}
+.sec summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;min-height:46px;font-size:14px;font-weight:700}
+.sec summary::-webkit-details-marker{display:none}
+.sec summary:after{content:"▾";margin-left:auto;color:var(--muted);transition:transform .2s}
+.sec[open] summary:after{transform:rotate(180deg)}
+.sec summary i{font-style:normal;font-size:11px;font-weight:400;color:var(--muted);background:rgba(255,255,255,.08);border-radius:99px;padding:0 7px}
+.secb{padding:0 0 12px}
+.prov .nl{padding:6px 10px;border-radius:10px;font-size:13px}
+.cc button{padding:7px 6px 7px 11px;font-size:13px}.cc button+button{padding:7px 10px 7px 4px}
+#ccF input{height:34px}
+.grip{display:none}
+/* dialogs: big touch targets, 16px inputs (no iOS zoom) */
+dialog input,dialog select,dialog textarea{font-size:16px;min-height:44px}
+dialog .row button{min-height:44px;padding:0 18px;font-size:14px}
+dialog .row .danger{border-color:rgba(255,120,120,.6);color:#ffb0b0}
+.mtabs{display:flex;gap:6px;margin:10px 0 8px}
+.mtabs button{flex:1;min-height:42px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);cursor:pointer;font-size:14px}
+.mtabs button.on{border-color:var(--gold);color:var(--gold);background:rgba(245,196,81,.1)}
+.mprev{height:190px;border-radius:14px;overflow:hidden;background:#000;border:1px solid var(--line);display:grid;place-items:center}
+.mprev video,.mprev img{width:100%;height:100%;object-fit:contain}
+.mempty{font-size:46px;opacity:.5}
+.murl{display:flex;gap:6px;margin-top:10px}
+.murl input{flex:1;min-width:0}
+.murl button{flex:none;min-width:44px;min-height:44px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);cursor:pointer;font-size:13px;padding:0 10px}
+.mmsg{font-size:12.5px;color:var(--muted);margin:8px 2px 4px;min-height:18px;line-height:1.5}
+.mmsg.bad{color:#ff9a9a}.mmsg.ok{color:#9fe3b5}.mmsg.warn{color:#ffd58a}
+.mpicks{display:flex;gap:6px;overflow-x:auto;padding:4px 0 2px;scrollbar-width:none}
+.pick{flex:none;min-height:38px;padding:0 12px;border-radius:99px;border:1px dashed rgba(160,180,255,.4);background:none;cursor:pointer;font-size:12.5px}
+.pick.on{border-style:solid;border-color:var(--gold);color:var(--gold)}
+/* onboarding */
+#coach{position:fixed;z-index:70;left:50%;top:50%;translate:-50% -50%;width:min(360px,calc(100vw - 32px));padding:20px;border-radius:24px;text-align:left}
+#coach h3{margin:0 0 12px;font-size:18px}
+#coach ol{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:12px}
+#coach li{display:grid;grid-template-columns:44px 1fr;gap:10px;align-items:center;font-size:14px;line-height:1.45}
+#coach li b{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:20px;font-weight:400;background:rgba(157,183,255,.12);border:1px solid var(--line)}
+#coach li small{display:block;color:var(--muted);font-size:12px}
+#coachGo{width:100%;min-height:48px;border-radius:99px;border:1px solid rgba(245,196,81,.6);background:rgba(245,196,81,.12);color:var(--gold);font-size:15px;font-weight:700;cursor:pointer}
+/* read-only: cloud sync is on but this visitor can't write (sync.js sets body.sync-ro) -> no edit controls, a 🔒 pill opens the login menu */
+#roPill{display:none;align-items:center;gap:6px;height:40px;padding:0 12px;border-radius:99px;border:1px solid rgba(255,211,110,.5);background:rgba(255,211,110,.1);color:#ffd36e;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;flex:none}
+body.sync-ro #roPill{display:flex}
+#roPill i{font-style:normal}
+#roPill[data-r=checking]{border-color:var(--line,rgba(160,180,255,.25));background:rgba(255,255,255,.06);color:#c9cdea;font-weight:500}   /* still looking up the editor list: neutral, not a warning */
+body.sync-ro #bAdd,body.sync-ro #bLink,body.sync-ro #bUndo,body.sync-ro #moreMenu [data-proxy=bLink],body.sync-ro #moreMenu [data-proxy=bUndo],
+body.sync-ro .acts [data-a=split],body.sync-ro .acts [data-a=sub],body.sync-ro .acts [data-a=merge],body.sync-ro .acts [data-a=link],body.sync-ro .acts [data-a=del],
+body.sync-ro .heroEdit,body.sync-ro [data-media],body.sync-ro #ccF,body.sync-ro .cc button+button,body.sync-ro #ceF,body.sync-ro .hero.none small,body.sync-ro #bReset,body.sync-ro #bImport{display:none!important}
+body.sync-ro .hero.none,body.sync-ro .status button,body.sync-ro #patS{pointer-events:none}
+body.sync-ro .status button:not(.on){opacity:.45}
+@media (max-width:700px){
+/* all phone overrides in one place (was 3 separate blocks) */
+  .bar{top:8px;left:8px;right:8px;flex-wrap:wrap;padding:6px 6px 6px 12px;gap:6px}
+  .bar h1{font-size:14px}
+  .tools{margin-left:auto}
+  #panel{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:58vh;transform:translateY(115%)}
+  #legend{bottom:10px;right:8px;max-width:calc(100% - 64px)}
+  #legend .meta{display:none}
+  #hint{display:none}
+  #cdraw{left:8px;right:8px;width:auto;top:auto;bottom:58px;max-height:44vh;transform:translateY(130%)}
+  .desk-only{display:none!important}
+  .phone-only{display:grid!important}
+  /* one-row top bar (~60px): view switch | crumbs (only inside a sub-brain) | ＋ ・ mastery ・ ⋯ ; 🧵 ◐ live in the ⋯ menu */
+  .bar{flex-wrap:nowrap;padding:6px;gap:6px}
+  .bar h1{display:none}
+  .seg a{padding:0 9px;font-size:12.5px;min-height:38px;gap:3px}
+  .ib{width:44px;height:44px;font-size:17px}
+  .tools{gap:4px}
+  #crumbs{flex:1 1 0;min-width:0}
+  #crumbs button{min-height:32px;padding:0 10px}
+  #crumbs:empty,#crumbs.single{display:none}
+  #crumbs i{display:none}
+  #crumbs button:not(:last-of-type){display:none}
+  #saved,#toast,#cpill{top:74px}
+  #hist{left:8px;right:8px;width:auto;top:72px}
+  .tools .phone-hide,.tools #bAct{display:none!important}   /* 📅 (activity.js) lives in the ⋯ menu on phones */
+  body.sync-ro #roPill{display:none}   /* phone: sync.js's own 🔒 #bSync already sits in the bar and opens the same login menu */
+  #moreMenu{top:62px;right:8px}
+  .ctl{left:8px;bottom:calc(10px + env(safe-area-inset-bottom))}
+  #legend{bottom:calc(10px + env(safe-area-inset-bottom));padding:4px}
+  #legend button{min-height:36px;min-width:40px;padding:0 8px;font-size:14px;justify-content:center}
+  /* panel = bottom sheet with peek / full snap */
+  #panel{left:0;right:0;bottom:0;top:auto;width:auto;max-height:52vh;border-radius:22px 22px 0 0;padding:4px 14px calc(24px + env(safe-area-inset-bottom));transition:transform .4s cubic-bezier(.2,.8,.2,1),max-height .35s ease}
+  #panel.full{max-height:90vh}
+  #pX{width:40px;height:40px;margin:6px -4px 0 6px}
+  .grip{display:block;width:100%;height:22px;cursor:pointer;position:relative}
+  .grip:before{content:"";position:absolute;left:50%;top:9px;translate:-50% 0;width:42px;height:5px;border-radius:3px;background:#ffffff55}
+  .hero{aspect-ratio:16/9}
+  dialog{margin:auto 0 0;width:100%;max-width:100%;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));animation:sheetUp .32s cubic-bezier(.2,.8,.2,1)}
+  @keyframes sheetUp{from{transform:translateY(40%);opacity:.4}}
+  .mprev{height:160px}
+  /* 44px touch targets (簡化 re-review): toggles, concept chips, export/import/reset, header links, panel buttons, legend */
+  .seg a{min-height:44px}
+  #pX,.heroEdit{width:44px;height:44px}
+  .heroFeed{min-height:44px;display:inline-flex;align-items:center}
+  #legend button{min-height:44px;min-width:44px}
+  .tog{min-height:44px;padding:0 14px;font-size:12.5px}
+  .cchip{min-height:44px;padding:0 12px 0 9px;font-size:13px}
+  .cchips{gap:6px}
+  .cc{min-height:44px;display:inline-flex;align-items:stretch}.cc button{min-height:44px}
+  .hfoot button{min-height:44px;padding:0 14px;font-size:13px}
+  .cc button{min-width:44px}
+  .status button{min-height:44px}
+  .prov .nl{min-height:44px;display:inline-flex;align-items:center}
+  #ccI,#ceI,#patS{min-height:44px;font-size:16px}   /* 16px also stops iOS Safari from zooming into the field */
+  #ceF button{width:44px;min-height:44px}
+  .pf{min-height:44px;padding:0 13px}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
@@ -219,33 +343,45 @@ a.ib{display:inline-grid;place-items:center;text-decoration:none;color:inherit}
 <div id="labels"></div><div id="nlabel"></div>
 <header class="bar glass">
   <h1>🧠 <span>認知大腦</span></h1>
+  <nav class="seg" aria-label="切換檢視"><a class="on" href="index.html" aria-current="page">🧠<span>大腦</span></a><a id="bFeed" href="feed.html" data-nav>🎬<span>短影音</span></a></nav>
   <nav id="crumbs"></nav>
   <div class="tools">
-    <button class="ib gold" id="bAdd" title="新增問題（長出新神經節點）">＋</button>
-    <a class="ib" id="bFeed" href="feed.html" title="短影音模式">📱</a>
-    <button class="ib on" id="bConc" title="概念線">🧵</button>
-    <button class="ib" id="bLink" title="跨腦連結模式">🔗</button>
-    <button class="ib" id="bUndo" title="復原">↶</button>
-    <button class="ib" id="bHist" title="歷史紀錄">🕘<sup id="hCount">0</sup></button>
+    <button id="roPill" type="button" title="唯讀：登入後可編輯" aria-label="唯讀：登入後可編輯" data-r="anon"><i aria-hidden="true">🔒</i><span>唯讀・登入後可編輯</span></button>
+    <button class="ib gold" id="bAdd" title="新增問題（長出新神經節點）" aria-label="新增問題">＋</button>
+    <button class="ib on phone-hide" id="bConc" title="概念線" aria-label="概念線">🧵</button>
+    <button class="ib on phone-hide" id="bDecl" title="精簡模式：只亮相關節點、遠處細節收起" aria-label="精簡模式" aria-pressed="true">◐</button>
+    <button class="ib desk-only" id="bGlow" title="光暈特效（較耗效能）" aria-label="光暈特效" aria-pressed="false">✨</button>
+    <button class="ib desk-only" id="bLink" title="跨腦連結模式" aria-label="跨腦連結模式">🔗</button>
+    <button class="ib desk-only" id="bUndo" title="復原" aria-label="復原">↶</button>
+    <button class="ib desk-only" id="bHist" title="歷史紀錄" aria-label="歷史紀錄">🕘<sup id="hCount">0</sup></button>
+    <button class="ib phone-only" id="bMore" title="更多" aria-label="更多" aria-haspopup="menu" aria-expanded="false">⋯</button>
   </div>
 </header>
+<div id="moreMenu" class="glass" role="menu">
+  <button data-proxy="bConc" role="menuitem">🧵 概念線</button>
+  <button data-proxy="bDecl" role="menuitem">◐ 精簡／顯示全部細節</button>
+  <button data-proxy="bLink" role="menuitem">🔗 跨腦連結</button>
+  <button data-proxy="bUndo" role="menuitem">↶ 復原上一步</button>
+  <button data-proxy="bHist" role="menuitem">🕘 生長紀錄・匯出／匯入</button>
+  <button data-proxy="bAct" role="menuitem">📅 每日動態</button>
+</div>
 <div class="ctl">
-  <button class="ib glass" id="bFit" title="總覽全部腦">◎</button>
-  <button class="ib glass" id="bHome" title="回到主腦">⌂</button>
-  <button class="ib glass on" id="bRot" title="自動旋轉">⟳</button>
+  <button class="ib glass" id="bFit" title="總覽全部腦" aria-label="總覽全部腦">◎</button>
+  <button class="ib glass" id="bHome" title="回到主腦" aria-label="回到主腦">⌂</button>
+  <button class="ib glass on" id="bRot" title="自動旋轉" aria-label="自動旋轉">⟳</button>
 </div>
 <div id="hint" class="glass">拖曳旋轉・滾輪／雙指縮放・點節點</div>
 <div id="legend" class="glass"></div>
 <div id="saved">● 已自動儲存</div>
 <div id="cpill" class="glass"></div>
 <aside id="cdraw" class="glass">
-  <header><h3>🧵 概念線</h3><button id="cOn" class="tog on">● 顯示</button><button class="ib" id="cX" title="關閉">✕</button></header>
+  <header><h3>🧵 概念線</h3><button id="cOn" class="tog on">● 顯示</button><button class="ib" id="cX" title="關閉" aria-label="關閉">✕</button></header>
   <div id="cList"></div>
 </aside>
 <div id="toast" class="glass"></div>
-<aside id="panel" class="glass"><button class="ib" id="pX" title="關閉">✕</button><div id="pBody"></div></aside>
+<aside id="panel" class="glass"><button class="ib" id="pX" title="關閉" aria-label="關閉">✕</button><div id="pBody"></div></aside>
 <aside id="hist" class="glass">
-  <header><h3>🕘 生長紀錄</h3><button class="ib" id="hX" title="關閉">✕</button></header>
+  <header><h3>🕘 生長紀錄</h3><button class="ib" id="hX" title="關閉" aria-label="關閉">✕</button></header>
   <div id="hList"></div>
   <div class="hfoot"><button id="bExport">⇩ 匯出 JSON</button><button id="bImport">⇧ 匯入</button><button id="bReset">↺ 重置</button></div>
   <input type="file" id="file" accept="application/json,.json" hidden>
@@ -268,9 +404,32 @@ a.ib{display:inline-grid;place-items:center;text-decoration:none;color:inherit}
   <label>每行一個（可加「｜類型」）</label><textarea name="lines" rows="4" required></textarea>
   <div class="row"><button value="cancel" formnovalidate>取消</button><button value="ok" class="go">分裂 ❖</button></div>
 </form></dialog>
-<script type="module" src="./app.js?v=20261011013909"></script>
-<script type="module" src="./knowledge-score.js?v=20261011013909"></script>
-<script type="module" src="./activity.js?v=20261011013909"></script>
-<script type="module" src="./sync.js?v=20261011013909"></script>
+<dialog id="mediaDlg"><form id="mediaForm">
+  <h3>🎬 媒體</h3><div class="sub" id="mTitle"></div>
+  <div class="mtabs" role="tablist"><button type="button" data-mk="video" role="tab">🎬 影片</button><button type="button" data-mk="image" role="tab">🖼️ 封面圖</button></div>
+  <div class="mprev" id="mPrev"></div>
+  <div class="murl"><input id="mUrl" inputmode="url" autocomplete="off" maxlength="500" aria-label="網址"><button type="button" id="mPaste" title="從剪貼簿貼上" aria-label="從剪貼簿貼上">📋 貼上</button><button type="button" id="mClear" title="清空" aria-label="清空網址">✕</button></div>
+  <div class="mmsg" id="mMsg" aria-live="polite"></div>
+  <div class="mpicks" id="mPicks"></div>
+  <div class="row"><button type="button" id="mDel" class="danger" style="margin-right:auto">移除</button><button type="button" onclick="this.closest('dialog').close()">取消</button><button class="go">儲存 ✓</button></div>
+</form></dialog>
+<dialog id="askDlg"><form method="dialog">
+  <h3 id="askT"></h3><p class="sub hide" id="askP" style="font-size:14px;line-height:1.6"></p>
+  <div id="askText"><label id="askL" for="askI"></label><input id="askI"></div>
+  <div class="row"><button value="cancel" id="askNo" formnovalidate>取消</button><button value="ok" class="go" id="askOk">確定</button></div>
+</form></dialog>
+<div id="coach" class="glass hide" role="dialog" aria-label="怎麼玩">
+  <h3>✦ 30 秒上手</h3>
+  <ol>
+    <li><b>👆</b><span>點發光的點<small>每個點是一個問題，會打開影片和重點</small></span></li>
+    <li><b>🧵</b><span>彩色光線＝同一個概念<small>點概念就只亮那條線</small></span></li>
+    <li><b>🎬</b><span>上方切到「短影音」<small>一題一集，上下滑</small></span></li>
+  </ol>
+  <button id="coachGo">開始探索</button>
+</div>
+<script type="module" src="./app.js?v=20261011055133"></script>
+<script type="module" src="./knowledge-score.js?v=20261011055133"></script>
+<script type="module" src="./activity.js?v=20261011055133"></script>
+<script type="module" src="./sync.js?v=20261011055133"></script>
 </body>
 </html>

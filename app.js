@@ -34,7 +34,7 @@ const REGION = {                       // brain-local region centres (front = +z
   '其他':       [0.0, -0.05, 0.1]
 };
 const ACT = { seed:'🌱 播種', add:'✦ 新增問題', split:'❖ 分裂', direction:'🚀 新方向', concept:'🧵 概念', pattern:'⟳ 流程', migrate:'🧵 概念層升級', subbrain:'🧠 生成子腦', merge:'↩ 併回', cross:'🔗 跨腦連結',
-  status:'◐ 研究進度', counter:'⚔ 反證', collapse:'◌ 收合', expand:'◉ 展開', media:'🎞 媒體', delete:'✕ 刪除', import:'⇧ 匯入', reset:'↺ 重置', undo:'↶ 復原' };
+  status:'◐ 研究進度', counter:'⚔ 反證', collapse:'◌ 收合', expand:'◉ 展開', media:'🎞 媒體', delete:'✕ 刪除', import:'⇧ 匯入', reset:'↺ 重置', undo:'↶ 復原', 'seed-update':'🌱 內容更新' };
 const STATUS = { open:'待研究', researching:'研究中', resolved:'已有結論' };
 const colorOf = t => (TYPES[t] || TYPES['其他']).color;
 const DIR_COLOR = '#ff7ae0';
@@ -131,8 +131,47 @@ function valid(s){ return s && Array.isArray(s.brains) && Array.isArray(s.nodes)
 function load(){ try { const s = JSON.parse(localStorage.getItem(KEY)); return valid(s) ? s : null; } catch(e){ return null; } }
 /* concept layer migration: adds concepts[] / processPattern to old saves without touching user edits */
 function seedKey(id){ const m = /^n_(q\d+)(?:_e(\d+))?$/.exec(id); return m ? (m[2] !== undefined ? m[1] + ':e' + m[2] : m[1]) : null; }
+/* [proto] item 2 — returning visitors get seed updates. Saved state = seed + the user's own edits, merged by id on every load:
+   seed-owned text (title/type/oneLiner/source) always follows the current data.js (the UI cannot edit these on seed nodes);
+   seed questions/extensions that are new since the save are grown in; everything the user owns (status, concepts, counter-
+   evidence, media they set, pattern, collapse, positions, sub-brains, own nodes) is never touched. Reasoning/assumptions keep
+   the existing applySeedPatch rule (replace only while unchanged). Idempotent, so it is safe to call again after async content
+   loads and produces a normal diff for sync.js. Runs after `await window.AI_DATA_READY` (content/*.json + patches/*.json), so
+   whatever the content files say now is what returning visitors see; feed.js loadState() applies the same rule. */
+function refreshSeed(st){
+  const byId = new Map(st.nodes.map(n => [n.id, n])), now = Date.now(); let added = 0, upd = 0;
+  // values go through the same sanitizeEntity() sync uses (e.g. source.also:[]), else sync's cleaned copy and ours ping-pong as a fake edit
+  // compare sanitized to sanitized: a seed patch may later restore the raw form (no also:[]), which must not count as an update on every migrate
+  const san = (o, k, v) => (sanitizeEntity('node', o.id, Object.assign({}, o, { [k]:v })) || {})[k];
+  const put = (o, k, v) => { if (v === undefined) return 0; v = san(o, k, v); if (v !== undefined && JSON.stringify(san(o, k, o[k])) !== JSON.stringify(v)){ o[k] = JSON.parse(JSON.stringify(v)); return 1; } return 0; };
+  QUESTIONS.forEach(q => {
+    const nid = 'n_' + q.id; let n = byId.get(nid);
+    if (!n){
+      n = mkNode({ id:nid, kind:'question', title:q.title, type:q.type, oneLiner:q.oneLiner, source:q.source, seedId:q.id, createdBy:'seed', createdAt:now,
+        assumptions:(q.process.find(p => p.k === '前提') || {}).v || '', reasoning:q.process.map(p => ({ k:p.k, v:p.v })), media:{ video:q.videoUrl || '', image:q.imageUrl || '' },
+        pos:jitter(REGION[q.type] || REGION['其他'], 0.1), concepts:(CONCEPTS.tags[q.id] || []).slice(), processPattern:CONCEPTS.process[q.id] || '' });
+      st.nodes.push(n); byId.set(nid, n); added++;
+    } else if (n.createdBy === 'seed'){
+      upd += put(n, 'title', q.title) + put(n, 'type', q.type) + put(n, 'oneLiner', q.oneLiner || '') + put(n, 'source', q.source || null);
+    }
+    (q.extensions || []).forEach((e, i) => {
+      const cid = nid + '_e' + i, c = byId.get(cid);
+      if (!c){
+        const k = mkNode({ id:cid, brainId:n.brainId, parentId:nid, kind:'extension', title:e.q, type:e.type, createdBy:'seed', createdAt:now, pos:jitter(n.pos, 0.14),
+          concepts:(CONCEPTS.tags[q.id + ':e' + i] || []).slice() });
+        st.nodes.push(k); byId.set(cid, k); added++;
+        if (!st.links.some(l => l.id === 'l_' + cid)) st.links.push({ id:'l_' + cid, from:nid, to:cid, kind:'derived', createdAt:now });
+      } else if (c.createdBy === 'seed') upd += put(c, 'title', e.q) + put(c, 'type', e.type);
+    });
+  });
+  // bot nodes from content/seed-extras.json + patches/*.json (seedExtras): their text also follows the source file
+  (typeof SEED_EXTRAS !== 'undefined' ? SEED_EXTRAS : []).forEach(x => { const n = byId.get(x.id); if (n && n.createdBy !== 'merlin') upd += put(n, 'title', x.title) + put(n, 'type', x.type) + put(n, 'oneLiner', x.oneLiner) + put(n, 'source', x.source); });
+  // no history row here: migrate() also runs inside sync merge(), whose history additions are uploaded — a row per pull would ping-pong between devices
+  return st;
+}
 function migrate(st){
   if (!st.concepts) st.concepts = {};
+  refreshSeed(st);
   if (!st.patterns) st.patterns = {};
   Object.entries(CONCEPTS.defs).forEach(([k, v]) => { if (!st.concepts[k]) st.concepts[k] = { color:v.color, desc:v.desc, createdBy:'seed' }; });
   Object.entries(CONCEPTS.patterns).forEach(([k, v]) => { if (!st.patterns[k]) st.patterns[k] = { color:v.color, desc:v.desc, createdBy:'seed' }; });
@@ -365,8 +404,8 @@ function undo(){
   emit('change', { action:'undo' });
 }
 /* 雲端同步開著時，重置只影響這台裝置（捨棄本機修改、改用雲端版本），不會寫墓碑去清空共享大腦 */
-function resetAll(){ if (window.AISync && window.AISync.enabled && window.AISync.resetLocal){ undoStack.push(JSON.stringify(state)); return window.AISync.resetLocal(resetSeed); } resetSeed(); }
-function resetSeed(){ undoStack.push(JSON.stringify(state)); state = migrate(seedState()); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); emit('change', { action:'reset' }); }
+function resetAll(){ if (window.AISync && window.AISync.enabled && window.AISync.resetLocal){ pushUndo(); return window.AISync.resetLocal(resetSeed); } resetSeed(); }
+function resetSeed(){ pushUndo(); state = migrate(seedState()); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); emit('change', { action:'reset' }); }
 function exportJSON(){
   const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ai-brain-' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.json';
@@ -922,12 +961,12 @@ function slot(kind, url){
   if (!safeUrl(url)) url = '';
   const ic = kind === 'video' ? '🎬' : '🖼️', nm = kind === 'video' ? '影片' : '圖片';
   const body = !url ? `<b>${ic}</b>${nm}・即將加入` : kind === 'image' ? `<img src="${esc(url)}" alt="">` : `<b>▶</b>觀看${nm}`;
-  return `<div class="slot ${url ? 'has' : ''}">${url && kind === 'video' ? `<a href="${esc(url)}" target="_blank" rel="noopener">${body}</a>` : url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${body}</a>` : body}<button class="mini" data-media="${kind}" title="設定網址">✎</button></div>`;
+  return `<div class="slot ${url ? 'has' : ''}">${url && kind === 'video' ? `<a href="${esc(url)}" target="_blank" rel="noopener">${body}</a>` : url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${body}</a>` : body}<button class="mini" data-media="${kind}" title="設定網址" aria-label="設定網址">✎</button></div>`;
 }
 function videoBox(n){
   const u = n.media.video || '';
   return `<div class="vbox">${playable(u) ? `<video src="${esc(u)}" muted loop playsinline preload="metadata" controls></video>` : u && safeUrl(u) ? `<a class="vext" href="${esc(u)}" target="_blank" rel="noopener">▶ 外部影片 ↗</a>` : ''}
-    <form id="mvF"><input id="mvI" value="${esc(u)}" placeholder="🎬 mp4 網址 或 media/videos/xxx.mp4" maxlength="500" inputmode="url"><button title="儲存影片">✓</button></form>
+    <form id="mvF"><input id="mvI" value="${esc(u)}" placeholder="🎬 mp4 網址 或 media/videos/xxx.mp4" maxlength="500" inputmode="url"><button title="儲存影片" aria-label="儲存影片">✓</button></form>
     <a class="tofeed" href="feed.html#node=${encodeURIComponent(n.id)}">📱 用短影音模式看</a></div>`;
 }
 /* 【推測】 markers stay visible as a small badge */
@@ -963,61 +1002,146 @@ function select(id, quiet){
     : esc([s.who, s.outlet, s.date].filter(Boolean).join(' · ') || (n.createdBy === 'seed' ? '' : 'Merlin 自行提出'));
   const also = (Array.isArray(s.also) ? s.also : []).filter(a => a && typeof a === 'object').map(a => a.url && safeUrl(a.url) ? `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.label || a.url)}</a>` : esc(a.label || '')).filter(Boolean).join('、');
   const by = n.createdBy === 'bot' ? '🤖 bot' : n.createdBy === 'seed' ? '📚 公開來源' : '⭐ Merlin';
+  // [proto] visual-first panel: media hero on top, short header, big actions, long text folded into <details>
+  const v = n.media.video || '', img = n.media.image && safeUrl(n.media.image) ? n.media.image : '';
+  const feedHref = 'feed.html#node=' + encodeURIComponent(n.id);
+  const hero = playable(v)
+    ? `<div class="hero"><video id="pVid" src="${esc(v)}" ${img ? `poster="${esc(img)}"` : ''} muted loop playsinline preload="${img ? 'none' : 'metadata'}"></video>
+        <button class="heroPlay" data-a="play" aria-label="播放／暫停">▶</button>
+        <a class="heroFeed" href="${feedHref}" data-nav>🎬 全螢幕看</a><button class="heroEdit" data-a="media" aria-label="換影片">✎</button></div>`
+    : img ? `<div class="hero"><img src="${esc(img)}" alt=""><button class="heroEdit" data-a="media" aria-label="設定影片">✎</button></div>`
+    : `<button class="hero none" data-a="media"><b>🎬</b><span>還沒有影片</span><small>點這裡掛上影片</small></button>`;
+  const ext = v && !playable(v) && safeUrl(v) ? `<a class="vext" href="${esc(v)}" target="_blank" rel="noopener">▶ 外部影片 ↗</a>` : '';
+  const sec = (key, title, count, body) => `<details class="sec" data-sec="${key}" ${openSecs.has(key) ? 'open' : ''}><summary>${title}${count !== '' ? ` <i>${count}</i>` : ''}</summary><div class="secb">${body}</div></details>`;
+  const relBody = `<div class="prov">
+      <div><span>🧬 來自</span>${par ? nodeLink(par) + (par.brainId !== n.brainId ? ` <em>（${esc(B(par.brainId)?.id === 'main' ? '主腦' : B(par.brainId)?.name || '')}）</em>` : '') : `<em>${esc(brain.id === 'main' ? '主腦' : brain.name)}・根問題</em>`}</div>
+      ${subQ.length ? `<div><span>🌿 子問題</span>${subQ.map(nodeLink).join('')}</div>` : ''}
+      ${dirs.length ? `<div><span>🚀 新方向</span>${dirs.map(nodeLink).join('')}</div>` : ''}
+      ${xl.length ? `<div><span>🔗 跨腦</span>${xl.map(nodeLink).join('')}</div>` : ''}</div>`;
+  const conBody = `<div class="cchips">${n.concepts.map(c => `<span class="cc ${conceptUI.focus === 'c:' + c ? 'on' : ''}" style="--c:${safeColor(state.concepts[c]?.color, '#fff')}"><button data-cf="${esc(c)}">${esc(c)}</button><button data-cr="${esc(c)}" aria-label="移除 ${esc(c)}">×</button></span>`).join('')}
+      <form id="ccF"><input id="ccI" list="clist" placeholder="＋ 概念" maxlength="16"><datalist id="clist">${Object.keys(state.concepts).filter(c => !n.concepts.includes(c)).map(c => `<option value="${esc(c)}">`).join('')}</datalist></form></div>
+    <div class="pat"><span>⟳ 推演流程</span><select id="patS"><option value="">（無）</option>${Object.keys(state.patterns).map(p => `<option ${n.processPattern === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}<option value="__new">＋ 新流程…</option></select>${n.processPattern ? `<button data-pf="${esc(n.processPattern)}" class="pf ${conceptUI.focus === 'p:' + n.processPattern ? 'on' : ''}">亮線</button>` : ''}</div>`;
+  const reasonBody = n.flow ? flowHTML(n.flow) : `${n.assumptions ? `<div class="lbl">◇ 前提假設</div><p class="txt">${spec(n.assumptions)}</p>` : ''}${n.reasoning.length ? `<div class="steps">${n.reasoning.map(r => `<div class="st"><b>${esc(r.k)}</b><span>${spec(r.v)}</span></div>`).join('')}</div>` : '<div class="empty">還沒有推演</div>'}`;
+  const ceBody = `<div class="ce">${n.counterEvidence.map(c => ceHTML(c)).join('') || '<div class="empty">尚無反證</div>'}
+      <form id="ceF"><input id="ceI" placeholder="新增反證…" maxlength="200"><button aria-label="新增反證">＋</button></form></div>`;
   pBody.innerHTML = `
-    <div class="row1">${tag(n.type)}<span class="tag by ${esc(n.createdBy)}">${by}</span><span class="tag kind ${esc(n.kind)}">${KIND[n.kind] || esc(n.kind)}</span></div>
+    <div class="grip" id="pGrip" aria-hidden="true"></div>
+    ${hero}${ext}
+    <div class="row1">${tag(n.type)}<span class="tag kind ${esc(n.kind)}">${KIND[n.kind] || esc(n.kind)}</span><span class="tag by ${esc(n.createdBy)}">${by}</span></div>
     <h2>${esc(n.title)}</h2>
     ${n.oneLiner ? `<p class="one">${esc(n.oneLiner)}</p>` : ''}
     <div class="acts">
-      <button data-a="split" title="分裂成子問題或新方向">❖ 分裂</button>
-      ${ch.some(k => k.brainId === n.brainId) ? `<button data-a="${n.collapsed ? 'expand' : 'collapse'}">${n.collapsed ? '◉ 展開' : '◌ 收合'}</button>` : ''}
-      ${isRoot ? `<button data-a="merge">↩ 併回${B(brain.parentBrainId)?.id === 'main' ? '主腦' : '上層'}</button>` : `<button data-a="sub" title="獨立成子腦">🧠 子腦</button>`}
-      <button data-a="link" title="跨腦連結">🔗 連結</button>
-      ${n.brainId !== 'main' ? `<button data-a="home">⌂ 主腦</button>` : ''}
-      ${n.createdBy !== 'seed' && !isRoot ? `<button data-a="del" class="danger">✕</button>` : ''}
+      <button data-a="split" title="分裂成子問題或新方向" aria-label="分裂成子問題或新方向"><b>❖</b>分裂</button>
+      ${ch.some(k => k.brainId === n.brainId) ? `<button data-a="${n.collapsed ? 'expand' : 'collapse'}"><b>${n.collapsed ? '◉' : '◌'}</b>${n.collapsed ? '展開' : '收合'}</button>` : ''}
+      ${isRoot ? `<button data-a="merge"><b>↩</b>併回</button>` : `<button data-a="sub" title="獨立成子腦" aria-label="獨立成子腦"><b>🧠</b>子腦</button>`}
+      <button data-a="link" title="跨腦連結" aria-label="跨腦連結"><b>🔗</b>連結</button>
+      <a href="${feedHref}" data-nav class="actFeed"><b>🎬</b>短影音</a>
+      ${n.brainId !== 'main' ? `<button data-a="home"><b>⌂</b>主腦</button>` : ''}
+      ${n.createdBy !== 'seed' && !isRoot ? `<button data-a="del" class="danger"><b>✕</b>刪除</button>` : ''}
     </div>
-    <div class="status">${Object.entries(STATUS).map(([k, v]) => `<button data-st="${k}" class="${n.status === k ? 'on' : ''}">${v}</button>`).join('')}</div>
-    ${srcHTML ? `<div class="src">📎 ${srcHTML}${also ? '<br>其他：' + also : ''}</div>` : ''}
-    <div class="prov">
-      <div><span>🧬 來自</span>${par ? nodeLink(par) + (par.brainId !== n.brainId ? ` <em>（${esc(B(par.brainId)?.id === 'main' ? '主腦' : B(par.brainId)?.name || '')}）</em>` : '') : `<em>${esc(brain.id === 'main' ? '主腦' : brain.name)}・根問題</em>`}</div>
-      ${subQ.length ? `<div><span>🌿 子問題 ${subQ.length}</span>${subQ.map(nodeLink).join('')}</div>` : ''}
-      ${dirs.length ? `<div><span>🚀 新方向 ${dirs.length}</span>${dirs.map(nodeLink).join('')}</div>` : ''}
-      ${xl.length ? `<div><span>🔗 跨腦</span>${xl.map(nodeLink).join('')}</div>` : ''}
-    </div>
-    <div class="lbl">🧵 概念</div>
-    <div class="cchips">${n.concepts.map(c => `<span class="cc ${conceptUI.focus === 'c:' + c ? 'on' : ''}" style="--c:${safeColor(state.concepts[c]?.color, '#fff')}"><button data-cf="${esc(c)}">${esc(c)}</button><button data-cr="${esc(c)}" title="移除">×</button></span>`).join('')}
-      <form id="ccF"><input id="ccI" list="clist" placeholder="＋ 概念" maxlength="16"><datalist id="clist">${Object.keys(state.concepts).filter(c => !n.concepts.includes(c)).map(c => `<option value="${esc(c)}">`).join('')}</datalist></form></div>
-    <div class="pat"><span>⟳ 推演流程</span><select id="patS"><option value="">（無）</option>${Object.keys(state.patterns).map(p => `<option ${n.processPattern === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}<option value="__new">＋ 新流程…</option></select>${n.processPattern ? `<button data-pf="${esc(n.processPattern)}" class="pf ${conceptUI.focus === 'p:' + n.processPattern ? 'on' : ''}">亮線</button>` : ''}</div>
-    ${n.flow ? flowHTML(n.flow) : `${n.assumptions ? `<div class="lbl">◇ 前提假設</div><p class="txt">${spec(n.assumptions)}</p>` : ''}
-    ${n.reasoning.length ? `<div class="lbl">🧭 推演</div><div class="steps">${n.reasoning.map(r => `<div class="st"><b>${esc(r.k)}</b><span>${spec(r.v)}</span></div>`).join('')}</div>` : ''}`}
-    <div class="lbl">⚔ 反證 <i>${n.counterEvidence.length}</i></div>
-    <div class="ce">${n.counterEvidence.map(c => ceHTML(c)).join('') || '<div class="empty">尚無反證</div>'}
-      <form id="ceF"><input id="ceI" placeholder="新增反證…" maxlength="200"><button>＋</button></form></div>
-    <div class="lbl">🎞 媒體</div>${videoBox(n)}<div class="media">${slot('image', n.media.image)}</div>
-    ${hist.length ? `<div class="lbl">🕘 紀錄</div><div class="mh">${hist.map(h => `<div>${fmt(h.ts)} ${ACT[h.action] || esc(h.action)}</div>`).join('')}</div>` : ''}`;
+    <div class="status" role="radiogroup" aria-label="研究進度">${Object.entries(STATUS).map(([k, v]) => `<button data-st="${k}" role="radio" aria-checked="${n.status === k}" class="${n.status === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+    ${sec('rel', '🧬 關係', subQ.length + dirs.length + xl.length || '', relBody)}
+    ${sec('con', '🧵 概念', n.concepts.length, conBody)}
+    ${srcHTML ? sec('src', '📎 來源', '', `<div class="src">${srcHTML}${also ? '<br>其他：' + also : ''}</div>`) : ''}
+    ${sec('why', '🧭 推演', n.flow ? '' : n.reasoning.length || '', reasonBody)}
+    ${sec('ce', '⚔ 反證', n.counterEvidence.length, ceBody)}
+    ${hist.length ? sec('hist', '🕘 紀錄', hist.length, `<div class="mh">${hist.map(h => `<div>${fmt(h.ts)} ${ACT[h.action] || esc(h.action)}</div>`).join('')}</div>`) : ''}`;
+  pBody.querySelectorAll('details.sec').forEach(d => d.addEventListener('toggle', () => { d.open ? openSecs.add(d.dataset.sec) : openSecs.delete(d.dataset.sec); }));
   pBody.querySelectorAll('.nl').forEach(a => a.onclick = ev => { ev.preventDefault(); select(a.dataset.n); });
   pBody.querySelectorAll('[data-cf]').forEach(b => b.onclick = () => { focusConcept('c:' + b.dataset.cf); select(id); });
   pBody.querySelectorAll('[data-pf]').forEach(b => b.onclick = () => { focusConcept('p:' + b.dataset.pf); select(id); });
   pBody.querySelectorAll('[data-cr]').forEach(b => b.onclick = () => { removeConcept(id, b.dataset.cr); select(id); });
   $('#ccF').onsubmit = ev => { ev.preventDefault(); const v = $('#ccI').value.trim(); if (v && addConcept(id, v)){ toast('🧵 已連上「' + v + '」概念線'); } select(id); };
-  $('#patS').onchange = ev => { let v = ev.target.value; if (v === '__new'){ v = (prompt('新的推演流程名稱（例：類比推論→反例檢驗）') || '').trim(); if (!v){ select(id); return; } } setProcessPattern(id, v); select(id); };
+  $('#patS').onchange = async ev => { let v = ev.target.value; if (v === '__new'){ v = await askText({ title:'⟳ 新的推演流程', label:'流程名稱', placeholder:'例：類比推論→反例檢驗', max:30 }); if (!v){ select(id); return; } } setProcessPattern(id, v); select(id); };
   pBody.querySelectorAll('[data-st]').forEach(b => b.onclick = () => { setStatus(id, b.dataset.st); select(id); });
-  pBody.querySelectorAll('[data-media]').forEach(b => b.onclick = () => { const u = prompt(b.dataset.media === 'video' ? '影片網址' : '圖片網址', n.media[b.dataset.media] || ''); if (u !== null){ if (!setMedia(id, b.dataset.media, u.trim())) toast('只接受 http(s) 網址或 repo 內相對路徑'); select(id); } });
-  $('#mvF').onsubmit = ev => { ev.preventDefault(); const v = $('#mvI').value.trim(); if (v === (n.media.video || '')) return; if (setMedia(id, 'video', v)){ toast(v ? '🎬 影片已掛上，短影音會同步顯示' : '🎬 已移除影片'); select(id); } else toast('只接受 http(s) 網址或 repo 內相對路徑'); };
   $('#ceF').onsubmit = ev => { ev.preventDefault(); const v = $('#ceI').value.trim(); if (v){ addCounterEvidence(id, v); select(id); } };
-  pBody.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+  pBody.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
     const a = b.dataset.a;
     if (a === 'split') openSplit(id);
+    else if (a === 'media') openMediaSheet(id, 'video');
+    else if (a === 'play'){ const vd = $('#pVid'); if (!vd) return; if (vd.paused){ vd.muted = false; vd.play().catch(() => { vd.muted = true; vd.play().catch(() => {}); }); b.textContent = '❚❚'; b.classList.add('playing'); } else { vd.pause(); b.textContent = '▶'; b.classList.remove('playing'); } }
     else if (a === 'collapse' || a === 'expand'){ setCollapsed(id, a === 'collapse'); select(id); }
     else if (a === 'sub'){ makeSubBrain(id); select(id); toast('🧠 分裂出子腦'); }
     else if (a === 'merge'){ mergeBrain(isRoot.id); select(id); }
     else if (a === 'link'){ startLink(id); }
     else if (a === 'home'){ focusBrain('main'); }
-    else if (a === 'del'){ if (confirm('刪除這個節點與其分支？')) deleteNode(id); }
+    else if (a === 'del'){ if (await askConfirm({ title:'刪除這個節點？', text:'「' + n.title + '」與它的分支會一起刪除（可以用 ↶ 復原）。', ok:'刪除', danger:true })) deleteNode(id); }
   });
-  panel.classList.add('open'); panel.scrollTop = 0;
+  $('#pGrip').onclick = () => panel.classList.toggle('full');
+  const fresh = panelFor !== id; panelFor = id;
+  panel.classList.add('open'); if (fresh){ panel.scrollTop = 0; panel.classList.remove('full'); }
+  applyFocus();
   if (!quiet) emit('select', { id });   // 給 knowledge-score.js 等被動觀察者
 }
-function closePanel(){ const was = selected; panel.classList.remove('open'); selected = null; $('#bFeed').href = 'feed.html'; if (was) emit('close', { id:was }); }
+function closePanel(){ const was = selected; panel.classList.remove('open', 'full'); selected = null; panelFor = null; if (was) emit('close', { id:was }); $('#bFeed').href = 'feed.html'; const vd = $('#pVid'); if (vd) vd.pause(); applyFocus(); }
+const openSecs = new Set(['rel', 'con']); let panelFor = null;
+
+/* ================= [proto] in-page sheets (replace prompt()/confirm()) ================= */
+function knownMedia(kind){
+  const out = new Set();
+  Object.values(typeof SEED_MEDIA !== 'undefined' ? SEED_MEDIA : {}).forEach(m => { if (m[kind]) out.add(m[kind]); });
+  (typeof SEED_EXTRAS !== 'undefined' ? SEED_EXTRAS : []).forEach(x => { if (x.media && x.media[kind]) out.add(x.media[kind]); });
+  state.nodes.forEach(n => { const u = n.media && n.media[kind]; if (u && !/^https?:/i.test(u)) out.add(u); });
+  return [...out];
+}
+let mediaCtx = null;
+function openMediaSheet(id, kind = 'video'){
+  const n = N(id); if (!n) return; mediaCtx = { id, kind };
+  $('#mTitle').textContent = n.title;
+  renderMediaSheet(n.media[kind] || '');
+  openDlg('#mediaDlg');
+}
+function renderMediaSheet(val){
+  const { id, kind } = mediaCtx, n = N(id);
+  $('#mediaDlg').querySelectorAll('[data-mk]').forEach(b => { b.classList.toggle('on', b.dataset.mk === kind); b.setAttribute('aria-selected', b.dataset.mk === kind); });
+  const inp = $('#mUrl'); inp.value = val; inp.placeholder = kind === 'video' ? 'https://…/影片.mp4 或 media/videos/xxx.mp4' : 'https://…/封面.jpg 或 media/videos/xxx.jpg';
+  const mine = `media/videos/${n.id}.${kind === 'video' ? 'mp4' : 'jpg'}`;
+  const opts = [...new Set([mine, ...knownMedia(kind)])];
+  $('#mPicks').innerHTML = opts.map(u => `<button type="button" class="pick ${u === val ? 'on' : ''}" data-u="${esc(u)}">${u === mine ? '⭐ ' : ''}${esc(u.split('/').pop())}</button>`).join('');
+  $('#mPicks').querySelectorAll('[data-u]').forEach(b => b.onclick = () => { inp.value = b.dataset.u; mediaPreview(); });
+  $('#mDel').classList.toggle('hide', !(n.media[kind]));
+  mediaPreview();
+}
+function mediaPreview(){
+  const { kind } = mediaCtx, u = $('#mUrl').value.trim(), box = $('#mPrev'), msg = $('#mMsg');
+  $('#mPicks').querySelectorAll('[data-u]').forEach(b => b.classList.toggle('on', b.dataset.u === u));
+  msg.className = 'mmsg'; box.innerHTML = '';
+  if (!u){ msg.textContent = kind === 'video' ? '貼上影片網址，或從下面選一個 repo 裡的檔案' : '貼上圖片網址，或從下面選一個'; box.innerHTML = `<div class="mempty">${kind === 'video' ? '🎬' : '🖼️'}</div>`; return true; }
+  if (!safeUrl(u)){ msg.textContent = '⚠ 只接受 https:// 網址或 repo 內的相對路徑（例：media/videos/n_q1.mp4）'; msg.classList.add('bad'); box.innerHTML = '<div class="mempty">⛔</div>'; return false; }
+  if (kind === 'video' && playable(u)){
+    box.innerHTML = `<video src="${esc(u)}" muted autoplay loop playsinline></video>`; msg.textContent = '✓ 可以播放的影片，短影音會直接顯示'; msg.classList.add('ok');
+    box.querySelector('video').onerror = () => { msg.textContent = '⚠ 目前讀不到這個檔案（還沒上傳？）。仍可儲存，上傳後就會出現'; msg.className = 'mmsg warn'; };
+  } else if (kind === 'video'){ msg.textContent = 'ℹ 這是外部頁面（例如 YouTube），短影音會顯示「觀看原始影片」按鈕'; box.innerHTML = '<div class="mempty">↗</div>'; }
+  else { box.innerHTML = `<img src="${esc(u)}" alt="">`; msg.textContent = '✓ 封面圖預覽'; msg.classList.add('ok'); box.querySelector('img').onerror = () => { msg.textContent = '⚠ 讀不到這張圖'; msg.className = 'mmsg warn'; }; }
+  return true;
+}
+$('#mUrl').addEventListener('input', () => { clearTimeout(mediaPreview.t); mediaPreview.t = setTimeout(mediaPreview, 250); });
+$('#mediaDlg').querySelectorAll('[data-mk]').forEach(b => b.onclick = () => { mediaCtx.kind = b.dataset.mk; renderMediaSheet(N(mediaCtx.id).media[mediaCtx.kind] || ''); });
+$('#mPaste').onclick = async () => { try { const t = await navigator.clipboard.readText(); if (t){ $('#mUrl').value = t.trim(); mediaPreview(); } } catch(e){ toast('沒辦法讀剪貼簿，請長按輸入框貼上'); $('#mUrl').focus(); } };
+$('#mClear').onclick = () => { $('#mUrl').value = ''; mediaPreview(); $('#mUrl').focus(); };
+$('#mDel').onclick = () => { const { id, kind } = mediaCtx; setMedia(id, kind, ''); $('#mediaDlg').close(); toast(kind === 'video' ? '🎬 已移除影片' : '🖼️ 已移除封面'); select(id); };
+$('#mediaForm').onsubmit = ev => {
+  ev.preventDefault(); const { id, kind } = mediaCtx, u = $('#mUrl').value.trim();
+  if (!mediaPreview()){ $('#mUrl').focus(); return; }
+  if (u === (N(id).media[kind] || '')){ $('#mediaDlg').close(); return; }
+  if (setMedia(id, kind, u)){ $('#mediaDlg').close(); toast(kind === 'video' ? (u ? '🎬 影片已掛上，短影音會同步顯示' : '🎬 已移除影片') : '🖼️ 封面已更新'); select(id); }
+};
+$('#mediaDlg').addEventListener('close', () => { const vd = $('#mPrev video'); if (vd) vd.pause(); });
+function askText({ title, label = '', placeholder = '', value = '', max = 80 }){
+  return new Promise(res => {
+    const d = $('#askDlg'); $('#askT').textContent = title; $('#askL').textContent = label; $('#askText').classList.remove('hide'); $('#askP').classList.add('hide');
+    const i = $('#askI'); i.value = value; i.placeholder = placeholder; i.maxLength = max; $('#askOk').textContent = '確定'; $('#askOk').classList.remove('danger');
+    d.onclose = () => res(d.returnValue === 'ok' ? i.value.trim() : ''); d.returnValue = ''; openDlg('#askDlg'); if (!COARSE) i.focus();
+  });
+}
+function askConfirm({ title, text = '', ok = '確定', danger = false }){
+  return new Promise(res => {
+    const d = $('#askDlg'); $('#askT').textContent = title; $('#askP').textContent = text; $('#askP').classList.remove('hide'); $('#askText').classList.add('hide');
+    $('#askI').value = 'x'; $('#askOk').textContent = ok; $('#askOk').classList.toggle('danger', danger);
+    d.onclose = () => res(d.returnValue === 'ok'); d.returnValue = ''; openDlg('#askDlg');
+    (danger ? $('#askNo') : $('#askOk')).focus();   // [proto] destructive confirms default to 取消 (Enter/Space won't delete)
+  });
+}
 $('#pX').onclick = closePanel;
 const fmt = ts => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
@@ -1080,11 +1204,42 @@ $('#bUndo').onclick = undo;
 $('#bExport').onclick = exportJSON;
 $('#bImport').onclick = () => $('#file').click();
 $('#file').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { importJSON(JSON.parse(r.result)); } catch(err){ toast('⚠ 無法讀取 JSON'); } }; r.readAsText(f); e.target.value = ''; };
-$('#bReset').onclick = () => { if (confirm(window.AISync && window.AISync.enabled ? '重置這台裝置？\n會捨棄還沒上傳的本機修改，改成雲端上的共享大腦。\n不會影響其他裝置或共享大腦。' : '重置成初始 6 題？（可用復原找回）')) resetAll(); };
+$('#bReset').onclick = async () => { const cloud = window.AISync && window.AISync.enabled;   // [proto] in-page dialog; wording from the sync branch
+  if (await askConfirm(cloud ? { title:'重置這台裝置？', text:'會捨棄還沒上傳的本機修改，改成雲端上的共享大腦。不會影響其他裝置或共享大腦。', ok:'重置這台裝置', danger:true }
+    : { title:'重置成初始 6 題？', text:'目前的大腦會被換掉，可以用 ↶ 復原找回。', ok:'重置', danger:true })) resetAll(); };
 $('#bHome').onclick = () => focusBrain('main');
+addEventListener('keydown', e => { if (e.key === 'Escape' && !document.querySelector('dialog[open]')){ if (linkMode){ $('#bLink').click(); } else closePanel(); } });   // [proto]
 $('#bFit').onclick = overview;
 $('#bRot').onclick = function(){ controls.autoRotate = !controls.autoRotate; this.classList.toggle('on', controls.autoRotate); autoRotPref = controls.autoRotate; };
 let autoRotPref = !REDUCED;
+/* [proto] declutter toggle, phone overflow menu, onboarding, page transitions */
+function renderDecl(){ $('#bDecl').classList.toggle('on', ui.declutter); $('#bDecl').setAttribute('aria-pressed', ui.declutter); }
+$('#bDecl').onclick = () => { ui.declutter = !ui.declutter; saveUI(); renderDecl(); applyFocus(); toast(ui.declutter ? '◐ 精簡模式：只亮相關的節點與線' : '◑ 顯示全部細節'); };
+renderDecl();
+$('#bGlow').onclick = () => setGlow(!ui.glow);
+$('#roPill').onclick = e => { e.stopPropagation(); const s = $('#bSync'); if (s) s.click(); };   // read-only pill -> sync/login menu
+function roPillText(){   // AISync.reason(): 'anon' 未登入 | 'not-editor' 已登入但不在名單 | 'checking' 查名單中（中性）; updated on the aisync:change event, no polling
+  const b = $('#roPill'); if (!b) return;
+  const r = window.AISync && AISync.reason ? AISync.reason() : 'anon';
+  const [ic, t, l] = r === 'not-editor' ? ['🔒', '唯讀・你不在編輯名單', '唯讀：你已登入，但不在編輯名單']
+    : r === 'checking' ? ['⏳', '確認編輯權限…', '正在確認編輯權限'] : ['🔒', '唯讀・登入後可編輯', '唯讀：登入後可編輯'];
+  b.dataset.r = r; b.querySelector('i').textContent = ic; b.querySelector('span').textContent = t; b.setAttribute('aria-label', l); b.title = l;
+}
+addEventListener('aisync:change', roPillText); roPillText();
+const more = $('#moreMenu');
+$('#bMore').onclick = e => { e.stopPropagation(); more.querySelectorAll('[data-proxy]').forEach(b => { b.hidden = !$('#' + b.dataset.proxy); }); more.classList.toggle('on'); $('#bMore').setAttribute('aria-expanded', more.classList.contains('on')); };
+more.querySelectorAll('[data-proxy]').forEach(b => b.onclick = e => { e.stopPropagation(); more.classList.remove('on'); $('#' + b.dataset.proxy)?.click(); });
+addEventListener('pointerdown', e => { if (!e.target.closest('#moreMenu,#bMore')) more.classList.remove('on'); });
+if (!localStorage.getItem('aiBrain.onboarded')){ $('#coach').classList.remove('hide'); }
+const coachDone = () => { if ($('#coach').classList.contains('hide')) return; $('#coach').classList.add('hide'); try { localStorage.setItem('aiBrain.onboarded', '1'); } catch(e){} };
+$('#coachGo').onclick = coachDone;
+addEventListener('pointerdown', e => { if (!e.target.closest('#coach')) coachDone(); }, true);   // any other tap (toolbar, 📅, canvas) = "got it"; never blocks other panels
+// cross-document View Transitions where supported (Chrome/Edge 126+, Safari 18.2+); otherwise a quick fade-out
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[data-nav]'); if (!a || e.metaKey || e.ctrlKey || e.shiftKey || 'onpagereveal' in window) return;
+  e.preventDefault(); document.body.classList.add('leaving'); setTimeout(() => { location.href = a.href; }, 180);
+});
+addEventListener('pageshow', () => document.body.classList.remove('leaving'));
 
 function renderConcepts(){
   const el = $('#cList'); if (!el) return;
@@ -1110,6 +1265,7 @@ $('#cOn').onclick = () => showConcepts();
 function renderCrumbs(){
   const chain = []; let b = B(focusId); while (b){ chain.unshift(b); b = B(b.parentBrainId); }
   $('#crumbs').innerHTML = chain.map((x, i) => `<button data-b="${esc(x.id)}" style="--c:${safeColor(x.regionColor)}">${x.id === 'main' ? '🧠 主腦' : esc(x.name.length > 8 ? x.name.slice(0, 8) + '…' : x.name)}</button>`).join('<i>›</i>');
+  $('#crumbs').classList.toggle('single', chain.length < 2);
   $('#crumbs').querySelectorAll('[data-b]').forEach(el => el.onclick = () => focusBrain(el.dataset.b));
 }
 function updateCounts(){
