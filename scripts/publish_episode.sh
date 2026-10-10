@@ -63,7 +63,7 @@ p = 'data.js'; t = open(p, encoding='utf-8').read()
 m = re.search(r'/\* SEED_MEDIA:BEGIN \*/\nconst SEED_MEDIA = (\{.*?\});\n/\* SEED_MEDIA:END \*/', t, re.S)
 if not m: sys.exit('data.js 裡找不到 SEED_MEDIA 區塊')
 cur = json.loads(m.group(1))
-cur[node] = {k: v for k, v in (('video', video), ('image', image)) if v}
+cur[node] = dict(cur.get(node, {}), **{k: v for k, v in (('video', video), ('image', image)) if v})  # 保留 subtitles 等其他欄位
 body = json.dumps(dict(sorted(cur.items())), ensure_ascii=False, indent=2)
 t = t[:m.start(1)] + body + t[m.end(1):]
 open(p, 'w', encoding='utf-8').write(t)

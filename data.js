@@ -2182,7 +2182,9 @@ const SERIES = {
 const SEED_MEDIA = {
   "n_q1": {
     "video": "media/videos/n_q1.mp4",
-    "image": "media/videos/n_q1.jpg"
+    "image": "media/videos/n_q1.jpg",
+    "subtitles": "media/videos/n_q1.zh-TW.srt",
+    "subtitlesBurnedIn": true
   },
   "n_q2": {
     "video": "media/videos/n_q2.mp4",
@@ -2213,5 +2215,6 @@ function applySeedMedia(n){
   let changed = false;
   if (m.video && (!n.media.video || n.media.video === (q.videoUrl || ''))){ if (n.media.video !== m.video){ n.media.video = m.video; changed = true; } }
   if (m.image && (!n.media.image || n.media.image === (q.imageUrl || ''))){ if (n.media.image !== m.image){ n.media.image = m.image; changed = true; } }
+  if (m.subtitles && !n.media.subtitles && n.media.video === m.video){ n.media.subtitles = m.subtitles; n.media.subtitlesBurnedIn = !!m.subtitlesBurnedIn; changed = true; }
   return changed;
 }
