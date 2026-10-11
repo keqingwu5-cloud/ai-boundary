@@ -5,17 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>短影音 · AI 認知邊界</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%93%B1%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<!-- [proto perf] no web font: Noto Sans TC from Google Fonts was ~1.4 MB of woff2 that downloaded BEFORE the first poster/video.
+     System CJK fonts look the same family (Android = Noto Sans CJK, iOS/macOS = PingFang TC, Windows = JhengHei). -->
 <script>window.__errs=[];addEventListener("error",function(e){window.__errs.push(String(e.message||e));});addEventListener("unhandledrejection",function(e){window.__errs.push("rej:"+String(e.reason&&e.reason.message||e.reason));});</script>
-<script>window.__V="20261011031253";(function(){try{fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v||j.v===window.__V)return;var k="aiBoundary.reloadFor."+j.v;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");var u=new URL(location.href);u.searchParams.set("v",j.v);location.replace(u.toString());}).catch(function(){});}catch(e){}})();</script>
-<script src="./data.js?v=20261011031253"></script>
-<script src="./config.js?v=20261011031253"></script>
-<script type="importmap">{"imports":{"./safe.js":"./safe.js?v=20261011031253"}}</script>
+<script>window.__V="20261011055133";(function(){try{fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v||j.v===window.__V)return;var k="aiBoundary.reloadFor."+j.v;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");var u=new URL(location.href);u.searchParams.set("v",j.v);location.replace(u.toString());}).catch(function(){});}catch(e){}})();</script>
+<script src="./data.js?v=20261011055133"></script>
+<script src="./config.js?v=20261011055133"></script>
+<script type="importmap">{"imports":{"./safe.js":"./safe.js?v=20261011055133"}}</script>
+<!-- [proto perf] brain-page prefetch (three.js ≈ 690 KB) is injected by feed.js only after the current video is fully buffered -->
 <style>
 :root{--glass:rgba(14,18,40,.58);--line:rgba(160,180,255,.18);--text:#eef0ff;--muted:#a3abd6;--gold:#f5c451;--colw:min(100vw,calc(100dvh * 9 / 16))}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;overflow:hidden;background:#03040b;color:var(--text);font-family:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif}
+html,body{margin:0;height:100%;overflow:hidden;background:#03040b;color:var(--text);font-family:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Noto Sans CJK TC","Microsoft JhengHei",sans-serif}
 button{font-family:inherit;color:inherit;cursor:pointer}
 a{color:inherit}
 .glass{background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%)}
@@ -51,19 +52,22 @@ a{color:inherit}
 .col .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .col video.player{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent}
 .bigplay{position:absolute;left:50%;top:44%;translate:-50% -50%;z-index:5;width:88px;height:88px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(10,12,30,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:34px;padding-left:6px;display:none;box-shadow:0 0 30px rgba(0,0,0,.5)}
+.buf{position:absolute;left:50%;top:44%;width:46px;height:46px;margin:-23px 0 0 -23px;z-index:4;border-radius:50%;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;opacity:0;transition:opacity .2s;pointer-events:none}
+.it.buffering .buf{opacity:1;animation:spin .8s linear infinite}
 .it.blocked .bigplay{display:block;animation:pulse 1.6s ease-in-out infinite}
 @keyframes pulse{50%{box-shadow:0 0 0 14px rgba(255,255,255,.08),0 0 30px rgba(0,0,0,.5)}}
 .ep{position:absolute;z-index:3;top:calc(62px + env(safe-area-inset-top));left:12px;font-size:11.5px;font-weight:700;letter-spacing:1px;padding:3px 9px;border-radius:99px;background:rgba(0,0,0,.45);border:1px solid color-mix(in srgb,var(--c) 60%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--c) 40%,transparent)}
 .prog{height:3px;width:100%!important;transform:scaleX(var(--p,0));transform-origin:0 50%;will-change:transform}
 #sndHint{position:fixed;z-index:21;top:calc(58px + env(safe-area-inset-top));left:50%;translate:-50% -8px;opacity:0;pointer-events:none;transition:.3s;border-radius:99px;padding:6px 14px;font-size:13px;color:#fff}
 #sndHint.on{opacity:1;translate:-50% 0;pointer-events:auto}
+#sndHint::after{content:"";position:absolute;inset:-6px 0}   /* 33px pill, 44px hit area */
 #bSound.lit{border-color:rgba(127,224,168,.6);box-shadow:0 0 12px rgba(127,224,168,.35)}
 /* performance: nothing animates or blurs on top of a playing video; off-screen items are frozen */
-.it:not(.cur) *,.it:not(.cur){animation-play-state:paused!important}
+.it:not(.cur),.it:not(.cur)::before,.it:not(.cur)::after,.it:not(.cur) *,.it:not(.cur) *::before,.it:not(.cur) *::after{animation-play-state:paused!important}   /* off-screen cards: no running animations (pseudo-element rings included) */
 body.playing .top,body.playing #sndHint,body.playing .rb b{backdrop-filter:none;-webkit-backdrop-filter:none}
 body.playing .top{background:rgba(10,12,28,.72)}
 body.playing .rb b{background:rgba(10,12,28,.6)}
-body.playing .dots,body.playing .ph *{animation-play-state:paused!important}
+body.playing .dots,body.playing .ph *,body.playing .ph *::before,body.playing .ph *::after{animation-play-state:paused!important}
 @media (min-width:701px){body.playing .it.cur .col{box-shadow:none}}
 /* caption */
 .cap{position:absolute;left:0;right:68px;bottom:0;padding:0 14px calc(18px + env(safe-area-inset-bottom));z-index:2}
@@ -138,22 +142,64 @@ body.playing .dots,body.playing .ph *{animation-play-state:paused!important}
 #toast.on{opacity:1;translate:-50% 0}
 .keys{position:fixed;right:14px;bottom:14px;font-size:11px;color:#ffffff55;z-index:5}
 @media (max-width:700px){.keys{display:none}}
+/* ================= [proto] UX layer ================= */
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:vtOut .26s ease both}
+::view-transition-new(root){animation:vtIn .34s ease both}
+@keyframes vtOut{to{opacity:0;transform:scale(.97);filter:blur(6px)}}
+@keyframes vtIn{from{opacity:0;transform:scale(1.03)}}
+body{transition:opacity .18s}
+body.leaving{opacity:0}
+:focus-visible{outline:2px solid #ffe2a0;outline-offset:2px}
+.seg{view-transition-name:seg;flex:none;display:flex;padding:3px;border-radius:99px;background:rgba(0,0,0,.35);border:1px solid var(--line)}
+.seg a{display:flex;align-items:center;gap:4px;min-height:36px;padding:0 12px;border-radius:99px;text-decoration:none;color:var(--muted);font-size:13.5px;font-weight:700;white-space:nowrap}
+.seg a.on{color:#fff;background:linear-gradient(90deg,rgba(157,140,255,.45),rgba(255,122,224,.35));box-shadow:0 0 14px rgba(170,150,255,.45)}
+.top{justify-content:space-between;padding:4px}
+.ib{width:42px;height:42px;font-size:16px;color:inherit;cursor:pointer}
+#cnt{flex:none;min-height:36px;padding:0 12px;border-radius:99px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-size:12.5px;display:flex;align-items:center;gap:5px;margin-left:auto}
+#cnt b{font-weight:700}
+@media (max-width:430px){.top{gap:4px}.top>*{flex-shrink:0}.seg a{padding:0 10px}.seg a span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}#cnt{padding:0 9px;gap:3px}#cnt .cl{display:none}#bSound{display:none}}   /* phone: seg (icons; labels stay for screen readers) + count + score badge + 📅 + sync ☁️/🔒 + settings fit 374px; sound lives on each video's right rail */
+@media (max-width:700px){
+  /* 44px touch targets (簡化 re-review). Chips sit on the video, so they get an invisible 44px hit area instead of a bigger pill. */
+  .opt{min-height:44px;padding:0 13px}
+  #botPick .opt{padding:0 12px}
+  .seg a,#cnt{min-height:44px}.seg a{min-width:44px;justify-content:center}
+  .ib{width:44px;height:44px}
+  .chip{position:relative}.chip::after{content:"";position:absolute;left:-2px;right:-2px;top:50%;height:44px;translate:0 -50%}
+}
+.rb b{width:48px;height:48px}
+/* laptop: use the empty side space for an episode list */
+#side{display:none}
+@media (min-width:1100px){
+  #side{display:flex;flex-direction:column;position:fixed;z-index:15;top:16px;bottom:16px;left:max(16px,calc(50% - var(--colw)/2 - 330px));width:300px;border-radius:20px;padding:12px;overflow:hidden}
+  #side h3{margin:2px 4px 10px;font-size:14px;color:var(--muted);font-weight:700;letter-spacing:1px}
+  #sideL{overflow:auto;display:grid;gap:6px;scrollbar-width:thin}
+  #sideL button{display:grid;grid-template-columns:28px 54px 1fr;gap:8px;align-items:center;text-align:left;border:1px solid transparent;background:rgba(255,255,255,.03);border-radius:12px;padding:6px;font-size:13px;line-height:1.4}
+  #sideL button.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 18%,transparent);box-shadow:0 0 14px color-mix(in srgb,var(--c) 35%,transparent)}
+  #sideL em{font-style:normal;color:var(--muted);font-size:12px;text-align:center}
+  #sideL i{width:54px;height:72px;border-radius:8px;background:color-mix(in srgb,var(--c) 30%,#05060f) center/cover;display:grid;place-items:center;font-style:normal;font-size:18px}
+  #sideL span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+}
+#swipeHint{position:fixed;z-index:18;left:50%;bottom:30%;translate:-50% 0;padding:10px 18px;border-radius:99px;font-size:14px;pointer-events:none;animation:hint 1.6s ease-in-out 3;opacity:0}
+@keyframes hint{0%{opacity:0;transform:translateY(20px)}30%{opacity:1}70%{opacity:1;transform:translateY(-20px)}100%{opacity:0;transform:translateY(-30px)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
 <div id="feed" tabindex="0"></div>
 <div id="none"><div>這個篩選條件下還沒有內容。<br>影像導演 bot 產出影片後會出現在這裡。<br><button class="opt" id="clearF">顯示全部</button></div></div>
 <header class="top glass">
-  <a class="ib" id="toBrain" href="index.html" title="回到 3D 大腦">🧠</a>
-  <h1>短影音<small id="cnt"></small></h1>
-  <button class="ib" id="bSound" title="聲音開關">🔇</button>
-  <button class="ib" id="bSet" title="篩選與排序">⚙</button>
+  <nav class="seg" aria-label="切換檢視"><a id="toBrain" href="index.html" data-nav>🧠<span>大腦</span></a><a class="on" href="feed.html" aria-current="page">🎬<span>短影音</span></a></nav>
+  <button id="cnt" title="切換：只看影集／全部" aria-label="切換：只看影集／全部"></button>
+  <button class="ib" id="bSound" title="聲音開關" aria-label="聲音開關">🔇</button>
+  <button class="ib" id="bSet" title="篩選與排序" aria-label="篩選與排序">⚙</button>
 </header>
 <button id="sndHint" class="glass">🔇 點一下開聲音</button>
+<aside id="side" class="glass" aria-label="集數列表"><h3>📺 集數</h3><div id="sideL"></div></aside>
 <div class="keys">↑↓ 切換・空白鍵 播放/暫停・M 聲音</div>
 <div class="scrim" id="scrim"></div>
 <section class="sheet glass" id="setSheet" aria-label="設定"><div class="grab"></div>
-  <header><h3>⚙ 短影音設定</h3><button class="ib" data-close>✕</button></header>
+  <header><h3>⚙ 短影音設定</h3><button class="ib" data-close title="關閉" aria-label="關閉設定">✕</button></header>
   <div class="bd">
     <div class="lbl">排序</div><div class="opts" id="oOrder"></div>
     <div class="lbl">播放</div><div class="opts" id="oPlay"></div>
@@ -163,11 +209,11 @@ body.playing .dots,body.playing .ph *{animation-play-state:paused!important}
   </div>
 </section>
 <section class="sheet glass" id="brSheet" aria-label="分支"><div class="grab"></div>
-  <header><h3 id="brT">🌿 分支</h3><button class="ib" data-close>✕</button></header>
+  <header><h3 id="brT">🌿 分支</h3><button class="ib" data-close title="關閉" aria-label="關閉分支">✕</button></header>
   <div class="bd" id="brB"></div>
 </section>
 <section class="sheet glass" id="cmSheet" aria-label="留言"><div class="grab"></div>
-  <header><h3 id="cmT">💬 留言</h3><button class="ib" data-close>✕</button></header>
+  <header><h3 id="cmT">💬 留言</h3><button class="ib" data-close title="關閉" aria-label="關閉留言">✕</button></header>
   <div class="bd">
     <div id="gcNote">留言、回饋、提問會存在 GitHub Discussions，每一題、每個 bot 各自一串，需要 GitHub 帳號登入。</div>
     <div id="gcWarn">留言區還沒啟用：網站擁有者需要先在 GitHub 安裝 giscus App（github.com/apps/giscus）並授權給 ai-boundary 這個 repo，安裝後這裡就會自動出現留言串。</div>
@@ -178,9 +224,9 @@ body.playing .dots,body.playing .ph *{animation-play-state:paused!important}
   </div>
 </section>
 <div id="toast" class="glass"></div>
-<script type="module" src="./feed.js?v=20261011031253"></script>
-<script type="module" src="./knowledge-score.js?v=20261011031253"></script>
-<script type="module" src="./activity.js?v=20261011031253"></script>
-<script type="module" src="./sync.js?v=20261011031253"></script>
+<script type="module" src="./feed.js?v=20261011055133"></script>
+<script type="module" src="./knowledge-score.js?v=20261011055133"></script>
+<script type="module" src="./activity.js?v=20261011055133"></script>
+<script type="module" src="./sync.js?v=20261011055133"></script>
 </body>
 </html>

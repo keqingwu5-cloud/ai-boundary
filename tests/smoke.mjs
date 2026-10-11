@@ -46,7 +46,9 @@ const ignorable = e => /favicon|fonts\.g|giscus|Failed to load resource/i.test(e
   const r = await page.evaluate(() => ({ errs:window.__errs, sync:window.AISync ? { enabled:window.AISync.enabled } : null, btn:!!document.getElementById('bSync'), n:AIFeed.list().length, ks:!!document.querySelector('.ks-badge') }));
   ok(!errs.filter(e => !ignorable(e)).length && !r.errs.length, 'feed.html: no JS errors ' + JSON.stringify([...errs, ...r.errs]));
   ok(r.sync && r.sync.enabled === false && !r.btn && r.ks, 'feed.html: sync disabled, no sync UI, knowledge badge still there');
-  ok(r.n > 10, 'feed.html: shows ' + r.n + ' items');
+  ok(r.n >= 6 && r.n < 31, 'feed.html: new visitor sees episodes only (' + r.n + ' items)');
+  const all = await page.evaluate(() => { document.getElementById('cnt').click(); return AIFeed.list().length; });
+  ok(all > 10, 'feed.html: 📚 chip switches to all (' + all + ' items)');
   ok(!reqs.some(u => /supabase/.test(u)), 'feed.html: supabase-js not downloaded');
   const like = await page.evaluate(() => { const el = document.querySelector('.it.cur .like'); el.click(); return JSON.parse(localStorage.getItem('aiBrain.feed.v1')).likes; });
   ok(Object.keys(like).length === 1, 'feed.html: like saved to localStorage');

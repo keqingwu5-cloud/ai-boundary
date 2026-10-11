@@ -35,6 +35,11 @@ function seedKey(id){ const m = /^n_(q\d+)(?:_e(\d+))?$/.exec(id); return m ? (m
 function loadState(src){   // src：sync.js 從雲端拉下來的大腦（只讀）；沒有就讀 localStorage
   let s = src ? JSON.parse(JSON.stringify(src)) : null; if (!s) try { s = JSON.parse(localStorage.getItem(KEY)); } catch(e){}
   if (!s || !Array.isArray(s.nodes) || !Array.isArray(s.brains)) s = seedLite();
+  else {   // [proto] same seed layering as app.js refreshSeed(): seed text follows content/*.json, new seed questions appear, user data untouched
+    const have = new Map(s.nodes.map(n => [n.id, n]));
+    seedLite().nodes.forEach(f => { const n = have.get(f.id); if (!n) s.nodes.push(f); else if (n.createdBy === 'seed') ['title', 'type', 'oneLiner', 'source'].forEach(k => { if (f[k] !== undefined) n[k] = f[k]; }); });
+    (typeof SEED_EXTRAS !== 'undefined' ? SEED_EXTRAS : []).forEach(x => { const n = have.get(x.id); if (n && n.createdBy !== 'merlin') ['title', 'type', 'oneLiner', 'source'].forEach(k => { if (x[k] !== undefined) n[k] = JSON.parse(JSON.stringify(x[k])); }); });
+  }
   const done = Array.isArray(s.seedExtras) ? s.seedExtras : [];
   (typeof SEED_EXTRAS !== 'undefined' ? SEED_EXTRAS : []).forEach(x => {
     if (done.includes(x.id) || s.nodes.some(n => n.id === x.id)) return;
@@ -57,7 +62,8 @@ const kids = id => state.nodes.filter(n => n.parentId === id);
 
 const prefs = (() => { try { return Object.assign({ likes:{}, saves:{}, set:{}, bots:{} }, JSON.parse(localStorage.getItem(FKEY))); } catch(e){ return { likes:{}, saves:{}, set:{}, bots:{} }; } })();
 prefs.bots = prefs.bots || {};
-const set = Object.assign({ order:'series', continuous:true, types:[], concepts:[], onlyVideo:false, onlySaved:false }, prefs.set);
+const FIRST = !localStorage.getItem(FKEY);   // new visitor (no feed prefs yet) → episodes only: 7 cards instead of 31, the 📚 chip switches to all
+const set = Object.assign({ order:'series', continuous:true, types:[], concepts:[], onlyVideo:FIRST, onlySaved:false }, prefs.set);
 if (set.v !== 2){ set.order = 'series'; set.continuous = true; set.v = 2; }
 prefs.set = set;
 const savePrefs = () => { try { localStorage.setItem(FKEY, JSON.stringify(prefs)); } catch(e){} };
@@ -103,13 +109,13 @@ function itemHTML(n, i){
   const ch = kids(n.id), cr = credit(n);
   const caption = n.caption || n.oneLiner || '';
   const ep = epLabel(n.id);
-  const stage = hasV ? `${img ? `<img class="poster" src="${esc(img)}" alt="" ${i > 1 ? 'loading="lazy"' : ''}>` : ''}<button class="bigplay" data-play aria-label="播放">▶</button>${ep ? `<span class="ep">${ep}</span>` : ''}`
+  const stage = hasV ? `${img ? `<img class="poster" src="${esc(img)}" alt="" decoding="async" ${i > 1 ? 'loading="lazy"' : i === 0 ? 'fetchpriority="high"' : ''}>` : ''}<button class="bigplay" data-play aria-label="播放">▶</button>${ep ? `<span class="ep">${ep}</span>` : ''}`
     : `${img ? `<img class="bgimg" src="${esc(img)}" alt="" loading="lazy">` : ''}<div class="ph" ${img ? 'style="background:linear-gradient(transparent,rgba(5,6,15,.6))"' : ''}><div class="dots"></div>
         <div class="ring"><div class="orb"><span>${n.kind === 'direction' ? '🚀' : T(n.type).icon}</span></div></div>
         <h3>${esc(n.title)}</h3>
         <span class="wip"><i></i>🎬 影片製作中</span>${ext ? `<a class="ext" href="${esc(ext)}" target="_blank" rel="noopener">▶ 觀看原始影片 ↗</a>` : ''}</div>`;
   return `<section class="it ${hasV ? 'hasVideo' : 'noVideo'} ${n.kind === 'direction' ? 'dir' : ''} ${hasV && n.media.subtitlesBurnedIn ? 'subs' : ''}" data-i="${i}" data-id="${esc(n.id)}" style="--c:${c}">
-    <div class="col">${stage}<div class="shade"></div><div class="flash"></div>${hasV ? '<div class="prog"></div>' : ''}
+    <div class="col">${stage}<div class="shade"></div><div class="flash"></div>${hasV ? '<div class="prog"></div><div class="buf" aria-hidden="true"></div>' : ''}
       <div class="cap">
         <div class="row"><span class="tag" style="--c:${T(n.type).color}">${T(n.type).icon} ${esc(n.type)}</span><span class="tag k ${esc(n.kind)}">${KIND[n.kind] || esc(n.kind)}</span>${n.bot ? `<span class="tag" style="--c:#7fe0a8">🤖 ${esc(n.bot)}</span>` : ''}</div>
         <h2 data-capt>${esc(n.title)}</h2>
@@ -118,12 +124,12 @@ function itemHTML(n, i){
         ${cr.short ? `<div class="src1">${esc(cr.short)}</div>` : ''}
       </div>
       <div class="rail">
-        <a class="rb brain" href="index.html#node=${encodeURIComponent(n.id)}" title="在 3D 大腦打開"><b>🧠</b>大腦</a>
-        <button class="rb" data-act="branches" title="子問題／新方向"><b>🌿</b>${ch.length}</button>
-        <button class="rb like ${prefs.likes[n.id] ? 'on' : ''}" data-act="like" title="喜歡"><b>❤</b>喜歡</button>
-        <button class="rb save ${prefs.saves[n.id] ? 'on' : ''}" data-act="save" title="收藏"><b>🔖</b>收藏</button>
-        <button class="rb" data-act="comments" title="留言"><b>💬</b>留言</button>
-        ${hasV ? `<button class="rb snd" data-act="sound" title="聲音"><b>${wantSound && unlocked ? '🔊' : '🔇'}</b>聲音</button>` : ''}
+        <a class="rb brain" href="index.html#node=${encodeURIComponent(n.id)}" title="在 3D 大腦打開" aria-label="在 3D 大腦打開"><b>🧠</b>大腦</a>
+        <button class="rb" data-act="branches" title="子問題／新方向" aria-label="子問題／新方向"><b>🌿</b>${ch.length}</button>
+        <button class="rb like ${prefs.likes[n.id] ? 'on' : ''}" data-act="like" title="喜歡" aria-label="喜歡"><b>❤</b>喜歡</button>
+        <button class="rb save ${prefs.saves[n.id] ? 'on' : ''}" data-act="save" title="收藏" aria-label="收藏"><b>🔖</b>收藏</button>
+        <button class="rb" data-act="comments" title="留言" aria-label="留言"><b>💬</b>留言</button>
+        ${hasV ? `<button class="rb snd" data-act="sound" title="聲音" aria-label="聲音"><b>${wantSound && unlocked ? '🔊' : '🔇'}</b>聲音</button>` : ''}
       </div>
     </div></section>`;
 }
@@ -136,6 +142,7 @@ function render(keepId){
   if (io) io.disconnect();
   io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting && e.intersectionRatio >= 0.6) activate(+e.target.dataset.i); }), { root:feed, threshold:[0.6] });
   feed.querySelectorAll('.it').forEach(el => io.observe(el));
+  renderSide();
   let i = keepId ? list.findIndex(n => n.id === keepId) : 0; if (i < 0) i = 0;
   cur = -1; go(i, true); activate(i);
 }
@@ -146,7 +153,8 @@ function go(i, instant){
 }
 function activate(i){
   if (i === cur || !list[i]) return; cur = i;
-  $('#cnt').textContent = `${i + 1} / ${list.length}`;
+  $('#cnt').innerHTML = `${set.onlyVideo ? '🎬<span class="cl"> 影集</span>' : '📚<span class="cl"> 全部</span>'} <b>${i + 1}/${list.length}</b>`;
+  $('#sideL').querySelectorAll('[data-si]').forEach(b => { const on = +b.dataset.si === i; b.classList.toggle('on', on); if (on) b.scrollIntoView({ block:'nearest' }); });
   const id = list[i].id;
   $('#toBrain').href = 'index.html#node=' + encodeURIComponent(id);
   history.replaceState(null, '', '#node=' + encodeURIComponent(id));
@@ -158,7 +166,7 @@ function activate(i){
 const player = document.createElement('video');
 player.className = 'player';
 ['muted', 'playsinline', 'webkit-playsinline'].forEach(a => player.setAttribute(a, ''));   // no autoplay attribute: WebKit can stall at the first frame when it races our explicit play()
-player.muted = true; player.defaultMuted = true; player.playsInline = true; player.preload = 'auto';
+player.muted = true; player.defaultMuted = true; player.playsInline = true; player.preload = 'metadata';   // becomes 'auto' when mounted as the current video (the only <video> on the page)
 const abs = u => new URL(u, location.href).href;
 const isVid = i => !!list[i] && playable(list[i].media.video);
 function nextVideo(i){ for (let j = i + 1; j < list.length; j++) if (isVid(j)) return j; return -1; }
@@ -170,7 +178,7 @@ function renderSound(){
   $('#bSound').textContent = on ? '🔊' : '🔇'; $('#bSound').classList.toggle('lit', on);
   $('#sndHint').classList.toggle('on', !!player.parentNode && !player.paused && player.muted && (!unlocked || wantSound));
 }
-function setBlocked(on){ const el = itemEl(cur); if (el) el.classList.toggle('blocked', on); }
+function setBlocked(on){ const el = itemEl(cur); if (el) el.classList.toggle('blocked', on); if (on) document.body.classList.remove('playing'); }
 function mount(i){
   clearTimeout(watchT);
   const el = itemEl(i);
@@ -179,14 +187,38 @@ function mount(i){
   if (player.parentNode !== col) col.insertBefore(player, col.querySelector('.shade'));
   if (player.getAttribute('src') !== n.media.video){
     if (n.media.image && safeUrl(n.media.image)) player.poster = n.media.image; else player.removeAttribute('poster');
-    player.setAttribute('src', n.media.video); player.load();            // src assigned + load() BEFORE play()
+    player.preload = 'auto'; player.setAttribute('src', n.media.video); player.load();            // src assigned + load() BEFORE play()
     el.querySelector('.prog')?.style.setProperty('--p', 0);
   } else if (player.ended) player.currentTime = 0;
   player.loop = !continuousAt(i);
   userPaused = false; applyMute(); tryPlay();
-  // no second <video> preloading the next episode: on phones it competes with the playing one for bandwidth/decoder (stutter).
-  // files are faststart + 1 s keyframes, so the next episode starts quickly on its own.
+  player.addEventListener('canplay', () => { if (player.paused && !userPaused && player.parentNode) tryPlay(); }, { once:true });   // safety net for the first start
+  prefetchBrain();
 }
+/* no second <video> for warming the next episode: the player can't reuse its buffer (it downloaded the file twice), and iOS is
+   sensitive to extra video decoders/memory. Once the current episode is fully buffered, idle-prefetch the brain page instead. */
+const saveData = !!(navigator.connection && (navigator.connection.saveData || /2g/.test(navigator.connection.effectiveType || '')));
+function prefetchBrain(){
+  if (!player.parentNode || !player.duration) return; const b = player.buffered; if (!(b.length && b.end(b.length - 1) >= player.duration - 0.3)) return;
+  if (!prefetchBrain.pf && !saveData){ prefetchBrain.pf = 1; (window.requestIdleCallback || setTimeout)(() => {
+    const v = (document.querySelector('script[src*="feed.js"]')?.src.match(/v=(\w+)/) || [])[1] || '';
+    [...['./app.js', './brain/interior.js', './brain/quality.js'].map(f => f + (v ? '?v=' + v : '')), './vendor/three.module.min.js'].forEach(h => { const l = document.createElement('link'); l.rel = 'prefetch'; l.href = h; document.head.appendChild(l); }); }, { timeout:4000 }); }
+}
+player.addEventListener('progress', prefetchBrain); player.addEventListener('canplaythrough', prefetchBrain);
+/* buffering indicator: only if waiting lasts > 300 ms (no flicker on fast starts) */
+let bufT = 0;
+const setBuf = on => { clearTimeout(bufT); if (on) bufT = setTimeout(() => itemEl(cur)?.classList.add('buffering'), 300); else feed.querySelectorAll('.it.buffering').forEach(e => e.classList.remove('buffering')); };
+player.addEventListener('waiting', () => { if (!player.paused) setBuf(true); });
+player.addEventListener('stalled', () => { if (!player.paused && player.readyState < 3) setBuf(true); });
+['playing', 'canplay', 'pause', 'emptied'].forEach(ev => player.addEventListener(ev, () => setBuf(false)));
+player.addEventListener('loadstart', () => { if (player.parentNode) setBuf(true); });
+/* tab hidden / leaving the page → stop decoding; come back → resume unless the user paused */
+let hiddenPaused = false;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden){ if (player.parentNode && !player.paused){ hiddenPaused = true; player.pause(); } }
+  else if (hiddenPaused){ hiddenPaused = false; if (!userPaused) tryPlay(); }
+});
+addEventListener('pagehide', () => { player.pause(); });
 /* must stay synchronous up to play(): inside a tap handler this is what lets iOS start (and unmute) playback */
 function tryPlay(){
   if (!player.parentNode) return;
@@ -209,7 +241,10 @@ function togglePlay(el){
   if (player.paused){ userPaused = false; tryPlay(); flash(el, '▶'); } else { userPaused = true; player.pause(); flash(el, '⏸'); }
 }
 player.addEventListener('playing', () => { setBlocked(false); document.body.classList.add('playing'); renderSound(); });
-player.addEventListener('pause', () => { document.body.classList.remove('playing'); renderSound(); });
+// body.playing turns the backdrop blur off. Drop it only for a real pause: load() on a new src also fires 'pause', and switching
+// blur on/off for every swipe/re-buffer is extra compositing work on iOS.
+let unplayT = 0;
+player.addEventListener('pause', () => { clearTimeout(unplayT); unplayT = setTimeout(() => { if (player.paused && !(player.parentNode && !userPaused && player.readyState < 3)) document.body.classList.remove('playing'); }, 400); renderSound(); });
 player.addEventListener('volumechange', renderSound);
 let progEl = null, progT = 0;
 player.addEventListener('timeupdate', () => { const now = performance.now(); if (now - progT < 240 || !player.duration) return; progT = now; progEl = itemEl(cur)?.querySelector('.prog'); progEl?.style.setProperty('--p', (player.currentTime / player.duration).toFixed(3)); });
@@ -232,11 +267,15 @@ player.addEventListener('ended', () => {
   if (overlayOpen()){ heldAdvance = cur; holdT = setTimeout(resumeAdvance, 600); return; }   // stay on this card while a drawer is open
   advanceFrom(cur);
 });
-/* stall guard: "playing" but the clock is frozen (seen in WebKit) → one gentle pause/play nudge, no reload */
+/* stall guard (WebKit, 簡化 v3 plan D): leave real buffering alone (readyState < 3 AND < 1 s buffered ahead). If the clock is frozen
+   for ~1.5 s while ≥ 1 s is buffered (WebKit can sit at readyState 2 with plenty of data), recover with pause()+play() — a tiny seek
+   does not unstick it. The 400 ms delay + readyState<3 rule in the 'pause' handler keep body.playing (and the blur) from flickering. */
+const ahead = () => { const b = player.buffered, t = player.currentTime; for (let i = 0; i < b.length; i++) if (b.start(i) <= t + 0.05 && b.end(i) > t) return b.end(i) - t; return 0; };
 let lastT = -1, stuck = 0;
 setInterval(() => {
-  if (!player.parentNode || player.paused || document.hidden){ stuck = 0; lastT = -1; return; }
-  if (Math.abs(player.currentTime - lastT) < 0.01){ if (++stuck === 2){ player.pause(); tryPlay(); } } else stuck = 0;
+  if (!player.parentNode || player.paused || player.seeking || document.hidden){ stuck = 0; lastT = player.currentTime; return; }
+  if (player.readyState < 3 && ahead() < 1){ stuck = 0; lastT = player.currentTime; return; }
+  if (Math.abs(player.currentTime - lastT) < 0.01){ if (++stuck === 2){ stuck = 0; player.pause(); tryPlay(); } } else stuck = 0;
   lastT = player.currentTime;
 }, 750);
 /* the first tap anywhere unlocks audio for the whole session (sync, inside the gesture) */
@@ -364,6 +403,22 @@ $('#setSheet').addEventListener('click', e => {
 $('#bSet').onclick = () => { renderSettings(); openSheet('setSheet'); };
 $('#clearF').onclick = () => { set.types = []; set.concepts = []; set.onlyVideo = false; set.onlySaved = false; savePrefs(); render(); };
 
+/* ---------- [proto] side list (laptop), count toggle, swipe hint, page transitions ---------- */
+function renderSide(){
+  $('#sideL').innerHTML = list.map((n, i) => { const img = n.media.image && safeUrl(n.media.image) ? n.media.image : '';
+    return `<button data-si="${i}" style="--c:${colorOf(n)}"><em>${i + 1}</em><i ${img ? `style="background-image:url('${esc(img)}')"` : ''}>${img ? '' : (n.kind === 'direction' ? '🚀' : T(n.type).icon)}</i><span>${esc(n.title)}</span></button>`; }).join('');
+}
+$('#sideL').addEventListener('click', e => { const b = e.target.closest('[data-si]'); if (b) go(+b.dataset.si); });
+$('#cnt').onclick = () => { set.onlyVideo = !set.onlyVideo; savePrefs(); render(list[cur] && list[cur].id);
+  toast(set.onlyVideo ? `🎬 只看影集（${list.length} 集）` : `📚 顯示全部 ${list.length} 則（含製作中）`); };
+if (!prefs.hinted){ const h = document.createElement('div'); h.id = 'swipeHint'; h.className = 'glass'; h.textContent = matchMedia('(pointer: coarse)').matches ? '⇡ 上滑看下一集' : '⇣ 滾輪或 ↓ 看下一集'; document.body.appendChild(h);
+  setTimeout(() => h.remove(), 5200); prefs.hinted = 1; savePrefs(); }
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[data-nav], a.rb.brain'); if (!a || e.metaKey || e.ctrlKey || e.shiftKey || 'onpagereveal' in window) return;
+  e.preventDefault(); e.stopPropagation(); document.body.classList.add('leaving'); setTimeout(() => { location.href = a.href; }, 180);
+}, true);
+addEventListener('pageshow', () => document.body.classList.remove('leaving'));
+
 /* ---------- deep link + sync with the brain ---------- */
 function hashId(){ const m = /(?:^#|&)node=([^&]+)/.exec(location.hash); return m ? decodeURIComponent(m[1]) : null; }
 function openHash(){
@@ -375,7 +430,6 @@ function openHash(){
 addEventListener('hashchange', openHash);
 addEventListener('storage', e => { if (e.key === KEY){ state = loadState(); render(list[cur] && list[cur].id); } });
 addEventListener('pageshow', e => { if (e.persisted){ state = loadState(); render(list[cur] && list[cur].id); } });
-document.addEventListener('visibilitychange', () => { if (!player.parentNode) return; if (document.hidden) player.pause(); else if (!userPaused) tryPlay(); });
 addEventListener('resize', () => go(cur, true));
 
 { const h0 = hashId();
