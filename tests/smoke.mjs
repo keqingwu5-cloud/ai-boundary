@@ -91,19 +91,25 @@ const ignorable = e => /favicon|fonts\.g|giscus|Failed to load resource/i.test(e
   // 同一份快照再送一次 → 不會重複新增；惡意文字只當純文字顯示
   const payload = { schemaVersion:1, experimentId:'jp-transition-audio-v1', snapshotId:'jp-transition-audio-v1@xss', evaluatedAt:'2026-10-12T00:00:00Z', totalTests:50, technicalPassCount:50, manualRatingCount:0,
     choices:[1, 2, 3, 4, 5].map(i => ({ motifId:'JP0' + i, name:'<img src=x onerror="window.__xss=' + i + '">', use:'"><svg onload="window.__xss=9">', id:'JP0' + i + '-01', variation:'original', score:90, humanAverage:null, selectionBasis:'<b>x</b>' })) };
-  for (let round = 0; round < 2; round++){
-    await page.evaluate(p => localStorage.setItem('aiBrain.audioLab.pending.v1', JSON.stringify(p)), payload);
-    await page.goto(BASE + 'index.html?r=' + round + '#audio-lab', { waitUntil:'domcontentloaded', timeout:60000 });
-    await page.waitForFunction('document.body.dataset.ready === "1"', { timeout:30000 }); await new Promise(r => setTimeout(r, 800));
+  await page.close();
+  // 新的瀏覽器設定檔：同一份快照送兩次、同一個實驗的新快照再送一次 → 還是只有 1 個摘要節點、5 個方向
+  const ctx = await browser.createBrowserContext(); const p2 = await ctx.newPage(); const e2 = [];
+  p2.on('pageerror', e => e2.push('pageerror: ' + e.message)); p2.on('console', m => { if (m.type() === 'error' && !ignorable(m.text())) e2.push('console: ' + m.text()); });
+  await p2.goto(BASE + 'index.html', { waitUntil:'domcontentloaded', timeout:60000 });
+  for (const [round, snap] of [[0, '@xss'], [1, '@xss'], [2, '@xss-later']]){
+    await p2.evaluate((p, s) => localStorage.setItem('aiBrain.audioLab.pending.v1', JSON.stringify(Object.assign({}, p, { snapshotId:'jp-transition-audio-v1' + s }))), payload, snap);
+    await p2.goto(BASE + 'index.html?r=' + round + '#audio-lab', { waitUntil:'domcontentloaded', timeout:60000 });
+    await p2.waitForFunction('document.body.dataset.ready === "1" && !localStorage.getItem("aiBrain.audioLab.pending.v1")', { timeout:30000 }).catch(() => {}); await new Promise(r => setTimeout(r, 800));
   }
-  const dup = await page.evaluate(() => { const ns = AIBrain.getState().nodes; const roots = ns.filter(n => n.source && /#jp-transition-audio-v1%40xss$/.test(n.source.url || ''));
+  const page2 = p2;
+  const dup = await page2.evaluate(() => { const ns = AIBrain.getState().nodes; const roots = ns.filter(n => n.source && n.source.outlet === 'JP Audio Lab v1' && !n.parentId);
     const r = roots[0]; if (r){ AIBrain.select(ns.find(n => n.parentId === r.id).id); }
     return { roots:roots.length, kids:r ? ns.filter(n => n.parentId === r.id).length : 0 }; });
   await new Promise(r => setTimeout(r, 600));
-  const xss = await page.evaluate(() => ({ x:window.__xss || 0, inj:document.querySelectorAll('#pBody img[onerror], #pBody svg[onload]').length, txt:/onerror/.test(document.getElementById('pBody').textContent) }));
-  ok(dup.roots === 1 && dup.kids === 5, `同一份快照送兩次 → 只有 1 個摘要節點、5 個方向（${dup.roots}／${dup.kids}）`);
+  const xss = await page2.evaluate(() => ({ x:window.__xss || 0, inj:document.querySelectorAll('#pBody img[onerror], #pBody svg[onload]').length, txt:/onerror/.test(document.getElementById('pBody').textContent) }));
+  ok(dup.roots === 1 && dup.kids === 5 && !e2.length, `同一份快照送兩次、同一個實驗的新快照再送 → 只有 1 個摘要節點、5 個方向（${dup.roots}／${dup.kids}） ` + JSON.stringify(e2));
   ok(!xss.x && !xss.inj && xss.txt, '匯入的惡意文字在節點面板只顯示成純文字，不會執行 ' + JSON.stringify(xss));
-  await page.close();
+  await ctx.close();
 }
 /* ---------- 資料拆檔：跟舊 data.js 產生的種子一模一樣 ---------- */
 const LEGACY = { 'data.js':fs.readFileSync(path.join(ROOT, 'tests/fixtures/data.legacy.js'), 'utf8') };

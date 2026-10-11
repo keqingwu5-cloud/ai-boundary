@@ -247,7 +247,7 @@ scripts/publish_episode.sh ep04 n_q4 --parent git-abd3a61   # 動態的「衍生
 - **結構代理分數**：轉場長度 35%、音程及音序轉折 20%、音色與音程的柔和代理 25%、可延展性 20%。這些是人為設計的啟發式模型，不是已驗證的聽眾偏好，更不是銷售預測。
 - **人工盲聽**：播放後以 1–5 評估日文轉場適配、主觀辨識度和舒適感，可附備註。只代表實際評分者的評價；50 個音樣不等於 50 個獨立聽眾。
 - 以 `localStorage['aiBrain.audioLab.jpTransitions.v1']` 獨立保存 50 筆客觀檢查、人工分數、備註與時間戳；可匯出 JSON／CSV。更換裝置不會自動同步。
-- 按「送入主腦」才把摘要暫存至 `aiBrain.audioLab.pending.v1` 並進入主腦；`audio-lab-import.js` 先另存 `aiBrain.audioLab.backup.<時間>`，再透過 `AIBrain.addQuestion` 與 `addDirection` **新增**摘要主節點及五個音型方向。既有節點、連線與歷史不覆寫。以快照來源網址避免重複新增，失敗時保留待匯入記錄。
+- 按「送入主腦」才把摘要暫存至 `aiBrain.audioLab.pending.v1` 並進入主腦；`audio-lab-import.js` 先另存 `aiBrain.audioLab.backup.<時間>`，再透過 `AIBrain.addQuestion` 與 `addDirection` **新增**摘要主節點及五個音型方向。既有節點、連線與歷史不覆寫。腳本會等主腦內容載完（`body[data-ready="1"]`／`AIBrain` 就緒，最多 30 秒）才動作；同一個實驗只會有一個摘要節點（同一份快照、或同實驗的新快照都沿用既有那個），五個音型方向也按音型去重，所以重送、重新整理都不會重複。失敗時保留待匯入記錄；瀏覽器沒有 WebGL 時不匯入，待匯入記錄留著。
 - 驗證腳本：`node scripts/test_audio_lab.cjs`。檢查 50 組 ID 唯一、合成可重現、音波有效、技術門檻與代理分數合理性。
 
 ### 實驗證據界線
@@ -311,7 +311,7 @@ scripts/publish_episode.sh ep04 n_q4 --parent git-abd3a61   # 動態的「衍生
 - **什麼時候抓**：載入時、回到這個分頁（focus／visibilitychange，最多 5 秒一次）、恢復連線時、自己寫入之後。不訂閱 Realtime。
 - **待上傳＝跟快照的差異**：`localStorage['aiBrain.sync.v2:main']` 存「上次跟雲端一致時」每個實體的指紋。本機現在跟快照不一樣的實體就是還沒上傳的修改（刪掉的 → 墓碑）。沒有版本號、沒有佇列。
 - **合併**：雲端資料先在本機跑一次 `migrate()`（`SEED_EXTRAS`／`SEED_PATCHES`／`SEED_MEDIA`／概念定義，只做加法），每一列都先經過 `sanitizeEntity` 補齊欄位、檢查網址和顏色，再把本機還沒上傳的修改疊上去。`seedExtras`／`seedPatches` 是只增不減的集合，所以「刪掉的種子不會長回來」「同一個補丁不會套兩次」在所有裝置都成立。編輯者會把補丁結果上傳；唯讀的人只在本機套用，不算成本機修改。這兩個集合比對時不管順序（新種子插在 `SEED_EXTRAS` 最前面也不會多出一筆待上傳）。
-- **🎧 日文轉場音實驗室**：`SEED_EXTRAS` 裡的 6 個實驗室節點跟其他種子一樣處理。「送入主腦」（`audio-lab-import.js`）透過 `AIBrain.addQuestion`／`addDirection` 新增的節點就是一般的本機修改：編輯者會上傳，唯讀的人只留在這台裝置；同一份快照用來源網址去重，所以已同步的裝置再送一次不會重複。實驗室自己的 50 筆紀錄（`aiBrain.audioLab.*`）不會上雲端。
+- **🎧 日文轉場音實驗室**：`SEED_EXTRAS` 裡的 6 個實驗室節點跟其他種子一樣處理。「送入主腦」（`audio-lab-import.js`）透過 `AIBrain.addQuestion`／`addDirection` 新增的節點就是一般的本機修改：編輯者會上傳，唯讀的人只留在這台裝置；同一個實驗只保留一個摘要節點（依實驗去重），所以已同步的裝置再送一次不會重複。實驗室自己的 50 筆紀錄（`aiBrain.audioLab.*`）不會上雲端。
 - **第一次同步**：雲端有的實體（含墓碑）以雲端為準；只在本機有的實體當成本機修改，編輯者登入後會上傳；雲端才有的實體直接加進來。
 - **離線**：修改照樣存 localStorage，恢復連線就自動上傳。
 - **復原 ↶**：雲端來的修改也會套進復原快照，↶ 只撤銷你自己的上一步，撤銷本身也會同步。
