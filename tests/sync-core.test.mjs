@@ -95,6 +95,27 @@ test('種子遷移（SEED_EXTRAS／SEED_PATCHES 語意）在本機跑：編輯�
   b.st.nodes = b.st.nodes.filter(n => n.id !== 'n_x'); b.flush();
   const c = device(srv, norm(base()), true, migrate); c.pull(); assert.ok(!N(c.st, 'n_x'), '刪掉的種子不會長回來');
 });
+test('種子紀錄（meta 陣列）順序不同不算修改：新種子插在 SEED_EXTRAS 前面時，唯讀者不會多一筆待上傳、編輯者不會重複上傳', () => {
+  // 雲端是舊版（只有 n_x）；種子節點跟 app.js 一樣是欄位齊全的（用 putEntity 建），本機新版的 SEED_EXTRAS 把 n_new 放在最前面（main #6 就是這樣）
+  const migrate = st => { st.seedExtras = st.seedExtras || [];
+    for (const id of ['n_new', 'n_x']) if (!st.seedExtras.includes(id)){ st.seedExtras.push(id); if (!st.nodes.some(n => n.id === id)) C.putEntity(st, 'node', id, node(id, { parentId:'n_q1', kind:'direction', createdAt:3 })); }
+    return st; };
+  const oldMigrate = st => { st.seedExtras = st.seedExtras || []; if (!st.seedExtras.includes('n_x')){ st.seedExtras.push('n_x'); C.putEntity(st, 'node', 'n_x', node('n_x', { parentId:'n_q1', kind:'direction', createdAt:3 })); } return st; };
+  // 跟 sync.js 一樣：合併結果不是整份換掉，而是把差異用 putEntity 套回本機（meta 陣列是聯集，會保留本機的順序）
+  const asSyncJs = d => { d.pull = () => { const r = srv.all();
+    if (!r.length){ if (d.canWrite) d.sync = { snap:{}, hkeys:[] }; return; }
+    const res = C.merge(d.st, r, srv.H(), d.sync, { migrate:d.migrate, canWrite:d.canWrite });
+    C.diff(C.fingerprint(d.st), res.state).forEach(o => C.putEntity(d.st, o.kind, o.id, o.deleted ? null : o.data));
+    d.st.history = C.mergeHistory(d.st.history, res.state.history); d.sync = res.sync; }; return d; };
+  const srv = server(); const a = device(srv, norm(oldMigrate(base())), true, oldMigrate); a.pull(); a.flush();
+  const ro = asSyncJs(Object.assign(device(srv, norm(migrate(base())), false), { migrate })); ro.pull(); ro.pull();
+  assert.ok(N(ro.st, 'n_new')); assert.deepEqual(ro.pending(), [], '唯讀者沒有待上傳');
+  const ed = asSyncJs(Object.assign(device(srv, norm(migrate(base())), true), { migrate })); ed.pull();
+  assert.deepEqual(ed.pending().map(o => o.kind + ':' + o.id).sort(), ['meta:seedExtras', 'node:n_new']);
+  ed.flush(); assert.deepEqual(ed.pending(), []); ed.pull(); assert.deepEqual(ed.pending(), [], '上傳後再拉也沒有東西要傳');
+  assert.deepEqual([...srv.rows.get('meta:seedExtras').data].sort(), ['n_new', 'n_x']);
+  ro.pull(); assert.deepEqual(ro.pending(), []);
+});
 test('唯讀者的本機修改保留在本機（拉取不會蓋掉），也不會上傳', () => {
   const srv = server(); const a = device(srv); a.pull(); a.flush();
   const ro = device(srv, norm(base()), false); ro.pull();
