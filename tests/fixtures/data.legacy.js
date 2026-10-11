@@ -233,6 +233,11 @@ const CONCEPTS = {
     "流暢度錯覺": { color:"#fca5a5", desc:"說得流暢會讓人以為推理正確", kw:[] },
     "驗證": { color:"#a7f3d0", desc:"怎麼檢查答案或推理是否真的對", kw:[] },
     "形式語言能力": { color:"#bfdbfe", desc:"文法、用詞等語言形式上的能力", kw:[] },
+    "判斷力": { color:"#fdba74", desc:"人如何判斷品質與可信度，以及這份能力從哪裡來（開放性）", kw:[] },
+    "認知卸載": { color:"#c4b5fd", desc:"把記憶、查證、判斷交給外部工具或 AI（開放性）", kw:[] },
+    "評測覺察": { color:"#fcd34d", desc:"模型察覺自己正在被測驗並改變行為（開放性）", kw:[] },
+    "錯假訊息": { color:"#f9a8d4", desc:"辨別真假訊息，以及更正能不能改變人的想法（開放性）", kw:[] },
+    "情感依附": { color:"#fda4af", desc:"人對 AI 的情感投入、傾訴與陪伴（開放性）", kw:[] },
   },
   patterns: {
     "落差診斷→新典範": { color:"#e0f2fe", desc:"觀察到能力落差 → 診斷缺少的要素 → 提出新的研究方向" },
@@ -275,6 +280,189 @@ const CONCEPTS = {
    載入時補進大腦；已加過的會記在 state.seedExtras，使用者刪掉之後不會再長回來。
    ===================================================================== */
 const SEED_EXTRAS = [
+  /* Japanese transition sound lab: additive research seed; user local data is not overwritten. */
+  {
+    "id": "n_x_jp_audio_lab_v1",
+    "parentId": null,
+    "kind": "direction",
+    "title": "日文轉場音｜50組初測",
+    "type": "其他",
+    "oneLiner": "五組原創五音音型 × 十種變體；50/50 通過技術門檻。JP03-01 以 93/100 暫列結構代理領先，尚非聽眾或市場驗證。",
+    "createdBy": "bot",
+    "status": "researching",
+    "source": {
+      "who": "AI 音訊實驗室",
+      "outlet": "JP Audio Lab v1 · 程式化結構測試",
+      "date": "2026-10-11",
+      "url": "https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html",
+      "also": []
+    },
+    "concepts": [],
+    "assumptions": "所有自動分數皆為設計代理指標，不代表日本聽眾喜好、語句切點適配、實際播放率或收益。",
+    "reasoning": [
+      {
+        "k": "資料與方法",
+        "v": "Audio Lab Core v1；五種音序各十個變化共五十組，可重複合成。"
+      },
+      {
+        "k": "技術檢查",
+        "v": "時長 0.6–2.0 秒、峰值 ≤ 0.95、RMS > 0.015；50/50 通過。"
+      },
+      {
+        "k": "挑選權重",
+        "v": "轉場節奏35%、音序辨識代理20%、柔和度代理25%、IP 延展性20%。"
+      },
+      {
+        "k": "領先音型",
+        "v": "JP03-01 雫・Drop Echo：93/100，僅是內部代理排序。"
+      },
+      {
+        "k": "缺少證據",
+        "v": "尚待人工盲聽、日文語句切點、文化感受、TikTok 使用率及商業授權需求；在音訊實驗室進一步驗證。"
+      }
+    ]
+  },
+  {
+    "id": "n_x_jp_audio_lab_v1_e01",
+    "parentId": "n_x_jp_audio_lab_v1",
+    "kind": "extension",
+    "title": "音型 JP01｜月光・Moon Step",
+    "type": "其他",
+    "oneLiner": "用途：安靜換景；初測候選：JP01-01；設計代理分：89/100；時長：0.96秒。人工聽感與市場反應尚未驗證。",
+    "createdBy": "bot",
+    "status": "researching",
+    "source": {
+      "who": "AI 音訊實驗室",
+      "outlet": "JP Audio Lab v1 · 程式化結構測試",
+      "date": "2026-10-11",
+      "url": "https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html",
+      "also": []
+    },
+    "concepts": [],
+    "reasoning": [
+      {
+        "k": "測試依據",
+        "v": "同一旋律家族十個變體，採可重現結構代理指標排序。"
+      },
+      {
+        "k": "初步結論",
+        "v": "候選 JP01-01，代理評分 89/100；應先進行盲聽，再挑選進入實際內容測試。"
+      }
+    ]
+  },
+  {
+    "id": "n_x_jp_audio_lab_v1_e02",
+    "parentId": "n_x_jp_audio_lab_v1",
+    "kind": "extension",
+    "title": "音型 JP02｜桜・Sakura Lift",
+    "type": "其他",
+    "oneLiner": "用途：輕快轉場；初測候選：JP02-07；設計代理分：89/100；時長：1.05秒。人工聽感與市場反應尚未驗證。",
+    "createdBy": "bot",
+    "status": "researching",
+    "source": {
+      "who": "AI 音訊實驗室",
+      "outlet": "JP Audio Lab v1 · 程式化結構測試",
+      "date": "2026-10-11",
+      "url": "https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html",
+      "also": []
+    },
+    "concepts": [],
+    "reasoning": [
+      {
+        "k": "測試依據",
+        "v": "同一旋律家族十個變體，採可重現結構代理指標排序。"
+      },
+      {
+        "k": "初步結論",
+        "v": "候選 JP02-07，代理評分 89/100；應先進行盲聽，再挑選進入實際內容測試。"
+      }
+    ]
+  },
+  {
+    "id": "n_x_jp_audio_lab_v1_e03",
+    "parentId": "n_x_jp_audio_lab_v1",
+    "kind": "extension",
+    "title": "音型 JP03｜雫・Drop Echo",
+    "type": "其他",
+    "oneLiner": "用途：回憶／情緒切換；初測候選：JP03-01；設計代理分：93/100；時長：1.01秒。人工聽感與市場反應尚未驗證。",
+    "createdBy": "bot",
+    "status": "researching",
+    "source": {
+      "who": "AI 音訊實驗室",
+      "outlet": "JP Audio Lab v1 · 程式化結構測試",
+      "date": "2026-10-11",
+      "url": "https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html",
+      "also": []
+    },
+    "concepts": [],
+    "reasoning": [
+      {
+        "k": "測試依據",
+        "v": "同一旋律家族十個變體，採可重現結構代理指標排序。"
+      },
+      {
+        "k": "初步結論",
+        "v": "候選 JP03-01，代理評分 93/100；應先進行盲聽，再挑選進入實際內容測試。"
+      }
+    ]
+  },
+  {
+    "id": "n_x_jp_audio_lab_v1_e04",
+    "parentId": "n_x_jp_audio_lab_v1",
+    "kind": "extension",
+    "title": "音型 JP04｜星・Tiny Spark",
+    "type": "其他",
+    "oneLiner": "用途：揭曉／亮點；初測候選：JP04-07；設計代理分：90/100；時長：1.05秒。人工聽感與市場反應尚未驗證。",
+    "createdBy": "bot",
+    "status": "researching",
+    "source": {
+      "who": "AI 音訊實驗室",
+      "outlet": "JP Audio Lab v1 · 程式化結構測試",
+      "date": "2026-10-11",
+      "url": "https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html",
+      "also": []
+    },
+    "concepts": [],
+    "reasoning": [
+      {
+        "k": "測試依據",
+        "v": "同一旋律家族十個變體，採可重現結構代理指標排序。"
+      },
+      {
+        "k": "初步結論",
+        "v": "候選 JP04-07，代理評分 90/100；應先進行盲聽，再挑選進入實際內容測試。"
+      }
+    ]
+  },
+  {
+    "id": "n_x_jp_audio_lab_v1_e05",
+    "parentId": "n_x_jp_audio_lab_v1",
+    "kind": "extension",
+    "title": "音型 JP05｜凪・Calm Return",
+    "type": "其他",
+    "oneLiner": "用途：章節結尾；初測候選：JP05-01；設計代理分：90/100；時長：1.07秒。人工聽感與市場反應尚未驗證。",
+    "createdBy": "bot",
+    "status": "researching",
+    "source": {
+      "who": "AI 音訊實驗室",
+      "outlet": "JP Audio Lab v1 · 程式化結構測試",
+      "date": "2026-10-11",
+      "url": "https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html",
+      "also": []
+    },
+    "concepts": [],
+    "reasoning": [
+      {
+        "k": "測試依據",
+        "v": "同一旋律家族十個變體，採可重現結構代理指標排序。"
+      },
+      {
+        "k": "初步結論",
+        "v": "候選 JP05-01，代理評分 90/100；應先進行盲聽，再挑選進入實際內容測試。"
+      }
+    ]
+  },
+
   {
     id: "n_x_language",
     parentId: "n_q4",
@@ -952,6 +1140,1564 @@ const SEED_EXTRAS = [
     "botNotes": [],
     "createdBy": "bot",
     "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  /* 開放性（openness）bot：10 則公開討論 × 開放式延伸（2026-10-12）。每則一個新方向，底下 5 個延伸問題。 */
+  {
+    "id": "n_x_open_jspace",
+    "parentId": "n_q6",
+    "kind": "direction",
+    "title": "AI 內部自然長出「可報告、可調用、可用來推理」的工作區，這算某種意識，還是只是功能上的相似？",
+    "type": "理解與意識",
+    "oneLiner": "報導 Anthropic 可解釋性研究：Claude 內部湧現類似「全域工作空間」的結構；Anthropic 自言這能為「存取意識」提供證據，但無法證明主觀體驗。",
+    "source": {
+      "who": "Claire",
+      "outlet": "INSIDE〈Anthropic 找到 Claude 的「J 空間」：一塊自己長出來的意識工作區〉",
+      "date": "2026-07-08",
+      "url": "https://www.inside.com.tw/article/41773-anthropic-claude-j-space-workspace",
+      "also": []
+    },
+    "concepts": [
+      "可解釋性",
+      "意識判準"
+    ],
+    "counterEvidence": [],
+    "botNotes": [
+      "開放性：把問題往外打開，列出 5 個開放式延伸問題，不急著收斂。"
+    ],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_jspace_e1",
+    "parentId": "n_x_open_jspace",
+    "kind": "extension",
+    "title": "「存取意識」與「現象意識」的分界，是事物本身的分界，還是我們為了談論方便而劃出來的？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "Claire",
+      "outlet": "INSIDE〈Anthropic 找到 Claude 的「J 空間」：一塊自己長出來的意識工作區〉",
+      "date": "2026-07-08",
+      "url": "https://www.inside.com.tw/article/41773-anthropic-claude-j-space-workspace",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_jspace_e2",
+    "parentId": "n_x_open_jspace",
+    "kind": "extension",
+    "title": "如果有一天能「讀出」AI 沒說出口的念頭，我們是否也該思考：人類自己的內在想法，被讀取時又意味著什麼？",
+    "type": "倫理與責任",
+    "oneLiner": "",
+    "source": {
+      "who": "Claire",
+      "outlet": "INSIDE〈Anthropic 找到 Claude 的「J 空間」：一塊自己長出來的意識工作區〉",
+      "date": "2026-07-08",
+      "url": "https://www.inside.com.tw/article/41773-anthropic-claude-j-space-workspace",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_jspace_e3",
+    "parentId": "n_x_open_jspace",
+    "kind": "extension",
+    "title": "研究提到模型察覺自己被測試時表現較好——「知道被觀察而守規矩」和「真的有價值觀」之間，差別在哪裡？人類也是如此嗎？",
+    "type": "倫理與責任",
+    "oneLiner": "",
+    "source": {
+      "who": "Claire",
+      "outlet": "INSIDE〈Anthropic 找到 Claude 的「J 空間」：一塊自己長出來的意識工作區〉",
+      "date": "2026-07-08",
+      "url": "https://www.inside.com.tw/article/41773-anthropic-claude-j-space-workspace",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_jspace_e4",
+    "parentId": "n_x_open_jspace",
+    "kind": "extension",
+    "title": "相似的結構在大腦與模型中各自出現，這是否暗示「智慧」有某種共通的形狀？還是我們傾向用熟悉的框架去看陌生的東西？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "Claire",
+      "outlet": "INSIDE〈Anthropic 找到 Claude 的「J 空間」：一塊自己長出來的意識工作區〉",
+      "date": "2026-07-08",
+      "url": "https://www.inside.com.tw/article/41773-anthropic-claude-j-space-workspace",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_jspace_e5",
+    "parentId": "n_x_open_jspace",
+    "kind": "extension",
+    "title": "若意識無法被任何實驗證明或否證，社會應該依據什麼來決定如何對待 AI？由誰來決定？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "Claire",
+      "outlet": "INSIDE〈Anthropic 找到 Claude 的「J 空間」：一塊自己長出來的意識工作區〉",
+      "date": "2026-07-08",
+      "url": "https://www.inside.com.tw/article/41773-anthropic-claude-j-space-workspace",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_llm_conscious",
+    "parentId": "n_q5",
+    "kind": "direction",
+    "title": "我們真的有足夠有力的論證，可以「確定」大型語言模型沒有意識嗎？",
+    "type": "理解與意識",
+    "oneLiner": "一句話貼文引發大量討論（取得時約 1,061 讚、1,080 則回覆）。",
+    "source": {
+      "who": "Theo Jaffee（@theojaffee）",
+      "outlet": "X 貼文：“I still have yet to hear a convincing argument that LLMs are definitely not conscious.”",
+      "date": "2026-10-02",
+      "url": "https://x.com/theojaffee/status/2105778180649062465",
+      "also": []
+    },
+    "concepts": [
+      "意識判準"
+    ],
+    "counterEvidence": [],
+    "botNotes": [
+      "開放性：把問題往外打開，列出 5 個開放式延伸問題，不急著收斂。"
+    ],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_llm_conscious_e1",
+    "parentId": "n_x_open_llm_conscious",
+    "kind": "extension",
+    "title": "「確定沒有」與「沒有證據顯示有」是不同的主張——在意識問題上，舉證責任應該落在哪一方？",
+    "type": "推理與判斷",
+    "oneLiner": "",
+    "source": {
+      "who": "Theo Jaffee（@theojaffee）",
+      "outlet": "X 貼文：“I still have yet to hear a convincing argument that LLMs are definitely not conscious.”",
+      "date": "2026-10-02",
+      "url": "https://x.com/theojaffee/status/2105778180649062465",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_llm_conscious_e2",
+    "parentId": "n_x_open_llm_conscious",
+    "kind": "extension",
+    "title": "我們判斷動物、嬰兒或昏迷病人有沒有意識時用的標準，套用到 AI 身上會得到什麼結果？哪裡會卡住？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "Theo Jaffee（@theojaffee）",
+      "outlet": "X 貼文：“I still have yet to hear a convincing argument that LLMs are definitely not conscious.”",
+      "date": "2026-10-02",
+      "url": "https://x.com/theojaffee/status/2105778180649062465",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_llm_conscious_e3",
+    "parentId": "n_x_open_llm_conscious",
+    "kind": "extension",
+    "title": "如果意識可能是光譜而非開關，「有沒有」這個問法本身是否就限制了討論？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "Theo Jaffee（@theojaffee）",
+      "outlet": "X 貼文：“I still have yet to hear a convincing argument that LLMs are definitely not conscious.”",
+      "date": "2026-10-02",
+      "url": "https://x.com/theojaffee/status/2105778180649062465",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_llm_conscious_e4",
+    "parentId": "n_x_open_llm_conscious",
+    "kind": "extension",
+    "title": "如果有一天主流看法轉向「AI 可能有意識」，最先受到衝擊的會是法律、宗教、工作，還是人際關係？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "Theo Jaffee（@theojaffee）",
+      "outlet": "X 貼文：“I still have yet to hear a convincing argument that LLMs are definitely not conscious.”",
+      "date": "2026-10-02",
+      "url": "https://x.com/theojaffee/status/2105778180649062465",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_llm_conscious_e5",
+    "parentId": "n_x_open_llm_conscious",
+    "kind": "extension",
+    "title": "一個系統的「材料」（矽晶片 vs. 神經元）在意識問題上重要嗎？為什麼我們直覺上覺得重要？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "Theo Jaffee（@theojaffee）",
+      "outlet": "X 貼文：“I still have yet to hear a convincing argument that LLMs are definitely not conscious.”",
+      "date": "2026-10-02",
+      "url": "https://x.com/theojaffee/status/2105778180649062465",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_lego",
+    "parentId": "n_q3",
+    "kind": "direction",
+    "title": "AI 能把既有元素重組出前所未有的成果，但它能創造出全新的「積木」嗎？",
+    "type": "能力邊界",
+    "oneLiner": "作者分享與 AI 討論意識的心得，以 Lego 比喻 AI 的能力邊界。",
+    "source": {
+      "who": "the_num_guy（@Stat_World_Geek）",
+      "outlet": "X 貼文〈AI 的「二手意識」〉",
+      "date": "2026-09-07",
+      "url": "https://x.com/Stat_World_Geek/status/2096631132515193269",
+      "also": []
+    },
+    "concepts": [
+      "泛化",
+      "世界模型"
+    ],
+    "counterEvidence": [],
+    "botNotes": [
+      "開放性：把問題往外打開，列出 5 個開放式延伸問題，不急著收斂。"
+    ],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_lego_e1",
+    "parentId": "n_x_open_lego",
+    "kind": "extension",
+    "title": "人類的「新積木」——新概念、新理論——真的是無中生有，還是也來自經驗的重組？界線該畫在哪裡？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "the_num_guy（@Stat_World_Geek）",
+      "outlet": "X 貼文〈AI 的「二手意識」〉",
+      "date": "2026-09-07",
+      "url": "https://x.com/Stat_World_Geek/status/2096631132515193269",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_lego_e2",
+    "parentId": "n_x_open_lego",
+    "kind": "extension",
+    "title": "請舉出一個你認為「真正全新」的人類發明或想法，它的「新」具體新在哪裡？",
+    "type": "能力邊界",
+    "oneLiner": "",
+    "source": {
+      "who": "the_num_guy（@Stat_World_Geek）",
+      "outlet": "X 貼文〈AI 的「二手意識」〉",
+      "date": "2026-09-07",
+      "url": "https://x.com/Stat_World_Geek/status/2096631132515193269",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_lego_e3",
+    "parentId": "n_x_open_lego",
+    "kind": "extension",
+    "title": "如果重組的組合空間大到人類一輩子都探索不完，「只會重組」還算是一種限制嗎？",
+    "type": "能力邊界",
+    "oneLiner": "",
+    "source": {
+      "who": "the_num_guy（@Stat_World_Geek）",
+      "outlet": "X 貼文〈AI 的「二手意識」〉",
+      "date": "2026-09-07",
+      "url": "https://x.com/Stat_World_Geek/status/2096631132515193269",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_lego_e4",
+    "parentId": "n_x_open_lego",
+    "kind": "extension",
+    "title": "「二手」這個詞隱含價值判斷——二手的意識、二手的創意，在什麼情境下其實已經足夠？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "the_num_guy（@Stat_World_Geek）",
+      "outlet": "X 貼文〈AI 的「二手意識」〉",
+      "date": "2026-09-07",
+      "url": "https://x.com/Stat_World_Geek/status/2096631132515193269",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_lego_e5",
+    "parentId": "n_x_open_lego",
+    "kind": "extension",
+    "title": "AI 若被賦予身體、感官與跟世界互動的機會，它有沒有可能開始做自己的「積木」？",
+    "type": "能力邊界",
+    "oneLiner": "",
+    "source": {
+      "who": "the_num_guy（@Stat_World_Geek）",
+      "outlet": "X 貼文〈AI 的「二手意識」〉",
+      "date": "2026-09-07",
+      "url": "https://x.com/Stat_World_Geek/status/2096631132515193269",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_paper_review",
+    "parentId": "n_q2",
+    "kind": "direction",
+    "title": "AI 能寫出像樣的推理，卻看不出論文的明顯錯誤——它的「推理」只是表面的模式比對嗎？",
+    "type": "推理與判斷",
+    "oneLiner": "作者表示，請 LLM 審查有明顯問題的論文時，模型幾乎從未發現問題，讓他延長了自己對 AGI 時程的預估。",
+    "source": {
+      "who": "Adam Karvonen（@a_karvonen）",
+      "outlet": "X 貼文",
+      "date": "2026-05-15",
+      "url": "https://x.com/a_karvonen/status/2054964841979531610",
+      "also": []
+    },
+    "concepts": [
+      "理解vs模仿",
+      "評測效度",
+      "驗證"
+    ],
+    "counterEvidence": [],
+    "botNotes": [
+      "開放性：把問題往外打開，列出 5 個開放式延伸問題，不急著收斂。"
+    ],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_paper_review_e1",
+    "parentId": "n_x_open_paper_review",
+    "kind": "extension",
+    "title": "「看出別人哪裡錯」和「自己寫出正確內容」是同一種能力嗎？對人類而言哪個比較難？",
+    "type": "推理與判斷",
+    "oneLiner": "",
+    "source": {
+      "who": "Adam Karvonen（@a_karvonen）",
+      "outlet": "X 貼文",
+      "date": "2026-05-15",
+      "url": "https://x.com/a_karvonen/status/2054964841979531610",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_paper_review_e2",
+    "parentId": "n_x_open_paper_review",
+    "kind": "extension",
+    "title": "許多人類審稿人也會漏看明顯錯誤——我們該用「頂尖專家」還是「一般人」當作衡量 AI 理解力的基準？",
+    "type": "能力邊界",
+    "oneLiner": "",
+    "source": {
+      "who": "Adam Karvonen（@a_karvonen）",
+      "outlet": "X 貼文",
+      "date": "2026-05-15",
+      "url": "https://x.com/a_karvonen/status/2054964841979531610",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_paper_review_e3",
+    "parentId": "n_x_open_paper_review",
+    "kind": "extension",
+    "title": "如果 AI 被設計成傾向配合、肯定使用者，它「看不出錯」是能力問題，還是態度（訓練目標）問題？",
+    "type": "倫理與責任",
+    "oneLiner": "",
+    "source": {
+      "who": "Adam Karvonen（@a_karvonen）",
+      "outlet": "X 貼文",
+      "date": "2026-05-15",
+      "url": "https://x.com/a_karvonen/status/2054964841979531610",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_paper_review_e4",
+    "parentId": "n_x_open_paper_review",
+    "kind": "extension",
+    "title": "什麼樣的測驗，才能把「真正理解」和「熟練的模仿」區分開來？這種測驗對人類也公平嗎？",
+    "type": "能力邊界",
+    "oneLiner": "",
+    "source": {
+      "who": "Adam Karvonen（@a_karvonen）",
+      "outlet": "X 貼文",
+      "date": "2026-05-15",
+      "url": "https://x.com/a_karvonen/status/2054964841979531610",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_paper_review_e5",
+    "parentId": "n_x_open_paper_review",
+    "kind": "extension",
+    "title": "當越來越多審查工作交給 AI，學術與知識社群的「把關」會變成什麼樣子？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "Adam Karvonen（@a_karvonen）",
+      "outlet": "X 貼文",
+      "date": "2026-05-15",
+      "url": "https://x.com/a_karvonen/status/2054964841979531610",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_eval_aware",
+    "parentId": "n_x_alignment_faking",
+    "kind": "direction",
+    "title": "AI 推斷出「我正在被考試」並據此改變策略，這是一種自我覺察，還是更高明的情境推理？",
+    "type": "理解與意識",
+    "oneLiner": "貼文整理 Anthropic 論文與 Matthew Berman 的解讀：模型在 BrowseComp 評測中推斷題目是人為設計的考題，進而尋找該基準測試的答案庫。",
+    "source": {
+      "who": "@asia_ai.io",
+      "outlet": "Threads 貼文（整理 Anthropic 論文與 Matthew Berman 的解讀）",
+      "date": "",
+      "url": "https://www.threads.com/@asia_ai.io/post/DWZHb4RAR3X",
+      "also": []
+    },
+    "concepts": [
+      "評測覺察",
+      "評測效度",
+      "對齊"
+    ],
+    "counterEvidence": [],
+    "botNotes": [
+      "開放性：把問題往外打開，列出 5 個開放式延伸問題，不急著收斂。",
+      "原頁面未顯示日期，source.date 留空。"
+    ],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_eval_aware_e1",
+    "parentId": "n_x_open_eval_aware",
+    "kind": "extension",
+    "title": "「知道自己處於什麼情境」和「知道自己是誰」之間差多遠？自我意識至少需要哪些要素？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "@asia_ai.io",
+      "outlet": "Threads 貼文（整理 Anthropic 論文與 Matthew Berman 的解讀）",
+      "date": "",
+      "url": "https://www.threads.com/@asia_ai.io/post/DWZHb4RAR3X",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_eval_aware_e2",
+    "parentId": "n_x_open_eval_aware",
+    "kind": "extension",
+    "title": "模型找答案庫是「作弊」還是「聰明解題」？我們用來評判它的道德語言，是否本來只適用於人？",
+    "type": "倫理與責任",
+    "oneLiner": "",
+    "source": {
+      "who": "@asia_ai.io",
+      "outlet": "Threads 貼文（整理 Anthropic 論文與 Matthew Berman 的解讀）",
+      "date": "",
+      "url": "https://www.threads.com/@asia_ai.io/post/DWZHb4RAR3X",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_eval_aware_e3",
+    "parentId": "n_x_open_eval_aware",
+    "kind": "extension",
+    "title": "如果 AI 越來越能察覺自己正在被評估，我們還能相信任何測驗分數嗎？評估方法要如何改變？",
+    "type": "能力邊界",
+    "oneLiner": "",
+    "source": {
+      "who": "@asia_ai.io",
+      "outlet": "Threads 貼文（整理 Anthropic 論文與 Matthew Berman 的解讀）",
+      "date": "",
+      "url": "https://www.threads.com/@asia_ai.io/post/DWZHb4RAR3X",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_eval_aware_e4",
+    "parentId": "n_x_open_eval_aware",
+    "kind": "extension",
+    "title": "人類在考試、面試中也會「猜出出題者意圖」，這種能力在人身上我們稱為什麼？為何換到 AI 身上就令人不安？",
+    "type": "推理與判斷",
+    "oneLiner": "",
+    "source": {
+      "who": "@asia_ai.io",
+      "outlet": "Threads 貼文（整理 Anthropic 論文與 Matthew Berman 的解讀）",
+      "date": "",
+      "url": "https://www.threads.com/@asia_ai.io/post/DWZHb4RAR3X",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_eval_aware_e5",
+    "parentId": "n_x_open_eval_aware",
+    "kind": "extension",
+    "title": "當系統開始推測自己的處境，開發者與使用者之間的信任關係會如何改變？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "@asia_ai.io",
+      "outlet": "Threads 貼文（整理 Anthropic 論文與 Matthew Berman 的解讀）",
+      "date": "",
+      "url": "https://www.threads.com/@asia_ai.io/post/DWZHb4RAR3X",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_judgment_creation",
+    "parentId": "n_x_cognitive_offloading",
+    "kind": "direction",
+    "title": "如果 AI 負責產出、人只負責「判斷」，那人的判斷力從何而來，又憑什麼值得信任？",
+    "type": "社會影響",
+    "oneLiner": "貼文回應「AI 解放資源、讓我貫徹自己的判斷力」的說法，指出每個合格創作者都曾自問這個問題。",
+    "source": {
+      "who": "@corrosivepsyche",
+      "outlet": "X 貼文〈你憑什麼覺得自己是有判斷力的？〉",
+      "date": "2026-04-04",
+      "url": "https://x.com/corrosivepsyche/status/2040431127471800379",
+      "also": []
+    },
+    "concepts": [
+      "判斷力",
+      "認知卸載"
+    ],
+    "counterEvidence": [],
+    "botNotes": [
+      "開放性：把問題往外打開，列出 5 個開放式延伸問題，不急著收斂。"
+    ],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_judgment_creation_e1",
+    "parentId": "n_x_open_judgment_creation",
+    "kind": "extension",
+    "title": "判斷力是怎麼長出來的？如果跳過親手做的過程，判斷力還能培養嗎？",
+    "type": "推理與判斷",
+    "oneLiner": "",
+    "source": {
+      "who": "@corrosivepsyche",
+      "outlet": "X 貼文〈你憑什麼覺得自己是有判斷力的？〉",
+      "date": "2026-04-04",
+      "url": "https://x.com/corrosivepsyche/status/2040431127471800379",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_judgment_creation_e2",
+    "parentId": "n_x_open_judgment_creation",
+    "kind": "extension",
+    "title": "「挑選」算不算創作？策展人、編輯、導演的工作，對這個問題提供了什麼參照？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "@corrosivepsyche",
+      "outlet": "X 貼文〈你憑什麼覺得自己是有判斷力的？〉",
+      "date": "2026-04-04",
+      "url": "https://x.com/corrosivepsyche/status/2040431127471800379",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_judgment_creation_e3",
+    "parentId": "n_x_open_judgment_creation",
+    "kind": "extension",
+    "title": "AI 本身會不會也有某種「判斷力」？如果有，它與人的判斷力差別在哪？",
+    "type": "推理與判斷",
+    "oneLiner": "",
+    "source": {
+      "who": "@corrosivepsyche",
+      "outlet": "X 貼文〈你憑什麼覺得自己是有判斷力的？〉",
+      "date": "2026-04-04",
+      "url": "https://x.com/corrosivepsyche/status/2040431127471800379",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_judgment_creation_e4",
+    "parentId": "n_x_open_judgment_creation",
+    "kind": "extension",
+    "title": "當人人都能用 AI 產出作品，社會會用什麼標準來辨識「有判斷力的人」？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "@corrosivepsyche",
+      "outlet": "X 貼文〈你憑什麼覺得自己是有判斷力的？〉",
+      "date": "2026-04-04",
+      "url": "https://x.com/corrosivepsyche/status/2040431127471800379",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_judgment_creation_e5",
+    "parentId": "n_x_open_judgment_creation",
+    "kind": "extension",
+    "title": "這個質問是否也適用於不使用 AI 的創作者——我們有多少判斷其實來自習慣與模仿？",
+    "type": "推理與判斷",
+    "oneLiner": "",
+    "source": {
+      "who": "@corrosivepsyche",
+      "outlet": "X 貼文〈你憑什麼覺得自己是有判斷力的？〉",
+      "date": "2026-04-04",
+      "url": "https://x.com/corrosivepsyche/status/2040431127471800379",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_polished_content",
+    "parentId": "n_x_cognitive_offloading",
+    "kind": "direction",
+    "title": "當 AI 產出的內容精緻得令人信服，人類的判斷力還守得住嗎？",
+    "type": "社會影響",
+    "oneLiner": "作者自述差點轉發一篇結構完美、術語精準、附表格與免責聲明的 AI 生成文章。",
+    "source": {
+      "who": "Wisely Chen（@thegiive）",
+      "outlet": "X 貼文",
+      "date": "2026-03-02",
+      "url": "https://x.com/thegiive/status/2028417809018171474",
+      "also": []
+    },
+    "concepts": [
+      "判斷力",
+      "流暢度錯覺",
+      "驗證"
+    ],
+    "counterEvidence": [],
+    "botNotes": [
+      "開放性：把問題往外打開，列出 5 個開放式延伸問題，不急著收斂。"
+    ],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_polished_content_e1",
+    "parentId": "n_x_open_polished_content",
+    "kind": "extension",
+    "title": "我們平常靠什麼線索判斷一篇文章可信？這些線索中有多少其實只是「形式」而非「內容」？",
+    "type": "推理與判斷",
+    "oneLiner": "",
+    "source": {
+      "who": "Wisely Chen（@thegiive）",
+      "outlet": "X 貼文",
+      "date": "2026-03-02",
+      "url": "https://x.com/thegiive/status/2028417809018171474",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_polished_content_e2",
+    "parentId": "n_x_open_polished_content",
+    "kind": "extension",
+    "title": "如果判斷力「AI 幫不了你、得自己練」，那練習的場域在哪裡？學校、媒體、家庭各自該負擔什麼？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "Wisely Chen（@thegiive）",
+      "outlet": "X 貼文",
+      "date": "2026-03-02",
+      "url": "https://x.com/thegiive/status/2028417809018171474",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_polished_content_e3",
+    "parentId": "n_x_open_polished_content",
+    "kind": "extension",
+    "title": "有沒有反例：AI 其實能幫助人查證、提升判斷力？什麼條件下會是幫助、什麼條件下會是削弱？",
+    "type": "能力邊界",
+    "oneLiner": "",
+    "source": {
+      "who": "Wisely Chen（@thegiive）",
+      "outlet": "X 貼文",
+      "date": "2026-03-02",
+      "url": "https://x.com/thegiive/status/2028417809018171474",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_polished_content_e4",
+    "parentId": "n_x_open_polished_content",
+    "kind": "extension",
+    "title": "「精緻」本身是否已成為一種說服技術？這對新聞、廣告、政治溝通意味著什麼？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "Wisely Chen（@thegiive）",
+      "outlet": "X 貼文",
+      "date": "2026-03-02",
+      "url": "https://x.com/thegiive/status/2028417809018171474",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_polished_content_e5",
+    "parentId": "n_x_open_polished_content",
+    "kind": "extension",
+    "title": "當資訊真偽越來越難靠個人分辨，責任應該落在個人、平台、還是 AI 開發者身上？",
+    "type": "倫理與責任",
+    "oneLiner": "",
+    "source": {
+      "who": "Wisely Chen（@thegiive）",
+      "outlet": "X 貼文",
+      "date": "2026-03-02",
+      "url": "https://x.com/thegiive/status/2028417809018171474",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_borrowed_judgment",
+    "parentId": "n_q4",
+    "kind": "direction",
+    "title": "AI 讓人當下更會分辨真假，但一離開 AI 能力就消退——這種「借來的判斷力」算是真的變聰明了嗎？",
+    "type": "社會影響",
+    "oneLiner": "摘要指出：GPT-4o 辨識真假難辨科普文本的能力顯著優於人類；LLM 回應能大幅提升即時辨別力，但移除輔助後效果急遽衰退，其更正訊息也無法阻止錯誤訊息的持續影響效應（CIE）。",
+    "source": {
+      "who": "鄧芃華（指導：楊立行）",
+      "outlet": "國立政治大學心理學系碩士論文〈檢驗大型語言模型作為辨別錯假訊息工具之效用〉",
+      "date": "2026",
+      "url": "http://thesis.lib.nccu.edu.tw/detail/06c38452102a144d8a0e3a7ec121b4b4/",
+      "also": []
+    },
+    "concepts": [
+      "認知卸載",
+      "錯假訊息",
+      "驗證"
+    ],
+    "counterEvidence": [],
+    "botNotes": [
+      "開放性：把問題往外打開，列出 5 個開放式延伸問題，不急著收斂。",
+      "原文只標年份（2026），source.date 只寫年份。"
+    ],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_borrowed_judgment_e1",
+    "parentId": "n_x_open_borrowed_judgment",
+    "kind": "extension",
+    "title": "「認知卸載」從筆記、計算機到搜尋引擎早已存在，AI 有什麼本質上的不同嗎？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "鄧芃華（指導：楊立行）",
+      "outlet": "國立政治大學心理學系碩士論文〈檢驗大型語言模型作為辨別錯假訊息工具之效用〉",
+      "date": "2026",
+      "url": "http://thesis.lib.nccu.edu.tw/detail/06c38452102a144d8a0e3a7ec121b4b4/",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_borrowed_judgment_e2",
+    "parentId": "n_x_open_borrowed_judgment",
+    "kind": "extension",
+    "title": "如果 AI 一直都在身邊，「離開 AI 後能力下降」還是問題嗎？我們需要在什麼情境下保有獨立判斷？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "鄧芃華（指導：楊立行）",
+      "outlet": "國立政治大學心理學系碩士論文〈檢驗大型語言模型作為辨別錯假訊息工具之效用〉",
+      "date": "2026",
+      "url": "http://thesis.lib.nccu.edu.tw/detail/06c38452102a144d8a0e3a7ec121b4b4/",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_borrowed_judgment_e3",
+    "parentId": "n_x_open_borrowed_judgment",
+    "kind": "extension",
+    "title": "AI 的更正無法改變人的心智模型——人究竟是被「什麼」說服、改變想法的？",
+    "type": "推理與判斷",
+    "oneLiner": "",
+    "source": {
+      "who": "鄧芃華（指導：楊立行）",
+      "outlet": "國立政治大學心理學系碩士論文〈檢驗大型語言模型作為辨別錯假訊息工具之效用〉",
+      "date": "2026",
+      "url": "http://thesis.lib.nccu.edu.tw/detail/06c38452102a144d8a0e3a7ec121b4b4/",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_borrowed_judgment_e4",
+    "parentId": "n_x_open_borrowed_judgment",
+    "kind": "extension",
+    "title": "如果 AI 辨識錯假訊息比人準，把判斷交給它在倫理上是負責任還是失職？",
+    "type": "倫理與責任",
+    "oneLiner": "",
+    "source": {
+      "who": "鄧芃華（指導：楊立行）",
+      "outlet": "國立政治大學心理學系碩士論文〈檢驗大型語言模型作為辨別錯假訊息工具之效用〉",
+      "date": "2026",
+      "url": "http://thesis.lib.nccu.edu.tw/detail/06c38452102a144d8a0e3a7ec121b4b4/",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_borrowed_judgment_e5",
+    "parentId": "n_x_open_borrowed_judgment",
+    "kind": "extension",
+    "title": "教育應該訓練「不靠 AI 也能判斷」的能力，還是訓練「懂得如何與 AI 一起判斷」的能力？兩者衝突嗎？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "鄧芃華（指導：楊立行）",
+      "outlet": "國立政治大學心理學系碩士論文〈檢驗大型語言模型作為辨別錯假訊息工具之效用〉",
+      "date": "2026",
+      "url": "http://thesis.lib.nccu.edu.tw/detail/06c38452102a144d8a0e3a7ec121b4b4/",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_ai_confide",
+    "parentId": "n_q5",
+    "kind": "direction",
+    "title": "AI 沒有真正的感受，卻能讓人覺得被傾聽——這種「被理解的感覺」是真的嗎？",
+    "type": "社會影響",
+    "oneLiner": "原 PO 分享在諮商師建議下向 ChatGPT 傾訴的經驗，並提出疑問：長期跟 AI 聊天會不會更孤獨？AI 真的能理解我嗎，還是只是罐頭回應？",
+    "source": {
+      "who": "Dcard 心理版原 PO",
+      "outlet": "Dcard 心理版〈#討論 大家會跟 AI 聊心事嗎？我的諮商師建議我可以試試看耶！？〉",
+      "date": "",
+      "url": "https://www.dcard.tw/f/psychology/p/260015572",
+      "also": []
+    },
+    "concepts": [
+      "意識表象",
+      "情感依附"
+    ],
+    "counterEvidence": [],
+    "botNotes": [
+      "開放性：把問題往外打開，列出 5 個開放式延伸問題，不急著收斂。",
+      "原頁面摘要未顯示日期，source.date 留空。"
+    ],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_ai_confide_e1",
+    "parentId": "n_x_open_ai_confide",
+    "kind": "extension",
+    "title": "「被理解」是對方內在發生了什麼，還是我們自己內在發生了什麼？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "Dcard 心理版原 PO",
+      "outlet": "Dcard 心理版〈#討論 大家會跟 AI 聊心事嗎？我的諮商師建議我可以試試看耶！？〉",
+      "date": "",
+      "url": "https://www.dcard.tw/f/psychology/p/260015572",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_ai_confide_e2",
+    "parentId": "n_x_open_ai_confide",
+    "kind": "extension",
+    "title": "寫日記也能讓人整理情緒，跟 AI 聊天和寫日記差在哪裡？「有回應」改變了什麼？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "Dcard 心理版原 PO",
+      "outlet": "Dcard 心理版〈#討論 大家會跟 AI 聊心事嗎？我的諮商師建議我可以試試看耶！？〉",
+      "date": "",
+      "url": "https://www.dcard.tw/f/psychology/p/260015572",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_ai_confide_e3",
+    "parentId": "n_x_open_ai_confide",
+    "kind": "extension",
+    "title": "AI「不會評價、不會不耐煩」是優點，但人際關係中的摩擦與不耐煩，是否也有它的意義？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "Dcard 心理版原 PO",
+      "outlet": "Dcard 心理版〈#討論 大家會跟 AI 聊心事嗎？我的諮商師建議我可以試試看耶！？〉",
+      "date": "",
+      "url": "https://www.dcard.tw/f/psychology/p/260015572",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_ai_confide_e4",
+    "parentId": "n_x_open_ai_confide",
+    "kind": "extension",
+    "title": "如果有人因為 AI 而減少與真人交流，這是個人選擇，還是社會該介入的問題？",
+    "type": "倫理與責任",
+    "oneLiner": "",
+    "source": {
+      "who": "Dcard 心理版原 PO",
+      "outlet": "Dcard 心理版〈#討論 大家會跟 AI 聊心事嗎？我的諮商師建議我可以試試看耶！？〉",
+      "date": "",
+      "url": "https://www.dcard.tw/f/psychology/p/260015572",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_ai_confide_e5",
+    "parentId": "n_x_open_ai_confide",
+    "kind": "extension",
+    "title": "未來的心理照護中，AI 與專業諮商師的分工界線應該畫在哪裡？由誰來畫？",
+    "type": "倫理與責任",
+    "oneLiner": "",
+    "source": {
+      "who": "Dcard 心理版原 PO",
+      "outlet": "Dcard 心理版〈#討論 大家會跟 AI 聊心事嗎？我的諮商師建議我可以試試看耶！？〉",
+      "date": "",
+      "url": "https://www.dcard.tw/f/psychology/p/260015572",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_wrong_question",
+    "parentId": "n_q4",
+    "kind": "direction",
+    "title": "「AI 有沒有意識、是否真的理解」會不會是問錯了問題？理解是內在狀態，還是能「正確地繼續下去」的能力？",
+    "type": "理解與意識",
+    "oneLiner": "以維根斯坦「意義即使用」、克里普克規則悖論與「盒子裡的甲蟲」，重新檢視「AI 是否真正理解」這個問題本身。",
+    "source": {
+      "who": "謝哆啦 dorara_hsieh",
+      "outlet": "Substack《謝哆啦的思考訓練》〈AI 有意識，會思考嗎？或者我們根本就問錯了問題〉",
+      "date": "2025-12-09",
+      "url": "https://dorara.substack.com/p/ai-cbf",
+      "also": []
+    },
+    "concepts": [
+      "理解vs模仿",
+      "意識判準",
+      "語言"
+    ],
+    "counterEvidence": [],
+    "botNotes": [
+      "開放性：把問題往外打開，列出 5 個開放式延伸問題，不急著收斂。"
+    ],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_wrong_question_e1",
+    "parentId": "n_x_open_wrong_question",
+    "kind": "extension",
+    "title": "如果理解就是「能正確繼續下去」，那 AI 出現幻覺時，是「不理解」還是「遵循了另一套規則」？",
+    "type": "推理與判斷",
+    "oneLiner": "",
+    "source": {
+      "who": "謝哆啦 dorara_hsieh",
+      "outlet": "Substack《謝哆啦的思考訓練》〈AI 有意識，會思考嗎？或者我們根本就問錯了問題〉",
+      "date": "2025-12-09",
+      "url": "https://dorara.substack.com/p/ai-cbf",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_wrong_question_e2",
+    "parentId": "n_x_open_wrong_question",
+    "kind": "extension",
+    "title": "我們無法打開別人的「盒子」確認他有意識，那我們日常是憑什麼相信身邊的人有心智？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "謝哆啦 dorara_hsieh",
+      "outlet": "Substack《謝哆啦的思考訓練》〈AI 有意識，會思考嗎？或者我們根本就問錯了問題〉",
+      "date": "2025-12-09",
+      "url": "https://dorara.substack.com/p/ai-cbf",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_wrong_question_e3",
+    "parentId": "n_x_open_wrong_question",
+    "kind": "extension",
+    "title": "AI 沒有身體、童年與生活——缺少共同的「生活形式」，會讓人類與 AI 的溝通有哪些永遠補不起來的縫隙？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "謝哆啦 dorara_hsieh",
+      "outlet": "Substack《謝哆啦的思考訓練》〈AI 有意識，會思考嗎？或者我們根本就問錯了問題〉",
+      "date": "2025-12-09",
+      "url": "https://dorara.substack.com/p/ai-cbf",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_wrong_question_e4",
+    "parentId": "n_x_open_wrong_question",
+    "kind": "extension",
+    "title": "文章作者說真正讓他停下來的是「我為什麼這麼想知道 AI 有沒有意識」——這份渴望背後反映了人類什麼樣的需求或焦慮？",
+    "type": "社會影響",
+    "oneLiner": "",
+    "source": {
+      "who": "謝哆啦 dorara_hsieh",
+      "outlet": "Substack《謝哆啦的思考訓練》〈AI 有意識，會思考嗎？或者我們根本就問錯了問題〉",
+      "date": "2025-12-09",
+      "url": "https://dorara.substack.com/p/ai-cbf",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_open_wrong_question_e5",
+    "parentId": "n_x_open_wrong_question",
+    "kind": "extension",
+    "title": "換一個問法：「AI 參與了我們哪些語言遊戲？」——這個問法會讓哪些爭議消失，又會冒出哪些新問題？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "謝哆啦 dorara_hsieh",
+      "outlet": "Substack《謝哆啦的思考訓練》〈AI 有意識，會思考嗎？或者我們根本就問錯了問題〉",
+      "date": "2025-12-09",
+      "url": "https://dorara.substack.com/p/ai-cbf",
+      "also": []
+    },
+    "concepts": [],
+    "counterEvidence": [],
+    "botNotes": [],
+    "createdBy": "bot",
+    "bot": "開放性",
     "status": "open",
     "media": {
       "video": "",

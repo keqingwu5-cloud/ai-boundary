@@ -18,7 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BOTS = ['merlin', 'decomposer', 'radar', 'director', 'intp', 'designer', 'integrator', 'reviewer', 'unknown'];
+const BOTS = ['merlin', 'decomposer', 'radar', 'director', 'intp', 'openness', 'designer', 'integrator', 'reviewer', 'unknown'];
 const KINDS = ['content', 'video', 'code', 'fix', 'review', 'merge', 'cleanup', 'docs', 'design'];
 
 const argv = process.argv.slice(2), opt = { node:[], link:[] }, flags = new Set();

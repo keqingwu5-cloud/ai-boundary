@@ -53,7 +53,7 @@ export function validateAll({ base } = {}){
   Q.forEach(q => { ids.add('n_' + q.id); (q.extensions || []).forEach((e, i) => ids.add('n_' + q.id + '_e' + i)); });
   const addExtras = (list, where) => list.forEach((x, i) => {
     if (ids.has(x.id)) errs.push(`${where}[${i}]: 節點 id ${x.id} 重複`);
-    if (!ids.has(x.parentId)) errs.push(`${where}[${i}]: parentId ${x.parentId} 不存在（要先有父節點）`);
+    if (x.parentId != null && !ids.has(x.parentId)) errs.push(`${where}[${i}]: parentId ${x.parentId} 不存在（要先有父節點）`);
     if (T && !T[x.type]) warns.push(`${where}[${i}]: 類型「${x.type}」不在 content/types.json（會顯示成「其他」）`);
     ids.add(x.id);
   });

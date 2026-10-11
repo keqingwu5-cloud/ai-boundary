@@ -32,4 +32,8 @@ test('媒體／補丁 schema：網址、顏色、bot 名稱', () => {
   assert.ok(check(S('types'), { 其他:{ color:'red;background:url(x)', icon:'x' } }).length);
   assert.ok(check(S('patch'), { bot:'someone', date:'2026-10-12' }).length);
   assert.deepStrictEqual(check(S('patch'), { bot:'radar', date:'2026-10-12', seedExtras:[{ id:'n_x_a', parentId:'n_q1', kind:'direction', title:'t', type:'其他' }] }), []);
+  // 頂層的種子節點（parentId:null，例如日文轉場音實驗室）、開放性 bot
+  assert.deepStrictEqual(check(S('patch'), { bot:'openness', date:'2026-10-12', seedExtras:[{ id:'n_x_b', parentId:null, kind:'direction', title:'t', type:'其他', bot:'開放性' }] }), []);
+  assert.deepStrictEqual(check(S('seed-extras'), [{ id:'n_x_c', parentId:null, kind:'direction', title:'t', type:'其他' }]), []);
+  assert.ok(check(S('seed-extras'), [{ id:'n_x_c', parentId:5, kind:'direction', title:'t', type:'其他' }]).length);
 });

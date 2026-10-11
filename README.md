@@ -185,6 +185,7 @@ scripts/publish_episode.sh ep04 n_q4 --parent git-abd3a61   # 動態的「衍生
 
 ### 種子節點補充（SEED_EXTRAS）
 `content/seed-extras.json`（`SEED_EXTRAS`）放不在 `QUESTIONS` 裡的原創節點；之後 bot 要新增節點，寫在自己的補丁檔 `patches/<bot>-<date>.json` 的 `seedExtras`，載入時接在後面（`QUESTIONS` 原文不動）。載入時會補進大腦和 feed，接在 `parentId` 底下（如果父節點已經變成子腦，就跟著放進那顆子腦）。已經加過的 id 會記在 `state.seedExtras`，所以使用者刪掉之後不會再長回來。
+- `content/seed-extras.json` 目前有 12 個節點：main #6 的 6 個 🎧 日文轉場音實驗室節點（`n_x_jp_audio_lab_v1`、`_e01`–`_e05`，最上面那個 `parentId:null`）排在最前面，接著是原本的 6 個新方向；順序跟 main 的 `SEED_EXTRAS` 一樣，所以拆檔前後的大腦完全相同。
 
 目前有：
 - `n_x_language`「語言是不是思考的邊界？」：🚀 新方向，接在 q4 底下，類型理解與意識，由 INTP 鏡像研究員提出。來源是影像導演 × INTP 鏡像研究員原創短片（2026-10-10），v2 版 56 秒，字幕已經燒進畫面；`media.subtitles` 另外附上 SRT，給搜尋和無障礙用。
@@ -195,6 +196,7 @@ scripts/publish_episode.sh ep04 n_q4 --parent git-abd3a61   # 動態的「衍生
   - `n_x_open_jspace`（<n_q6）、`n_x_open_llm_conscious`（<n_q5）、`n_x_open_lego`（<n_q3）、`n_x_open_paper_review`（<n_q2）、`n_x_open_eval_aware`（<n_x_alignment_faking）
   - `n_x_open_judgment_creation`、`n_x_open_polished_content`（<n_x_cognitive_offloading）、`n_x_open_borrowed_judgment`（<n_q4）、`n_x_open_ai_confide`（<n_q5）、`n_x_open_wrong_question`（<n_q4）
 - 原頁面沒有日期的來源（Threads、Dcard）`source.date` 留空；政大論文只有年份。新概念 `判斷力`／`認知卸載`／`評測覺察`／`錯假訊息`／`情感依附` 已登記在 `CONCEPTS.defs`。
+- 檔案：`patches/openness-2026-10-12.json`（`seedExtras` 60 個節點＋`conceptDefs` 5 個概念），載入順序排在 `intp` 補丁後面，跟 main 的 `SEED_EXTRAS` 順序一致。
 
 ### 🧭 問題拆解師的推理流程（SEED_PATCHES）
 - `patches/decomposer-2026-10-11.json` 的 `seedPatches`（合併成 `SEED_PATCHES`）依節點 id（n_q1…n_q6）補上 `flow`（❓問題定義／◇前提假設／→推理步驟／🗣各方觀點／？未解關鍵點）、bot 反證（含來源連結）與 botNotes。`QUESTIONS` 原文不動。

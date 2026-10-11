@@ -21,7 +21,7 @@
           "pattern": "^[A-Za-z0-9_-]{1,80}$"
         },
         "parentId": {
-          "type": "string",
+          "type": ["string", "null"],
           "pattern": "^[A-Za-z0-9_-]{1,80}$"
         },
         "kind": {

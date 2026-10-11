@@ -11,6 +11,7 @@
 | 📡 **AI 邊界雷達**（`radar`） | 新問題、延伸、新方向、來源 | `patches/radar-<YYYY-MM-DD>.json`（`seedExtras`、`seedPatches`） |
 | 🎬 **影像導演**（`director`） | 影片與封面 | `media/videos/`、`content/media.json`、`content/series.json`（都由 `scripts/publish_episode.sh` 處理） |
 | 🪞 **INTP 鏡像研究員**（`intp`） | 關於 Merlin 自己的思考 | `patches/intp-<YYYY-MM-DD>.json` |
+| 🔓 **開放性**（`openness`） | 把問題往外打開，一次列出多個開放式延伸問題 | `patches/openness-<YYYY-MM-DD>.json`（`seedExtras`、`conceptDefs`；節點標 `createdBy:'bot'`、`bot:'開放性'`） |
 | 🎨 **App 設計師**（`designer`） | CSS、面板、介面 | `index.html`／`feed.html` 的樣式與版面、`app.js`／`feed.js` 裡跟畫面有關的部分 |
 | 🔧 **整合師**（`integrator`） | 同步、CI、合併 PR、清理 | `sync*.js`、`safe.js`、`data.js`、`schemas/`、`scripts/`、`.github/`、`tests/`、`patches/index.json`；合併 PR；每週清理 repo 副本 |
 
@@ -28,7 +29,7 @@ content/
   questions.json     QUESTIONS（Merlin；原文不動）
   types.json         類型 → 顏色、圖示（整合師）
   concepts.json      概念層 defs／patterns／tags／process（整合師；bot 要新概念寫在自己補丁的 conceptDefs）
-  seed-extras.json   既有的原創節點（凍結；新的寫在補丁的 seedExtras）
+  seed-extras.json   拆檔時 main 已有的原創節點（含 🎧 日文轉場音實驗室 6 個，排最前面）；凍結，新的寫在補丁的 seedExtras
   series.json        影集順序（影像導演）
   media.json         節點 → 影片／封面（publish_episode.sh 自動寫）
   activity.json      📅 每日動態（只加在最後）
