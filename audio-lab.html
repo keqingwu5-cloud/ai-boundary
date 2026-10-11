@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>日文轉場音｜50 次測試實驗室</title>
+<meta name="description" content="五組原創短旋律，五十個日本語短影音轉場音版本。可播放、盲聽、記錄測試及同步摘要到 AI 主腦。">
+<style>
+:root{color-scheme:dark;--bg:#090d1d;--panel:#141a31;--line:#303957;--muted:#aeb9d7;--aqua:#7be3d1;--lav:#cbb8ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse 850px 550px at 80% -20%,#333064 0,transparent 66%),var(--bg);color:#eff4ff;font:15px/1.55 system-ui,-apple-system,"Noto Sans TC",sans-serif}
+a{color:var(--aqua)}button,select,textarea,input{font:inherit}button{cursor:pointer;color:inherit;border:1px solid #48527b;background:#242c4e;border-radius:11px;padding:9px 14px}button:hover{border-color:var(--aqua)}button:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid var(--aqua);outline-offset:2px}button.primary{background:var(--aqua);color:#08202a;border-color:var(--aqua);font-weight:800}button.light{background:#171e37}button:disabled{opacity:.5;cursor:not-allowed}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;max-width:1140px;margin:auto;padding:19px 20px 7px}header a{text-decoration:none;font-weight:700}header nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+main{max-width:1140px;margin:auto;padding:6px 20px 70px}h1{font-size:clamp(27px,5vw,39px);margin:5px 0 7px;line-height:1.2}h2{font-size:19px;margin:0 0 13px}h3{font-size:16px;margin:0 0 8px}p{margin:5px 0 12px}.muted,small{color:var(--muted)}.eyebrow{letter-spacing:.17em;color:var(--aqua);font-size:12px;font-weight:800;text-transform:uppercase}
+.hero{padding:30px 0}.hero p{max-width:850px}.columns{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat,.panel{background:rgba(20,26,49,.94);border:1px solid var(--line);border-radius:17px;padding:17px}.stat strong{font-size:30px;display:block}.stat span{color:var(--muted);font-size:13px}.panel{margin-top:17px}.panelHead{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.grid2{display:grid;grid-template-columns:1.1fr .9fr;gap:17px}
+.track{display:grid;gap:7px}.track button{text-align:left}.track button.active{border-color:var(--aqua);background:#1d3b48}.track i{color:#aab1d7;font-style:normal}.metrics{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}.pill{background:#1d2745;border:1px solid #334363;color:#e1edff;border-radius:99px;padding:5px 10px;font-size:12px}.hint{background:#202640;padding:10px 13px;border-radius:10px;font-size:13px;color:#cbd7ee}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.selects{display:flex;gap:9px;flex-wrap:wrap}.selects label{font-size:12px;color:var(--muted)}select,textarea{display:block;width:100%;margin-top:5px;background:#0e132a;color:#f5f8ff;border:1px solid #3f496d;border-radius:9px;padding:9px}select{min-width:140px}textarea{resize:vertical;min-height:64px}
+.tableWrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:13px;min-width:690px}th{text-align:left;color:var(--muted);font-weight:600}th,td{padding:11px 9px;border-bottom:1px solid #2b3453}tr:hover td{background:#1b2443}.rowTitle{font-weight:700;color:white}.tag{font-size:11px;color:#a6eedf}.scores{font-variant-numeric:tabular-nums}.high{color:#89e0c8;font-weight:800}.pending{color:#b7a9e5}.criteria{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}.criteria label{font-size:13px}.criteria select{min-width:0}.note{font-size:13px;color:var(--muted)}.notice{padding:12px;border:1px solid #577f77;background:#152f34;color:#d7fff4;border-radius:11px;margin:10px 0}.notice:empty{display:none}
+footer{max-width:1140px;margin:auto;padding:0 20px 32px;color:var(--muted);font-size:12px}
+@media(max-width:750px){.columns{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.criteria{grid-template-columns:1fr}.stat strong{font-size:26px}}
+</style>
+<script src="./audio-lab-core.js"></script>
+<script defer src="./audio-lab.js"></script>
+</head>
+<body>
+<header><a href="./index.html">← 返回 AI 主腦</a><nav><a href="#listen">盲聽評分</a><a href="#catalog">50 個版本</a><a href="#export">匯出與同步</a></nav></header>
+<main>
+<section class="hero"><div class="eyebrow">AI BOUNDARY · SOUND RESEARCH · EXPERIMENT V1</div><h1>日文轉場音實驗室</h1><p>以五組原創五音短旋律為種子，每組十種變化。先完成 <b>50 次可重現的技術／結構測試</b>，再靠盲聽和實際日文內容發布驗證感受與市場。每次評分保存在本機，不修改主腦原始資料。</p>
+<div class="columns">
+<div class="stat"><span>測試樣本</span><strong id="sampleCount">—</strong></div>
+<div class="stat"><span>技術合格</span><strong id="validCount">—</strong></div>
+<div class="stat"><span>已盲聽評分</span><strong id="ratedCount">—</strong></div>
+<div class="stat"><span>當前最高代理分</span><strong id="topScore">—</strong></div>
+</div>
+</section>
+<div class="grid2">
+<section class="panel" id="motifs"><h2>01 · 五種聲音 DNA</h2><div id="motifList" class="track"></div><p class="note">每個候選有旋律音高、時長與音色版本；只使用原創音序，不仿造特定歌手聲線。</p></section>
+<section class="panel" id="listen"><h2>02 · 盲聽與人工挑選</h2><p class="note">隱藏名稱後聆聽，分別評估轉場吻合度、主觀辨識度與療癒感。<b>這是你的主觀評分，不是 50 位聽眾的調查。</b></p>
+<div id="blindLabel" class="hint">從未評分版本開始。</div>
+<div class="controls"><button class="primary" id="blindPlay">▶ 播放盲聽樣本</button><button id="blindNext" class="light">跳過／換一個</button></div>
+<div class="criteria">
+<label>日文內容轉場契合度<select id="rateTransition"><option value="">未評分</option><option value="1">1 · 很不適合</option><option value="2">2 · 偏弱</option><option value="3">3 · 普通</option><option value="4">4 · 適合</option><option value="5">5 · 非常適合</option></select></label>
+<label>主觀辨識度<select id="rateMemory"><option value="">未評分</option><option value="1">1 · 很普通</option><option value="2">2 · 偏弱</option><option value="3">3 · 普通</option><option value="4">4 · 清楚</option><option value="5">5 · 很獨特</option></select></label>
+<label>療癒／舒適感<select id="rateComfort"><option value="">未評分</option><option value="1">1 · 不舒服</option><option value="2">2 · 偏弱</option><option value="3">3 · 普通</option><option value="4">4 · 舒服</option><option value="5">5 · 非常舒服</option></select></label>
+</div>
+<label class="note" for="blindNote">備註（選填）</label><textarea id="blindNote" placeholder="例如：適合「それでは」後的柔和轉場；尾音有點尖。"></textarea>
+<div class="controls"><button class="primary" id="blindSave">儲存評分，前往下一段</button></div>
+</section>
+</div>
+<section class="panel" id="catalog"><div class="panelHead"><div><h2>03 · 五十組測試結果</h2><p class="note">技術通過與設計代理分由固定演算法計算；人工評分只在你實際聆聽並保存後顯示。</p></div><div class="selects">
+<label>旋律家族<select id="filterMotif"><option value="all">全部五組</option></select></label>
+<label>篩選<select id="filterStatus"><option value="all">全部</option><option value="rated">已人工評分</option><option value="unrated">待盲聽</option><option value="technical">技術合格</option></select></label>
+<label>排序<select id="sortBy"><option value="design">設計代理分</option><option value="manual">人工評分</option><option value="id">編號</option></select></label>
+</div></div>
+<div class="tableWrap"><table><thead><tr><th>版本</th><th>時長</th><th>峰值</th><th>轉場代理</th><th>柔和代理</th><th>設計代理</th><th>人工平均</th><th>操作</th></tr></thead><tbody id="resultsBody"></tbody></table></div></section>
+<section class="panel" id="export"><h2>04 · 保存與主腦整合</h2><p>主腦只接收摘要與五個音型的優選版本；全部 50 筆原始紀錄保存在這個實驗室的獨立本機資料庫，也能匯出 JSON／CSV 備份。</p>
+<div class="controls"><button id="downloadJson">↓ 匯出完整 JSON</button><button id="downloadCsv">↓ 匯出 CSV</button><button class="primary" id="sendBrain">🧠 將這輪結果送入主腦</button></div>
+<div id="notice" role="status" class="notice" aria-live="polite"></div>
+<div class="hint">五道選擇機制：① 技術合格（硬門檻）② 轉場節奏（代理）③ 音序辨識（代理／盲聽）④ 療癒感（代理／盲聽）⑤ 原創 IP 延展性（結構代理）。<b>日文語句同步、真人記憶測試、TikTok 使用率、付費轉換</b>仍未驗證。</div>
+</section>
+</main>
+<footer>建構方法 v1 · 所有聲音由 Web Audio 在你的裝置上即時合成，不需要外部音訊 API。聲音品質和日本市場喜好需要真實使用者測試；不可將設計分數解讀為市場成功率。</footer>
+</body></html>
