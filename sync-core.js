@@ -24,7 +24,10 @@ export function toEntities(st){
   Object.keys(st).forEach(k => { if (!CORE.has(k) && st[k] !== undefined) m.set(keyOf('meta', k), st[k]); });
   return m;
 }
-export function fingerprint(st){ const o = {}; toEntities(st).forEach((v, k) => { o[k] = stable(v); }); return o; }
+/* meta 陣列（seedExtras／seedPatches 這類種子紀錄）是集合：putEntity 用聯集合併、不管順序，所以比對時也不管順序。
+   不然新種子插在 SEED_EXTRAS 前面時（例如 main #6 的日文轉場音），本機和雲端的順序不同，唯讀者會永遠多一筆「待上傳」。 */
+const setLike = (k, v) => k.startsWith('meta:') && Array.isArray(v) && v.every(x => typeof x === 'string') ? [...new Set(v)].sort() : v;
+export function fingerprint(st){ const o = {}; toEntities(st).forEach((v, k) => { o[k] = stable(setLike(k, v)); }); return o; }
 
 const byCreated = (a, b) => ((a.createdAt || 0) - (b.createdAt || 0)) || String(a.id).localeCompare(String(b.id), 'en', { numeric:true });
 /* 寫入（或刪除：data == null）一個實體。外來資料一律先清洗；不合法的當作刪除 */
