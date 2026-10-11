@@ -185,22 +185,27 @@ try {
   // 13. 🎧 日文轉場音實驗室（main #5／#6）跟同步一起用
   await A.page.close(); await C.page.close();                 // 下面要改雲端資料，先關掉其他編輯者分頁，免得它們插手
   const AUD = ['', '_e01', '_e02', '_e03', '_e04', '_e05'].map(x => 'n_x_jp_audio_lab_v1' + x);
+  // main #7：開放性 bot 的 60 個種子（n_x_open_*）也一起檢查
+  const OPEN = await B.page.evaluate(() => SEED_EXTRAS.map(x => x.id).filter(id => id.startsWith('n_x_open_')));
+  ok(OPEN.length === 60 && OPEN.every(id => db.brain_entities.some(r => r.kind === 'node' && r.id === id && !r.deleted)), `第一次上傳種子時，開放性 bot 的 ${OPEN.length} 個種子節點也在雲端`);
+  const NEW = [...AUD, ...OPEN];
   ok(AUD.every(id => db.brain_entities.some(r => r.kind === 'node' && r.id === id && !r.deleted)), '第一次上傳種子時，6 個實驗室種子節點也在雲端');
-  // 模擬「#6 之前就上傳過的雲端」：拿掉實驗室種子節點、它們的連線和 seedExtras 紀錄
-  const isAud = r => (r.kind === 'node' && AUD.includes(r.id)) || (r.kind === 'link' && r.data && (AUD.includes(r.data.from) || AUD.includes(r.data.to)));
+  // 模擬「#6／#7 之前就上傳過的雲端」：拿掉實驗室＋開放性種子節點、它們的連線和 seedExtras 紀錄
+  const isAud = r => (r.kind === 'node' && NEW.includes(r.id)) || (r.kind === 'link' && r.data && (NEW.includes(r.data.from) || NEW.includes(r.data.to)));
   db.brain_entities = db.brain_entities.filter(r => !isAud(r));
-  db.brain_entities.filter(r => r.kind === 'meta' && Array.isArray(r.data)).forEach(r => { r.data = r.data.filter(x => !AUD.some(id => String(x).includes(id))); });
+  db.brain_entities.filter(r => r.kind === 'meta' && Array.isArray(r.data)).forEach(r => { r.data = r.data.filter(x => !NEW.some(id => String(x) === id || String(x).startsWith(id + '@'))); });
   const tomb0 = db.brain_entities.filter(r => r.deleted).length;
   const F = await device('F（未登入、舊雲端）', null); await load(F); await sleep(1500);
   const pendKeys = d => d.page.evaluate(async () => { const core = await import('./sync-core.js'); const s = JSON.parse(localStorage.getItem('aiBrain.sync.v2:main')); return core.diff(s.snap, AIBrain.getState()).map(o => o.kind + ':' + o.id + (o.deleted ? '†' : '')); });
-  let f = await F.page.evaluate(ids => ({ pend:AISync.pending(), has:ids.every(id => AIBrain.getState().nodes.some(n => n.id === id)), sync:document.body.dataset.sync }), AUD);
-  ok(f.has && f.pend === 0 && !F.posts.length, `唯讀＋舊雲端：實驗室種子在本機補上，但不算待上傳（pending ${f.pend}），也沒有寫入 ` + JSON.stringify(await pendKeys(F)));
+  let f = await F.page.evaluate(ids => ({ pend:AISync.pending(), has:ids.every(id => AIBrain.getState().nodes.some(n => n.id === id)), sync:document.body.dataset.sync }), NEW);
+  ok(f.has && f.pend === 0 && !F.posts.length, `唯讀＋舊雲端：實驗室＋開放性 66 個種子在本機補上，但不算待上傳（pending ${f.pend}），也沒有寫入 ` + JSON.stringify(await pendKeys(F)));
   const E = await device('E（Merlin 新裝置）', T_MERLIN); await load(E); await settle(E);
-  ok(AUD.every(id => db.brain_entities.some(r => r.kind === 'node' && r.id === id && !r.deleted)) && db.brain_entities.filter(r => r.deleted).length === tomb0,
-    '編輯者＋舊雲端：補上 6 個實驗室種子節點，沒有多寫墓碑');
-  await pull(F); f = await F.page.evaluate(ids => ({ pend:AISync.pending(), n:AIBrain.getState().nodes.filter(n => ids.includes(n.id)).length }), AUD);
-  const audLinks = db.brain_entities.filter(r => r.kind === 'link' && !r.deleted && r.data && AUD.includes(r.data.to));
-  ok(f.pend === 0 && f.n === 6 && audLinks.length === 5, `F 再拉一次：種子沒有重複（${f.n} 個節點、雲端 ${audLinks.length} 條連線），pending ${f.pend} ` + JSON.stringify(await pendKeys(F)));
+  ok(NEW.every(id => db.brain_entities.some(r => r.kind === 'node' && r.id === id && !r.deleted)) && db.brain_entities.filter(r => r.deleted).length === tomb0,
+    `編輯者＋舊雲端：補上 ${NEW.length} 個種子節點（實驗室 6＋開放性 60），沒有多寫墓碑`);
+  await pull(F); f = await F.page.evaluate(ids => ({ pend:AISync.pending(), n:AIBrain.getState().nodes.filter(n => ids.includes(n.id)).length }), NEW);
+  const audLinks = db.brain_entities.filter(r => r.kind === 'link' && !r.deleted && r.data && NEW.includes(r.data.to));
+  const ids = db.brain_entities.filter(r => r.kind === 'node' && !r.deleted).map(r => r.id);
+  ok(f.pend === 0 && f.n === NEW.length && new Set(ids).size === ids.length, `F 再拉一次：種子沒有重複（${f.n} 個節點、雲端 ${audLinks.length} 條連線、沒有重複 id），pending ${f.pend} ` + JSON.stringify(await pendKeys(F)));
   // 「送入主腦」：匯入在 sync 第一次拉取之前就跑完；新增的節點要被當成本機修改上傳，而且只上傳一次
   const payload = { schemaVersion:1, experimentId:'jp-transition-audio-v1', snapshotId:'jp-transition-audio-v1@mock', evaluatedAt:'2026-10-12T00:00:00Z', totalTests:50, technicalPassCount:50, manualRatingCount:0,
     choices:[1, 2, 3, 4, 5].map(i => ({ motifId:'JP0' + i, name:'<img src=x onerror="window.__xss=' + i + '">', use:'換景', id:'JP0' + i + '-01', variation:'original', score:90, humanAverage:null, selectionBasis:'structural-proxy-only' })) };
