@@ -1,0 +1,731 @@
+[
+  {
+    "id": "git-4108321",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T22:02:25+08:00",
+    "bot": "unknown",
+    "kind": "code",
+    "title": "建立網站：AI 認知邊界問題鏈",
+    "summary": "第一版網站（單一 index.html）。commit 沒有標註是哪個 bot 做的。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit 4108321",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/4108321f97a304dc5209ef0c1efe7f47d733844a"
+      }
+    ],
+    "parentId": null,
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-c1db8df",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T22:07:14+08:00",
+    "bot": "unknown",
+    "kind": "design",
+    "title": "改版：3D 動態問題樹",
+    "summary": "自動旋轉、生長動畫、流動粒子、詳情面板。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit c1db8df",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/c1db8df6f4d809a21eb32499b1800b205fac6a9b"
+      }
+    ],
+    "parentId": "git-4108321",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-73824c0",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T22:19:37+08:00",
+    "bot": "unknown",
+    "kind": "code",
+    "title": "v1：3D 動態認知大腦",
+    "summary": "Three.js、分裂、子腦、跨腦連結、歷史與匯出入。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit 73824c0",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/73824c0b79c4d01e804e0a46cf8475096589406c"
+      }
+    ],
+    "parentId": "git-c1db8df",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-75e90c7",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T22:32:29+08:00",
+    "bot": "unknown",
+    "kind": "code",
+    "title": "概念線＋分裂成子問題／新方向",
+    "summary": "Concept threads + split into sub-questions / new directions。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit 75e90c7",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/75e90c71ec46450ab352b0545b99f8088775e88e"
+      }
+    ],
+    "parentId": "git-73824c0",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-4b45ed3",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T23:00:32+08:00",
+    "bot": "unknown",
+    "kind": "code",
+    "title": "短影音模式 feed.html",
+    "summary": "大腦深層連結、影片欄位、giscus 留言依 bot 分流。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit 4b45ed3",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/4b45ed32ae16dbb015ffc0be55172678a6901e87"
+      }
+    ],
+    "parentId": "git-73824c0",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-abd3a61",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T23:49:59+08:00",
+    "bot": "director",
+    "kind": "video",
+    "title": "發佈 EP01 → n_q1",
+    "summary": "同一個 commit 新增 SEED_MEDIA 與 scripts/publish_episode.sh（之後每一集都用它發佈）。",
+    "nodes": [
+      "n_q1"
+    ],
+    "links": [
+      {
+        "label": "commit abd3a61",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/abd3a6151096068707b0e49bc4ca5dbec259dfe2"
+      }
+    ],
+    "parentId": "git-4b45ed3",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "content-n-x-language",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T23:49:59+08:00",
+    "bot": "intp",
+    "kind": "content",
+    "title": "新節點：語言是不是思考的邊界？（n_x_language）",
+    "summary": "放進 SEED_EXTRAS，接在 n_q4 底下；節點資料標註 bot：INTP 鏡像研究員。跟 EP01 同一個 commit。",
+    "nodes": [
+      "n_x_language",
+      "n_q4"
+    ],
+    "links": [
+      {
+        "label": "commit abd3a61",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/abd3a6151096068707b0e49bc4ca5dbec259dfe2"
+      }
+    ],
+    "parentId": null,
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-104c959",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T23:51:51+08:00",
+    "bot": "director",
+    "kind": "video",
+    "title": "發佈 EP02 → n_q2",
+    "summary": "用 scripts/publish_episode.sh 發佈。",
+    "nodes": [
+      "n_q2"
+    ],
+    "links": [
+      {
+        "label": "commit 104c959",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/104c959124560370ab29067581301ecac4cc2396"
+      }
+    ],
+    "parentId": "git-abd3a61",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-ef6ef60",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T23:51:54+08:00",
+    "bot": "director",
+    "kind": "video",
+    "title": "發佈 EP03 → n_q3",
+    "summary": "用 scripts/publish_episode.sh 發佈。",
+    "nodes": [
+      "n_q3"
+    ],
+    "links": [
+      {
+        "label": "commit ef6ef60",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/ef6ef603268db8767fd91a57871979180e747f3e"
+      }
+    ],
+    "parentId": "git-abd3a61",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-bfb79b9",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T23:51:57+08:00",
+    "bot": "director",
+    "kind": "video",
+    "title": "發佈 EP04 → n_q4",
+    "summary": "用 scripts/publish_episode.sh 發佈。",
+    "nodes": [
+      "n_q4"
+    ],
+    "links": [
+      {
+        "label": "commit bfb79b9",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/bfb79b97049e68db807e1e09c05a74986e482775"
+      }
+    ],
+    "parentId": "git-abd3a61",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-421b7a5",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T23:58:04+08:00",
+    "bot": "director",
+    "kind": "video",
+    "title": "發佈 EP05 → n_q5",
+    "summary": "用 scripts/publish_episode.sh 發佈。",
+    "nodes": [
+      "n_q5"
+    ],
+    "links": [
+      {
+        "label": "commit 421b7a5",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/421b7a52a5530f48cbea0a877f405ddc55162cf4"
+      }
+    ],
+    "parentId": "git-abd3a61",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-398be14",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T23:58:08+08:00",
+    "bot": "director",
+    "kind": "video",
+    "title": "發佈 EP06 → n_q6",
+    "summary": "用 scripts/publish_episode.sh 發佈。",
+    "nodes": [
+      "n_q6"
+    ],
+    "links": [
+      {
+        "label": "commit 398be14",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/398be14f7890282063429ff6c073a842db0def81"
+      }
+    ],
+    "parentId": "git-abd3a61",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-d8463d3",
+    "date": "2026-10-10",
+    "ts": "2026-10-10T23:58:22+08:00",
+    "bot": "unknown",
+    "kind": "fix",
+    "title": "加上快取版本，讓新影片顯示出來",
+    "summary": "Cache-bust scripts so new videos show。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit d8463d3",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/d8463d34692dc88a56c1d26c3fb8081399a2a4cf"
+      }
+    ],
+    "parentId": "git-398be14",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-55cd548",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T00:16:54+08:00",
+    "bot": "unknown",
+    "kind": "fix",
+    "title": "iOS 短影音修正＋連續播放",
+    "summary": "共用播放器、手勢解鎖聲音、▶ 備援、影集連續播放、手機轉檔（Main@3.1、30fps、1 秒 GOP）、版本檢查。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit 55cd548",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/55cd54879fdeedfb3335eb2b9154c44bb99fc46d"
+      }
+    ],
+    "parentId": "git-4b45ed3",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-4679534",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T00:21:47+08:00",
+    "bot": "unknown",
+    "kind": "code",
+    "title": "🎯 知識掌握度徽章＋說明區",
+    "summary": "被動記錄看過的節點、停留時間、影片進度，算出掌握度（只存在這台裝置）。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit 4679534",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/46795349b56347ecb001214bc8c2422815c7ee2f"
+      },
+      {
+        "label": "PR #1",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/pull/1"
+      }
+    ],
+    "parentId": null,
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "pr-1-merged",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T00:24:27+08:00",
+    "bot": "unknown",
+    "kind": "merge",
+    "title": "合併 PR #1：知識掌握度",
+    "summary": "knowledge-score 分支合併進 main。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "PR #1",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/pull/1"
+      },
+      {
+        "label": "merge commit fe1ed29",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/fe1ed29eb0be7c0a539d41fa609b2ca6a6f7a4d0"
+      }
+    ],
+    "parentId": "git-4679534",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-8addd8f",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T00:34:07+08:00",
+    "bot": "decomposer",
+    "kind": "content",
+    "title": "問題拆解師：n_q1–q6 推理流程＋反證，5 個新方向",
+    "summary": "SEED_PATCHES（推理流程、附來源的反證、botNotes）、SEED_EXTRAS 新增 5 個方向，登記 語言／思考／邊界 概念；只加不改。",
+    "nodes": [
+      "n_q1",
+      "n_q2",
+      "n_q3",
+      "n_q4",
+      "n_q5",
+      "n_q6",
+      "n_x_cot_faithful",
+      "n_x_model_collapse",
+      "n_x_alignment_faking",
+      "n_x_cognitive_offloading",
+      "n_x_latent_thought"
+    ],
+    "links": [
+      {
+        "label": "commit 8addd8f",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/8addd8fa2c42d8d24243f06008299e9592c946ce"
+      }
+    ],
+    "parentId": null,
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-e8d8600",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T00:47:01+08:00",
+    "bot": "unknown",
+    "kind": "code",
+    "title": "Supabase 雲端同步（第一版）",
+    "summary": "config.js、sync.js／sync-core.js、schema.sql、vendored supabase-js、登入 UI 與同步狀態。在 PR #2（未合併）。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit e8d8600",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/e8d8600fcdeb72e1ff446871a47db34b0a156f0b"
+      },
+      {
+        "label": "PR #2",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/pull/2"
+      }
+    ],
+    "parentId": null,
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-d39d70a",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T00:47:27+08:00",
+    "bot": "unknown",
+    "kind": "fix",
+    "title": "修正：↩ 併回的歷程紀錄",
+    "summary": "mergeBrain 的紀錄帶上 nodeId，節點面板與 🕘 生長紀錄都會顯示、可點。在 PR #2。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit d39d70a",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/d39d70a79477c7b6eb56e10fa749aeb6f91d2b44"
+      },
+      {
+        "label": "PR #2",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/pull/2"
+      }
+    ],
+    "parentId": "git-73824c0",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-98506b5",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T00:47:52+08:00",
+    "bot": "unknown",
+    "kind": "fix",
+    "title": "修正：面板開著時不自動跳下一集",
+    "summary": "🌿／💬／⚙ 等面板開著就暫停自動換集，關掉後接著播。在 PR #2。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit 98506b5",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/98506b5d7d6b5c3d5008717db35ac1587f97b2f0"
+      },
+      {
+        "label": "PR #2",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/pull/2"
+      }
+    ],
+    "parentId": "git-55cd548",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-b86be01",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T00:48:27+08:00",
+    "bot": "unknown",
+    "kind": "docs",
+    "title": "README：Supabase 設定與資料模型",
+    "summary": "第一版同步的設定步驟、合併規則、bot 寫入方式。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit b86be01",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/b86be01a3a70dadd25064bd8e55a9252b8f595b4"
+      }
+    ],
+    "parentId": "git-e8d8600",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "pr-2-opened",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T00:49:59+08:00",
+    "bot": "unknown",
+    "kind": "code",
+    "title": "開 draft PR #2：Supabase 雲端同步",
+    "summary": "分支 supabase-sync，草稿、未合併。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "PR #2",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/pull/2"
+      }
+    ],
+    "parentId": "git-e8d8600",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "review-pr-2",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T00:52:56+08:00",
+    "bot": "reviewer",
+    "kind": "review",
+    "title": "審查 PR #2：安全問題與簡化建議",
+    "summary": "唯讀審查（沒有在 GitHub 留言）：寫入沒有白名單、幾處 XSS、重置會清掉共享大腦等，建議改成只用 Email 登入的精簡版。審查報告在共用電腦上，不在 repo 裡。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "PR #2",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/pull/2"
+      }
+    ],
+    "parentId": "pr-2-opened",
+    "author": "審查 bot"
+  },
+  {
+    "id": "git-3f70a8f",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T01:03:53+08:00",
+    "bot": "unknown",
+    "kind": "fix",
+    "title": "安全性修正：跳脫、網址與顏色白名單",
+    "summary": "safe.js；app／feed 所有遠端字串跳脫；重置只影響這台裝置。在 PR #2。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit 3f70a8f",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/3f70a8f280a7aadf67cef96b5f8df808eb317135"
+      },
+      {
+        "label": "PR #2",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/pull/2"
+      }
+    ],
+    "parentId": "review-pr-2",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-f7b0f6c",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T01:03:53+08:00",
+    "bot": "unknown",
+    "kind": "code",
+    "title": "同步改成精簡版（只用 Email 登入）",
+    "summary": "RLS 用 brain_editors 白名單強制寫入；拿掉 GitHub 登入、Realtime、個人表、雲端種子遷移、版本佇列、feed 雙向同步。在 PR #2。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit f7b0f6c",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/f7b0f6c0f9eddf2e71602daf964818aabc302774"
+      },
+      {
+        "label": "PR #2",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/pull/2"
+      }
+    ],
+    "parentId": "review-pr-2",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-34530c1",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T01:03:53+08:00",
+    "bot": "unknown",
+    "kind": "docs",
+    "title": "README：精簡版同步說明",
+    "summary": "3 步設定、編輯名單、bot REST、測試。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "commit 34530c1",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/34530c1cbcf2eb406fe79bf3a1d7452a4abff308"
+      }
+    ],
+    "parentId": "git-f7b0f6c",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "pr-3-opened",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T01:39:02+08:00",
+    "bot": "unknown",
+    "kind": "code",
+    "title": "開 draft PR #3：bot 協作流程（分支＋PR、資料拆檔、CI、每日動態）",
+    "summary": "疊在 PR #2 上（base supabase-sync），必須在 #2 之後合併。publish_episode.sh 改成開 PR、data.js 拆成 content／patches、CI、CONTRIBUTING、這個每日動態清單。",
+    "nodes": [],
+    "links": [
+      {
+        "label": "PR #3",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/pull/3"
+      }
+    ],
+    "parentId": "pr-2-opened",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-345ee9c",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T01:45:22+08:00",
+    "bot": "intp",
+    "kind": "content",
+    "title": "n_x_language 第二版影片＋4 個延伸問題（n_x_language_e1–e4）",
+    "summary": "影片 v2（56.3 秒、字幕燒進畫面、手機轉檔）、封面與 v2 字幕；commit 註明 4 個延伸節點出自 INTP 鏡像研究員，附來源與反證，登記 12 個概念標籤。直接推到 main。",
+    "nodes": [
+      "n_x_language",
+      "n_x_language_e1",
+      "n_x_language_e2",
+      "n_x_language_e3",
+      "n_x_language_e4"
+    ],
+    "links": [
+      {
+        "label": "commit 345ee9c",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/345ee9cdf1c5103aeaf6cf52c3da2053056325be"
+      }
+    ],
+    "parentId": "content-n-x-language",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-b0ef416",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T01:53:30+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "重新發佈 EP01 → n_q1（60 秒版）",
+    "summary": "用舊版 scripts/publish_episode.sh 發佈，直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q1"
+    ],
+    "links": [
+      {
+        "label": "commit b0ef416",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/b0ef416e24fdf4e4e0cc9d9a0648aac1ec91fa08"
+      }
+    ],
+    "parentId": "git-abd3a61",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-941e521",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T01:58:15+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "EP01 字幕：n_q1.zh-TW.srt、字幕已燒進畫面",
+    "summary": "SEED_MEDIA 加上 subtitles／subtitlesBurnedIn；發佈腳本重新發佈時保留這些欄位。直接推到 main。",
+    "nodes": [
+      "n_q1"
+    ],
+    "links": [
+      {
+        "label": "commit 941e521",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/941e5214efbf14f1da2324ef7b9611cc285367bf"
+      }
+    ],
+    "parentId": "git-b0ef416",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-16e8f7b",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T02:56:32+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "重新發佈 EP02 → n_q2（60 秒版）",
+    "summary": "用舊版 scripts/publish_episode.sh 發佈，直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q2"
+    ],
+    "links": [
+      {
+        "label": "commit 16e8f7b",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/16e8f7b15640dd1d3c376ae3c4e07d3a8aa56cbc"
+      }
+    ],
+    "parentId": "git-104c959",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-6eb66e4",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T02:57:22+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "重新發佈 EP03 → n_q3（60 秒版）",
+    "summary": "用舊版 scripts/publish_episode.sh 發佈，直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q3"
+    ],
+    "links": [
+      {
+        "label": "commit 6eb66e4",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/6eb66e4580995dc3bbfa192bac6cb970687cc9c0"
+      }
+    ],
+    "parentId": "git-ef6ef60",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-11209af",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T02:58:05+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "重新發佈 EP04 → n_q4（60 秒版）",
+    "summary": "用舊版 scripts/publish_episode.sh 發佈，直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q4"
+    ],
+    "links": [
+      {
+        "label": "commit 11209af",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/11209af4db687c04bdfdcd81cbe3843842bdb3c2"
+      }
+    ],
+    "parentId": "git-bfb79b9",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-b94edb4",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T02:58:52+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "重新發佈 EP05 → n_q5（60 秒版）",
+    "summary": "用舊版 scripts/publish_episode.sh 發佈，直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q5"
+    ],
+    "links": [
+      {
+        "label": "commit b94edb4",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/b94edb4edf8e52bf2cb6feb3e90f69be3213a2d7"
+      }
+    ],
+    "parentId": "git-421b7a5",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-6172155",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T03:07:11+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "重新發佈 EP06 → n_q6（60 秒版）",
+    "summary": "用舊版 scripts/publish_episode.sh 發佈，直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q6"
+    ],
+    "links": [
+      {
+        "label": "commit 6172155",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/61721551f2704e1cecf3d8fc4f76dceb47168056"
+      }
+    ],
+    "parentId": "git-398be14",
+    "author": "keqingwu5-cloud"
+  },
+  {
+    "id": "git-0572d46",
+    "date": "2026-10-11",
+    "ts": "2026-10-11T03:08:40+08:00",
+    "bot": "unknown",
+    "kind": "video",
+    "title": "EP02–EP06 字幕：n_q2…n_q6 的 zh-TW SRT、字幕已燒進畫面",
+    "summary": "SEED_MEDIA 為 n_q1–n_q6 標上 subtitles／subtitlesBurnedIn。直接推到 main。commit 沒有寫是哪個 bot。",
+    "nodes": [
+      "n_q2",
+      "n_q3",
+      "n_q4",
+      "n_q5",
+      "n_q6"
+    ],
+    "links": [
+      {
+        "label": "commit 0572d46",
+        "url": "https://github.com/keqingwu5-cloud/ai-boundary/commit/0572d46849d34ad55a574c2c0773e7cfffafffb5"
+      }
+    ],
+    "parentId": "git-941e521",
+    "author": "keqingwu5-cloud"
+  }
+]

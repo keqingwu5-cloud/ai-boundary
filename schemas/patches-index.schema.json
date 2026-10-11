@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "patches/index.json — 要載入的補丁檔（依序）",
+  "type": "object",
+  "required": [
+    "files"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]+-\\d{4}-\\d{2}-\\d{2}(-[a-z0-9]+)?\\.json$"
+      }
+    }
+  }
+}

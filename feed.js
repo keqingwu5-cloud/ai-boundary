@@ -1,5 +1,6 @@
 /* 短影音 feed — reads the same state as the 3D brain (localStorage aiBrain.v1, falling back to seed data). */
 import { esc, safeUrl, safeColor, playable } from './safe.js';   // 跳脫／網址與顏色白名單（跟 app.js、sync 共用）
+await window.AI_DATA_READY;           // data.js：等 content/*.json、patches/*.json 載入完
 const KEY = 'aiBrain.v1', FKEY = 'aiBrain.feed.v1';
 /* giscus (GitHub Discussions). Works once the giscus GitHub App is installed on the repo. One discussion per node: term = "node:<id>". */
 const GISCUS = { repo:'keqingwu5-cloud/ai-boundary', repoId:'R_kgDOVDydcA', category:'Announcements', categoryId:'DIC_kwDOVDydcM4DHf-d' };
@@ -214,7 +215,7 @@ player.addEventListener('volumechange', renderSound);
 let progEl = null, progT = 0;
 player.addEventListener('timeupdate', () => { const now = performance.now(); if (now - progT < 240 || !player.duration) return; progT = now; progEl = itemEl(cur)?.querySelector('.prog'); progEl?.style.setProperty('--p', (player.currentTime / player.duration).toFixed(3)); });
 /* any drawer / sheet / panel on top of the feed (🌿 分支、💬 留言、⚙ 設定、知識掌握度、雲端同步選單) */
-const overlayOpen = () => !!document.querySelector('.sheet.on, .ks-panel.open, .sy-menu.open');
+const overlayOpen = () => !!document.querySelector('.sheet.on, .ks-panel.open, .sy-menu.open, .ac-panel.open');
 let heldAdvance = null, holdT = 0;   // index of the card whose episode ended while a drawer was open
 function advanceFrom(i){
   if (i !== cur || !set.continuous) return;

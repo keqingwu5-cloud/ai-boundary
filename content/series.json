@@ -1,0 +1,14 @@
+{
+  "name": "AI 認知邊界",
+  "episodes": [
+    "n_q1",
+    "n_q2",
+    "n_q3",
+    "n_q4",
+    "n_q5",
+    "n_q6"
+  ],
+  "extras": [
+    "n_x_language"
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "content/seed-extras.json — 種子節點補充（SEED_EXTRAS）",
+  "type": "array",
+  "items": {
+    "$ref": "#/$defs/extra"
+  },
+  "$defs": {
+    "extra": {
+      "type": "object",
+      "required": [
+        "id",
+        "parentId",
+        "kind",
+        "title",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,80}$"
+        },
+        "parentId": {
+          "type": ["string", "null"],
+          "pattern": "^[A-Za-z0-9_-]{1,80}$"
+        },
+        "kind": {
+          "enum": [
+            "question",
+            "extension",
+            "direction"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "type": {
+          "type": "string"
+        },
+        "media": {
+          "type": "object",
+          "properties": {
+            "video": {
+              "type": "string",
+              "maxLength": 2000,
+              "pattern": "^(|https?://[^\\s<>\"'`\\\\]+|[^\\s:<>\"'`\\\\/][^\\s:<>\"'`\\\\]*)$"
+            },
+            "image": {
+              "type": "string",
+              "maxLength": 2000,
+              "pattern": "^(|https?://[^\\s<>\"'`\\\\]+|[^\\s:<>\"'`\\\\/][^\\s:<>\"'`\\\\]*)$"
+            },
+            "subtitles": {
+              "type": "string",
+              "maxLength": 2000,
+              "pattern": "^(|https?://[^\\s<>\"'`\\\\]+|[^\\s:<>\"'`\\\\/][^\\s:<>\"'`\\\\]*)$"
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "open",
+            "researching",
+            "answered",
+            "disputed"
+          ]
+        },
+        "concepts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

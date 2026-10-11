@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "patches/<bot>-<YYYY-MM-DD>.json — 一個 bot 一天的補丁",
+  "type": "object",
+  "required": [
+    "bot",
+    "date"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "bot": {
+      "enum": [
+        "decomposer",
+        "radar",
+        "director",
+        "intp",
+        "openness",
+        "designer",
+        "integrator",
+        "merlin"
+      ]
+    },
+    "botName": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "note": {
+      "type": "string"
+    },
+    "seedPatches": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "by",
+          "patchId"
+        ],
+        "properties": {
+          "by": {
+            "type": "string"
+          },
+          "patchId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]{1,80}$"
+          },
+          "assumptions": {
+            "type": "string"
+          },
+          "reasoning": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "k",
+                "v"
+              ]
+            }
+          },
+          "flow": {
+            "type": "object"
+          },
+          "counterEvidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id"
+              ]
+            }
+          },
+          "botNotes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "text"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "seedExtras": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "parentId",
+          "kind",
+          "title",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,80}$"
+          },
+          "parentId": {
+            "type": ["string", "null"],
+            "pattern": "^[A-Za-z0-9_-]{1,80}$"
+          },
+          "kind": {
+            "enum": [
+              "question",
+              "extension",
+              "direction"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "type": {
+            "type": "string"
+          },
+          "media": {
+            "type": "object",
+            "properties": {
+              "video": {
+                "type": "string",
+                "maxLength": 2000,
+                "pattern": "^(|https?://[^\\s<>\"'`\\\\]+|[^\\s:<>\"'`\\\\/][^\\s:<>\"'`\\\\]*)$"
+              },
+              "image": {
+                "type": "string",
+                "maxLength": 2000,
+                "pattern": "^(|https?://[^\\s<>\"'`\\\\]+|[^\\s:<>\"'`\\\\/][^\\s:<>\"'`\\\\]*)$"
+              },
+              "subtitles": {
+                "type": "string",
+                "maxLength": 2000,
+                "pattern": "^(|https?://[^\\s<>\"'`\\\\]+|[^\\s:<>\"'`\\\\/][^\\s:<>\"'`\\\\]*)$"
+              }
+            }
+          },
+          "status": {
+            "enum": [
+              "open",
+              "researching",
+              "answered",
+              "disputed"
+            ]
+          },
+          "concepts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "conceptDefs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "color"
+        ],
+        "properties": {
+          "color": {
+            "type": "string",
+            "pattern": "^(#[0-9a-fA-F]{3,8}|hsla?\\([^)]*\\))$"
+          },
+          "desc": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "kw": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}
