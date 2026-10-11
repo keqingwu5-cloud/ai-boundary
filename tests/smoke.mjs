@@ -10,6 +10,7 @@ async function open(path){
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
   page.on('request', r => reqs.push(r.url()));
+  page.on('dialog', d => d.accept());
   await page.goto(BASE + path, { waitUntil:'domcontentloaded', timeout:60000 });
   await page.waitForFunction('document.body.dataset.ready === "1"', { timeout:30000 });
   await new Promise(r => setTimeout(r, 800));
@@ -27,6 +28,22 @@ const ignorable = e => /favicon|fonts\.g|giscus|Failed to load resource/i.test(e
     const saved = JSON.parse(localStorage.getItem('aiBrain.v1')).nodes.some(n => n.id === id); AIBrain.undo(); await new Promise(r => setTimeout(r, 100));
     return { saved, undone:!AIBrain.getState().nodes.some(n => n.id === id), q:localStorage.getItem('aiBrain.sync.v1:main') }; });
   ok(after.saved && after.undone && after.q === null, 'index.html: add → localStorage, undo works, no sync queue written');
+  // ↩ 併回的 🕘 紀錄可以點（打開節點）
+  const mh = await page.evaluate(async () => { const st = AIBrain.getState(); const n = st.nodes.find(x => x.id === 'n_q3_e0') || st.nodes.find(x => x.parentId === 'n_q3');
+    AIBrain.makeSubBrain(n.id); const b = AIBrain.getState().brains.find(x => x.rootNodeId === n.id); AIBrain.mergeBrain(b.id); await new Promise(r => setTimeout(r, 300));
+    document.getElementById('bHist').click(); await new Promise(r => setTimeout(r, 300));
+    const el = [...document.querySelectorAll('#hList .hi')].find(e => /併回/.test(e.textContent)); if (!el || !el.dataset.n) return { el:!!el };
+    el.click(); await new Promise(r => setTimeout(r, 600)); return { el:true, n:el.dataset.n, open:document.getElementById('panel').classList.contains('open') }; });
+  ok(mh.el && mh.n && mh.open, 'index.html: ↩ 併回 的 🕘 紀錄帶 nodeId、點了會打開節點 ' + JSON.stringify(mh));
+  // ↺ 重置：不丟錯誤；回到「初始狀態＋種子遷移」（概念、SEED_EXTRAS 都在）；紀錄抽屜跟著更新
+  const e0 = errs.length;
+  const rs = await page.evaluate(async () => { const fresh = AIBrain.getState(); AIBrain.addQuestion({ title:'重置前的問題', type:'其他' });
+    if (!document.getElementById('hist').classList.contains('open')) document.getElementById('bHist').click();
+    document.getElementById('bReset').click(); await new Promise(r => setTimeout(r, 1200)); const st = AIBrain.getState();
+    return { n:st.nodes.length, extras:st.nodes.filter(n => n.id.startsWith('n_x_')).length, open:st.nodes.filter(n => n.id.startsWith('n_x_open_')).length, concepts:Object.keys(st.concepts || {}).length,
+      gone:!st.nodes.some(n => n.title === '重置前的問題'), first:document.querySelector('#hList .hi')?.textContent || '', legend:document.getElementById('legend')?.textContent || '', hcount:document.getElementById('hCount')?.textContent || '', histLen:st.history.length }; });
+  ok(errs.length === e0 && rs.gone && rs.open === 60 && rs.extras >= 66 && rs.concepts > 10 && rs.legend.includes(rs.n + ' 節點'),
+    `index.html: ↺ 重置不丟錯誤，回到 ${rs.n} 節點（含 ${rs.extras} 個 SEED_EXTRAS、${rs.concepts} 個概念），圖例同步 ` + JSON.stringify({ errs:errs.slice(e0), first:rs.first.slice(0, 30), legend:rs.legend.slice(-14) }));
   await page.close();
 }
 {
@@ -77,4 +94,16 @@ const ignorable = e => /favicon|fonts\.g|giscus|Failed to load resource/i.test(e
   await page.close();
 }
 await browser.close();
+{
+  // 沒有 WebGL：顯示 zh-TW 說明＋短影音連結，不丟錯誤
+  const b2 = await puppeteer.launch({ executablePath:process.env.CHROME || '/usr/bin/google-chrome', headless:true, args:['--no-sandbox', '--disable-webgl', '--disable-3d-apis'] });
+  const page = await b2.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push('pageerror: ' + e.message)); page.on('console', m => { if (m.type() === 'error' && !ignorable(m.text())) errs.push('console: ' + m.text()); });
+  await page.goto(BASE + 'index.html', { waitUntil:'domcontentloaded', timeout:60000 });
+  await page.waitForSelector('#noGL', { timeout:30000 }).catch(() => {}); await new Promise(r => setTimeout(r, 1500));
+  const r = await page.evaluate(() => { const d = document.getElementById('noGL'); return { msg:d ? d.innerText : '', link:d?.querySelector('a[href="feed.html"]') ? true : false, flag:document.body.dataset.webgl, errs:window.__errs }; });
+  ok(/無法啟用 3D（WebGL）/.test(r.msg) && r.link && r.flag === '0', 'index.html（沒有 WebGL）: 顯示說明和「📱 改看短影音」連結');
+  ok(!errs.length && !r.errs.length, 'index.html（沒有 WebGL）: 沒有 JS 錯誤 ' + JSON.stringify([...errs, ...r.errs]));
+  await b2.close();
+}
 console.log(fails ? `\n${fails} 項失敗` : '\n全部通過'); process.exit(fails ? 1 : 0);
