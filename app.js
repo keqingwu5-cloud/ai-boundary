@@ -334,7 +334,20 @@ function applyExternal(fn, info = {}){
 
 /* ================= three.js scene ================= */
 const canvas = $('#c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:!MOBILE, alpha:false, powerPreference:'high-performance' });
+/* 沒有 WebGL（舊裝置、被停用、GPU 黑名單）：顯示一段說明＋短影音連結，停在這裡，不丟錯誤 */
+function noWebGL(){
+  document.body.dataset.webgl = '0'; canvas.style.display = 'none';
+  const d = document.createElement('div'); d.id = 'noGL'; d.setAttribute('role', 'alert');
+  d.style.cssText = 'position:fixed;inset:0;display:grid;place-items:center;padding:24px;z-index:5;pointer-events:none';
+  d.innerHTML = '<div style="pointer-events:auto;max-width:420px;padding:22px 24px;border-radius:18px;background:rgba(14,18,40,.9);border:1px solid rgba(160,180,255,.25);color:#eef0ff;font:15px/1.7 system-ui,-apple-system,\'Noto Sans TC\',sans-serif;text-align:center">'
+    + '<div style="font-size:34px">🧠</div><p style="margin:6px 0 14px">你的瀏覽器無法啟用 3D（WebGL），所以看不到認知大腦。<br>可以改看短影音頁，內容是同一份。</p>'
+    + '<a href="feed.html" style="display:inline-block;padding:9px 18px;border-radius:99px;background:#f5c451;color:#1a1300;font-weight:700;text-decoration:none">📱 改看短影音</a></div>';
+  document.body.appendChild(d);
+}
+const hasWebGL = (() => { try { const c = document.createElement('canvas'); return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl'))); } catch(e){ return false; } })();
+let renderer = null;
+if (hasWebGL) try { renderer = new THREE.WebGLRenderer({ canvas, antialias:!MOBILE, alpha:false, powerPreference:'high-performance' }); } catch(e){ renderer = null; }
+if (!renderer){ noWebGL(); await new Promise(() => {}); }   // 其餘程式（3D 場景、AIBrain）都需要 WebGL：不再往下跑
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, MOBILE ? 1.5 : 2));
 renderer.setClearColor(0x03040b, 1);
 const scene = new THREE.Scene();
