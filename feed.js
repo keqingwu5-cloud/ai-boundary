@@ -8,7 +8,8 @@ const BOTS = [
   { slug:'radar',      name:'AI 邊界雷達',     scope:'新問題、延伸、來源',      color:'#9db7ff' },
   { slug:'decomposer', name:'問題拆解師',      scope:'推演流程、問題類型',      color:'#f59e0b' },
   { slug:'director',   name:'影像導演',        scope:'影片與畫面',              color:'#ff7ae0' },
-  { slug:'intp',       name:'INTP 鏡像研究員', scope:'關於 Merlin 自己的思考', color:'#7fe0a8' }
+  { slug:'intp',       name:'INTP 鏡像研究員', scope:'關於 Merlin 自己的思考', color:'#7fe0a8' },
+  { slug:'openness',   name:'開放性',          scope:'開放式延伸問題',          color:'#fde047' }
 ];
 const botOf = s => BOTS.find(b => b.slug === s) || BOTS[0];
 const KIND = { question:'主問題', extension:'延伸問題', direction:'🚀 新方向' };
@@ -304,7 +305,7 @@ function openBranches(id){
   openSheet('brSheet');
 }
 let gcTerm = null, cmId = null;
-const defaultBot = n => prefs.bots[n.id] || (playable(n.media.video) ? 'director' : 'radar');
+const defaultBot = n => prefs.bots[n.id] || (playable(n.media.video) ? 'director' : n.bot === '開放性' ? 'openness' : 'radar');
 function openComments(id, bot){
   const n = N(id); cmId = id; $('#cmT').textContent = '💬 ' + n.title;
   bot = botOf(bot || defaultBot(n)).slug;
