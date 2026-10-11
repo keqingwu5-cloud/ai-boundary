@@ -182,6 +182,50 @@ try {
   // 12. 選單：只有 Email 登入，沒有 GitHub
   await B.page.click('#bSync'); const menu = await B.page.evaluate(() => document.querySelector('.sy-menu.open')?.textContent || '');
   ok(/寄登入連結/.test(menu) && !/GitHub/.test(menu), '同步選單：只有 Email magic link（zh-TW），沒有 GitHub');
+  // 13. 🎧 日文轉場音實驗室（main #5／#6）跟同步一起用
+  await A.page.close(); await C.page.close();                 // 下面要改雲端資料，先關掉其他編輯者分頁，免得它們插手
+  const AUD = ['', '_e01', '_e02', '_e03', '_e04', '_e05'].map(x => 'n_x_jp_audio_lab_v1' + x);
+  ok(AUD.every(id => db.brain_entities.some(r => r.kind === 'node' && r.id === id && !r.deleted)), '第一次上傳種子時，6 個實驗室種子節點也在雲端');
+  // 模擬「#6 之前就上傳過的雲端」：拿掉實驗室種子節點、它們的連線和 seedExtras 紀錄
+  const isAud = r => (r.kind === 'node' && AUD.includes(r.id)) || (r.kind === 'link' && r.data && (AUD.includes(r.data.from) || AUD.includes(r.data.to)));
+  db.brain_entities = db.brain_entities.filter(r => !isAud(r));
+  db.brain_entities.filter(r => r.kind === 'meta' && Array.isArray(r.data)).forEach(r => { r.data = r.data.filter(x => !AUD.some(id => String(x).includes(id))); });
+  const tomb0 = db.brain_entities.filter(r => r.deleted).length;
+  const F = await device('F（未登入、舊雲端）', null); await load(F); await sleep(1500);
+  const pendKeys = d => d.page.evaluate(async () => { const core = await import('./sync-core.js'); const s = JSON.parse(localStorage.getItem('aiBrain.sync.v2:main')); return core.diff(s.snap, AIBrain.getState()).map(o => o.kind + ':' + o.id + (o.deleted ? '†' : '')); });
+  let f = await F.page.evaluate(ids => ({ pend:AISync.pending(), has:ids.every(id => AIBrain.getState().nodes.some(n => n.id === id)), sync:document.body.dataset.sync }), AUD);
+  ok(f.has && f.pend === 0 && !F.posts.length, `唯讀＋舊雲端：實驗室種子在本機補上，但不算待上傳（pending ${f.pend}），也沒有寫入 ` + JSON.stringify(await pendKeys(F)));
+  const E = await device('E（Merlin 新裝置）', T_MERLIN); await load(E); await settle(E);
+  ok(AUD.every(id => db.brain_entities.some(r => r.kind === 'node' && r.id === id && !r.deleted)) && db.brain_entities.filter(r => r.deleted).length === tomb0,
+    '編輯者＋舊雲端：補上 6 個實驗室種子節點，沒有多寫墓碑');
+  await pull(F); f = await F.page.evaluate(ids => ({ pend:AISync.pending(), n:AIBrain.getState().nodes.filter(n => ids.includes(n.id)).length }), AUD);
+  const audLinks = db.brain_entities.filter(r => r.kind === 'link' && !r.deleted && r.data && AUD.includes(r.data.to));
+  ok(f.pend === 0 && f.n === 6 && audLinks.length === 5, `F 再拉一次：種子沒有重複（${f.n} 個節點、雲端 ${audLinks.length} 條連線），pending ${f.pend} ` + JSON.stringify(await pendKeys(F)));
+  // 「送入主腦」：匯入在 sync 第一次拉取之前就跑完；新增的節點要被當成本機修改上傳，而且只上傳一次
+  const payload = { schemaVersion:1, experimentId:'jp-transition-audio-v1', snapshotId:'jp-transition-audio-v1@mock', evaluatedAt:'2026-10-12T00:00:00Z', totalTests:50, technicalPassCount:50, manualRatingCount:0,
+    choices:[1, 2, 3, 4, 5].map(i => ({ motifId:'JP0' + i, name:'<img src=x onerror="window.__xss=' + i + '">', use:'換景', id:'JP0' + i + '-01', variation:'original', score:90, humanAverage:null, selectionBasis:'structural-proxy-only' })) };
+  const LAB = r => r.kind === 'node' && !r.deleted && r.data && r.data.source && /#jp-transition-audio-v1%40mock$/.test(r.data.source.url || '');
+  const labRows = () => db.brain_entities.filter(LAB);
+  const kidsOf = id => db.brain_entities.filter(r => r.kind === 'node' && !r.deleted && r.data && r.data.parentId === id).length;
+  await E.page.evaluate(p => localStorage.setItem('aiBrain.audioLab.pending.v1', JSON.stringify(p)), payload);
+  await load(E, 'index.html?lab=1#audio-lab'); await settle(E);
+  const root = labRows()[0];
+  ok(labRows().length === 1 && root && kidsOf(root.id) === 5 && !(await E.page.evaluate(() => localStorage.getItem('aiBrain.audioLab.pending.v1'))), 'E: 送入主腦 → 摘要節點＋5 個方向上傳到雲端，待匯入清掉');
+  // 同一份快照在另一台已同步的裝置再匯入一次 → 不重複
+  const G = await device('G（Merlin 的另一台）', T_PHONE); await load(G); await settle(G);
+  await G.page.evaluate(p => localStorage.setItem('aiBrain.audioLab.pending.v1', JSON.stringify(p)), payload);
+  await load(G, 'index.html?lab=1#audio-lab'); await settle(G);
+  ok(labRows().length === 1 && kidsOf(root.id) === 5, `G: 同一份快照再送一次 → 雲端還是 1 個摘要節點、${kidsOf(root.id)} 個方向`);
+  // 未登入的人匯入：只存在這台，不寫雲端
+  const fp2 = F.posts.length; await F.page.evaluate(p => localStorage.setItem('aiBrain.audioLab.pending.v1', JSON.stringify(Object.assign({}, p, { snapshotId:'jp-transition-audio-v1@anon' }))), payload);
+  await load(F, 'index.html?lab=1#audio-lab'); await sleep(1500);
+  f = await F.page.evaluate(() => ({ pend:AISync.pending(), mine:AIBrain.getState().nodes.filter(n => n.source && /%40anon$/.test(n.source.url || '')).length }));
+  ok(f.mine === 1 && f.pend >= 6 && F.posts.length === fp2 && !db.brain_entities.some(r => r.data && r.data.source && /%40anon$/.test(r.data.source.url || '')), `F（未登入）匯入：只在本機（待上傳 ${f.pend}），雲端沒有`);
+  // 匯入的文字從雲端回來也只當純文字
+  await G.page.evaluate(id => { const k = AIBrain.getState().nodes.find(n => n.parentId === id); AIBrain.select(k.id); }, root.id); await sleep(600);
+  const gx = await G.page.evaluate(() => ({ x:window.__xss || 0, inj:document.querySelectorAll('#pBody img[onerror]').length }));
+  ok(!gx.x && !gx.inj, 'G: 從雲端拉回的匯入節點，惡意文字不會執行');
+  for (const d of [E, F, G]) ok(!d.errs.length, `${d.name}: 沒有 JS 錯誤 ${JSON.stringify(d.errs.slice(0, 3))}`);
   for (const d of [A, B, C, Bob, D]) ok(!d.errs.length, `${d.name}: 沒有 JS 錯誤 ${JSON.stringify(d.errs.slice(0, 3))}`);
 } catch(e){ console.error(e); fails++; }
 await browser.close(); srv.close();
