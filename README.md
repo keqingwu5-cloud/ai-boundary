@@ -125,8 +125,9 @@ AIBrain.splitNode(id, items, createdBy, 'extension' | 'direction')
 | `decomposer` | 問題拆解師 | 推演流程、問題類型 |
 | `director` | 影像導演 | 影片與畫面 |
 | `intp` | INTP 鏡像研究員 | 關於 Merlin 自己的思考 |
+| `openness` | 開放性 | 把問題往外打開，一次列出多個開放式延伸問題，不急著收斂 |
 
-- 留言框上方有一行灰字「留言將交給：影像導演（影片與畫面）」，下面有 chips 可以切換。預設：有影片的節點交給影像導演，其他交給 AI 邊界雷達。每一題最後選的 bot 會記在 localStorage。
+- 留言框上方有一行灰字「留言將交給：影像導演（影片與畫面）」，下面有 chips 可以切換。預設：有影片的節點交給影像導演，開放性提出的節點（`bot:'開放性'`）交給開放性，其他交給 AI 邊界雷達。每一題最後選的 bot 會記在 localStorage。
 - 啟用條件：Merlin 必須在 https://github.com/apps/giscus 安裝 giscus App 並授權 `keqingwu5-cloud/ai-boundary`（Discussions 已開啟）。還沒安裝的時候，抽屜裡會顯示提示，giscus 也會在 console 印出 "giscus is not installed on this repository"。
 - 想用專屬分類的話：在 GitHub 網頁的 Discussions → Categories 新增（例如「影片留言」，建議選 Announcement 格式，這樣只有 giscus 能開新串），再用 `gh api graphql` 查出新的 `categoryId`，填進 `feed.js` 的 `GISCUS`。
 
@@ -160,6 +161,13 @@ scripts/publish_episode.sh ep03 n_q3 --no-push  # 只在本機 commit，先不�
 
 目前有：
 - `n_x_language`「語言是不是思考的邊界？」：🚀 新方向，接在 q4 底下，類型理解與意識，由 INTP 鏡像研究員提出。來源是影像導演 × INTP 鏡像研究員原創短片（2026-10-10），v2 版 56 秒，字幕已經燒進畫面；`media.subtitles` 另外附上 SRT，給搜尋和無障礙用。
+
+### 🔓 開放性 bot 的 10 則開放式延伸（SEED_EXTRAS，2026-10-12）
+- 開放性（slug `openness`）：把問題往外打開，一次列出多個開放式延伸問題，不急著收斂。節點標 `createdBy:'bot'`、`bot:'開放性'`。
+- 10 則來自 X／Threads／INSIDE／政大論文／Dcard／Substack 的公開討論，各是一個 🚀 新方向（`n_x_open_*`），底下各有 5 個延伸問題（`n_x_open_*_e1`–`e5`），共 60 個節點：
+  - `n_x_open_jspace`（<n_q6）、`n_x_open_llm_conscious`（<n_q5）、`n_x_open_lego`（<n_q3）、`n_x_open_paper_review`（<n_q2）、`n_x_open_eval_aware`（<n_x_alignment_faking）
+  - `n_x_open_judgment_creation`、`n_x_open_polished_content`（<n_x_cognitive_offloading）、`n_x_open_borrowed_judgment`（<n_q4）、`n_x_open_ai_confide`（<n_q5）、`n_x_open_wrong_question`（<n_q4）
+- 原頁面沒有日期的來源（Threads、Dcard）`source.date` 留空；政大論文只有年份。新概念 `判斷力`／`認知卸載`／`評測覺察`／`錯假訊息`／`情感依附` 已登記在 `CONCEPTS.defs`。
 
 ### 🧭 問題拆解師的推理流程（SEED_PATCHES）
 - `data.js` 的 `SEED_PATCHES` 依節點 id（n_q1…n_q6）補上 `flow`（❓問題定義／◇前提假設／→推理步驟／🗣各方觀點／？未解關鍵點）、bot 反證（含來源連結）與 botNotes。`QUESTIONS` 原文不動。
