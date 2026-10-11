@@ -275,6 +275,189 @@ const CONCEPTS = {
    載入時補進大腦；已加過的會記在 state.seedExtras，使用者刪掉之後不會再長回來。
    ===================================================================== */
 const SEED_EXTRAS = [
+  /* Japanese transition sound lab: additive research seed; user local data is not overwritten. */
+  {
+    "id": "n_x_jp_audio_lab_v1",
+    "parentId": null,
+    "kind": "direction",
+    "title": "日文轉場音｜50組初測",
+    "type": "其他",
+    "oneLiner": "五組原創五音音型 × 十種變體；50/50 通過技術門檻。JP03-01 以 93/100 暫列結構代理領先，尚非聽眾或市場驗證。",
+    "createdBy": "bot",
+    "status": "researching",
+    "source": {
+      "who": "AI 音訊實驗室",
+      "outlet": "JP Audio Lab v1 · 程式化結構測試",
+      "date": "2026-10-11",
+      "url": "https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html",
+      "also": []
+    },
+    "concepts": [],
+    "assumptions": "所有自動分數皆為設計代理指標，不代表日本聽眾喜好、語句切點適配、實際播放率或收益。",
+    "reasoning": [
+      {
+        "k": "資料與方法",
+        "v": "Audio Lab Core v1；五種音序各十個變化共五十組，可重複合成。"
+      },
+      {
+        "k": "技術檢查",
+        "v": "時長 0.6–2.0 秒、峰值 ≤ 0.95、RMS > 0.015；50/50 通過。"
+      },
+      {
+        "k": "挑選權重",
+        "v": "轉場節奏35%、音序辨識代理20%、柔和度代理25%、IP 延展性20%。"
+      },
+      {
+        "k": "領先音型",
+        "v": "JP03-01 雫・Drop Echo：93/100，僅是內部代理排序。"
+      },
+      {
+        "k": "缺少證據",
+        "v": "尚待人工盲聽、日文語句切點、文化感受、TikTok 使用率及商業授權需求；在音訊實驗室進一步驗證。"
+      }
+    ]
+  },
+  {
+    "id": "n_x_jp_audio_lab_v1_e01",
+    "parentId": "n_x_jp_audio_lab_v1",
+    "kind": "extension",
+    "title": "音型 JP01｜月光・Moon Step",
+    "type": "其他",
+    "oneLiner": "用途：安靜換景；初測候選：JP01-01；設計代理分：89/100；時長：0.96秒。人工聽感與市場反應尚未驗證。",
+    "createdBy": "bot",
+    "status": "researching",
+    "source": {
+      "who": "AI 音訊實驗室",
+      "outlet": "JP Audio Lab v1 · 程式化結構測試",
+      "date": "2026-10-11",
+      "url": "https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html",
+      "also": []
+    },
+    "concepts": [],
+    "reasoning": [
+      {
+        "k": "測試依據",
+        "v": "同一旋律家族十個變體，採可重現結構代理指標排序。"
+      },
+      {
+        "k": "初步結論",
+        "v": "候選 JP01-01，代理評分 89/100；應先進行盲聽，再挑選進入實際內容測試。"
+      }
+    ]
+  },
+  {
+    "id": "n_x_jp_audio_lab_v1_e02",
+    "parentId": "n_x_jp_audio_lab_v1",
+    "kind": "extension",
+    "title": "音型 JP02｜桜・Sakura Lift",
+    "type": "其他",
+    "oneLiner": "用途：輕快轉場；初測候選：JP02-07；設計代理分：89/100；時長：1.05秒。人工聽感與市場反應尚未驗證。",
+    "createdBy": "bot",
+    "status": "researching",
+    "source": {
+      "who": "AI 音訊實驗室",
+      "outlet": "JP Audio Lab v1 · 程式化結構測試",
+      "date": "2026-10-11",
+      "url": "https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html",
+      "also": []
+    },
+    "concepts": [],
+    "reasoning": [
+      {
+        "k": "測試依據",
+        "v": "同一旋律家族十個變體，採可重現結構代理指標排序。"
+      },
+      {
+        "k": "初步結論",
+        "v": "候選 JP02-07，代理評分 89/100；應先進行盲聽，再挑選進入實際內容測試。"
+      }
+    ]
+  },
+  {
+    "id": "n_x_jp_audio_lab_v1_e03",
+    "parentId": "n_x_jp_audio_lab_v1",
+    "kind": "extension",
+    "title": "音型 JP03｜雫・Drop Echo",
+    "type": "其他",
+    "oneLiner": "用途：回憶／情緒切換；初測候選：JP03-01；設計代理分：93/100；時長：1.01秒。人工聽感與市場反應尚未驗證。",
+    "createdBy": "bot",
+    "status": "researching",
+    "source": {
+      "who": "AI 音訊實驗室",
+      "outlet": "JP Audio Lab v1 · 程式化結構測試",
+      "date": "2026-10-11",
+      "url": "https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html",
+      "also": []
+    },
+    "concepts": [],
+    "reasoning": [
+      {
+        "k": "測試依據",
+        "v": "同一旋律家族十個變體，採可重現結構代理指標排序。"
+      },
+      {
+        "k": "初步結論",
+        "v": "候選 JP03-01，代理評分 93/100；應先進行盲聽，再挑選進入實際內容測試。"
+      }
+    ]
+  },
+  {
+    "id": "n_x_jp_audio_lab_v1_e04",
+    "parentId": "n_x_jp_audio_lab_v1",
+    "kind": "extension",
+    "title": "音型 JP04｜星・Tiny Spark",
+    "type": "其他",
+    "oneLiner": "用途：揭曉／亮點；初測候選：JP04-07；設計代理分：90/100；時長：1.05秒。人工聽感與市場反應尚未驗證。",
+    "createdBy": "bot",
+    "status": "researching",
+    "source": {
+      "who": "AI 音訊實驗室",
+      "outlet": "JP Audio Lab v1 · 程式化結構測試",
+      "date": "2026-10-11",
+      "url": "https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html",
+      "also": []
+    },
+    "concepts": [],
+    "reasoning": [
+      {
+        "k": "測試依據",
+        "v": "同一旋律家族十個變體，採可重現結構代理指標排序。"
+      },
+      {
+        "k": "初步結論",
+        "v": "候選 JP04-07，代理評分 90/100；應先進行盲聽，再挑選進入實際內容測試。"
+      }
+    ]
+  },
+  {
+    "id": "n_x_jp_audio_lab_v1_e05",
+    "parentId": "n_x_jp_audio_lab_v1",
+    "kind": "extension",
+    "title": "音型 JP05｜凪・Calm Return",
+    "type": "其他",
+    "oneLiner": "用途：章節結尾；初測候選：JP05-01；設計代理分：90/100；時長：1.07秒。人工聽感與市場反應尚未驗證。",
+    "createdBy": "bot",
+    "status": "researching",
+    "source": {
+      "who": "AI 音訊實驗室",
+      "outlet": "JP Audio Lab v1 · 程式化結構測試",
+      "date": "2026-10-11",
+      "url": "https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html",
+      "also": []
+    },
+    "concepts": [],
+    "reasoning": [
+      {
+        "k": "測試依據",
+        "v": "同一旋律家族十個變體，採可重現結構代理指標排序。"
+      },
+      {
+        "k": "初步結論",
+        "v": "候選 JP05-01，代理評分 90/100；應先進行盲聽，再挑選進入實際內容測試。"
+      }
+    ]
+  },
+
   {
     id: "n_x_language",
     parentId: "n_q4",
