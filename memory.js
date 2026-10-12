@@ -219,6 +219,102 @@ $("backupInput").addEventListener("change",async e=>{
   showOpen();feedback("已按你的明確確認還原本機加密備份；尚未合併不同版本。");
  }catch(err){feedback("還原失敗：密碼不符、檔案格式錯誤、資料過大或儲存空間受限；原本記憶庫未更動。");}
 });
+
+/* GPT① memory handoff: manual local import, encrypted audit, contextual recall. */
+const workflowCore=globalThis.MemoryWorkflowCore;
+let latestRecall=[];
+$("importMemoryPack").addEventListener("click",()=>{if(!state){feedback("請先解鎖記憶庫。");return;}$("memoryPackInput").click();});
+$("memoryPackInput").addEventListener("change",async e=>{
+ const file=e.target.files?.[0];e.target.value="";if(!file)return;
+ if(!state){feedback("請先解鎖記憶庫。");return;}
+ try{
+  if(file.size>250000)throw Error("檔案超過250KB");
+  if(!workflowCore)throw Error("記憶匯入模組尚未載入");
+  const pack=JSON.parse(await file.text());
+  const plan=workflowCore.planImport(pack,state);
+  if(!plan.accepted.length){feedback("沒有新增候選；重複 "+plan.duplicated.length+" 筆。");return;}
+  const msg="匯入 "+plan.accepted.length+" 筆待審候選，跳過重複 "+plan.duplicated.length+" 筆，偵測同題不同內容 "+plan.conflicts.length+" 筆（只新增候選，絕不覆寫原記憶）。是否繼續？";
+  if(!confirm(msg))return;
+  queueChange(()=>{
+   const next=workflowCore.planImport(pack,state);
+   if(next.accepted.length!==plan.accepted.length)throw Error("資料已變動，請重新選檔檢查");
+   for(const {item,possibleConflictWith} of next.accepted){
+    const c={id:uid(),originId:item.id,eventType:"new_question",parentId:null,
+      question:item.question,purpose:item.purpose,content:item.content,
+      evidence:item.evidence,reason:item.reason+(possibleConflictWith.length?"；同題不同版本需人工比較："+possibleConflictWith.join(","):""),
+      proposer:"GPT1",evidenceLevel:item.evidenceLevel||"hypothesis",
+      createdAt:utc(),status:"pending",repairOf:null,review:null};
+    const problem=validateCandidate(c);if(problem)throw Error(problem);
+    state.candidates.unshift(c);evt("candidate.created",c.id,"GPT①記憶包 "+item.id+"・"+c.question.slice(0,50));
+   }
+   evt("memory.pack_imported",pack.schema,"新增 "+next.accepted.length+" 筆，跳過 "+next.duplicated.length+" 筆，待人工比較 "+next.conflicts.length+" 筆");
+   selectTab("review");
+   return "已加密匯入 "+next.accepted.length+" 筆待審候選；無核心記憶覆寫。";
+  });
+ }catch(err){feedback("記憶包匯入失敗："+err.message);}
+});
+function workflowRender(){
+ const box=$("workflowList");box.replaceChildren();
+ if(!state)return;
+ const all=workflowCore.processLatest(state.audit);
+ const statuses={queued:"待交接",received:"已接收",in_progress:"進行中",blocked:"阻塞／未完成",refused:"被拒絕",review:"待驗收",done:"已完成"};
+ const summary=appendText(box,"p","small","已記錄任務："+all.length+"；未完成／阻塞："+all.filter(x=>x.status!=="done").length+"；拒絕："+all.filter(x=>x.status==="refused").length);
+ for(const x of all.slice(0,30)){
+  const row=node("div","card");appendText(row,"b","",x.taskTitle+" · "+x.ref);
+  appendText(row,"p","small",x.actor+"｜"+(statuses[x.status]||x.status)+"｜"+fmtDate(x.at));
+  if(x.reason)appendText(row,"p","small","證據／原因："+x.reason);
+  if(x.nextAction)appendText(row,"p","small","下一步："+x.nextAction);
+  box.append(row);
+ }
+ if(!all.length)appendText(box,"p","small","尚無人工交接的三方任務紀錄。");
+}
+$("workflowSave").addEventListener("click",()=>{
+ if(!state)return;
+ const ref=$("workflowId").value.trim(),taskTitle=$("workflowTitle").value.trim();
+ const actor=$("workflowActor").value,status=$("workflowStatus").value;
+ const reason=$("workflowReason").value.trim(),nextAction=$("workflowNext").value.trim();
+ if(!ref||!taskTitle||!reason||!nextAction){feedback("請完整填寫任務ID、標題、證據／原因、下一步。");return;}
+ if(!confirm("將這筆任務進度加密保存至本機記憶庫。此操作不代表其他AI已實際接收或完成任務。確定？"))return;
+ queueChange(()=>{
+  state.audit.unshift({id:uid(),kind:"workflow.recorded",ref,taskTitle,actor,status,reason,nextAction,at:utc(),summary:taskTitle+"｜"+status});
+  workflowRender();
+  return "任務進度已加密保存，舊版本仍保留在事件歷史。";
+ });
+});
+$("workflowCopy").addEventListener("click",async()=>{
+ if(!state)return;
+ const all=workflowCore.processLatest(state.audit).filter(x=>x.status!=="done");
+ const out="主腦三方未完成與拒絕摘要（人工匯出，請檢查是否含私人資料）\n"+
+ all.map(x=>[x.ref,x.taskTitle,x.actor,x.status,"原因："+x.reason,"下一步："+x.nextAction].join("｜")).join("\n");
+ if(!confirm("將把未完成與拒絕紀錄複製到系統剪貼簿，可能含私人內容；請確認分享對象。"))return;
+ try{await navigator.clipboard.writeText(out);feedback("已複製未完成／拒絕摘要，尚未送給其他AI。");}catch(err){feedback("無法複製，請確認瀏覽器剪貼簿權限。");}
+});
+function recallRender(){
+ const box=$("recallResults");box.replaceChildren();
+ if(!state||!workflowCore)return;
+ const query=$("recallQuery").value.trim();
+ latestRecall=workflowCore.recall(query,state,7);
+ if(!latestRecall.length){appendText(box,"p","small","未找到相符記憶。可能尚未核准、未匯入或用詞不同。");return;}
+ const labels={approved:"已核准",pending:"待審候選",rejected:"被拒絕"};
+ for(const x of latestRecall){
+  const row=node("div","card");appendText(row,"b","",x.title);
+  appendText(row,"p","small","狀態："+(labels[x.type]||x.type)+"｜來源ID："+x.id);
+  appendText(row,"p","small",x.content.slice(0,1500));
+  if(x.evidence)appendText(row,"p","small","證據／原因："+x.evidence.slice(0,700));
+  box.append(row);
+ }
+}
+$("recallRun").addEventListener("click",recallRender);
+$("recallQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();recallRender();}});
+$("recallCopy").addEventListener("click",async()=>{
+ if(!state||!latestRecall.length){feedback("請先搜尋相關記憶。");return;}
+ if(!confirm("將回溯結果複製到系統剪貼簿；請確認是否包含私人資訊，再交給其他AI。"))return;
+ const txt=latestRecall.map(x=>"【"+x.type+"】"+x.title+"\n"+x.content+"\n來源："+x.id+"\n證據："+x.evidence).join("\n\n");
+ try{await navigator.clipboard.writeText(txt);feedback("已複製回溯摘要，未自動發送。");}catch(err){feedback("無法複製，請檢查剪貼簿權限。");}
+});
+const originalRenderAll=renderAll;
+renderAll=function(){originalRenderAll();workflowRender();};
+
 $("dateFilter").value=localDay(utc());
 showLocked();selectTab("overview");
 })();
