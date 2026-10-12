@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>主腦控制台｜AI 認知邊界・概念草稿</title>
+<style>
+:root{color-scheme:dark;--bg:#070a15;--panel:#13192a;--panel2:#1a2236;--line:#303a54;--fg:#edf2ff;--muted:#aeb9d0;--accent:#abbaff;--ok:#9adaba}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse 900px 400px at 55% -140px,#253354 0,transparent 78%),var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.6}
+a{color:#c8d3ff}.shell{max-width:1120px;margin:auto;padding:0 20px 64px}
+header{border-bottom:1px solid var(--line);background:#090c18d9}
+.header-in{max-width:1120px;margin:auto;padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{font-size:18px;font-weight:750;letter-spacing:.04em}.links{margin-left:auto;display:flex;gap:14px;flex-wrap:wrap;font-size:14px}
+.status{display:inline-flex;align-items:center;gap:8px;border:1px solid #765e3e;background:#2a231d;color:#ffe0a2;padding:4px 10px;border-radius:999px;font-size:12px}
+.status:before{content:"";width:7px;height:7px;background:#efc57e;border-radius:50%}
+h1{font-size:clamp(25px,4vw,38px);line-height:1.3;margin:12px 0}h2{font-size:20px;margin:0 0 12px}h3{font-size:16px;margin:0 0 7px}
+p{margin:6px 0 12px;color:var(--muted)}.eyebrow{font-size:12px;color:#b7c3ff;letter-spacing:.18em}
+.intro{padding:36px 0 18px}.lead{max-width:770px;font-size:16px}.notice{border:1px solid #665439;background:#2a231c;padding:14px 16px;border-radius:12px;font-size:13px;color:#f3ddb7;margin:18px 0}
+.tabbar{display:flex;gap:7px;overflow-x:auto;padding-bottom:10px;scrollbar-width:thin;border-bottom:1px solid var(--line);margin-bottom:24px}
+.tabbar button{appearance:none;cursor:pointer;flex:none;background:transparent;border:1px solid transparent;color:var(--muted);border-radius:10px;padding:9px 14px;font:inherit;font-size:14px}
+.tabbar button[aria-selected=true]{background:#202941;color:var(--fg);border-color:#61719d}
+.tabbar button:focus-visible,.links a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.card,.box{border:1px solid var(--line);border-radius:15px;background:linear-gradient(135deg,#151d30,#121727);padding:18px}
+.card p:last-child{margin-bottom:0}.tag{font-size:12px;color:#c6d0ff;background:#293356;padding:3px 8px;border-radius:8px;display:inline-block;margin-bottom:8px}
+.block{margin:20px 0 26px}.box{background:var(--panel)}
+.flow{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap}
+.step{flex:1 1 155px;padding:13px;border:1px solid #465171;border-radius:12px;background:#151e32;text-align:center}
+.step strong{display:block;font-size:14px}.step span{font-size:12px;color:var(--muted)}
+.detail{display:grid;grid-template-columns:180px 1fr;gap:10px;border-bottom:1px solid var(--line);padding:10px 0}
+.detail dt{color:#b6c2ff;font-weight:600}.detail dd{margin:0;color:var(--muted)}
+.empty{border:1px dashed #5a6886;border-radius:14px;text-align:center;padding:30px 18px;background:#121827}
+.empty strong{font-size:17px;display:block}.empty p{max-width:560px;margin:6px auto}
+small,.small{font-size:12px;color:var(--muted)}.bullet{margin:8px 0 0;padding-left:21px;color:var(--muted)}.bullet li{margin-bottom:8px}
+kbd{border:1px solid var(--line);border-radius:5px;padding:1px 4px}
+footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:12px}
+@media(max-width:720px){.grid,.grid.two{grid-template-columns:1fr}.shell{padding:0 14px 40px}.header-in{padding:14px}.links{margin-left:0}.detail{grid-template-columns:1fr;gap:3px}.intro{padding-top:25px}}
+</style>
+</head>
+<body>
+<header><div class="header-in"><div class="brand">🧠 AI 認知邊界 · 主腦</div><span class="status">設計預覽／未連線</span>
+<nav class="links" aria-label="網站導覽"><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 認知大腦</a><a href="./feed.html">短影音</a></nav></div></header>
+<main class="shell">
+<section class="intro"><div class="eyebrow">MAIN BRAIN / REVIEW DRAFT V0.3</div><h1>一個網站、三個 AI、一份共同記憶</h1>
+<p class="lead">GPT① 連續設計問題、GPT② 衍生與模擬、BOT③ 理解目的後執行。三方都能獨立質疑、反證、建立模型；主腦管理候選記憶、分歧與版本。</p>
+<div class="notice" role="status">此頁是公開網站上的<strong>介面設計草稿</strong>：未連接私人記憶庫、未啟用 AI 調度，也不會自動儲存任何個人資訊。請勿在公開 GitHub 檔案、留言或問題節點中貼入私人記憶。</div></section>
+<div class="tabbar" role="tablist" aria-label="主腦功能">
+<button type="button" role="tab" id="t-overview" data-tab="overview" aria-controls="p-overview" aria-selected="true">系統總覽</button>
+<button type="button" role="tab" id="t-tasks" data-tab="tasks" aria-controls="p-tasks" aria-selected="false">三方協作</button>
+<button type="button" role="tab" id="t-memory" data-tab="memory" aria-controls="p-memory" aria-selected="false">記憶管理</button>
+<button type="button" role="tab" id="t-diff" data-tab="diff" aria-controls="p-diff" aria-selected="false">每日差異</button>
+<button type="button" role="tab" id="t-security" data-tab="security" aria-controls="p-security" aria-selected="false">安全與部署</button>
+</div>
+<section id="p-overview" role="tabpanel" aria-labelledby="t-overview">
+<div class="block"><h2>三方 AI 的工作主軸</h2><div class="grid">
+<div class="card"><span class="tag">GPT ①</span><h3>連續問題設計</h3><p>釐清需求與目的，追蹤原問題及模型演化，整合認知。分工不限制其他思考能力。</p></div>
+<div class="card"><span class="tag">GPT ②</span><h3>衍生與模擬</h3><p>跨域連結、替代解釋、模型攻擊、情境測試與反證。</p></div>
+<div class="card"><span class="tag">BOT ③</span><h3>理解後執行</h3><p>任務需要具備原因、目標、授權、完成條件、停止條件；執行中可產生新問題與回饋。</p></div>
+</div></div>
+<div class="block box"><h2>共同記憶流轉（預定流程）</h2><div class="flow">
+<div class="step"><strong>新資訊或作業結果</strong><span>三方各自提交</span></div>
+<div class="step"><strong>候選記憶</strong><span>來源、問題、前提、差異</span></div>
+<div class="step"><strong>記憶管理層</strong><span>去重、審核、問題對齊</span></div>
+<div class="step"><strong>權威版本</strong><span>有條件接受、保留舊版</span></div>
+<div class="step"><strong>按需回饋</strong><span>三方檢索與手機差異</span></div>
+</div><p class="small">中央記憶的「權威」是版本與治理權威，不代表其中所有內容都是真理。</p></div>
+</section>
+<section id="p-tasks" role="tabpanel" aria-labelledby="t-tasks" hidden>
+<h2>三方協作與任務管理</h2><div class="grid">
+<div class="card"><h3>目的優先</h3><p>任務開始前確認 Why、Goal、Context、Action、Limits 與 Feedback。避免為做而做。</p></div>
+<div class="card"><h3>按需啟動</h3><p>簡單任務單 AI；複雜或高風險任務可雙 AI／三 AI。設定 Token、重試與傳輸上限。</p></div>
+<div class="card"><h3>保留獨立思考</h3><p>任何 AI 均可質疑其他 AI、工具、App 及主腦，但不能越權修改或執行。</p></div>
+</div><div class="block empty"><strong>尚無即時任務資料</strong><p>目前沒有連接 AI 任務協調服務，也不會顯示虛構的執行中狀態。</p></div>
+</section>
+<section id="p-memory" role="tabpanel" aria-labelledby="t-memory" hidden>
+<h2>記憶管理層</h2><p>三種記憶事件不得混寫；已推翻的想法與拒絕紀錄保留可追溯版本。</p>
+<div class="grid">
+<div class="card"><span class="tag">事件 A</span><h3>修正答案</h3><p>同一個問題與目的，更新答案、證據或可信度，不覆蓋舊版。</p></div>
+<div class="card"><span class="tag">事件 B</span><h3>修正問題</h3><p>前提、定義或目的改變，保留原問題與語意差異。</p></div>
+<div class="card"><span class="tag">事件 C</span><h3>提出新問題</h3><p>另開問題分支，保存與原問題的關係，不冒充答案修訂。</p></div>
+</div>
+<div class="block box"><h3>候選吸收與拒絕修復</h3>
+<dl><div class="detail"><dt>提交條件</dt><dd>原問題、目的、方法、來源、證據層級、差異、反證、增量與不確定性。</dd></div>
+<div class="detail"><dt>跨 AI 修改</dt><dd>先回原提出者檢查是否仍是同一問題，之後再進入條件式審核；原提出者無絕對否決權。</dd></div>
+<div class="detail"><dt>拒絕與修復</dt><dd>必須交代理由與修正條件；其他兩個 AI 也可以補證、挑戰或另建分支。</dd></div>
+<div class="detail"><dt>踩坑回溯</dt><dd>記錄情境、原因、修復與適用邊界；相似任務前按需檢索，舊經驗仍須再驗證。</dd></div>
+<div class="detail"><dt>傳輸與清理</dt><dd>只傳差異，使用識別碼與版本去重，限制循環與重試；重要歷史不得任意刪除。</dd></div></dl></div>
+<div class="empty"><strong>中央記憶庫尚未接入</strong><p>本頁不匯入或寫入私人 V0.2 記憶包。正式資料需經身分驗證與安全後端提供。</p></div>
+</section>
+<section id="p-diff" role="tabpanel" aria-labelledby="t-diff" hidden>
+<h2>每日記憶差異</h2><p>預計呈現新增、修訂、衝突、拒絕、修復、踩坑、已結案、待決事項與資源耗用；不每日重傳整庫。</p>
+<div class="grid two"><div class="card"><h3>審核與拒絕</h3><p>所有拒絕保留原因、提出者、處理者與修復紀錄。已解決項目轉結案，保留歷史。</p></div>
+<div class="card"><h3>模型演化</h3><p>顯示修正答案、修正問題與新問題各自的版本變化。重大變更須經使用者核准。</p></div></div>
+<div class="block empty"><strong>目前沒有可驗證的每日記憶報告</strong><p>尚未設置中央資料庫或排程；此介面不會假裝已有三方回饋或每日同步。</p></div>
+</section>
+<section id="p-security" role="tabpanel" aria-labelledby="t-security" hidden>
+<h2>正式啟用之前的安全界線</h2><div class="grid two">
+<div class="card"><h3>公開層：本網站</h3><p>可公開的視覺化、問題地圖、非敏感說明及控制台外殼。GitHub Pages 是靜態網站，不能當作受保護的私人記憶庫。</p></div>
+<div class="card"><h3>私人層：待建立</h3><p>需有登入驗證、授權 API、私人資料儲存、版本／審計、備份與資料刪除政策。只有驗證通過後才可讀取。</p></div></div>
+<div class="block box"><h3>下一階段驗收條件</h3>
+<ul class="bullet"><li>未登入時無法讀到任何私人記憶、任務或報告。</li>
+<li>三方只能提交候選變更；核心記憶更新有審核權限與版本歷史。</li>
+<li>跨 AI 修改不會悄悄改寫原問題，拒絕能回傳理由並避免無限重試。</li>
+<li>只傳必要差異，能檢索踩坑與過期教訓；手機顯示真實的每日變化。</li>
+<li>介面能清楚區分「未連線、待驗證、已完成、受阻」四種狀態。</li></ul>
+</div>
+</section>
+<footer>AI 主腦整合概念 V0.3 ・公開靜態介面草稿 ・無私人資料、無自動同步、無假資料。保留現有 3D 大腦與短影音功能。</footer>
+</main>
+<script>
+(function(){
+const tabs=[...document.querySelectorAll('[data-tab]')];
+const panels=[...document.querySelectorAll('[role=tabpanel]')];
+const allowed=new Set(tabs.map(x=>x.dataset.tab));
+function select(key,updateHash){if(!allowed.has(key))key='overview';
+for(const t of tabs){const on=t.dataset.tab===key;t.setAttribute('aria-selected',String(on));t.tabIndex=on?0:-1;}
+for(const p of panels)p.hidden=p.id!=='p-'+key;
+if(updateHash)history.replaceState(null,'','#'+key);
+}
+tabs.forEach((t,i)=>{t.addEventListener('click',()=>select(t.dataset.tab,true));t.addEventListener('keydown',e=>{if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;e.preventDefault();const next=tabs[(i+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length];next.focus();select(next.dataset.tab,true);});});
+addEventListener('hashchange',()=>select(location.hash.slice(1),false));
+select(location.hash.slice(1),false);
+})();
+</script>
+</body></html>
