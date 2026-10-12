@@ -5,6 +5,7 @@
    - 不改動大腦或 feed 的資料；只聽事件（AIBrain.on('select'/'close'/'change')、<video> 的 timeupdate、AIFeed.current()）。
    - 介面：工具列上一顆小徽章（顯示整體分數），點了才打開「說明區」。不會自動跳出任何東西。
    公開 API：window.KnowledgeScore = { compute(), raw(), open(), close(), reset() } */
+try { await window.AI_DATA_READY; } catch(e){}   // 種子資料（data.js 從 content/*.json 載入）
 (() => {
   const KS = 'aiBrain.knowledge.v1', BRAIN_KEY = 'aiBrain.v1', FEED_KEY = 'aiBrain.feed.v1';
   const PAGE = document.getElementById('c') ? 'brain' : 'feed';
@@ -87,6 +88,7 @@
   /* brain hooks */
   if (PAGE === 'brain'){
     const hook = () => {
+      if (document.body.dataset.webgl === '0') return;           // 沒有 WebGL：大腦不會啟動
       if (!window.AIBrain || !AIBrain.on) return setTimeout(hook, 300);
       AIBrain.on('select', d => d && setCur(d.id, true));
       AIBrain.on('close', () => setCur(null));
@@ -150,13 +152,13 @@
 
   /* ---------- UI ---------- */
   const css = `
-.ks-badge{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--line,rgba(160,180,255,.18));cursor:pointer;padding:0;position:relative;display:grid;place-items:center;
+.ks-badge{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--line,rgba(160,180,255,.18));cursor:pointer;padding:0;position:relative;display:grid;place-items:center;
   background:conic-gradient(var(--ksc,#7fe0a8) calc(var(--ksp,0) * 1%),rgba(255,255,255,.07) 0);color:#eef0ff;font:700 11.5px/1 "Noto Sans TC",system-ui,sans-serif;transition:box-shadow .2s}
 .ks-badge:before{content:"";position:absolute;inset:3px;border-radius:50%;background:rgba(10,13,32,.92)}
 .ks-badge span{position:relative}
 .ks-badge:hover,.ks-badge.on{box-shadow:0 0 14px rgba(157,183,255,.55);border-color:#9db7ff}
 .ks-badge.ks-float{position:fixed;left:12px;bottom:140px;z-index:25}
-@media (max-width:700px){.ks-badge{width:31px;height:31px;font-size:10.5px}}
+@media (max-width:700px),(pointer:coarse){.ks-badge{width:44px;height:44px;font-size:12px}}   /* [proto] 44px tap target (was 31px) */
 .ks-panel{position:fixed;z-index:45;left:10px;top:66px;bottom:10px;width:350px;border-radius:20px;padding:14px 14px 20px;overflow:auto;color:#eef0ff;font-family:"Noto Sans TC",system-ui,sans-serif;
   background:rgba(12,15,34,.9);border:1px solid var(--line,rgba(160,180,255,.18));backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);box-shadow:0 0 30px rgba(110,130,255,.12);
   transform:translateX(-112%);visibility:hidden;transition:transform .45s cubic-bezier(.2,.8,.2,1),visibility 0s .45s}
