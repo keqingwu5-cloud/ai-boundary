@@ -75,7 +75,7 @@ $("reportInput").addEventListener("change",async e=>{
  }catch(error){feedback("AI 回報匯入失敗："+error.message);}
 });
 function norm(s){return String(s||"").normalize("NFKC").replace(/\s+/g," ").trim();}
-function fingerprint(c){return [c.eventType,c.parentId||"",c.question,c.purpose,c.content,c.reason].map(norm).join("\u241f");}
+function fingerprint(c){return [c.eventType,c.parentId||"",c.question,c.purpose,c.content,c.evidence,c.evidenceLevel,c.reason].map(norm).join("\u241f");}
 $("candidateForm").addEventListener("submit",e=>{
  e.preventDefault();
  const c={id:uid(),eventType:$("eventType").value,parentId:$("parentMemory").value||null,question:$("question").value.trim(),purpose:$("purpose").value.trim(),content:$("content").value.trim(),evidence:$("evidence").value.trim(),reason:$("reason").value.trim(),proposer:$("proposer").value,evidenceLevel:$("evidenceLevel").value,createdAt:utc(),status:"pending",repairOf:revising,review:null};
