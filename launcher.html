@@ -39,7 +39,7 @@ hr{border:0;border-top:1px solid var(--line);margin:22px 0}
 <main class="wrap">
 <section class="intro"><div class="eyebrow">CENTRAL COMMAND LAUNCHER · V0.1</div><h1>從主腦中央發射指令</h1>
 <p>你可以在這裡自行輸入任務，或選擇已建立的首輪任務；選擇 GPT①、GPT②、BOT③ 或全部作為接收對象。</p>
-<div class="note">目前是<strong>人工交接版</strong>：發射會使用裝置分享功能或複製指令，並非直接傳送給 AI。網頁不收集、不上傳、不儲存你輸入的任務與回覆；公開 GitHub Pages 不適合放私人記憶，切勿將私人內容貼進公開 Issue。</div>
+<div class="note">目前是<strong>人工交接版</strong>：發射會使用手機分享或複製指令，<strong>並非直接傳送給 AI</strong>。可以主動將草稿與 AI 回覆儲存到<strong>這台裝置目前的瀏覽器</strong>，或匯出 JSON；不會自動上傳到三方共同雲端記憶。此網站公開，瀏覽器同網站的其他程式可能存取本機草稿，請勿儲存密碼、API 金鑰或其他機密；不要將私人記憶放入公開 Issue。</div>
 </section>
 <div class="grid">
 <section class="panel" aria-labelledby="editorTitle">
@@ -58,8 +58,15 @@ hr{border:0;border-top:1px solid var(--line);margin:22px 0}
 <div id="status" class="status" role="status" aria-live="polite"></div>
 <p class="tiny">任務包會標記為「待交接」。即使裝置分享成功，也不代表指定 AI 已接收。請在接收端確認。</p>
 <hr>
+<h2>本機儲存／復原</h2>
+<p class="tiny">按下「儲存」才會把目前指令和回覆寫入本機瀏覽器，最多保留最近 12 份；重新整理後可載入。不同裝置與不同瀏覽器不會同步，清除網站資料也可能遺失。請不要保存敏感資訊。</p>
+<label for="savedDrafts">本機已存草稿</label>
+<select id="savedDrafts" aria-label="本機已存草稿"><option value="">尚未儲存草稿</option></select>
+<div class="btns"><button type="button" id="save-draft" class="primary">儲存本機草稿</button><button type="button" id="load-draft">載入所選草稿</button><button type="button" id="delete-draft">刪除所選草稿</button></div>
+<div class="btns"><button type="button" id="export-draft">匯出草稿 JSON</button><button type="button" id="import-draft">匯入草稿 JSON</button><input id="draft-file" type="file" accept=".json,application/json" hidden></div>
+<hr>
 <h2>回報接收區（手動）</h2>
-<p class="tiny">其他 AI 回覆後，可貼在這裡，下載含來源與原指令的回報 JSON，再交回 GPT①。回覆僅存在此頁目前的記憶體中，重新整理即消失。</p>
+<p class="tiny">其他 AI 回覆後，可貼在這裡，下載含來源與原指令的回報 JSON，再交回 GPT①。若按「儲存本機草稿」，回覆也會保存在本瀏覽器；未儲存的文字重新整理後會消失。</p>
 <label for="response">AI 回覆內容</label><textarea id="response" placeholder="在此貼上 AI 回覆。請避免放入不準備交接的私人資料。"></textarea>
 <div class="btns"><button type="button" id="export-response">下載回報 JSON</button><button type="button" id="clear-response">清空回覆</button></div>
 </section>
@@ -83,6 +90,8 @@ hr{border:0;border-top:1px solid var(--line);margin:22px 0}
 (()=>{
 const $=s=>document.querySelector(s);
 const task=$("#task"),target=$("#target"),title=$("#title"),instruction=$("#instruction"),done=$("#done"),stop=$("#stop"),status=$("#status"),response=$("#response"),preview=$("#preview"),log=$("#log");
+const DRAFT_KEY="aiBoundary.launcher.drafts.v1",savedDrafts=$("#savedDrafts"),draftFile=$("#draft-file");
+let activeDraftId=null;
 const templates={
  audit:{title:"任務 01｜共同記憶架構漏洞審查",instructions:"獨立質疑《AI 主腦三方共同記憶規劃 V0.2／V0.3 候選》。從問題定義、單一權威記憶、分權審核、跨 AI 語意對齊、記憶污染、失聯、拒絕修復、踩坑回溯、Token 控制及私人資料安全等角度尋找漏洞。不要只表示贊同。逐項列出可重現情境、證據、影響、替代方案及可能反證，嚴格區分已確認事實、推論與待驗證。參照公開任務 https://github.com/keqingwu5-cloud/ai-boundary/issues/16。其他 AI 可以獨立質疑既有規則，不應假設其他 AI 已經完成驗證。",done:"用繁體中文提交至少五項具體高價值漏洞，提供證據／可信度／改善與驗收方法，標記是否重複現有 V0.3 候選。",stop:"遇到無權取得的私有資訊不要假裝已讀取。相同提案無新證據則停止重試；重大核心變更交使用者審核。"},
  timeline:{title:"任務 02｜主腦過去、現在、未來中文復盤",instructions:"調查 AI 認知邊界主腦的過去、現在與未來。閱讀公開 repo 程式、README、commits、PR 與驗證資料，建立有來源的變化時間軸。特別找出已證實歷史錯誤或返工，清楚區分『程式確有缺陷』『設計取捨』『環境限制』『尚未驗證風險』；不能未經證據就把工程失誤歸咎於使用者本人。每項寫出原目的、當時做法、何處出錯、為何當時未發現（未知請標示）、是否已修復及下次可提前發現的訊號。最後提出反思問題，讓使用者自己改善。參照公開任務 https://github.com/keqingwu5-cloud/ai-boundary/issues/17。",done:"提交繁體中文的過去→現在→未來報告、歷史踩坑清單、證據連結、未修復事項與三種可能發展路徑。",stop:"證據不足不可臆測動機、責任人或因果。缺乏新資料時停止推演並列出待驗證事項。"},
@@ -111,6 +120,63 @@ function say(s){status.textContent=s;}
 function addLog(s){const e=document.createElement("div");e.className="entry";e.textContent=new Date().toLocaleTimeString("zh-TW")+"｜"+s;log.prepend(e);}
 async function copyText(s){if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(s);return true;}const ta=document.createElement("textarea");ta.value=s;ta.style.cssText="position:fixed;left:-9999px;top:0";document.body.append(ta);ta.select();const ok=document.execCommand("copy");ta.remove();if(!ok)throw new Error("瀏覽器不支援自動複製");return true;}
 function downloadJSON(obj,name){const blob=new Blob([JSON.stringify(obj,null,2)],{type:"application/json;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);}
+function getDrafts(){
+ try{const s=JSON.parse(localStorage.getItem(DRAFT_KEY)||"[]");return Array.isArray(s)?s.filter(x=>x&&typeof x==="object"&&x.fields&&typeof x.fields==="object"):[];}
+ catch(e){say("本機儲存空間不可讀取。請使用匯出 JSON 備份。");return [];}
+}
+function persistDrafts(items){
+ try{localStorage.setItem(DRAFT_KEY,JSON.stringify(items.slice(0,12)));return true;}
+ catch(e){say("儲存失敗：瀏覽器可能停用儲存、空間不足，或位於私人瀏覽模式。請使用匯出 JSON。");return false;}
+}
+function currentFields(){
+ return {task:task.value,target:target.value,title:title.value,instructions:instruction.value,done:done.value,stop:stop.value,response:response.value};
+}
+function fieldsValid(o){return !!(o&&typeof o==="object"&&
+  ["title","instructions","done","stop","response"].every(k=>typeof o[k]==="string"&&o[k].length<=200000)&&
+  ["task","target"].every(k=>typeof o[k]==="string"));}
+function applyFields(f){
+ if(!fieldsValid(f))throw Error("欄位格式錯誤");
+ task.value=[...task.options].some(o=>o.value===f.task)?f.task:"custom";
+ target.value=[...target.options].some(o=>o.value===f.target)?f.target:"GPT②";
+ title.value=f.title;instruction.value=f.instructions;done.value=f.done;stop.value=f.stop;response.value=f.response;render();
+}
+function draftLabel(d){return new Date(d.saved_at).toLocaleString("zh-TW")+" · "+(d.fields.title||"未命名").slice(0,45);}
+function refreshDrafts(selected){
+ const data=getDrafts();savedDrafts.replaceChildren();
+ const place=document.createElement("option");place.value="";place.textContent=data.length?"選擇本機草稿（"+data.length+"）":"尚未儲存草稿";savedDrafts.append(place);
+ for(const d of data){const o=document.createElement("option");o.value=d.id;o.textContent=draftLabel(d);savedDrafts.append(o);}
+ savedDrafts.value=selected&&data.some(x=>x.id===selected)?selected:"";
+}
+function makeDraft(){
+ return {schema:"ai-boundary.launcher-draft.v1",id:activeDraftId||"local-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),
+ saved_at:new Date().toISOString(),scope:"僅在此瀏覽器手動儲存；非中央雲端記憶",fields:currentFields()};
+}
+function selectedDraft(){return getDrafts().find(d=>d.id===savedDrafts.value);}
+$("#save-draft").addEventListener("click",()=>{
+ const d=makeDraft();const old=getDrafts().filter(x=>x.id!==d.id);
+ if(persistDrafts([d,...old])){activeDraftId=d.id;refreshDrafts(d.id);say("草稿與回覆已儲存在此瀏覽器（不是雲端同步）。");addLog("本機草稿已儲存："+d.fields.title);}
+});
+$("#load-draft").addEventListener("click",()=>{
+ const d=selectedDraft();if(!d){say("請選擇一份已存草稿。");return;}
+ try{applyFields(d.fields);activeDraftId=d.id;say("已從本機載入草稿（"+draftLabel(d)+"）。");}
+ catch(e){say("此草稿格式不符，無法載入。");}
+});
+$("#delete-draft").addEventListener("click",()=>{
+ const d=selectedDraft();if(!d){say("請選擇要刪除的草稿。");return;}
+ if(persistDrafts(getDrafts().filter(x=>x.id!==d.id))){if(activeDraftId===d.id)activeDraftId=null;refreshDrafts();say("已從本機刪除選定草稿。");}
+});
+$("#export-draft").addEventListener("click",()=>{
+ downloadJSON({schema:"ai-boundary.launcher-draft.v1",exported_at:new Date().toISOString(),scope:"使用者自行保管的 JSON 備份，尚未發給 AI",fields:currentFields()},"mainbrain-launcher-draft-"+Date.now()+".json");
+ say("草稿 JSON 已下載至裝置；請妥善保管。");
+});
+$("#import-draft").addEventListener("click",()=>draftFile.click());
+draftFile.addEventListener("change",async()=>{
+ const f=draftFile.files&&draftFile.files[0];if(!f)return;
+ try{if(f.size>1000000)throw Error("檔案過大");const obj=JSON.parse(await f.text());
+ if(obj.schema!=="ai-boundary.launcher-draft.v1"||!fieldsValid(obj.fields))throw Error("檔案不是有效草稿");
+ applyFields(obj.fields);activeDraftId=null;refreshDrafts();say("已載入外部草稿，但尚未儲存於本機；如需保留請按「儲存本機草稿」。");
+ }catch(e){say("無法匯入：格式錯誤或檔案超出限制。");}finally{draftFile.value="";}
+});
 function validate(){if(!title.value.trim()||!instruction.value.trim()){say("請先填入任務名稱與指令。");return false;}return true;}
 task.addEventListener("change",applyTemplate);
 for(const el of [target,title,instruction,done,stop])el.addEventListener("input",render);
@@ -128,7 +194,7 @@ $("#launch").addEventListener("click",async()=>{
 $("#download").addEventListener("click",()=>{if(!validate())return;const p=packet();downloadJSON(p,p.command_id+".json");say("已下載任務 JSON；狀態仍為待交接。");addLog("已下載任務 JSON（未送達）");});
 $("#export-response").addEventListener("click",()=>{if(!response.value.trim()){say("請先貼上 AI 回報內容。");return;}const p=packet();const r={schema:"ai-boundary.response.v0.1",exported_at:new Date().toISOString(),source_command:p,reported_by:target.value,response_text:response.value,verification_status:"待主腦審核（人工匯入）"};downloadJSON(r,"mainbrain-response-"+Date.now()+".json");say("已下載回報包，未寫入中央記憶；需人工交接審核。");addLog("已下載回報包（待審核）");});
 $("#clear-response").addEventListener("click",()=>{response.value="";say("回報欄位已清空。");});
-applyTemplate();
+applyTemplate();refreshDrafts();
 })();
 </script>
 </body></html>
