@@ -304,7 +304,7 @@ function undo(){
   emit('change', { action:'undo' });
 }
 /* 雲端同步開著時，重置只影響這台裝置（捨棄本機修改、改用雲端版本），不會寫墓碑去清空共享大腦 */
-function resetAll(){ if (window.AISync && window.AISync.enabled && window.AISync.resetLocal){ undoStack.push(JSON.stringify(state)); return window.AISync.resetLocal(resetSeed); } resetSeed(); }
+function resetAll(){ if (window.AISync && window.AISync.enabled && window.AISync.canWrite() && window.AISync.resetLocal){ undoStack.push(JSON.stringify(state)); return window.AISync.resetLocal(resetSeed); } resetSeed(); }
 function resetSeed(){ undoStack.push(JSON.stringify(state)); state = migrate(seedState()); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); emit('change', { action:'reset' }); }
 function exportJSON(value = state){
   // onclick passes a MouseEvent; preserve the original graph-export behavior.
@@ -1004,7 +1004,7 @@ $('#bUndo').onclick = undo;
 $('#bExport').onclick = exportJSON;
 $('#bImport').onclick = () => $('#file').click();
 $('#file').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { importJSON(JSON.parse(r.result)); } catch(err){ toast('⚠ 無法讀取 JSON'); } }; r.readAsText(f); e.target.value = ''; };
-$('#bReset').onclick = () => { if (confirm(window.AISync && window.AISync.enabled ? '重置這台裝置？\n會捨棄還沒上傳的本機修改，改成雲端上的共享大腦。\n不會影響其他裝置或共享大腦。' : '重置成初始 6 題？（可用復原找回）')) resetAll(); };
+$('#bReset').onclick = () => { if (confirm(window.AISync && window.AISync.enabled && window.AISync.canWrite() ? '重置這台裝置？\n會捨棄還沒上傳的本機修改，改成雲端上的共享大腦。\n不會影響其他裝置或共享大腦。' : '重置成初始 6 題？（可用復原找回）')) resetAll(); };
 $('#bHome').onclick = () => focusBrain('main');
 $('#bFit').onclick = overview;
 $('#bRot').onclick = function(){ controls.autoRotate = !controls.autoRotate; this.classList.toggle('on', controls.autoRotate); autoRotPref = controls.autoRotate; };

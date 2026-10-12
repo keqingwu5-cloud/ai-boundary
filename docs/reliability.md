@@ -65,4 +65,37 @@ ledger 事件僅記錄時間、事件類型與系統 ID；任務事件記錄時�
 
 這是可測試的基礎模組與本機保護增補，不是已上線的多 BOT 系統。未合併 main、未部署、未碰 World Flow Map。
 
-本次執行結果：20 項 Node 測試通過，app.js 語法檢查通過。Chromium 未安裝且下載失敗，未完成瀏覽器 3D／影片端對端驗證；合併前仍需實機驗收。
+（以上為 PR #4 原始說明；P0 整合後的行為以下一節為準。）
+
+## P0 保護基線（integration/p0-baseline，2026-10-12）
+
+依《主腦與 World Flow Map 共用架構設計稿 v1》§11 P0：整合 PR #4 存檔保護、涵蓋各資料鍵的備份、私人讀取規則。只在本機分支，**未 push、未部署、未在任何 Supabase 專案執行 SQL**。
+
+### 本機存檔（reliability/storage.mjs、app.js、world-model.html）
+
+| 項目 | 行為 |
+|---|---|
+| 損毀或未知版本 | 原文不覆寫、不以種子覆蓋；顯示 zh-TW 保護橫幅（`#persistBanner`），可「匯出原始存檔」或「從備份還原…」；壞資料不會寫成備份，也不會把好備份輪替掉 |
+| 備份範圍 | `aiBrain.*` 的資料鍵＋`worldModel.verify.v1`；排除 `aiBrain.v1.undo`、`aiBrain.audioLab.*`、`aiBrain.auth*`（登入 token）、`aiBrain.sync.*`（可重拉的快取） |
+| 備份格式 | `formatVersion:2`，附 manifest（鍵清單、每鍵 SHA-256 與大小、節點／世界模型筆數）；雜湊不符或含未知鍵不能還原；舊 v1 備份仍可還原 |
+| 輪替 | 自動備份最多 3 份（相同內容重用）；`quarantine.*`（還原前損毀原文的隔離副本）不參與輪替 |
+| 還原 | `AIBrain.listBackups()`、`AIBrain.restoreBackup(key 或物件)`、橫幅按鈕；先備份目前資料（損毀時另存隔離副本），逐鍵寫入驗證、失敗回滾，完成後重新載入 |
+| 另一分頁寫入 | 進入 `conflict` 狀態：橫幅＋`AIBrain.on('persistence')`＋`window` 的 `aibrain:persistence`＋`body[data-persist]`；選「載入最新版本」（先把此分頁未存的版本存成備份）或「保留這個分頁的版本」（先備份另一分頁版本再覆蓋）；離開頁面時有未存修改會提示 |
+| 容量已滿 | `save-failed`：原文不變、顯示「儲存空間已滿」，可清理舊備份或再試；復原暫存寫不下時自動少存幾步 |
+| 輕量復原快照 | 沒有 `history` 的復原快照可通過驗證，復原時沿用目前 history |
+| 世界模型頁 | 紀錄無法辨識（損毀、非陣列、含非物件、超過 500 筆）時不覆寫、不截斷，顯示保護提示；載入與匯入前備份（主腦存檔損毀時只備份世界模型） |
+
+`AIBrain.persistenceStatus()` 回傳 `{ mode:'ok'|'blocked'|'conflict'|'save-failed', blocked, conflict, saveFailed, error, lastSavedAt }`。
+
+### 雲端（supabase/schema.sql、sync.js、sync-core.js）
+
+- 私人讀取：四張資料表只有該 graph 的編輯者可讀（`is_graph_editor(graph_id)`）；anon 無任何權限；公開網站未登入時只用內建資料。
+- 版本化寫入：`brain_apply(graph, ops)`，每筆帶 `base`；不符 → conflict（不覆寫、存 `brain_proposals`），同內容重送冪等，meta 字串陣列取聯集；接受的修改寫 `brain_revisions`。`brain_reject_proposal()` 記錄「保留雲端版本」。
+- 用戶端：衝突顯示 `#syncConflict` 橫幅，`AISync.conflicts()`／`resolveConflict(key,'cloud'|'mine')`，不自動重送衝突中的修改。
+
+### 給 P1 的準備與已知界線
+
+- `brain_proposals`／`brain_revisions` 是 P1 提案＋審核 API 的資料雛形；P1 需加 `operation_id`（冪等鍵）、`task_id`、`base_versions`（多實體依賴）、`source_ids`／`evidence_ids`、`classification`、`reason`、trace_id 與 outbox 事件，並把「接受」移到可信服務端，限人工。
+- 目前的「版本」是每列計數器（revision 語意），與 `schema_version`（格式版本）分開；`workspace_id` 尚未建立，只有 `graph_id` 範圍。
+- 衝突的「用我的版本覆蓋」由編輯者本人決定，等同人工審核；BOT 不得列入 `brain_editors`。
+- localStorage 沒有跨鍵交易；跨分頁衝突偵測依賴 `storage` 事件與寫入前比對，不是多 BOT 交易儲存。

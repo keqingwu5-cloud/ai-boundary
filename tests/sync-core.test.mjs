@@ -2,24 +2,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as C from '../sync-core.js';
+import { createVersionedStore } from './lib/brain-apply.mjs';
 
 const node = (id, o = {}) => Object.assign({ id, brainId:'main', parentId:null, kind:'question', title:id, type:'其他', createdBy:'seed', createdAt:1, pos:[0, 0, 0], concepts:[] }, o);
 const base = () => C.repair({ version:2, brains:[C.DEFAULT_MAIN()], nodes:[node('n_q1'), node('n_q2')], links:[{ id:'l1', from:'n_q1', to:'n_q2', kind:'derived', createdAt:1 }],
   history:[{ ts:1, action:'seed', payload:{ questions:2 } }], concepts:{ 意識:{ color:'#ffffff', desc:'', createdBy:'seed' } }, patterns:{}, seedExtras:[] });
 const norm = st => C.rowsToState([...C.toEntities(st)].map(([k, v]) => { const [kind, id] = C.splitKey(k); return { kind, id, data:v }; }), st.history);
 
-/* 假的雲端：upsert，像 Supabase 一樣 jsonb 會重排 key */
-function server(){ const rows = new Map(), hist = new Map();
-  return { rows, hist, all:() => [...rows.values()].map(C.clone), H:() => [...hist.values()],
-    upsert(ops){ ops.forEach(o => rows.set(C.keyOf(o.kind, o.id), { kind:o.kind, id:o.id, data:o.deleted ? null : JSON.parse(C.stable(o.data)), deleted:!!o.deleted })); },
-    addHist(list){ list.forEach(h => hist.set(C.hkey(h), h)); } }; }
+/* 假的雲端：版本化寫入（tests/lib/brain-apply.mjs，跟 supabase/schema.sql 的 brain_apply 同規則）；像 Supabase 一樣 jsonb 會重排 key */
+function server(){ const store = createVersionedStore(), hist = new Map();
+  const srv = { store, hist, get rows(){ return new Map(store.rows.map(r => [C.keyOf(r.kind, r.id), r])); },
+    all:() => store.rows.map(C.clone), H:() => [...hist.values()],
+    /* 繞過版本檢查直接寫（模擬有人直接改資料庫，例如惡意資料） */
+    upsert(ops){ ops.forEach(o => { const data = o.deleted ? null : JSON.parse(C.stable(o.data)), cur = store.rows.find(r => r.kind === o.kind && r.id === o.id);
+      if (cur) Object.assign(cur, { data, deleted:!!o.deleted, version:cur.version + 1 }); else store.rows.push({ graph_id:'main', kind:o.kind, id:o.id, data, deleted:!!o.deleted, version:1 }); }); },
+    addHist(list){ list.forEach(h => hist.set(C.hkey(h), h)); } };
+  return srv; }
 /* 一台裝置：本機 state＋snapshot，流程跟 sync.js 一樣 */
 function device(srv, st = norm(base()), canWrite = true, migrate){
-  const d = { st:C.clone(st), sync:null, canWrite };
+  const d = { st:C.clone(st), sync:null, canWrite, last:null };
   d.pull = () => { const r = srv.all();
     if (!r.length){ if (d.canWrite) d.sync = { snap:{}, hkeys:[] }; return; }
     const res = C.merge(d.st, r, srv.H(), d.sync, { migrate, canWrite:d.canWrite }); d.st = res.state; d.sync = res.sync; return res; };
-  d.flush = () => { if (!d.canWrite || !d.sync) return 0; const ops = C.diff(d.sync.snap, d.st), h = C.pendingHistory(d.st, d.sync); srv.upsert(ops); srv.addHist(h); C.ack(d.sync, ops, h); return ops.length; };
+  d.flush = () => { if (!d.canWrite || !d.sync) return 0; const ops = C.uploadable(d.sync, d.st), h = C.pendingHistory(d.st, d.sync);
+    d.last = srv.store.apply('main', C.toApplyOps(d.sync, ops)); C.ackResult(d.sync, ops, d.last); srv.addHist(h); C.ack(d.sync, [], h); return ops.length; };
   d.pending = () => d.sync ? C.diff(d.sync.snap, d.st) : [];
   return d;
 }
@@ -41,15 +47,55 @@ test('兩台裝置改不同節點：互不覆蓋', () => {
   a.flush(); b.flush(); a.pull(); b.pull();
   for (const d of [a, b]){ assert.equal(N(d.st, 'n_q1').status, 'resolved'); assert.equal(N(d.st, 'n_q2').title, 'B 改了'); }
 });
-test('離線修改：拉取時保留本機未上傳的修改，其他以雲端為準；連線後上傳', () => {
+test('離線修改：拉取時保留本機未上傳的修改，其他以雲端為準；連線後上傳不同節點', () => {
   const srv = server(); const a = device(srv); a.pull(); a.flush();
   const b = device(srv); b.pull();
-  N(b.st, 'n_q1').title = '離線標題'; b.st.nodes.push(node('n_new', { createdBy:'merlin', createdAt:9 }));   // b 離線
-  N(a.st, 'n_q1').title = 'A 標題'; N(a.st, 'n_q2').status = 'researching'; a.flush();
+  N(b.st, 'n_q2').title = '離線標題'; b.st.nodes.push(node('n_new', { createdBy:'merlin', createdAt:9 }));   // b 離線
+  N(a.st, 'n_q1').title = 'A 標題'; a.flush();
   b.pull();
-  assert.equal(N(b.st, 'n_q1').title, '離線標題'); assert.equal(N(b.st, 'n_q2').status, 'researching'); assert.ok(N(b.st, 'n_new'));
+  assert.equal(N(b.st, 'n_q2').title, '離線標題'); assert.equal(N(b.st, 'n_q1').title, 'A 標題'); assert.ok(N(b.st, 'n_new'));
   assert.equal(b.pending().length, 2); b.flush();
-  assert.equal(srv.rows.get('node:n_q1').data.title, '離線標題'); assert.ok(srv.rows.get('node:n_new'));
+  assert.equal(srv.rows.get('node:n_q2').data.title, '離線標題'); assert.ok(srv.rows.get('node:n_new')); assert.equal(srv.rows.get('node:n_q1').data.title, 'A 標題');
+  assert.deepEqual(b.sync.conflicts, {});
+});
+test('P0：兩台裝置根據同一版本改同一個節點 → 第一筆成功、第二筆變成衝突（不覆寫雲端、內容保留、可查閱），不會自動重送', () => {
+  const srv = server(); const a = device(srv); a.pull(); a.flush();
+  const b = device(srv); b.pull();
+  const v0 = srv.rows.get('node:n_q1').version;
+  N(a.st, 'n_q1').title = 'A 的結論'; N(b.st, 'n_q1').title = 'B 的結論';   // 都根據 v0
+  a.flush(); assert.equal(srv.rows.get('node:n_q1').version, v0 + 1);
+  b.flush();
+  assert.equal(srv.rows.get('node:n_q1').data.title, 'A 的結論', '雲端沒有被 B 靜默覆寫');
+  assert.deepEqual(b.last.applied, []); assert.equal(b.last.conflicts.length, 1);
+  const c = b.sync.conflicts['node:n_q1'];
+  assert.deepEqual([c.base, c.current, c.cloud.data.title, c.mine.data.title], [v0, v0 + 1, 'A 的結論', 'B 的結論']);
+  assert.equal(srv.store.proposals.length, 1); assert.equal(srv.store.proposals[0].patch.title, 'B 的結論', '被擋下的內容存成提案');
+  assert.equal(N(b.st, 'n_q1').title, 'B 的結論', 'B 的修改留在本機，沒有遺失');
+  b.flush(); b.pull(); b.flush(); assert.equal(srv.store.proposals.length, 1, '衝突中的實體不會自動重送');
+  assert.equal(N(b.st, 'n_q1').title, 'B 的結論', '拉取也不會蓋掉衝突中的本機修改');
+  // 重送已成功的同一筆（例如回應遺失）：冪等，不是衝突
+  assert.equal(srv.store.apply('main', [{ kind:'node', id:'n_q1', data:srv.rows.get('node:n_q1').data, base:v0 }]).conflicts.length, 0);
+});
+test('P0：衝突由人決定 —— 用我的版本（帶 base＝當時雲端版本與 resolves）或改用雲端版本（拒絕提案）', () => {
+  const srv = server(); const a = device(srv); a.pull(); a.flush();
+  const b = device(srv); b.pull();
+  N(a.st, 'n_q1').title = 'A1'; N(a.st, 'n_q2').title = 'A2'; a.flush();
+  N(b.st, 'n_q1').title = 'B1'; N(b.st, 'n_q2').title = 'B2'; b.flush();
+  assert.equal(Object.keys(b.sync.conflicts).length, 2);
+  // n_q1：用我的版本
+  const op = C.resolveMineOp(b.sync, b.st, 'node:n_q1');
+  const r = srv.store.apply('main', [op]); C.ackResult(b.sync, [op], r);
+  assert.equal(srv.rows.get('node:n_q1').data.title, 'B1'); assert.equal(srv.store.proposals[0].status, 'accepted'); assert.ok(!b.sync.conflicts['node:n_q1']);
+  // n_q2：改用雲端版本
+  b.pull(); const c = C.resolveCloud(b.sync, b.st, 'node:n_q2'); srv.store.reject('main', c.proposalId);
+  assert.equal(N(b.st, 'n_q2').title, 'A2'); assert.equal(srv.store.proposals[1].status, 'rejected');
+  assert.deepEqual(b.pending(), []); assert.deepEqual(b.sync.conflicts, {});
+  // 處理期間雲端又被改：「用我的版本」再次變成新的衝突，不會覆寫
+  a.pull(); N(a.st, 'n_q1').title = 'A again'; a.flush(); assert.equal(srv.rows.get('node:n_q1').data.title, 'A again');
+  N(b.st, 'n_q1').title = 'B again'; b.flush(); assert.ok(b.sync.conflicts['node:n_q1']);
+  N(a.st, 'n_q1').title = 'A third'; a.flush();
+  const op2 = C.resolveMineOp(b.sync, b.st, 'node:n_q1'); const r2 = srv.store.apply('main', [op2]);
+  assert.equal(r2.conflicts.length, 1); assert.equal(srv.rows.get('node:n_q1').data.title, 'A third');
 });
 test('第一次同步：共有的節點以雲端為準、只在本機的上傳、雲端墓碑不會被復活', () => {
   const srv = server(); const a = device(srv); a.pull(); a.flush();

@@ -1,10 +1,12 @@
 // 用「假的 Supabase」（本機 REST 模擬器）在無頭瀏覽器裡跑整套同步流程：node tests/mock-supabase.mjs
-// 不是真的 Supabase：RLS 只模擬「編輯者名單（email）才能寫」；真正的 RLS 在 tests/rls.test.mjs 用 PGlite 測。
+// 不是真的 Supabase：RLS 只模擬 P0 規則（只有編輯者能讀寫、brain_entities 只能經 brain_apply 寫、版本衝突不覆寫）；
+// 真正的 RLS 與 brain_apply 在 tests/rls.test.mjs 用 PGlite 測；這裡的 brain_apply 是 tests/lib/brain-apply.mjs 的 JS 對照實作。
 // 需要 puppeteer-core（PUPPETEER=<esm 入口檔>）與 Chrome（CHROME=/usr/bin/google-chrome）。
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createVersionedStore } from './lib/brain-apply.mjs';
 const puppeteer = (await import(process.env.PUPPETEER || 'puppeteer-core')).default;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = +(process.env.PORT || 8872), ORIGIN = `http://127.0.0.1:${PORT}`, ANON = 'anon-key-for-tests';
@@ -17,7 +19,8 @@ const T_OLD = tok('u-merlin', 'keqingwu5@gmail.com') + 'old', T_NEW = tok('u-mer
 const EDITORS = ['keqingwu5@gmail.com'];
 const db = { brain_entities:[], brain_history:[] };
 const PK = { brain_entities:['graph_id', 'kind', 'id'], brain_history:['graph_id', 'hkey'] };
-const writes = [], stats = { refresh:0, denied:0 };
+const writes = [], stats = { refresh:0, denied:0, deniedReads:0 };
+const store = createVersionedStore({ rows:() => db.brain_entities });
 let clock = 0;
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.mjs':'text/javascript; charset=utf-8', '.json':'application/json', '.css':'text/css' };
 const srv = http.createServer(async (req, res) => {
@@ -35,13 +38,25 @@ const srv = http.createServer(async (req, res) => {
     if (u.pathname === '/auth/v1/logout') return send(204);
     return send(404, { msg:'not mocked' });
   }
-  if (u.pathname === '/rest/v1/rpc/is_brain_editor') return send(200, isEditor);
+  const deny = () => { stats.denied++; return send(who ? 403 : 401, { code:'42501', message:'permission denied' }); };
+  if (u.pathname === '/rest/v1/rpc/is_brain_editor' || u.pathname === '/rest/v1/rpc/is_graph_editor') return who ? send(200, isEditor) : deny();
+  if (u.pathname === '/rest/v1/rpc/brain_apply'){
+    if (!isEditor) return deny();
+    const { p_graph, p_ops } = JSON.parse(body || '{}');
+    try { const before = db.brain_entities.length, r = store.apply(p_graph, p_ops, who.id);
+      r.applied.forEach(a => { const row = db.brain_entities.find(x => x.kind === a.kind && x.id === a.id); row.updated_at = new Date(Date.UTC(2026, 9, 11) + ++clock * 1000).toISOString(); writes.push({ table:'brain_entities', uid:who.id, key:p_graph + '/' + a.kind + '/' + a.id }); });
+      return send(200, r); } catch(e){ return send(400, { code:e.code || '22023', message:e.message }); }
+  }
+  if (u.pathname === '/rest/v1/rpc/brain_reject_proposal'){ if (!isEditor) return deny(); const { p_graph, p_id } = JSON.parse(body || '{}'); return send(200, store.reject(p_graph, p_id)); }
   if (u.pathname.startsWith('/rest/v1/')){
-    const table = u.pathname.slice(9); const rows = db[table]; if (!rows) return send(404, { message:'no table' });
+    const table = u.pathname.slice(9); const rows = table === 'brain_proposals' ? store.proposals : db[table]; if (!rows) return send(404, { message:'no table' });
     const filters = [...u.searchParams].filter(([k]) => !['select', 'order', 'offset', 'limit', 'on_conflict', 'columns'].includes(k));
     const match = r => filters.every(([k, v]) => { const [op, ...rest] = v.split('.'); return op === 'eq' ? String(r[k]) === rest.join('.') : true; });
+    if (req.method === 'GET' && !who){ stats.deniedReads++; return send(401, { code:'42501', message:'permission denied for table ' + table }); }   // anon：沒有 select 權限
+    if (req.method === 'GET' && !isEditor){ stats.deniedReads++; return send(200, []); }                                                     // 登入非編輯者：RLS 過濾成 0 列
     if (req.method === 'GET'){ const off = +(u.searchParams.get('offset') || 0), lim = +(u.searchParams.get('limit') || 1e9); return send(200, rows.filter(match).slice(off, off + lim)); }
     if (req.method === 'POST'){
+      if (table !== 'brain_history'){ stats.denied++; return send(who ? 403 : 401, { code:'42501', message:'permission denied for table ' + table }); }   // brain_entities 只能經 brain_apply
       if (!isEditor){ stats.denied++; return send(who ? 403 : 401, { code:'42501', message:'new row violates row-level security policy' }); }   // RLS：只有編輯者
       let list = JSON.parse(body); if (!Array.isArray(list)) list = [list];
       const ignore = /ignore-duplicates/.test(req.headers.prefer || ''); const out = [];
@@ -68,14 +83,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const session = t => JSON.stringify({ access_token:t, refresh_token:'r-' + t.slice(-6), token_type:'bearer', expires_in:3600 * 24 * 365 * 50, expires_at:4102444800,
   user:{ id:(USERS[t] || USERS[T_MERLIN]).id, aud:'authenticated', role:'authenticated', email:(USERS[t] || USERS[T_MERLIN]).email, app_metadata:{ provider:'email' }, user_metadata:{}, created_at:'2026-01-01T00:00:00Z' } });
 async function device(name, t){
-  const ctx = await browser.createBrowserContext(); const page = await ctx.newPage(); const errs = [], posts = [];
+  const ctx = await browser.createBrowserContext(); const page = await ctx.newPage(); const errs = [], posts = [], gets = [];
   page.on('pageerror', e => errs.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|fonts/i.test(m.text())) errs.push(m.text()); });
-  page.on('request', r => { if (r.method() === 'POST' && /rest\/v1\/brain/.test(r.url())) posts.push(r.url()); });
+  page.on('request', r => { if (r.method() === 'POST' && /rest\/v1\/(brain|rpc\/brain_)/.test(r.url())) posts.push(r.url()); if (r.method() === 'GET' && /rest\/v1\/brain/.test(r.url())) gets.push(r.url()); });
   page.on('dialog', d => d.accept());
   await page.evaluateOnNewDocument(() => { window.__readyEv = []; addEventListener('aisync:ready', e => window.__readyEv.push(e.detail)); });
   if (t) await page.evaluateOnNewDocument(s => { if (!localStorage.getItem('aiBrain.auth')) localStorage.setItem('aiBrain.auth', s); }, session(t));
-  return { name, ctx, page, errs, posts };
+  return { name, ctx, page, errs, posts, gets };
 }
 async function load(d, file = 'index.html'){
   // 機器很忙時（好幾個 WebGL 分頁同時跑）載入可能很慢，所以等久一點
@@ -96,25 +111,41 @@ try {
   await load(A); ok(await waitSynced(A), 'A（編輯者）: 雲端是空的 → 自動上傳種子，☁️');
   const seeded = db.brain_entities.filter(r => r.kind === 'node').length;
   ok(seeded >= 31 && db.brain_history.length > 0, `種子已寫入雲端（${seeded} 節點、history ${db.brain_history.length} 筆）`);
-  // 2. 未登入：唯讀
+  // 2. 未登入：P0 —— 讀不到雲端（私人），網站用內建的公開資料照常運作
+  await A.page.evaluate(() => AIBrain.addQuestion({ title:'只有編輯者看得到的私人問題', type:'其他' })); await settle(A);
   await load(B); let s = await st(B);
-  ok(s.sync === 'readonly' && s.icon.startsWith('🔒') && s.nodes.length === seeded, 'B（未登入）: 看得到共享大腦，🔒 唯讀');
+  ok(s.sync === 'readonly' && s.icon.startsWith('🔒') && s.nodes.length === seeded && !s.nodes.some(n => n.title === '只有編輯者看得到的私人問題') && !B.gets.length,
+    `B（未登入）: 🔒、用內建資料（${s.nodes.length} 節點），沒有讀雲端，也看不到私人問題`);
+  const direct = await B.page.evaluate(async (o, k) => { const r = await fetch(o + '/rest/v1/brain_entities?select=*', { headers:{ apikey:k, authorization:'Bearer ' + k } }); return { status:r.status, body:await r.text() }; }, ORIGIN, ANON);
+  ok(direct.status === 401 && !/私人問題/.test(direct.body), `B 直接打 REST 讀 brain_entities（anon key）→ ${direct.status}，拿不到資料`);
+  const dw = await B.page.evaluate(async (o, k) => { const h = { apikey:k, authorization:'Bearer ' + k, 'content-type':'application/json' };
+    const a = await fetch(o + '/rest/v1/rpc/brain_apply', { method:'POST', headers:h, body:JSON.stringify({ p_graph:'main', p_ops:[{ kind:'node', id:'n_q1', data:{ title:'anon 竄改' }, base:null }] }) });
+    const b = await fetch(o + '/rest/v1/brain_entities', { method:'POST', headers:h, body:JSON.stringify([{ graph_id:'main', kind:'node', id:'n_q1', data:{ title:'anon 竄改' } }]) });
+    return [a.status, b.status]; }, ORIGIN, ANON);
+  ok(dw[0] === 401 && dw[1] === 401 && !db.brain_entities.some(r => r.data && r.data.title === 'anon 竄改'), `B 直接寫（brain_apply ${dw[0]}、upsert ${dw[1]}）→ 被拒，雲端沒變`);
+  B.gets.length = 0; B.posts.length = 0;   // 上面是測試自己直接打 REST，不算網站的請求
   await B.page.evaluate(() => AIBrain.addQuestion({ title:'B 本機問題', type:'其他' })); await sleep(1500); await pull(B); s = await st(B);
-  ok(s.pending === 1 && s.nodes.some(n => n.title === 'B 本機問題') && !B.posts.length, 'B: 本機修改照常可用、重新拉取也還在，但不上傳');
+  ok(s.nodes.some(n => n.title === 'B 本機問題') && !B.posts.length && !B.gets.length, 'B: 本機修改照常可用、存在這台裝置，但不上傳也不讀雲端');
   // 3. 登入但不在編輯名單：唯讀＋提示
   await load(Bob); s = await st(Bob);
   await Bob.page.click('#bSync'); const bobMenu = await Bob.page.evaluate(() => document.querySelector('.sy-menu.open')?.textContent || '');
   ok(s.sync === 'readonly' && /不在編輯名單/.test(bobMenu), 'Bob（登入、非編輯者）: 🔒，選單提示「不在編輯名單」');
   await Bob.page.evaluate(() => AIBrain.addQuestion({ title:'Bob 想改', type:'其他' })); await sleep(1500);
   ok(!Bob.posts.length && !db.brain_entities.some(r => r.data && r.data.title === 'Bob 想改'), 'Bob: 不會嘗試上傳，雲端沒有他的修改');
+  ok(!Bob.gets.length && !(await st(Bob)).nodes.some(n => n.title === '只有編輯者看得到的私人問題'), 'Bob（非編輯者）: 不讀雲端，看不到私人問題');
+  const bobDirect = await Bob.page.evaluate(async (o, k) => { const t = JSON.parse(localStorage.getItem('aiBrain.auth')).access_token, h = { apikey:k, authorization:'Bearer ' + t, 'content-type':'application/json' };
+    const r = await (await fetch(o + '/rest/v1/brain_entities?select=*', { headers:h })).json();
+    const a = await fetch(o + '/rest/v1/rpc/brain_apply', { method:'POST', headers:h, body:JSON.stringify({ p_graph:'main', p_ops:[{ kind:'node', id:'n_q1', data:{ title:'Bob 竄改' }, base:null }] }) });
+    return { rows:r.length, apply:a.status }; }, ORIGIN, ANON);
+  ok(bobDirect.rows === 0 && bobDirect.apply === 403 && !db.brain_entities.some(r => r.data && r.data.title === 'Bob 竄改'), `Bob 直接打 REST：讀到 ${bobDirect.rows} 列、brain_apply ${bobDirect.apply}`);
   // AISync.reason()／user()／isEditor()：分得出「沒登入」和「登入但不是編輯者」；同步鈕有固定格式的 aria-label
   const info = d => d.page.evaluate(() => ({ reason:AISync.reason(), user:AISync.user(), ed:AISync.isEditor(), aria:document.getElementById('bSync').getAttribute('aria-label'), title:document.getElementById('bSync').title }));
   const iA = await info(A), iB = await info(B), iBob = await info(Bob);
   ok(iA.reason === 'editor' && iA.ed && iA.user.email === 'keqingwu5@gmail.com' && iB.reason === 'anon' && iB.user === null && !iB.ed && iBob.reason === 'not-editor' && iBob.user.email === 'bob@example.com' && !iBob.ed,
     `AISync.reason(): A=${iA.reason}、B=${iB.reason}、Bob=${iBob.reason}；user()／isEditor() 一致`);
-  ok(/^雲端同步：已同步$/.test(iA.aria) && /^雲端同步：唯讀，1 筆待上傳$/.test(iB.aria) && iBob.aria === '雲端同步：唯讀，1 筆待上傳', `#bSync aria-label：「${iA.aria}」「${iB.aria}」`);
+  ok(/^雲端同步：已同步$/.test(iA.aria) && iB.aria === '雲端同步：唯讀' && iBob.aria === '雲端同步：唯讀', `#bSync aria-label：「${iA.aria}」「${iB.aria}」`);
   // pending()／status() 有快取：連續呼叫不重算；大腦一改就重算
-  const perf = await B.page.evaluate(async () => { const t0 = performance.now(); for (let i = 0; i < 2000; i++){ AISync.pending(); AISync.status(); } const ms = performance.now() - t0;
+  const perf = await A.page.evaluate(async () => { const t0 = performance.now(); for (let i = 0; i < 2000; i++){ AISync.pending(); AISync.status(); } const ms = performance.now() - t0;
     const before = AISync.pending(); AIBrain.addQuestion({ title:'快取測試', type:'其他' }); const after = AISync.pending(); return { ms, before, after }; });
   ok(perf.ms < 300 && perf.after === perf.before + 1, `pending()／status() 快取：2000 次 ${perf.ms.toFixed(1)}ms；改了之後立刻重算（${perf.before} → ${perf.after}）`);
   // AISync.ready：啟用時在第一次 session＋編輯名單檢查之後 resolve，值帶 reason；'aisync:ready' 每次載入只發一次
@@ -140,6 +171,33 @@ try {
   // 5. 復原
   await A.page.evaluate(() => AIBrain.undo()); await settle(A);
   ok(db.brain_entities.find(r => r.kind === 'node' && r.id === 'n_q1').data.status === 'open', '↶ 復原會同步到雲端');
+  // 5b. P0：兩台裝置根據同一版本改同一個節點 → 第一筆成功、第二筆衝突（不覆寫、可查閱、由人決定）
+  const offline = async (d, on) => { await d.page.setOfflineMode(on); await d.page.evaluate(x => dispatchEvent(new Event(x ? 'offline' : 'online')), on); };
+  const q6 = () => db.brain_entities.find(r => r.kind === 'node' && r.id === 'n_q6');
+  const waitConflict = d => d.page.waitForFunction('document.body.dataset.sync === "conflict" && document.getElementById("syncConflict")', { timeout:45000 }).then(() => true, () => false);
+  await pull(C); await settle(C);
+  for (const round of ['cloud', 'mine']){
+    const mine = round === 'cloud' ? 'researching' : 'open', theirs = round === 'cloud' ? 'resolved' : 'researching';
+    await offline(C, true); await C.page.evaluate(v => AIBrain.setStatus('n_q6', v), mine); await sleep(900);
+    await A.page.evaluate(v => AIBrain.setStatus('n_q6', v), theirs); await settle(A);
+    const vA = q6().version, nProp = store.proposals.length;
+    await offline(C, false);
+    const gotConflict = await waitConflict(C);
+    const cs = await C.page.evaluate(() => ({ local:AIBrain.getState().nodes.find(n => n.id === 'n_q6').status, list:AISync.conflicts(), banner:document.getElementById('syncConflict')?.textContent || '' }));
+    ok(gotConflict && q6().data.status === theirs && q6().version === vA && cs.local === mine && cs.list.length === 1 && /沒有上傳/.test(cs.banner) && /改用雲端版本/.test(cs.banner),
+      `[${round}] C 的舊版本修改 → 衝突：雲端保留 A 的「${q6().data.status}」（版本 ${q6().version} 沒變），C 本機保留「${cs.local}」，顯示 zh-TW 衝突提示`);
+    const prop = store.proposals[store.proposals.length - 1];
+    ok(store.proposals.length === nProp + 1 && prop.status === 'conflict' && prop.patch.status === mine && prop.entity_id === 'n_q6', `[${round}] 被擋下的內容存成提案（#${prop.id}，status conflict，可查閱）`);
+    await pull(C); await C.page.evaluate(() => AISync.flush()); await sleep(800);
+    ok(store.proposals.length === nProp + 1 && q6().data.status === theirs, `[${round}] 衝突中的修改不會自動重送或覆寫`);
+    await C.page.click(`#syncConflict [data-cv="${round}"]`);
+    await C.page.waitForFunction('document.body.dataset.syncConflicts === "0"', { timeout:30000 }).catch(() => {});
+    await settle(C);
+    const after = await C.page.evaluate(() => AIBrain.getState().nodes.find(n => n.id === 'n_q6').status);
+    if (round === 'cloud') ok(after === theirs && q6().data.status === theirs && prop.status === 'rejected' && !(await C.page.$('#syncConflict')), '[cloud] 「改用雲端版本」：C 換成雲端內容，提案標記 rejected，提示消失');
+    else ok(after === mine && q6().data.status === mine && q6().version === vA + 1 && prop.status === 'accepted', '[mine] 「用我的版本覆蓋」：以 C 看到的版本為 base 寫入（版本 +1），提案標記 accepted');
+  }
+  await pull(A); ok(q((await st(A)).nodes, 'n_q6').status === 'open', 'A 拉取後看到 C 決定保留的版本');
   // 6. 離線
   await A.page.setOfflineMode(true); await A.page.evaluate(() => dispatchEvent(new Event('offline')));
   await A.page.evaluate(() => AIBrain.setMedia('n_q4', 'image', 'media/x.jpg')); await sleep(1200); s = await st(A);
@@ -171,17 +229,20 @@ try {
     { graph_id:'main', kind:'brain', id:'b_evil', deleted:false, data:{ name:'<script>window.__xss=9</script>', parentBrainId:'main', position:[9, 0, 0], scale:0.5, regionColor:'#fff" onmouseover="window.__xss=10" x="', rootNodeId:'n_evil' } },
     { graph_id:'main', kind:'concept', id:'惡意', deleted:false, data:{ color:'red;background:url(https://evil.example/leak)', desc:'"><img src=x onerror="window.__xss=11">' } },
     { graph_id:'main', kind:'node', id:'n_partial', deleted:false, data:{ title:'bot 只寫了標題（缺欄位）' } });
-  await load(B); await B.page.evaluate(() => { AIBrain.select('n_evil'); AIBrain.focusBrain('b_evil'); document.getElementById('bConc').click(); }); await sleep(800);
-  const xs = await B.page.evaluate(() => ({ x:window.__xss || 0, bad:[...document.querySelectorAll('a[href],img[src],video[src]')].map(e => e.getAttribute('href') || e.getAttribute('src')).filter(u => /^\s*(javascript|data|vbscript):/i.test(u)),
+  await load(C); await C.page.evaluate(() => { AIBrain.select('n_evil'); AIBrain.focusBrain('b_evil'); document.getElementById('bConc').click(); }); await sleep(800);
+  const xs = await C.page.evaluate(() => ({ x:window.__xss || 0, bad:[...document.querySelectorAll('a[href],img[src],video[src]')].map(e => e.getAttribute('href') || e.getAttribute('src')).filter(u => /^\s*(javascript|data|vbscript):/i.test(u)),
     imgs:document.querySelectorAll('#pBody img[onerror], #crumbs [onmouseover], #cList img').length, crumbs:document.getElementById('crumbs').innerHTML, partial:AIBrain.getState().nodes.find(n => n.id === 'n_partial') }));
   ok(!xs.x && !xs.bad.length && !xs.imgs && !/onmouseover/.test(xs.crumbs), '大腦: 惡意節點／子腦／概念不會執行腳本，也沒有 javascript:/data: 連結 ' + JSON.stringify({ x:xs.x, bad:xs.bad }));
   ok(xs.partial && xs.partial.media && Array.isArray(xs.partial.concepts), '大腦: bot 寫的殘缺節點被補齊欄位，場景照常運作');
-  await load(B, 'feed.html'); await sleep(1500);
-  const fx = await B.page.evaluate(() => ({ x:window.__xss || 0, n:AIFeed.list().length, has:AIFeed.list().includes('n_evil'), bad:[...document.querySelectorAll('a[href],img[src]')].map(e => e.getAttribute('href') || e.getAttribute('src')).filter(u => /^\s*(javascript|data):/i.test(u)) }));
-  await B.page.evaluate(() => AIFeed.go(AIFeed.list().indexOf('n_evil'), true)); await sleep(600);
-  const fx2 = await B.page.evaluate(() => window.__xss || 0);
+  await load(C, 'feed.html'); await sleep(1500);
+  const fx = await C.page.evaluate(() => ({ x:window.__xss || 0, n:AIFeed.list().length, has:AIFeed.list().includes('n_evil'), bad:[...document.querySelectorAll('a[href],img[src]')].map(e => e.getAttribute('href') || e.getAttribute('src')).filter(u => /^\s*(javascript|data):/i.test(u)) }));
+  await C.page.evaluate(() => AIFeed.go(AIFeed.list().indexOf('n_evil'), true)); await sleep(600);
+  const fx2 = await C.page.evaluate(() => window.__xss || 0);
   ok(fx.has && !fx.x && !fx2 && !fx.bad.length, `feed: 讀到共享大腦（${fx.n} 格，含 bot 殘缺節點也不崩潰），惡意內容不會執行`);
-  // 11. feed 只讀：按喜歡只存在 localStorage，不寫雲端
+  // 11. feed 只讀：按喜歡只存在 localStorage，不寫雲端（未登入的 feed 用內建資料）
+  await load(B, 'feed.html'); await sleep(1200);
+  const bf = await B.page.evaluate(() => ({ evil:AIFeed.list().includes('n_evil'), n:AIFeed.list().length }));
+  ok(!B.gets.length && !bf.evil && bf.n > 10, `feed（未登入）: 不讀雲端，只有內建資料（${bf.n} 格） gets=${JSON.stringify(B.gets.slice(0, 2))}`);
   const fp = B.posts.length; await B.page.evaluate(() => document.querySelector('.it.cur .like').click()); await sleep(800);
   ok(B.posts.length === fp && await B.page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('aiBrain.feed.v1')).likes).length === 1), 'feed: 喜歡只存在這台裝置（沒有雲端個人資料表）');
   await load(C, 'feed.html'); await sleep(800);
@@ -203,7 +264,7 @@ try {
   db.brain_entities.filter(r => r.kind === 'meta' && Array.isArray(r.data)).forEach(r => { r.data = r.data.filter(x => !NEW.some(id => String(x) === id || String(x).startsWith(id + '@'))); });
   const tomb0 = db.brain_entities.filter(r => r.deleted).length;
   const F = await device('F（未登入、舊雲端）', null); await load(F); await sleep(1500);
-  const pendKeys = d => d.page.evaluate(async () => { const core = await import('./sync-core.js'); const s = JSON.parse(localStorage.getItem('aiBrain.sync.v2:main')); return core.diff(s.snap, AIBrain.getState()).map(o => o.kind + ':' + o.id + (o.deleted ? '†' : '')); });
+  const pendKeys = d => d.page.evaluate(async () => { const core = await import('./sync-core.js'); const s = JSON.parse(localStorage.getItem('aiBrain.sync.v2:main')); if (!s) return []; return core.diff(s.snap, AIBrain.getState()).map(o => o.kind + ':' + o.id + (o.deleted ? '†' : '')); });
   let f = await F.page.evaluate(ids => ({ pend:AISync.pending(), has:ids.every(id => AIBrain.getState().nodes.some(n => n.id === id)), sync:document.body.dataset.sync }), NEW);
   ok(f.has && f.pend === 0 && !F.posts.length, `唯讀＋舊雲端：實驗室＋開放性 66 個種子在本機補上，但不算待上傳（pending ${f.pend}），也沒有寫入 ` + JSON.stringify(await pendKeys(F)));
   const E = await device('E（Merlin 新裝置）', T_MERLIN); await load(E); await settle(E);
@@ -232,7 +293,7 @@ try {
   const fp2 = F.posts.length; await F.page.evaluate(p => localStorage.setItem('aiBrain.audioLab.pending.v1', JSON.stringify(Object.assign({}, p, { snapshotId:'jp-transition-audio-v1@anon' }))), payload);
   await load(F, 'index.html?lab=1#audio-lab'); await sleep(1500);
   f = await F.page.evaluate(() => ({ pend:AISync.pending(), mine:AIBrain.getState().nodes.filter(n => n.source && /%40anon$/.test(n.source.url || '')).length }));
-  ok(f.mine === 1 && f.pend >= 6 && F.posts.length === fp2 && !db.brain_entities.some(r => r.data && r.data.source && /%40anon$/.test(r.data.source.url || '')), `F（未登入）匯入：只在本機（待上傳 ${f.pend}），雲端沒有`);
+  ok(f.mine === 1 && F.posts.length === fp2 && !db.brain_entities.some(r => r.data && r.data.source && /%40anon$/.test(r.data.source.url || '')), `F（未登入）匯入：只在本機（待上傳 ${f.pend}），雲端沒有`);
   // 匯入的文字從雲端回來也只當純文字
   await G.page.evaluate(id => { const k = AIBrain.getState().nodes.find(n => n.parentId === id); AIBrain.select(k.id); }, root.id); await sleep(600);
   const gx = await G.page.evaluate(() => ({ x:window.__xss || 0, inj:document.querySelectorAll('#pBody img[onerror]').length }));

@@ -2,7 +2,10 @@
    graph 拆成「實體」，一個實體＝雲端 brain_entities 一列：kind = brain | node | link | concept | pattern | meta。
    同步方式（無狀態佇列）：記住「上次同步時雲端的樣子」（snapshot：key → JSON 字串），
      待上傳＝diff(snapshot, 本機)；拉取時＝雲端 ⊕ 待上傳（本機還沒上傳的修改優先，其他以雲端為準）。
-   刪除用墓碑（deleted = true），離線裝置才不會把它復活。history 只增不減，用 hkey 去重。 */
+   刪除用墓碑（deleted = true），離線裝置才不會把它復活。history 只增不減，用 hkey 去重。
+   P0 版本化寫入：雲端每個實體有 version。sync 物件另外記
+     vers：上次拉取時雲端各實體的 version；base：本機有未上傳修改的實體「是根據哪個版本改的」；
+     conflicts：上傳時雲端已被別人改過（brain_apply 回報 conflict）的實體 —— 不覆寫雲端、不再自動上傳，等使用者決定。 */
 import { sanitizeEntity } from './safe.js';
 
 const CORE = new Set(['version', 'brains', 'nodes', 'links', 'history', 'concepts', 'patterns']);
@@ -94,6 +97,10 @@ export function merge(local, rows, history, sync, opts = {}){
     rows.forEach(r => { const k = keyOf(r.kind, r.id); if (lf[k]) snap[k] = lf[k]; });
   }
   const pending = diff(snap, local);
+  // 版本：vers ＝ 雲端目前版本；本機待上傳的實體保留「當初根據的版本」（base），不能換成雲端最新版本（那就變成靜默覆寫）
+  const oldVers = (sync && sync.vers) || {}, oldBase = (sync && sync.base) || {}, vers = {}, base = {};
+  rows.forEach(r => { vers[keyOf(r.kind, r.id)] = Number(r.version) || 1; });
+  pending.forEach(o => { const k = keyOf(o.kind, o.id); base[k] = k in oldBase ? oldBase[k] : (k in oldVers ? oldVers[k] : null); });
   const M = repair(opts.migrate ? opts.migrate(clone(raw)) : clone(raw));
   const newSnap = fingerprint(opts.canWrite ? raw : M);   // 編輯者：種子遷移的差異會變成待上傳；唯讀：只在本機
   const seedH = opts.canWrite && opts.migrate ? M.history : [];
@@ -105,10 +112,50 @@ export function merge(local, rows, history, sync, opts = {}){
     const rf = fingerprint(raw), sf = fingerprint(st);
     for (const k in sf) if (k.startsWith('meta:') || (k in newSnap && !(k in rf))) newSnap[k] = sf[k];
   }
-  return { state:st, sync:{ snap:newSnap, hkeys }, pending:diff(newSnap, st) };
+  const still = diff(newSnap, st), conflicts = {};
+  const pk = new Set(still.map(o => keyOf(o.kind, o.id)));
+  Object.entries((sync && sync.conflicts) || {}).forEach(([k, c]) => { if (pk.has(k)) conflicts[k] = c; });   // 本機已跟雲端一樣 → 衝突自然消失
+  Object.keys(base).forEach(k => { if (!pk.has(k)) delete base[k]; });
+  return { state:st, sync:{ snap:newSnap, hkeys, vers, base, conflicts }, pending:still };
 }
 /* 待上傳的 history：本機有、還沒同步過的 */
 export const pendingHistory = (st, sync) => { const s = new Set((sync && sync.hkeys) || []); return (st.history || []).filter(h => !s.has(hkey(h))); };
+/* 這筆上傳要帶的 base 版本：有記錄的 base → 上次拉取時的雲端版本 → null（新實體） */
+export function baseOf(sync, kind, id){
+  const k = keyOf(kind, id), b = sync.base || {}, v = sync.vers || {};
+  return k in b ? b[k] : (k in v ? v[k] : null);
+}
+/* 待上傳、而且不在衝突中的實體（衝突的要等使用者決定，不自動重送） */
+export function uploadable(sync, st){ const c = sync.conflicts || {}; return diff(sync.snap, st).filter(o => !c[keyOf(o.kind, o.id)]); }
+export const toApplyOps = (sync, ops) => ops.map(o => ({ kind:o.kind, id:o.id, data:o.deleted ? null : o.data, deleted:!!o.deleted, base:baseOf(sync, o.kind, o.id) }));
+/* brain_apply 的結果：applied → 更新 snapshot 與版本；conflicts → 記下來（雲端內容、我的內容、提案 id），本機修改保留 */
+export function ackResult(sync, ops, result){
+  sync.vers = sync.vers || {}; sync.base = sync.base || {}; sync.conflicts = sync.conflicts || {};
+  const byKey = new Map(ops.map(o => [keyOf(o.kind, o.id), o]));
+  ((result && result.applied) || []).forEach(a => { const k = keyOf(a.kind, a.id), o = byKey.get(k); if (!o) return;
+    if (o.deleted) delete sync.snap[k]; else sync.snap[k] = stable(o.data);
+    sync.vers[k] = Number(a.version) || 1; delete sync.base[k]; delete sync.conflicts[k]; });
+  ((result && result.conflicts) || []).forEach(c => { const k = keyOf(c.kind, c.id), o = byKey.get(k); if (!o) return;
+    sync.conflicts[k] = { kind:c.kind, id:c.id, proposalId:c.proposal_id ?? null, base:c.base ?? null, current:c.current ?? null,
+      cloud:{ data:c.data ?? null, deleted:!!c.deleted }, mine:{ data:o.deleted ? null : o.data, deleted:!!o.deleted }, at:Date.now() };
+    sync.base[k] = c.base ?? null; if (c.current != null) sync.vers[k] = Number(c.current); });
+  return sync;
+}
+/* 使用者處理衝突 ——
+   「用我的版本」：以衝突當時看到的雲端版本為 base 重送（雲端若又被改過，會再變成新的衝突），並標記解決的提案；
+   「改用雲端版本」：先拉取（snap 是雲端最新內容），把本機這個實體換成雲端內容，丟掉本機修改。 */
+export function resolveMineOp(sync, st, k){
+  const c = (sync.conflicts || {})[k]; if (!c) return null;
+  const cur = fingerprint(st)[k];
+  return { kind:c.kind, id:c.id, data:cur ? JSON.parse(cur) : null, deleted:!cur, base:c.current, resolves:c.proposalId };
+}
+export function resolveCloud(sync, st, k){
+  const c = (sync.conflicts || {})[k]; if (!c) return null;
+  const v = sync.snap[k];
+  putEntity(st, c.kind, c.id, v ? JSON.parse(v) : null);
+  delete sync.conflicts[k]; if (sync.base) delete sync.base[k];
+  return c;
+}
 /* 上傳成功後更新 snapshot */
 export function ack(sync, ops, hist = []){
   ops.forEach(o => { const k = keyOf(o.kind, o.id); if (o.deleted) delete sync.snap[k]; else sync.snap[k] = stable(o.data); });
