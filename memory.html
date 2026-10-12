@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>共同記憶管理｜AI 主腦</title>
+<style>
+:root{color-scheme:dark;--bg:#090d19;--panel:#151c2d;--line:#35405c;--txt:#eff3ff;--muted:#b3bfd9;--accent:#bbcbff}
+*{box-sizing:border-box}body{margin:0;font:15px/1.7 system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;color:var(--txt);background:radial-gradient(ellipse 830px 300px at 50% -70px,#263356,transparent 83%),var(--bg)}
+header{border-bottom:1px solid var(--line);background:#0d1220}header nav{max-width:1080px;margin:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:13px 17px}header strong{font-size:18px;margin-right:auto}
+a{color:#d5deff}a:hover{text-decoration:underline}header a{font-size:13px}
+main{max-width:1080px;margin:auto;padding:26px 17px 70px}h1{font-size:clamp(26px,4vw,38px);margin:0 0 7px;line-height:1.3}h2{font-size:20px;margin:0 0 10px}h3{font-size:16px;margin:2px 0 6px}p{color:var(--muted);margin:6px 0 13px}
+section{margin-bottom:18px}.muted,.help{color:var(--muted);font-size:13px}.kicker{letter-spacing:2px;color:#b4c1fa;font-size:12px}.notice{padding:12px 14px;background:#31271c;border:1px solid #725e3e;border-radius:12px;color:#f6dfbb;margin:16px 0;font-size:13px}
+.panel{background:linear-gradient(140deg,#172037,#111a2b);border:1px solid var(--line);border-radius:15px;padding:18px;margin-bottom:17px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{padding:14px;border:1px solid var(--line);border-radius:12px;background:#11182a}.stat b{font-size:26px;display:block}.stat small{color:var(--muted)}
+button{color:var(--txt);background:#263650;border:1px solid #647498;border-radius:10px;padding:9px 12px;cursor:pointer;font:inherit;font-size:13px;touch-action:manipulation}
+button:hover{filter:brightness(1.16)}button.primary{background:#536baa;border-color:#a3b6f3;font-weight:700}button.danger{border-color:#9d5d6b;color:#ffccd3}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.actions button{flex:0 0 auto}
+label{display:block;font-size:13px;font-weight:650;color:#dce6ff;margin:12px 0 5px}
+input,textarea,select{width:100%;background:#0c1425;color:var(--txt);border:1px solid #526381;border-radius:9px;padding:10px 12px;font:inherit}
+textarea{min-height:85px;resize:vertical}input[type=checkbox]{width:auto;margin-right:7px;accent-color:#93b4ff}
+.checklabel{font-weight:400;margin-top:12px}.tags{display:flex;gap:7px;flex-wrap:wrap}.pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid #627499;color:#c3d5ff}.pill.warn{color:#f8d8a1;border-color:#876d48}
+.tabs{display:flex;gap:6px;overflow:auto;border-bottom:1px solid var(--line);margin-bottom:18px;padding-bottom:8px}
+.tabs button[aria-selected=true]{background:#425b8b;border-color:#9fb3df}.tabs button{flex:none}
+.card{border:1px solid #435472;background:#10182a;border-radius:12px;padding:13px 15px;margin:10px 0}
+.card p{white-space:pre-wrap;overflow-wrap:anywhere}.small{font-size:12px;color:var(--muted)}.line{border:0;border-top:1px solid var(--line);margin:17px 0}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1425;border:1px solid var(--line);padding:12px;border-radius:10px;max-height:300px;overflow:auto;font-size:12px}
+summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
+.empty{border:1px dashed #536380;border-radius:12px;padding:20px;text-align:center;color:var(--muted)}
+#feedback:empty{display:none}#feedback{padding:11px 13px;border:1px solid #4d866f;background:#17352e;border-radius:10px;color:#cbfbe5;margin:12px 0}
+#lockedState[hidden],#workspace[hidden]{display:none}.footer{font-size:12px;border-top:1px solid var(--line);padding-top:13px;margin-top:30px;color:var(--muted)}
+@media(max-width:720px){.cols,.grid3{grid-template-columns:1fr}.panel{padding:14px}main{padding:18px 12px 45px}header nav{padding:11px}header strong{width:100%}}
+</style>
+<script src="./memory.js" defer></script>
+</head>
+<body>
+<header><nav><strong>🧠 主腦 · 共同記憶管理</strong><a href="./mainbrain.html">主腦控制台</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 大腦</a></nav></header>
+<main>
+<div class="kicker">MEMORY GOVERNANCE · LOCAL VAULT V1</div><h1>共同記憶審核與修正</h1>
+<p>先讓「提交候選 → 審核／拒絕 → 保留歷史 → 修正再提交 → 差異回顧」真正可操作。你是目前本機記憶庫的核准者。</p>
+<div class="notice"><strong>儲存邊界：</strong>本版只在這台裝置的瀏覽器中加密儲存，不會自動上傳至 GitHub 或其他 AI。不是雲端中央共同記憶；其他 AI 不會自動收到。忘記密碼無法解密，換手機或清除瀏覽器資料前請匯出加密備份。不要在公開 Issue 貼私人記憶。</div>
+<div id="feedback" role="status" aria-live="polite"></div>
+<section id="lockedState" class="panel">
+<h2 id="lockTitle">建立／解鎖私人記憶庫</h2>
+<p id="lockHint" class="help"></p>
+<label for="passphrase">記憶庫密碼</label><input id="passphrase" type="password" autocomplete="off" maxlength="256" placeholder="輸入本機記憶庫密碼">
+<div id="confirmArea"><label for="confirmPassphrase">再次輸入密碼</label><input id="confirmPassphrase" type="password" autocomplete="off" maxlength="256" placeholder="確認密碼"></div>
+<div class="actions"><button id="unlockButton" class="primary" type="button">建立記憶庫</button><button id="importLocked" type="button">從加密備份復原</button></div>
+</section>
+<div id="workspace" hidden>
+<div class="actions" style="margin:0 0 15px"><span class="pill">本機已解鎖・加密保存</span><button id="lockButton" type="button">鎖定記憶庫</button><button id="saveBackupTop" type="button">下載加密備份</button></div>
+<div class="tabs" role="tablist" aria-label="記憶管理頁籤">
+<button type="button" role="tab" data-tab="overview" aria-controls="tab-overview" aria-selected="true">總覽</button>
+<button type="button" role="tab" data-tab="propose" aria-controls="tab-propose" aria-selected="false">提交候選</button>
+<button type="button" role="tab" data-tab="review" aria-controls="tab-review" aria-selected="false">候選審核</button>
+<button type="button" role="tab" data-tab="memory" aria-controls="tab-memory" aria-selected="false">版本記憶</button>
+<button type="button" role="tab" data-tab="diff" aria-controls="tab-diff" aria-selected="false">差異與備份</button>
+</div>
+<section id="tab-overview" role="tabpanel"><div class="grid3">
+<div class="stat"><b id="countMemories">0</b><small>已核准記憶主題</small></div>
+<div class="stat"><b id="countPending">0</b><small>待審候選</small></div>
+<div class="stat"><b id="countRejected">0</b><small>拒絕與待修復</small></div>
+</div>
+<div class="panel" style="margin-top:17px"><h2>實際運作規則</h2><p>修正答案會追加版本而非覆蓋；修正問題與提出新問題會建立有來源的新分支。拒絕會留存原因，並可從被拒候選重新提案。三方來源目前僅為人工標示，<strong>不代表已驗證 AI 身分</strong>。</p>
+<p class="small">每次成功提交或審核後，系統會加密自動保存。本機資料不與發射器草稿或原 3D 大腦資料相互覆蓋。</p></div>
+</section>
+<section id="tab-propose" role="tabpanel" hidden>
+<div class="panel"><h2>提出新的記憶候選</h2>
+<form id="candidateForm" autocomplete="off">
+<div class="cols">
+<div><label for="eventType">記憶事件</label><select id="eventType">
+<option value="new_question">提出新問題／新記憶</option><option value="revise_answer">修正答案</option><option value="revise_question">修正問題</option><option value="pitfall">踩坑經驗與避錯</option></select></div>
+<div><label for="parentMemory">關聯既有記憶</label><select id="parentMemory"><option value="">無／獨立主題</option></select></div>
+</div>
+<div class="cols">
+<div><label for="question">原問題或問題定義</label><textarea id="question" maxlength="3000" required placeholder="到底在回答哪個問題？"></textarea></div>
+<div><label for="purpose">目的／成功判準</label><textarea id="purpose" maxlength="3000" required placeholder="為什麼值得保存？"></textarea></div>
+</div>
+<label for="content">候選內容／修正後觀點</label><textarea id="content" maxlength="12000" required placeholder="事實、推論、反證或踩坑教訓；不可把假設寫成定論。"></textarea>
+<div class="cols">
+<div><label for="evidence">證據／來源與不確定性</label><textarea id="evidence" maxlength="8000" placeholder="來源網址、檔案、日期、條件、可能反例；不明請標示未知。"></textarea></div>
+<div><label for="reason">提出原因／與舊版差異</label><textarea id="reason" maxlength="8000" required placeholder="增加了什麼？為什麼修改？"></textarea></div>
+</div>
+<div class="cols">
+<div><label for="proposer">提出者（人工標示，非身份驗證）</label><select id="proposer"><option value="user">使用者</option><option value="GPT1">GPT①</option><option value="GPT2">GPT②</option><option value="BOT3">BOT③</option><option value="other">其他</option></select></div>
+<div><label for="evidenceLevel">證據層級</label><select id="evidenceLevel"><option value="hypothesis">假設／待驗證</option><option value="fact">事實／有原始證據</option><option value="derived">計算或直接推導</option><option value="inference">推論</option><option value="forecast">條件預測</option></select></div>
+</div>
+<p class="small" id="typeHint">同一問題可修正答案，問題定義改變時應另建分支。</p>
+<div class="actions"><button class="primary" type="submit">提交候選並加密儲存</button><button type="button" id="resetProposal">清除表單</button></div>
+</form></div>
+</section>
+<section id="tab-review" role="tabpanel" hidden>
+<div class="panel"><h2>待審候選與拒絕修復</h2><p>提交不等於核准。核准會建立版本或分支；拒絕理由必須保留。跨 AI 原問題對齊需要你另行人工確認，頁面無法偽裝成已取得其他 AI 回覆。</p><div id="reviewList"></div></div>
+</section>
+<section id="tab-memory" role="tabpanel" hidden>
+<div class="panel"><h2>權威版本（僅限本機）</h2><p>這裡的權威指「你在此裝置核准過的版本」，不代表客觀真理或雲端三方共識。</p><div id="memoryList"></div></div>
+</section>
+<section id="tab-diff" role="tabpanel" hidden>
+<div class="panel"><h2>事件差異與變更歷史</h2>
+<label for="dateFilter">查看日期（目前裝置時區）</label><input type="date" id="dateFilter">
+<div id="diffSummary" class="help"></div><div id="auditList"></div>
+<hr class="line">
+<h2>備份與人工交接</h2>
+<p>加密備份包含本機記憶、候選與審核歷史；還原時必須知道原密碼。可另行匯出單一候選作人工交接，請先檢查有無私人資訊。</p>
+<div class="actions"><button type="button" id="exportBackup" class="primary">下載加密記憶庫 JSON</button><button type="button" id="restoreBackup">還原加密備份（取代本機庫）</button></div>
+</div></section>
+</div>
+<input id="backupInput" type="file" accept=".json,application/json" hidden>
+<p class="footer">主腦記憶管理 V1 · 離線資料治理最小可用版 · 本機加密、手動審核與人工交接。跨裝置自動同步、其他 AI 自動接收及私人後端仍未接通。</p>
+</main></body></html>
