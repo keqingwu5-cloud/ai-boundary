@@ -51,7 +51,9 @@ const ignorable = e => /favicon|fonts\.g|giscus|Failed to load resource/i.test(e
   const e0 = errs.length;
   const rs = await page.evaluate(async () => { const fresh = AIBrain.getState(); AIBrain.addQuestion({ title:'重置前的問題', type:'其他' });
     if (!document.getElementById('hist').classList.contains('open')) document.getElementById('bHist').click();
-    document.getElementById('bReset').click(); await new Promise(r => setTimeout(r, 1200)); const st = AIBrain.getState();
+    document.getElementById('bReset').click(); await new Promise(r => setTimeout(r, 200));
+      if (document.getElementById('askDlg')?.open) document.getElementById('askOk').click();   // #8：重置改用頁內確認對話框（取代 confirm）
+      await new Promise(r => setTimeout(r, 1200)); const st = AIBrain.getState();
     return { n:st.nodes.length, extras:st.nodes.filter(n => n.id.startsWith('n_x_')).length, open:st.nodes.filter(n => n.id.startsWith('n_x_open_')).length, concepts:Object.keys(st.concepts || {}).length,
       gone:!st.nodes.some(n => n.title === '重置前的問題'), first:document.querySelector('#hList .hi')?.textContent || '', legend:document.getElementById('legend')?.textContent || '', hcount:document.getElementById('hCount')?.textContent || '', histLen:st.history.length }; });
   ok(errs.length === e0 && rs.gone && rs.open === 60 && rs.extras >= 66 && rs.concepts > 10 && rs.legend.includes(rs.n + ' 節點'),
