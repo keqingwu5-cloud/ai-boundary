@@ -6,7 +6,38 @@ const CFG = window.AI_BOUNDARY_CONFIG || {};
 const SB_URL = String(CFG.SUPABASE_URL || '').trim(), SB_KEY = String(CFG.SUPABASE_ANON_KEY || '').trim(), GRAPH = String(CFG.GRAPH_ID || 'main');
 const V = new URL(import.meta.url).search;
 window.AISync = { enabled:false, canWrite:() => false, status:() => 'off', reason:() => 'off', pending:() => 0, user:() => null, isEditor:() => false };
-if (SB_URL && SB_KEY) start().catch(e => console.error('[sync]', e));
+
+/* 就緒訊號：AISync.ready 是一個「只會 resolve、不會 reject、也不會永遠等下去」的 Promise；同時在 window 發一次 'aisync:ready'。
+   - config 空白（停用）→ 立刻 resolve；
+   - 啟用 → Supabase client 建好、第一次 session＋編輯名單檢查做完就 resolve（不等第一次拉取資料）；
+   - 初始化失敗 → 一樣 resolve，帶 error；超過 READY_TIMEOUT_MS（預設 10 秒）還沒好也 resolve，帶 timedOut:true。
+   resolve 的值＝當下的狀態快照 { enabled, status, reason, canWrite, user, error?, timedOut? }；AISync.isReady 會變成 true。 */
+let readyDone = false, resolveReady;
+window.AISync.isReady = false;
+window.AISync.ready = new Promise(r => { resolveReady = r; });
+function markReady(extra = {}){
+  if (readyDone) return; readyDone = true;
+  const A = window.AISync;
+  // 逾時時 start() 可能還沒走到設定 AISync 的那一步：照實回報「有設定、還在連」，不要回 'off'
+  const detail = A.enabled || !(SB_URL && SB_KEY)
+    ? Object.assign({ enabled:!!A.enabled, status:A.status(), reason:A.reason(), canWrite:A.canWrite(), user:A.user() }, extra)
+    : Object.assign({ enabled:true, status:'syncing', reason:'checking', canWrite:false, user:null }, extra);
+  A.isReady = true; resolveReady(detail);
+  // 停用時是同步 resolve 的；事件延到下一輪，讓後面載入的 script 也來得及加監聽（但還是建議用 await AISync.ready）
+  setTimeout(() => { try { window.dispatchEvent(new CustomEvent('aisync:ready', { detail })); } catch(e){} }, 0);
+}
+if (SB_URL && SB_KEY){
+  const ms = Number(CFG.READY_TIMEOUT_MS) > 0 ? Number(CFG.READY_TIMEOUT_MS) : 10000;
+  const t = setTimeout(() => markReady({ timedOut:true }), ms);
+  start().then(() => clearTimeout(t), e => {
+    console.error('[sync]', e); clearTimeout(t);
+    // 初始化失敗：當成「離線、不能寫」，網站照常只用這台裝置的 localStorage
+    Object.assign(window.AISync, { enabled:true, status:() => 'offline', canWrite:() => false, isEditor:() => false, reason:() => window.AISync.user() ? 'not-editor' : 'anon' });
+    try { document.body.dataset.sync = 'offline'; const b = document.getElementById('bSync');
+      if (b){ b.textContent = '⚠️'; b.title = '連不上雲端（修改先存在這台裝置）'; b.setAttribute('aria-label', '雲端同步：離線'); } } catch(_){}
+    markReady({ error:(e && e.message) || String(e) });
+  });
+} else markReady();
 
 async function start(){
   const core = await import('./sync-core.js' + V), { esc } = await import('./safe.js' + V);
@@ -200,6 +231,6 @@ async function start(){
   addEventListener('storage', e => { if (e.key === SKEY || e.key === 'aiBrain.v1'){ dirty(); render(); } });   // 別的分頁改了快照或大腦
   addEventListener('focus', maybePull);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) maybePull(); });
-  render(); await checkEditor(); lastPull = Date.now(); await pull();
+  render(); await checkEditor(); markReady(); lastPull = Date.now(); await pull();
   Object.assign(window.AISync, { pull, flush });
 }

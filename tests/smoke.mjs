@@ -183,6 +183,37 @@ if (process.env.SHOT){
   if (process.env.SHOT_TREE){ await page.click('.ac-tabs [data-v="tree"]'); await new Promise(r => setTimeout(r, 500)); await page.screenshot({ path:process.env.SHOT_TREE }); console.log('📸 ' + process.env.SHOT_TREE); }
   await page.close();
 }
+{
+  // AISync.ready：停用時立刻 resolve＋'aisync:ready' 只發一次；初始化失敗（supabase.js 載不到）也會 resolve，網站照常
+  const page = await browser.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push('pageerror: ' + e.message));
+  await page.evaluateOnNewDocument(() => { window.__readyEv = []; addEventListener('aisync:ready', e => window.__readyEv.push(e.detail)); });
+  await page.goto(BASE + 'index.html', { waitUntil:'domcontentloaded', timeout:60000 });
+  await page.waitForFunction('document.body.dataset.ready === "1"', { timeout:30000 });
+  const r = await page.evaluate(async () => { const v = await Promise.race([AISync.ready, new Promise(r => setTimeout(() => r('hang'), 3000))]); await new Promise(r => setTimeout(r, 50)); return { v, ev:window.__readyEv, isReady:AISync.isReady }; });
+  ok(r.v !== 'hang' && r.v.enabled === false && r.v.status === 'off' && r.isReady && r.ev.length === 1 && r.ev[0].status === 'off' && !errs.length,
+    'AISync.ready（config 空白）: 立刻 resolve { enabled:false, status:"off" }，aisync:ready 只發一次 ' + JSON.stringify({ v:r.v, n:r.ev.length, errs }));
+  await page.close();
+  const p2 = await browser.newPage(); const e2 = [];
+  p2.on('pageerror', e => e2.push('pageerror: ' + e.message));
+  await p2.setRequestInterception(true);
+  p2.on('request', req => {
+    const u = req.url();
+    if (/\/config\.js(\?|$)/.test(u)) return req.respond({ status:200, contentType:'text/javascript; charset=utf-8',
+      body:"window.AI_BOUNDARY_CONFIG = { SUPABASE_URL:'http://127.0.0.1:9', SUPABASE_ANON_KEY:'x', GRAPH_ID:'main', READY_TIMEOUT_MS:15000 };" });
+    if (/vendor\/supabase\.js/.test(u)) return req.abort();
+    req.continue();
+  });
+  await p2.evaluateOnNewDocument(() => { window.__readyEv = []; addEventListener('aisync:ready', e => window.__readyEv.push(e.detail)); });
+  const t0 = Date.now();
+  await p2.goto(BASE + 'index.html', { waitUntil:'domcontentloaded', timeout:60000 });
+  await p2.waitForFunction('document.body.dataset.ready === "1"', { timeout:30000 });
+  const f = await p2.evaluate(async () => { const v = await Promise.race([AISync.ready, new Promise(r => setTimeout(() => r('hang'), 12000))]); await new Promise(r => setTimeout(r, 50));
+    return { v, ev:window.__readyEv.length, icon:document.getElementById('bSync')?.textContent, sync:document.body.dataset.sync, nodes:AIBrain.getState().nodes.length }; });
+  ok(f.v !== 'hang' && f.v.enabled === true && f.v.status === 'offline' && f.v.canWrite === false && /supabase/.test(f.v.error || '') && !f.v.timedOut && f.ev === 1 && f.icon === '⚠️' && f.sync === 'offline' && f.nodes > 90 && !e2.length,
+    `AISync.ready（supabase.js 載不到）: ${Date.now() - t0}ms 內 resolve，帶 error、狀態離線 ⚠️，大腦照常（${f.nodes} 節點）、沒有頁面錯誤 ` + JSON.stringify({ v:f.v, e2 }));
+  await p2.close();
+}
 await browser.close();
 {
   // 沒有 WebGL：顯示 zh-TW 說明＋短影音連結，不丟錯誤
