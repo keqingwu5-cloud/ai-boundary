@@ -128,7 +128,8 @@ test('原始 app 實際 seed 與 migrate 結果保持媒體／節點／概念資
  const THREE=await import("../vendor/three.module.min.js");
  // data.js 拆檔後（PR #3）改成非同步 fetch content/*.json、patches/*.json：用本機檔案提供 fetch，等 AI_DATA_READY
  const fetch=async u=>{const f=new URL('../'+String(u).split('?')[0],import.meta.url);try{const t=await readFile(f,'utf8');return {ok:true,status:200,json:async()=>JSON.parse(t)};}catch{return {ok:false,status:404};}};
- const ctx={window:{},Date,Math,console,THREE,fetch,Promise,Object,JSON};vm.createContext(ctx);vm.runInContext(data,ctx);
+ const safe=await import('../safe.js'); // PR #2/#8：seed/migrate 用到 esc／sanitizeEntity 等
+ const ctx={window:{},Date,Math,console,THREE,fetch,Promise,Object,JSON,...safe};vm.createContext(ctx);vm.runInContext(data,ctx);
  if(ctx.window.AI_DATA_READY)await ctx.window.AI_DATA_READY;
  Object.assign(ctx,ctx.window);
  const start=source.indexOf('function mulberry('),end=source.indexOf('const persistence =');
