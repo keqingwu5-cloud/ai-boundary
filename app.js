@@ -1,6 +1,7 @@
 /* 3D 動態認知大腦 v1 — plain Three.js (ES modules, vendored), no build step. */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { esc, safeUrl, safeColor, playable } from './safe.js';
 
 /* ================= constants ================= */
 const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
@@ -24,12 +25,9 @@ const DIR_COLOR = '#ff7ae0';
 const KIND = { question:'主問題', extension:'延伸問題', direction:'🚀 新方向' };
 const nodeColor = n => n.kind === 'direction' ? DIR_COLOR : colorOf(n.type);
 const iconOf = t => (TYPES[t] || TYPES['其他']).icon;
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const $ = s => document.querySelector(s);
-/* media URLs: http(s) or repo-relative paths (e.g. media/videos/q1.mp4); anything with another scheme is rejected */
-const safeUrl = u => { u = String(u || '').trim(); return !u || /^https?:\/\/[^\s<>"']+$/i.test(u) || (/^[^\s:<>"'`]+$/u.test(u) && !u.startsWith('//')); };
-const playable = u => !!u && safeUrl(u) && /\.(mp4|webm|m4v|mov|ogv)(\?|#|$)/i.test(u);
+/* esc / safeUrl（只接受 http(s) 或 repo 內相對路徑）/ safeColor / playable：safe.js（跟 feed.js、sync 共用） */
 
 /* ================= data model ================= */
 function mulberry(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -248,7 +246,7 @@ function mergeBrain(bid){
   const b = B(bid); if (!b || bid === 'main') return;
   const target = B(b.parentBrainId) || B('main');
   const root = N(b.rootNodeId);
-  mutate('merge', { brainId:bid, title:b.name, into:target.id }, () => {
+  mutate('merge', { nodeId:b.rootNodeId, brainId:bid, title:b.name, into:target.id, intoName:target.id === 'main' ? '主腦' : target.name }, () => {   // nodeId: shows up in the node's own history + clickable in 🕘
     const anchor = root && root.parentId && N(root.parentId) && N(root.parentId).brainId === target.id ? N(root.parentId).pos
       : (target.id === 'main' ? (REGION[root ? root.type : '其他'] || REGION['其他']) : [0, 0.08, 0]);
     state.nodes.filter(n => n.brainId === bid).forEach(n => { n.brainId = target.id; n.pos = jitter(anchor, n.id === b.rootNodeId ? 0.06 : 0.17); });
@@ -285,7 +283,9 @@ function undo(){
   if (!B(focusId)) focusBrain('main');
   emit('change', { action:'undo' });
 }
-function resetAll(){ undoStack.push(JSON.stringify(state)); state = seedState(); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); }
+/* 雲端同步開著時，重置只影響這台裝置（捨棄本機修改、改用雲端版本），不會寫墓碑去清空共享大腦 */
+function resetAll(){ if (window.AISync && window.AISync.enabled && window.AISync.resetLocal){ undoStack.push(JSON.stringify(state)); return window.AISync.resetLocal(resetSeed); } resetSeed(); }
+function resetSeed(){ undoStack.push(JSON.stringify(state)); state = migrate(seedState()); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); emit('change', { action:'reset' }); }
 function exportJSON(){
   const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ai-brain-' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.json';
@@ -297,12 +297,42 @@ function importJSON(obj){
   undoStack.push(JSON.stringify(state));
   state = migrate(obj); state.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
   save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入');
+  emit('change', { action:'import' });
+  return true;
+}
+/* changes that come from elsewhere (Supabase realtime / sync.js). fn(st) patches a state object in place; it is applied to the
+   live state AND to every undo snapshot, so ↶ only reverts your own last action instead of other people's edits.
+   No history entry, no undo step. Emits change { action:'remote' }. */
+function applyExternal(fn, info = {}){
+  fn(state); if (!valid(state)) return false;
+  if (!info.keepUndo) undoStack = undoStack.map(s => { try { const o = JSON.parse(s); fn(o); return JSON.stringify(o); } catch(e){ return s; } });
+  save(); sync(); renderHistory(); renderCrumbs();
+  if (!B(focusId)) focusBrain('main');
+  if (selected){
+    const n = N(selected), ae = document.activeElement;
+    if (!n) closePanel();
+    else if ((!info.ids || info.ids.includes(selected)) && !(ae && panel.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) select(selected, true);
+  }
+  emit('change', { action:'remote', payload:{ ids:info.ids || null } });
   return true;
 }
 
 /* ================= three.js scene ================= */
 const canvas = $('#c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:!MOBILE, alpha:false, powerPreference:'high-performance' });
+/* 沒有 WebGL（舊裝置、被停用、GPU 黑名單）：顯示一段說明＋短影音連結，停在這裡，不丟錯誤 */
+function noWebGL(){
+  document.body.dataset.webgl = '0'; canvas.style.display = 'none';
+  const d = document.createElement('div'); d.id = 'noGL'; d.setAttribute('role', 'alert');
+  d.style.cssText = 'position:fixed;inset:0;display:grid;place-items:center;padding:24px;z-index:5;pointer-events:none';
+  d.innerHTML = '<div style="pointer-events:auto;max-width:420px;padding:22px 24px;border-radius:18px;background:rgba(14,18,40,.9);border:1px solid rgba(160,180,255,.25);color:#eef0ff;font:15px/1.7 system-ui,-apple-system,\'Noto Sans TC\',sans-serif;text-align:center">'
+    + '<div style="font-size:34px">🧠</div><p style="margin:6px 0 14px">你的瀏覽器無法啟用 3D（WebGL），所以看不到認知大腦。<br>可以改看短影音頁，內容是同一份。</p>'
+    + '<a href="feed.html" style="display:inline-block;padding:9px 18px;border-radius:99px;background:#f5c451;color:#1a1300;font-weight:700;text-decoration:none">📱 改看短影音</a></div>';
+  document.body.appendChild(d);
+}
+const hasWebGL = (() => { try { const c = document.createElement('canvas'); return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl'))); } catch(e){ return false; } })();
+let renderer = null;
+if (hasWebGL) try { renderer = new THREE.WebGLRenderer({ canvas, antialias:!MOBILE, alpha:false, powerPreference:'high-performance' }); } catch(e){ renderer = null; }
+if (!renderer){ noWebGL(); await new Promise(() => {}); }   // 其餘程式（3D 場景、AIBrain）都需要 WebGL：不再往下跑
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, MOBILE ? 1.5 : 2));
 renderer.setClearColor(0x03040b, 1);
 const scene = new THREE.Scene();
@@ -485,7 +515,7 @@ function sync(){
     }
     const pb = B(b.parentBrainId); o.parentPos = pb ? new THREE.Vector3(...pb.position) : new THREE.Vector3();
     o.label.textContent = b.id === 'main' ? '' : '🧠 ' + (b.name.length > 12 ? b.name.slice(0, 12) + '…' : b.name);
-    o.label.style.setProperty('--c', b.regionColor);
+    o.label.style.setProperty('--c', safeColor(b.regionColor));
   });
   [...brainObjs.keys()].forEach(id => { if (!seen.has(id)) disposeBrain(id); });
   // nodes
@@ -729,6 +759,7 @@ function flashSaved(){ const s = $('#saved'); s.classList.add('on'); clearTimeou
 const tag = t => `<span class="tag" style="--c:${colorOf(t)}">${iconOf(t)} ${esc(t)}</span>`;
 const nodeLink = n => n ? `<a href="#" class="nl" data-n="${esc(n.id)}" style="--c:${colorOf(n.type)}">${esc(n.title)}</a>` : '';
 function slot(kind, url){
+  if (!safeUrl(url)) url = '';
   const ic = kind === 'video' ? '🎬' : '🖼️', nm = kind === 'video' ? '影片' : '圖片';
   const body = !url ? `<b>${ic}</b>${nm}・即將加入` : kind === 'image' ? `<img src="${esc(url)}" alt="">` : `<b>▶</b>觀看${nm}`;
   return `<div class="slot ${url ? 'has' : ''}">${url && kind === 'video' ? `<a href="${esc(url)}" target="_blank" rel="noopener">${body}</a>` : url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${body}</a>` : body}<button class="mini" data-media="${kind}" title="設定網址">✎</button></div>`;
@@ -759,7 +790,7 @@ function flowHTML(f){
     ${sec('🗣', '各方觀點', views)}
     ${sec('？', '未解關鍵點', f['未解關鍵點'] ? list(f['未解關鍵點']) : '')}</div>`;
 }
-function select(id){
+function select(id, quiet){
   const n = N(id); if (!n) return; selected = id;
   $('#bFeed').href = 'feed.html#node=' + encodeURIComponent(id);
   if (n.brainId !== focusId && B(n.brainId)) focusBrain(n.brainId);
@@ -768,12 +799,12 @@ function select(id){
   const xl = state.links.filter(l => l.kind === 'cross' && (l.from === id || l.to === id)).map(l => N(l.from === id ? l.to : l.from)).filter(Boolean);
   const brain = B(n.brainId); const isRoot = state.brains.find(b => b.rootNodeId === id);
   const hist = state.history.filter(h => h.payload && (h.payload.nodeId === id || (h.payload.children && h.action === 'split' && h.payload.nodeId === id))).slice(-4);
-  const srcHTML = s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.who || '來源')} ↗</a><br>${esc([s.outlet, s.date].filter(Boolean).join(' · '))}`
+  const srcHTML = s.url && safeUrl(s.url) ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.who || '來源')} ↗</a><br>${esc([s.outlet, s.date].filter(Boolean).join(' · '))}`
     : esc([s.who, s.outlet, s.date].filter(Boolean).join(' · ') || (n.createdBy === 'seed' ? '' : 'Merlin 自行提出'));
-  const also = (s.also || []).map(a => `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.label)}</a>`).join('、');
+  const also = (Array.isArray(s.also) ? s.also : []).filter(a => a && typeof a === 'object').map(a => a.url && safeUrl(a.url) ? `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.label || a.url)}</a>` : esc(a.label || '')).filter(Boolean).join('、');
   const by = n.createdBy === 'bot' ? '🤖 bot' : n.createdBy === 'seed' ? '📚 公開來源' : '⭐ Merlin';
   pBody.innerHTML = `
-    <div class="row1">${tag(n.type)}<span class="tag by ${n.createdBy}">${by}</span><span class="tag kind ${n.kind}">${KIND[n.kind] || esc(n.kind)}</span></div>
+    <div class="row1">${tag(n.type)}<span class="tag by ${esc(n.createdBy)}">${by}</span><span class="tag kind ${esc(n.kind)}">${KIND[n.kind] || esc(n.kind)}</span></div>
     <h2>${esc(n.title)}</h2>
     ${n.oneLiner ? `<p class="one">${esc(n.oneLiner)}</p>` : ''}
     <div class="acts">
@@ -793,7 +824,7 @@ function select(id){
       ${xl.length ? `<div><span>🔗 跨腦</span>${xl.map(nodeLink).join('')}</div>` : ''}
     </div>
     <div class="lbl">🧵 概念</div>
-    <div class="cchips">${n.concepts.map(c => `<span class="cc ${conceptUI.focus === 'c:' + c ? 'on' : ''}" style="--c:${esc(state.concepts[c]?.color || '#fff')}"><button data-cf="${esc(c)}">${esc(c)}</button><button data-cr="${esc(c)}" title="移除">×</button></span>`).join('')}
+    <div class="cchips">${n.concepts.map(c => `<span class="cc ${conceptUI.focus === 'c:' + c ? 'on' : ''}" style="--c:${safeColor(state.concepts[c]?.color, '#fff')}"><button data-cf="${esc(c)}">${esc(c)}</button><button data-cr="${esc(c)}" title="移除">×</button></span>`).join('')}
       <form id="ccF"><input id="ccI" list="clist" placeholder="＋ 概念" maxlength="16"><datalist id="clist">${Object.keys(state.concepts).filter(c => !n.concepts.includes(c)).map(c => `<option value="${esc(c)}">`).join('')}</datalist></form></div>
     <div class="pat"><span>⟳ 推演流程</span><select id="patS"><option value="">（無）</option>${Object.keys(state.patterns).map(p => `<option ${n.processPattern === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}<option value="__new">＋ 新流程…</option></select>${n.processPattern ? `<button data-pf="${esc(n.processPattern)}" class="pf ${conceptUI.focus === 'p:' + n.processPattern ? 'on' : ''}">亮線</button>` : ''}</div>
     ${n.flow ? flowHTML(n.flow) : `${n.assumptions ? `<div class="lbl">◇ 前提假設</div><p class="txt">${spec(n.assumptions)}</p>` : ''}
@@ -802,7 +833,7 @@ function select(id){
     <div class="ce">${n.counterEvidence.map(c => ceHTML(c)).join('') || '<div class="empty">尚無反證</div>'}
       <form id="ceF"><input id="ceI" placeholder="新增反證…" maxlength="200"><button>＋</button></form></div>
     <div class="lbl">🎞 媒體</div>${videoBox(n)}<div class="media">${slot('image', n.media.image)}</div>
-    ${hist.length ? `<div class="lbl">🕘 紀錄</div><div class="mh">${hist.map(h => `<div>${fmt(h.ts)} ${ACT[h.action] || h.action}</div>`).join('')}</div>` : ''}`;
+    ${hist.length ? `<div class="lbl">🕘 紀錄</div><div class="mh">${hist.map(h => `<div>${fmt(h.ts)} ${ACT[h.action] || esc(h.action)}</div>`).join('')}</div>` : ''}`;
   pBody.querySelectorAll('.nl').forEach(a => a.onclick = ev => { ev.preventDefault(); select(a.dataset.n); });
   pBody.querySelectorAll('[data-cf]').forEach(b => b.onclick = () => { focusConcept('c:' + b.dataset.cf); select(id); });
   pBody.querySelectorAll('[data-pf]').forEach(b => b.onclick = () => { focusConcept('p:' + b.dataset.pf); select(id); });
@@ -824,7 +855,7 @@ function select(id){
     else if (a === 'del'){ if (confirm('刪除這個節點與其分支？')) deleteNode(id); }
   });
   panel.classList.add('open'); panel.scrollTop = 0;
-  emit('select', { id });   // 給 knowledge-score.js 等被動觀察者
+  if (!quiet) emit('select', { id });   // 給 knowledge-score.js 等被動觀察者
 }
 function closePanel(){ const was = selected; panel.classList.remove('open'); selected = null; $('#bFeed').href = 'feed.html'; if (was) emit('close', { id:was }); }
 $('#pX').onclick = closePanel;
@@ -845,7 +876,7 @@ let addSel = new Set();
 function renderSugg(){
   const f = $('#addForm').elements; const txt = [f.qtitle.value, f.oneLiner.value, f.assume.value, f.exts.value].join(' ');
   const sug = suggestConcepts(txt); const all = [...new Set([...addSel, ...sug])];
-  $('#sugg').innerHTML = all.length ? all.map(c => `<button type="button" class="cc1 ${addSel.has(c) ? 'on' : ''}" data-c="${esc(c)}" style="--c:${esc(state.concepts[c]?.color || '#fff')}">${addSel.has(c) ? '✓ ' : '＋ '}${esc(c)}</button>`).join('') : '<span class="empty">輸入問題後會自動建議概念</span>';
+  $('#sugg').innerHTML = all.length ? all.map(c => `<button type="button" class="cc1 ${addSel.has(c) ? 'on' : ''}" data-c="${esc(c)}" style="--c:${safeColor(state.concepts[c]?.color, '#fff')}">${addSel.has(c) ? '✓ ' : '＋ '}${esc(c)}</button>`).join('') : '<span class="empty">輸入問題後會自動建議概念</span>';
   $('#sugg').querySelectorAll('[data-c]').forEach(b => b.onclick = () => { const c = b.dataset.c; addSel.has(c) ? addSel.delete(c) : addSel.add(c); renderSugg(); });
 }
 ['qtitle', 'oneLiner', 'assume', 'exts'].forEach(nm => $('#addForm').elements[nm].addEventListener('input', () => { clearTimeout(renderSugg.t); renderSugg.t = setTimeout(renderSugg, 180); }));
@@ -877,7 +908,7 @@ $('#splitDlg').addEventListener('close', () => {
 function renderHistory(){
   const el = $('#hList'); if (!el) return;
   el.innerHTML = state.history.slice().reverse().slice(0, 150).map(h => {
-    const p = h.payload || {}; const t = p.title || p.fromTitle && (p.fromTitle + ' ⇄ ' + p.toTitle) || (p.questions ? p.questions + ' 題' : '') || '';
+    const p = h.payload || {}; const t = (h.action === 'merge' && p.title ? p.title + ' → ' + (p.intoName || (p.into === 'main' ? '主腦' : B(p.into)?.name || '上層腦')) : '') || p.title || p.fromTitle && (p.fromTitle + ' ⇄ ' + p.toTitle) || (p.questions ? p.questions + ' 題' : '') || '';
     return `<div class="hi" ${p.nodeId && N(p.nodeId) ? `data-n="${esc(p.nodeId)}"` : ''}><time>${fmt(h.ts)}</time><b>${ACT[h.action] || esc(h.action)}</b><span>${esc(t)}</span></div>`;
   }).join('');
   el.querySelectorAll('[data-n]').forEach(d => d.onclick = () => select(d.dataset.n));
@@ -889,7 +920,7 @@ $('#bUndo').onclick = undo;
 $('#bExport').onclick = exportJSON;
 $('#bImport').onclick = () => $('#file').click();
 $('#file').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { importJSON(JSON.parse(r.result)); } catch(err){ toast('⚠ 無法讀取 JSON'); } }; r.readAsText(f); e.target.value = ''; };
-$('#bReset').onclick = () => { if (confirm('重置成初始 6 題？（可用復原找回）')) resetAll(); };
+$('#bReset').onclick = () => { if (confirm(window.AISync && window.AISync.enabled ? '重置這台裝置？\n會捨棄還沒上傳的本機修改，改成雲端上的共享大腦。\n不會影響其他裝置或共享大腦。' : '重置成初始 6 題？（可用復原找回）')) resetAll(); };
 $('#bHome').onclick = () => focusBrain('main');
 $('#bFit').onclick = overview;
 $('#bRot').onclick = function(){ controls.autoRotate = !controls.autoRotate; this.classList.toggle('on', controls.autoRotate); autoRotPref = controls.autoRotate; };
@@ -898,7 +929,7 @@ let autoRotPref = !REDUCED;
 function renderConcepts(){
   const el = $('#cList'); if (!el) return;
   const cs = getConcepts();
-  const chip = (key, name, c) => `<button class="cchip ${conceptUI.focus === key ? 'on' : ''} ${c.nodes.length < 2 ? 'solo' : ''}" data-k="${esc(key)}" style="--c:${esc(c.color)}" title="${esc(c.desc || '')}"><i></i>${esc(name)}<b>${c.nodes.length}</b></button>`;
+  const chip = (key, name, c) => `<button class="cchip ${conceptUI.focus === key ? 'on' : ''} ${c.nodes.length < 2 ? 'solo' : ''}" data-k="${esc(key)}" style="--c:${safeColor(c.color)}" title="${esc(c.desc || '')}"><i></i>${esc(name)}<b>${c.nodes.length}</b></button>`;
   el.innerHTML = '<div class="csec">🧵 概念</div>' + Object.entries(cs).filter(([, c]) => c.kind === 'concept' && c.nodes.length).sort((a, b) => b[1].nodes.length - a[1].nodes.length).map(([k, c]) => chip('c:' + k, k, c)).join('')
     + '<div class="csec">⟳ 推演流程</div>' + Object.entries(cs).filter(([, c]) => c.kind === 'process' && c.nodes.length).map(([k, c]) => chip('p:' + c.name, c.name, c)).join('');
   el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => focusConcept(b.dataset.k));
@@ -909,8 +940,8 @@ function renderConceptPill(){
   const p = $('#cpill'); const f = conceptUI.focus;
   if (!f){ p.classList.remove('on'); return; }
   const th = threads.find(x => x.key === f); const nm = f.slice(2);
-  p.innerHTML = `<i style="--c:${esc(threadColor(f))}"></i>${f[0] === 'p' ? '⟳ ' : '🧵 '}${esc(nm)} <b>${th ? th.ids.length : 0}</b><button id="cpX">✕</button>`;
-  p.style.setProperty('--c', threadColor(f)); p.classList.add('on');
+  p.innerHTML = `<i style="--c:${safeColor(threadColor(f))}"></i>${f[0] === 'p' ? '⟳ ' : '🧵 '}${esc(nm)} <b>${th ? th.ids.length : 0}</b><button id="cpX">✕</button>`;
+  p.style.setProperty('--c', safeColor(threadColor(f))); p.classList.add('on');
   $('#cpX').onclick = () => focusConcept(null);
 }
 $('#bConc').onclick = () => { $('#cdraw').classList.toggle('open'); renderConcepts(); };
@@ -918,7 +949,7 @@ $('#cX').onclick = () => $('#cdraw').classList.remove('open');
 $('#cOn').onclick = () => showConcepts();
 function renderCrumbs(){
   const chain = []; let b = B(focusId); while (b){ chain.unshift(b); b = B(b.parentBrainId); }
-  $('#crumbs').innerHTML = chain.map((x, i) => `<button data-b="${esc(x.id)}" style="--c:${x.regionColor}">${x.id === 'main' ? '🧠 主腦' : esc(x.name.length > 8 ? x.name.slice(0, 8) + '…' : x.name)}</button>`).join('<i>›</i>');
+  $('#crumbs').innerHTML = chain.map((x, i) => `<button data-b="${esc(x.id)}" style="--c:${safeColor(x.regionColor)}">${x.id === 'main' ? '🧠 主腦' : esc(x.name.length > 8 ? x.name.slice(0, 8) + '…' : x.name)}</button>`).join('<i>›</i>');
   $('#crumbs').querySelectorAll('[data-b]').forEach(el => el.onclick = () => focusBrain(el.dataset.b));
 }
 function updateCounts(){
@@ -1015,6 +1046,8 @@ window.AIBrain = {
   addConcept, removeConcept, setProcessPattern, getConcepts, getConceptThreads:() => JSON.parse(JSON.stringify(threads)), getConceptLinks:() => conceptLinks.map(l => ({ from:l.from, to:l.to, kind:'concept', concept:l.concept, threadKind:l.threadKind })),
   suggestConcepts, focusConcept, showConcepts, _debug:debug, mergeBrain, crossLink, setStatus, addCounterEvidence, setCollapsed, setMedia, deleteNode,
   focusBrain, focusNode, overview, select, undo, exportJSON, importJSON, reset:resetAll,
-  on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); }
+  on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); },
+  /* sync hooks (sync.js) — not for bots */
+  _applyExternal:applyExternal, _migrate:st => migrate(st), _valid:valid, _toast:toast
 };
 document.body.dataset.ready = '1';

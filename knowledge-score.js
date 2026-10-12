@@ -87,6 +87,7 @@
   /* brain hooks */
   if (PAGE === 'brain'){
     const hook = () => {
+      if (document.body.dataset.webgl === '0') return;           // 沒有 WebGL：大腦不會啟動
       if (!window.AIBrain || !AIBrain.on) return setTimeout(hook, 300);
       AIBrain.on('select', d => d && setCur(d.id, true));
       AIBrain.on('close', () => setCur(null));
