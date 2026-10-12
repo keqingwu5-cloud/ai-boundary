@@ -3,7 +3,7 @@
 (()=>{
 const STORE="aiBoundary.privateMemory.v1",FORMAT="ai-boundary.encrypted-memory.v1",VAULT="ai-boundary.memory.v1",ROUNDS=260000;
 const $=id=>document.getElementById(id);
-let key=null,salt=null,state=null,revising=null,writeChain=Promise.resolve(),observedEnvelope=null;
+let key=null,salt=null,state=null,revising=null,writeChain=Promise.resolve(),observedEnvelope=null,lastBackupEnvelope=null;
 const utc=()=>new Date().toISOString(),uid=()=>crypto.randomUUID();
 const encoder=new TextEncoder(),decoder=new TextDecoder();
 function b64(bytes){let str="";for(let i=0;i<bytes.length;i+=4096)str+=String.fromCharCode(...bytes.subarray(i,i+4096));return btoa(str);}
@@ -25,7 +25,7 @@ async function persist(){
  try{const value=await encryptCurrent();localStorage.setItem(STORE,value);observedEnvelope=value;}
  catch(e){state.revision=r;state.updatedAt=t;throw e;}
 }
-function showLocked(){key=null;salt=null;state=null;revising=null;observedEnvelope=null;$("workspace").hidden=true;$("lockedState").hidden=false;const exists=!!stored();$("lockTitle").textContent=exists?"解鎖本機加密記憶庫":"首次建立本機加密記憶庫";$("lockHint").textContent=exists?"輸入原密碼以讀取此瀏覽器中加密的記憶。密碼不會儲存在網站。":"設定至少 12 字元的密碼；忘記密碼便無法復原內容。請妥善保管加密備份。";$("confirmArea").hidden=exists;$("unlockButton").textContent=exists?"解鎖記憶庫":"建立記憶庫";$("passphrase").value="";$("confirmPassphrase").value="";}
+function showLocked(){key=null;salt=null;state=null;revising=null;observedEnvelope=null;lastBackupEnvelope=null;$("workspace").hidden=true;$("lockedState").hidden=false;const exists=!!stored();$("lockTitle").textContent=exists?"解鎖本機加密記憶庫":"首次建立本機加密記憶庫";$("lockHint").textContent=exists?"輸入原密碼以讀取此瀏覽器中加密的記憶。密碼不會儲存在網站。":"設定至少 12 字元的密碼；忘記密碼便無法復原內容。請妥善保管加密備份。";$("confirmArea").hidden=exists;$("unlockButton").textContent=exists?"解鎖記憶庫":"建立記憶庫";$("passphrase").value="";$("confirmPassphrase").value="";}
 function showOpen(){ $("lockedState").hidden=true;$("workspace").hidden=false;$("passphrase").value="";$("confirmPassphrase").value="";renderAll();}
 $("unlockButton").addEventListener("click",async()=>{
  const pass=$("passphrase").value;
@@ -189,7 +189,7 @@ const tabs=[...document.querySelectorAll("[data-tab]")];
 function selectTab(name){for(const t of tabs){const on=t.dataset.tab===name;t.setAttribute("aria-selected",String(on));t.tabIndex=on?0:-1;$("tab-"+t.dataset.tab).hidden=!on;}}
 tabs.forEach((t,i)=>{t.addEventListener("click",()=>selectTab(t.dataset.tab));t.addEventListener("keydown",e=>{if(!["ArrowRight","ArrowLeft"].includes(e.key))return;e.preventDefault();const next=tabs[(i+(e.key==="ArrowRight"?1:tabs.length-1))%tabs.length];next.focus();selectTab(next.dataset.tab);});});
 async function downloadBackup(){await writeChain.catch(()=>{});const raw=stored();if(!raw){feedback("本機找不到加密記憶庫。");return;}
- exportJSON(JSON.parse(raw),"mainbrain-memory-encrypted-"+new Date().toISOString().slice(0,10)+".json");feedback("已下載加密備份。請保管密碼，檔案未傳到其他 AI。");}
+ exportJSON(JSON.parse(raw),"mainbrain-memory-encrypted-"+new Date().toISOString().slice(0,10)+".json");lastBackupEnvelope=raw;feedback("已觸發加密備份下載，請確定檔案存在於裝置後才進行覆蓋還原。");}
 $("exportBackup").addEventListener("click",downloadBackup);$("saveBackupTop").addEventListener("click",downloadBackup);
 $("restoreBackup").addEventListener("click",()=>{$("backupInput").click();});$("importLocked").addEventListener("click",()=>{$("backupInput").click();});
 $("backupInput").addEventListener("change",async e=>{
@@ -199,10 +199,24 @@ $("backupInput").addEventListener("change",async e=>{
   const raw=await f.text(),env=readEnvelope(raw);
   const pass=prompt("請輸入這份加密備份的原始密碼。密碼僅用於此裝置本次解密：");if(pass===null)return;
   const decoded=await decryptEnvelope(env,pass);
-  if(!confirm("還原會『取代』目前此瀏覽器的整份私人記憶庫。請先備份原資料，確定繼續嗎？"))return;
   await writeChain.catch(()=>{});
+  const previous=stored();
+  if(previous&&!state){feedback("這台裝置已有記憶庫，請先解鎖並下載目前備份才能還原。");return;}
+  if(previous&&previous!==observedEnvelope){feedback("偵測到其他分頁已更新記憶庫。為避免覆蓋，請重新開啟並解鎖。");return;}
+  if(previous){
+   if(lastBackupEnvelope!==previous){feedback("請先點擊「下載加密備份」並確認檔案保存成功，才可覆蓋目前記憶。");return;}
+   const older=decoded.data.vaultId===state.vaultId&&Number.isSafeInteger(decoded.data.revision)&&decoded.data.revision<=state.revision;
+   const different=!decoded.data.vaultId||decoded.data.vaultId!==state.vaultId;
+   const warning=different?"備份來自其他／無識別碼的記憶庫。":older?"此備份的版次不比目前新版，可能回滾你的歷史。":"此備份將完整取代目前記憶，不會自動合併。";
+   if(!confirm(warning+"\n現有："+state.vaultId+"（修訂 "+state.revision+"）"+
+     "\n備份："+(decoded.data.vaultId||"舊格式／未知")+"（修訂 "+(decoded.data.revision??"未知")+"）"+
+     "\n確定已保留本機目前的加密備份，要繼續嗎？"))return;
+   if(prompt("此動作會整庫覆蓋，確認已保留舊備份請輸入「確認覆蓋」：")!=="確認覆蓋")return;
+  }
   localStorage.setItem(STORE,raw);
-  key=decoded.key;salt=decoded.salt;state=decoded.data;showOpen();feedback("加密備份已還原。本機舊資料已被取代，沒有上傳到任何伺服器。");
+  key=decoded.key;salt=decoded.salt;state=decoded.data;observedEnvelope=raw;lastBackupEnvelope=null;
+  if(migrateMeta(state))await persist();
+  showOpen();feedback("已按你的明確確認還原本機加密備份；尚未合併不同版本。");
  }catch(err){feedback("還原失敗：密碼不符、檔案格式錯誤、資料過大或儲存空間受限；原本記憶庫未更動。");}
 });
 $("dateFilter").value=localDay(utc());
