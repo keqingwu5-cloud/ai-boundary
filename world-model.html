@@ -33,10 +33,11 @@ const fomc=[['2025-10-29',3.75,4,-25],['2025-12-10',3.5,3.75,-25],['2026-01-28',
 const prices=[['2025-10',682.03,109560.1965],['2025-11',683.36,90363.02],['2025-12',681.82,87488.274],['2026-01',691.8,78664.2465],['2026-02',686.16,66978.5],['2026-03',650.12,68229.221],['2026-04',718.41,76307.37],['2026-05',756.34,73591.625],['2026-06',746.65,58531.1355],['2026-07',746.79,62812.559],['2026-08',766.87,78567.102],['2026-09',762.34,83562.55]];
 const $=s=>document.querySelector(s);
 const num=v=>new Intl.NumberFormat('zh-TW',{maximumFractionDigits:0}).format(v);
+const monthKey=i=>months[i].replace('/','-'); // 月份標籤 '2026/03' → 價格鍵 '2026-03'；'/' 的字元碼比 '-' 大，直接比字串會把同年較晚的月份算進來
 const cutoff=i=>i===12?'2026-10-12':months[i].replace('/','-')+'-31'; // lexical cutoff for month-end; no fabricated publication date
 let current=11, model=null;
 function render(){
- const date=cutoff(current), label=months[current], p=prices.filter(r=>r[0]<=label).at(-1);
+ const date=cutoff(current), label=months[current], key=monthKey(current), p=prices.filter(r=>r[0]<=key).at(-1);
  const f=fomc.filter(r=>r[0]<=date).at(-1), c=cpi.filter(r=>r.release&&r.release<=date).at(-1);
  $('#dateTag').textContent=label+(current===12?'（截至10/12）':'');
  $('#cpi').textContent=c?c.value.toFixed(1)+'%':'資料不足';
@@ -45,7 +46,7 @@ function render(){
  $('#fedMeta').textContent=f?'決議 '+f[0]+' · '+(f[3]===0?'維持':f[3]>0?'升息 '+f[3]+' bps':'降息 '+Math.abs(f[3])+' bps'):'此區間前政策需另行核對';
  $('#market').textContent=p?'SPY '+p[1].toFixed(2):'—';
  $('#marketMeta').textContent=p?'BTC $'+num(p[2])+' · '+p[0]+' 月K':'—';
- let visible=prices.filter(r=>r[0]<=label), points=visible.map((r,i)=>[i,100*r[1]/prices[0][1],100*r[2]/prices[0][2]]);
+ let visible=prices.filter(r=>r[0]<=key), points=visible.map((r,i)=>[i,100*r[1]/prices[0][1],100*r[2]/prices[0][2]]);
  let values=points.flatMap(x=>x.slice(1)), min=Math.floor(Math.min(45,...values)/10)*10,max=Math.ceil(Math.max(115,...values)/10)*10;
  const xx=i=>48+i*(415/11),yy=v=>188-(v-min)/(max-min)*148;
  let svg='<line x1="48" y1="18" x2="48" y2="188" stroke="#51708b"/><line x1="48" y1="188" x2="466" y2="188" stroke="#51708b"/>';
