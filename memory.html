@@ -35,7 +35,8 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 #lockedState[hidden],#workspace[hidden]{display:none}.footer{font-size:12px;border-top:1px solid var(--line);padding-top:13px;margin-top:30px;color:var(--muted)}
 @media(max-width:720px){.cols,.grid3{grid-template-columns:1fr}.panel{padding:14px}main{padding:18px 12px 45px}header nav{padding:11px}header strong{width:100%}}
 </style>
-<script src="./memory.js?v=20261012integrity01" defer></script>
+<script src="./memory-workflow-core.js?v=20261013" defer></script>
+<script src="./memory.js?v=20261013workflow01" defer></script>
 </head>
 <body>
 <header><nav><strong>🧠 主腦 · 共同記憶管理</strong><a href="./mainbrain.html">主腦控制台</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 大腦</a></nav></header>
@@ -90,12 +91,14 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 <div><label for="evidenceLevel">證據層級</label><select id="evidenceLevel"><option value="hypothesis">假設／待驗證</option><option value="fact">事實／有原始證據</option><option value="derived">計算或直接推導</option><option value="inference">推論</option><option value="forecast">條件預測</option></select></div>
 </div>
 <p class="small" id="typeHint">同一問題可修正答案，問題定義改變時應另建分支。</p>
-<div class="actions"><button class="primary" type="submit">提交候選並加密儲存</button><button type="button" id="importReport">匯入發射器 AI 回報 JSON</button><button type="button" id="resetProposal">清除表單</button></div>
+<div class="actions"><button class="primary" type="submit">提交候選並加密儲存</button><button type="button" id="importReport">匯入發射器 AI 回報 JSON</button><button type="button" id="importMemoryPack">批次匯入 GPT① 記憶候選包</button><button type="button" id="resetProposal">清除表單</button></div>
 <p class="small">匯入 AI 回報只會填入草稿表單，不會自動核准或寫入權威記憶。請自行確認問題定義、目的、事件類別與資料來源。</p>
 </form></div>
 </section>
 <section id="tab-review" role="tabpanel" hidden>
 <div class="panel"><h2>待審候選與拒絕修復</h2><p>提交不等於核准。核准會建立版本或分支；拒絕理由必須保留。跨 AI 原問題對齊需要你另行人工確認，頁面無法偽裝成已取得其他 AI 回覆。</p><div id="reviewList"></div></div>
+<div class="panel"><h2>情境回溯｜已核准知識、未完成與拒絕</h2><p class="small">本機解鎖後，輸入任務、問題或錯誤情境，按「搜尋相關記憶」即可回溯。只在本機比對，不會自動發送給其他 AI；結果包含已核准、待審與拒絕紀錄，請注意狀態差異。</p><label for="recallQuery">要回溯的任務或問題</label><input id="recallQuery" maxlength="1000" placeholder="例如：世界模型 CPI 發布時間、拒絕原因、任務阻塞"><div class="actions"><button type="button" id="recallRun">搜尋相關記憶</button><button type="button" id="recallCopy">複製回溯摘要（手動交接）</button></div><div id="recallResults" class="help"></div></div>
+<div class="panel"><h2>三方工作紀錄｜最小六欄</h2><p class="small">GPT①發號、GPT②反證、BOT③執行。此處記錄你實際收到的進度；角色是人工填寫，並非已驗證的 AI 身分。記錄保存在本機加密記憶庫的事件歷史。</p><div class="cols"><div><label for="workflowId">任務 ID</label><input id="workflowId" maxlength="100" placeholder="例如：WM-2026-001"></div><div><label for="workflowTitle">任務標題</label><input id="workflowTitle" maxlength="250"></div><div><label for="workflowActor">負責角色</label><select id="workflowActor"><option value="GPT①">GPT① 指令統籌</option><option value="GPT②">GPT② 反證審查</option><option value="BOT③">BOT③ 實作驗證</option><option value="使用者">使用者</option></select></div><div><label for="workflowStatus">目前狀態</label><select id="workflowStatus"><option value="queued">待交接</option><option value="received">已確認接收</option><option value="in_progress">進行中</option><option value="blocked">阻塞／未完成</option><option value="refused">被拒絕</option><option value="review">待驗收</option><option value="done">已完成</option></select></div><div><label for="workflowReason">證據／原因</label><textarea id="workflowReason" maxlength="2000" rows="3"></textarea></div><div><label for="workflowNext">下一步</label><textarea id="workflowNext" maxlength="1200" rows="3"></textarea></div></div><div class="actions"><button type="button" id="workflowSave">加密保存這次進度</button><button type="button" id="workflowCopy">複製未完成／拒絕摘要</button></div><div id="workflowList" class="help"></div></div>
 </section>
 <section id="tab-memory" role="tabpanel" hidden>
 <div class="panel"><h2>權威版本（僅限本機）</h2><p>這裡的權威指「你在此裝置核准過的版本」，不代表客觀真理或雲端三方共識。</p><div id="memoryList"></div></div>
@@ -112,5 +115,6 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 </div>
 <input id="backupInput" type="file" accept=".json,application/json" hidden>
 <input id="reportInput" type="file" accept=".json,application/json" hidden>
+<input id="memoryPackInput" type="file" accept=".json,application/json" hidden>
 <p class="footer">主腦記憶管理 V1 · 離線資料治理最小可用版 · 本機加密、手動審核與人工交接。跨裝置自動同步、其他 AI 自動接收及私人後端仍未接通。</p>
 </main></body></html>
