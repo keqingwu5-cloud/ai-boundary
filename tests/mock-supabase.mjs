@@ -19,7 +19,7 @@ const db = { brain_entities:[], brain_history:[] };
 const PK = { brain_entities:['graph_id', 'kind', 'id'], brain_history:['graph_id', 'hkey'] };
 const writes = [], stats = { refresh:0, denied:0 };
 let clock = 0;
-const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.json':'application/json', '.css':'text/css' };
+const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.mjs':'text/javascript; charset=utf-8', '.json':'application/json', '.css':'text/css' };
 const srv = http.createServer(async (req, res) => {
   const u = new URL(req.url, ORIGIN); const cors = { 'access-control-allow-origin':'*', 'access-control-allow-headers':'*', 'access-control-allow-methods':'*', 'access-control-expose-headers':'*' };
   if (req.method === 'OPTIONS'){ res.writeHead(204, cors); return res.end(); }
@@ -62,7 +62,7 @@ const srv = http.createServer(async (req, res) => {
 });
 await new Promise(r => srv.listen(PORT, '127.0.0.1', r));
 
-const browser = await puppeteer.launch({ executablePath:process.env.CHROME || '/usr/bin/google-chrome', headless:true, args:['--no-sandbox', '--enable-unsafe-swiftshader'] });
+const browser = await puppeteer.launch({ executablePath:process.env.CHROME || '/usr/bin/google-chrome', headless:true, defaultViewport:{ width:1280, height:800 }, args:['--no-sandbox', '--enable-unsafe-swiftshader'] });
 let fails = 0; const ok = (c, m) => { console.log((c ? '✓ ' : '✗ ') + m); if (!c) fails++; };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const session = t => JSON.stringify({ access_token:t, refresh_token:'r-' + t.slice(-6), token_type:'bearer', expires_in:3600 * 24 * 365 * 50, expires_at:4102444800,

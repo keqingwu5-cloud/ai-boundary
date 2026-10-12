@@ -82,7 +82,7 @@ async function start(){
   }
 
   /* ---------- 大腦的修改 → 排程上傳（佇列是無狀態的：每次都是 diff(snapshot, 現在)） ---------- */
-  let roToast = 0, flushT = 0;
+  let roToast = 0, flushT = 0, flushing = false;   // flushing 放在這裡：change 監聽器 800ms 後就可能呼叫 flush()，不能等到下面（載 supabase.js 很慢時會 TDZ）
   if (BRAIN) AIBrain.on('change', d => {
     dirty();
     if (!d || d.action === 'remote') return render();
@@ -159,7 +159,6 @@ async function start(){
     busy--; render();
   }
   /* ---------- 上傳 ---------- */
-  let flushing = false;
   async function flush(){
     if (!BRAIN || flushing || !canWrite() || !online) return render();
     const s = loadSync(); if (!s) return pull();
