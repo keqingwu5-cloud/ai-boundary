@@ -123,17 +123,42 @@ test('逾時不重試且忽略晚到結果，不阻塞其他 BOT',async()=>{
  assert.equal(a.status,'timed_out');assert.equal(a.attempts,1);assert.equal(aborted,true);
  assert.equal((await run({id:'good',costCeiling:1,run:async()=>{}})).status,'succeeded');
 });
-test('原始 app 實際 seed 與 migrate 結果保持媒體／節點／概念資料',async()=>{
- const source=await readFile(new URL('../app.js',import.meta.url),'utf8'); const data=await readFile(new URL('../data.js',import.meta.url),'utf8');
- const THREE=await import("../vendor/three.module.min.js");
- const ctx={window:{},Date,Math,console,THREE};vm.createContext(ctx);vm.runInContext(data,ctx);
- Object.assign(ctx,ctx.window);
+/* 種子資料載入：相容兩種 data.js
+   - 舊版（main）：data.js 直接宣告 QUESTIONS 等全域變數
+   - PR #3 內容拆檔：data.js 設 window.AI_DATA_READY，用 fetch 讀 content/*.json、patches/*.json —— 這裡用檔案系統模擬 fetch
+   ROOT 可用環境變數 AI_BOUNDARY_ROOT 指到另一個工作目錄（例如疊上 #3 的整合樹）來驗證。 */
+const ROOT = process.env.AI_BOUNDARY_ROOT ? new URL('file://' + process.env.AI_BOUNDARY_ROOT.replace(/\/?$/, '/')) : new URL('../', import.meta.url);
+async function seedContext(root = ROOT){
+ const data=await readFile(new URL('data.js',root),'utf8'); const THREE=await import(new URL('vendor/three.module.min.js',root).href);
+ const fetchFile=async u=>{ const rel=String(u).split('?')[0].replace(/^\.\//,''); try { const text=await readFile(new URL(rel,root),'utf8'); return { ok:true,status:200,json:async()=>JSON.parse(text),text:async()=>text }; } catch { return { ok:false,status:404,json:async()=>{throw Error('404');},text:async()=>'' }; } };
+ const doc={ createElement:()=>({ style:{} }), body:{ appendChild(){} }, documentElement:{ appendChild(){} } };
+ const ctx={window:{__V:'test'},Date,Math,console,THREE,fetch:fetchFile,document:doc,Promise,JSON,Object,Array,Error};vm.createContext(ctx);
+ vm.runInContext(data,ctx); Object.assign(ctx,ctx.window);
+ if (ctx.window.AI_DATA_READY){ await ctx.window.AI_DATA_READY; Object.assign(ctx,ctx.window); }
+ return ctx;
+}
+test('原始 app 實際 seed 與 migrate 結果保持媒體／節點／概念資料（相容 #3 的內容拆檔載入器）',async()=>{
+ const source=await readFile(new URL('app.js',ROOT),'utf8');
+ const ctx=await seedContext();
  const start=source.indexOf('function mulberry('),end=source.indexOf('const persistence =');
+ assert.ok(start>0&&end>start,'app.js 找不到 mulberry() 或 const persistence');
  const dirStart=source.indexOf('function dirPos('),dirEnd=source.indexOf('\n}',dirStart)+2;
  vm.runInContext("const uid = p => p + Math.random(); const REGION = {其他:[0,0,0]};\n"+source.slice(start,end)+'\n'+source.slice(dirStart,dirEnd)+'\nthis.result=migrate(seedState());',ctx);
  const g=JSON.parse(JSON.stringify(ctx.result));assert.ok(g.nodes.length>=31);validateGraph(g);
  const s=new Storage();s.setItem(GRAPH_KEY,JSON.stringify(g));
  const p=openGuardedStore(s,st=>st,graph);p.save(p.state);assert.deepEqual(JSON.parse(s.getItem(GRAPH_KEY)),g);
+});
+test('種子載入輔助函式支援非同步內容載入器（AI_DATA_READY + fetch）',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'seed-loader-'));
+ try {
+  const { mkdir, copyFile } = await import('node:fs/promises');
+  await mkdir(join(dir,'content')); await mkdir(join(dir,'vendor'));
+  await copyFile(new URL('../vendor/three.module.min.js',import.meta.url),join(dir,'vendor/three.module.min.js'));
+  await writeFile(join(dir,'content/questions.json'),JSON.stringify([{id:'q1'}]));
+  await writeFile(join(dir,'data.js'),"window.AI_DATA_READY = fetch('content/questions.json?v=' + window.__V).then(r => r.json()).then(q => { Object.assign(window, { QUESTIONS:q }); return q; });");
+  const ctx=await seedContext(new URL('file://'+dir+'/'));
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx.QUESTIONS)),[{id:'q1'}]);
+ } finally { await rm(dir,{recursive:true,force:true}); }
 });
 test('審核局部更新保留原媒體與研究欄位；序列化後版本一致',async()=>{
  const {api,store}=service();const p={...proposal(),node:{id:'a',title:'只更新標題'}};

@@ -1,5 +1,5 @@
 /* 3D 動態認知大腦 v1 — plain Three.js (ES modules, vendored), no build step. */
-import { openGuardedStore, backup, snapshot, validateGraph, verifyTopology } from './reliability/storage.mjs';
+import { openGuardedStore, backup, backupState, snapshot, validateGraph, validateUndoEntry, verifyTopology, listBackups, pruneBackups, restoreBackup, BACKUP_PREFIX } from './reliability/storage.mjs';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { esc, safeUrl, safeColor, playable } from './safe.js';
@@ -104,22 +104,34 @@ function migrate(st){
 }
 const CPAL = ['#5eead4','#a3e635','#fde047','#fdba74','#67e8f9','#f0abfc','#86efac','#c4b5fd','#f9a8d4','#fca5a5','#fb7185','#93c5fd','#fb923c','#f472b6','#cbd5e1','#bef264','#7dd3fc','#fcd34d','#d8b4fe','#99f6e4'];
 function pickColor(st){ const used = new Set(Object.values(st.concepts || {}).map(c => c.color)); return CPAL.find(c => !used.has(c)) || `hsl(${Math.floor(Math.random() * 360)},85%,72%)`; }
-const persistence = openGuardedStore(localStorage, migrate, seedState);
+const persistence = openGuardedStore(localStorage, migrate, seedState);   // [P0] 載入前備份＋驗證；損毀／版本不明時不覆寫原文
 let state = persistence.state;
-if (persistence.status().blocked) setTimeout(() => toast('⚠ 資料保護模式：原始存檔未覆寫，請匯出備份後處理'), 0);
 let undoStack = []; try {
   const savedUndo = JSON.parse(localStorage.getItem(UKEY) || '[]');
-  if (Array.isArray(savedUndo)) undoStack = savedUndo.filter(raw => { try { validateGraph(JSON.parse(raw)); return true; } catch { return false; } });
+  // 輕量復原快照（沒有 history 的）也接受：validateUndoEntry 補一個空 history 再驗證
+  if (Array.isArray(savedUndo)) undoStack = savedUndo.filter(raw => { try { validateUndoEntry(raw); return true; } catch { return false; } });
 } catch(e){ undoStack = []; }
-let saveT = 0;
+let saveT = 0, unsaved = false;
+/* 復原暫存不是正式資料：空間不夠就少存幾步，不讓它擋住主腦存檔 */
+function writeUndo(){ for (const n of [12, 4, 1]){ try { localStorage.setItem(UKEY, JSON.stringify(undoStack.slice(-n))); return; } catch(e){} } try { localStorage.removeItem(UKEY); } catch(e){} }
 function save(now = false){
-  clearTimeout(saveT);
-  const f = () => { if (persistence.status().blocked) return; try { persistence.save(state); localStorage.setItem(UKEY, JSON.stringify(undoStack.slice(-12))); flashSaved(); } catch(e){ setTimeout(() => toast('⚠ 儲存未完成，請匯出備份：' + e.message), 0); } };
+  clearTimeout(saveT); saveT = 0; unsaved = true;
+  const f = () => {
+    saveT = 0; const s = persistence.status();
+    if (s.blocked || s.conflict) return;          // 不是靜默：#persistBanner 一直顯示中，AIBrain.persistenceStatus()／'persistence' 事件也看得到
+    try { persistence.save(state); unsaved = false; writeUndo(); flashSaved(); } catch(e){ /* 狀態改變會觸發 renderPersist */ }
+  };
   now ? f() : (saveT = setTimeout(f, 250));
 }
 save(true);
+addEventListener('pagehide', () => { if (saveT) save(true); });
+/* 另一個分頁寫了主腦存檔 → 這個分頁進入「衝突」狀態（顯示橫幅），不會靜默停止儲存 */
+addEventListener('storage', e => { if (e.storageArea === localStorage && (e.key === KEY || e.key === null)) persistence.checkExternal(); });
+addEventListener('beforeunload', e => { if (unsaved && persistence.status().mode !== 'ok'){ e.preventDefault(); e.returnValue = ''; } });
 const listeners = {};
 function emit(ev, data){ (listeners[ev] || []).forEach(f => { try { f(data); } catch(e){ console.error(e); } }); }
+persistence.onStatus(s => { renderPersist(s); emit('persistence', s); dispatchEvent(new CustomEvent('aibrain:persistence', { detail:s })); });
+setTimeout(() => renderPersist(), 0);
 function mutate(action, payload, fn){
   undoStack.push(JSON.stringify(state)); if (undoStack.length > 12) undoStack.shift();
   fn();
@@ -284,7 +296,9 @@ function deleteNode(id){
 }
 function undo(){
   if (!undoStack.length){ toast('沒有可復原的步驟'); return; }
-  state = JSON.parse(undoStack.pop());
+  const prev = JSON.parse(undoStack.pop());
+  if (!Array.isArray(prev.history)) prev.history = state.history;   // 輕量快照：沿用目前的 history
+  state = prev;
   save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已復原');
   if (!B(focusId)) focusBrain('main');
   emit('change', { action:'undo' });
@@ -771,6 +785,61 @@ const panel = $('#panel'), pBody = $('#pBody');
 let toastT = 0;
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200); }
 function flashSaved(){ const s = $('#saved'); s.classList.add('on'); clearTimeout(flashSaved.t); flashSaved.t = setTimeout(() => s.classList.remove('on'), 1200); }
+/* ================= [P0] 存檔保護狀態橫幅（zh-TW） =================
+   ok／blocked（損毀或版本不明，原文不覆寫）／conflict（另一分頁已寫入）／save-failed（例如空間已滿）。
+   狀態也可以用 AIBrain.persistenceStatus()、AIBrain.on('persistence', fn)、window 'aibrain:persistence' 事件、body[data-persist] 取得。 */
+const PERSIST_MSG = {
+  blocked:e => `⚠ 資料保護模式：這台裝置的主腦存檔無法安全讀取（${e}），原始存檔沒有被覆寫。這個分頁的修改不會儲存；請先匯出原始存檔，或從備份還原。`,
+  conflict:() => '⚠ 另一個分頁已經更新了主腦存檔。為了不互相覆蓋，這個分頁已暫停儲存；你在這個分頁的修改還在，請選擇要保留哪一個版本。',
+  'save-failed':e => `⚠ 儲存失敗（${e === 'QUOTA_EXCEEDED' ? '瀏覽器儲存空間已滿' : e}）：最近的修改還沒存進這台裝置，原本的存檔沒有被改動。`
+};
+const fmtBk = b => (b.createdAt ? new Date(b.createdAt).toLocaleString('zh-TW', { hour12:false }) : '舊版備份') + (b.counts && b.counts.graph ? `・${b.counts.graph.nodes} 節點` : '') + (b.counts && b.counts.worldModel ? `・世界模型 ${b.counts.worldModel.records} 筆` : '');
+function renderPersist(s = persistence.status(), extra = ''){
+  document.body.dataset.persist = s.mode;
+  let el = document.getElementById('persistBanner');
+  if (s.mode === 'ok' && !extra){ if (el) el.remove(); return; }
+  if (!el){
+    el = document.createElement('div'); el.id = 'persistBanner'; el.setAttribute('role', 'alert');
+    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));z-index:80;width:min(560px,calc(100vw - 20px));padding:12px 14px;border-radius:14px;background:rgba(70,22,30,.96);border:1px solid rgba(255,170,170,.35);color:#ffe9e9;font:13px/1.6 system-ui,-apple-system,"PingFang TC","Noto Sans TC",sans-serif;box-shadow:0 10px 40px rgba(0,0,0,.5)';
+    document.body.appendChild(el);
+  }
+  const btns = s.mode === 'conflict' ? [['reload', '載入最新版本'], ['keep', '保留這個分頁的版本'], ['export', '匯出這個分頁']]
+    : s.mode === 'blocked' ? [['exportRaw', '匯出原始存檔'], ['restore', '從備份還原…']]
+    : s.mode === 'save-failed' ? [['export', '匯出資料'], ['prune', '清理舊備份（只留最新 1 份）'], ['retry', '再試一次']] : [];
+  const bs = 'margin:8px 6px 0 0;padding:6px 10px;border-radius:9px;border:1px solid rgba(255,200,200,.4);background:rgba(255,255,255,.08);color:inherit;font:inherit;cursor:pointer';
+  el.innerHTML = `<div>${esc(s.mode === 'ok' ? '' : PERSIST_MSG[s.mode](s.error || ''))}</div>${extra}<div>${btns.map(([a, t]) => `<button type="button" data-pa="${a}" style="${bs}">${esc(t)}</button>`).join('')}</div>`;
+  el.querySelectorAll('[data-pa]').forEach(b => b.onclick = () => persistAction(b.dataset.pa, b.dataset.k));
+}
+function restoreFrom(input){
+  try { restoreBackup(localStorage, input); toast('↺ 已從備份還原，重新載入中…'); setTimeout(() => location.reload(), 400); return true; }
+  catch(e){ toast('⚠ 還原未完成：' + e.message + '（原資料保留）'); return false; }
+}
+function persistAction(a, k){
+  if (a === 'reload'){
+    try { backupState(localStorage, 'unsaved-tab-before-reload', state); }   // 這個分頁的版本先存成備份，不會靜默遺失
+    catch(e){ if (!confirm('無法備份這個分頁的版本（' + e.message + '）。仍要載入最新版本？這個分頁未儲存的修改會遺失，建議先按「匯出這個分頁」。')) return; }
+    location.reload();
+  } else if (a === 'keep'){
+    if (!confirm('用這個分頁的版本覆蓋存檔？另一個分頁寫入的版本會先存成備份。')) return;
+    try { persistence.overwrite(state); unsaved = false; writeUndo(); toast('✓ 已保留這個分頁的版本（另一分頁的版本已備份）'); }
+    catch(e){ toast('⚠ 沒有覆蓋：' + e.message); }
+  } else if (a === 'export') exportJSON(state);
+  else if (a === 'exportRaw') exportJSON(snapshot(localStorage, 'export-raw'));
+  else if (a === 'prune'){ pruneBackups(localStorage, 1); save(true); }
+  else if (a === 'retry') save(true);
+  else if (a === 'restore'){
+    const list = listBackups(localStorage).filter(b => !b.key.startsWith(BACKUP_PREFIX + 'quarantine.'));
+    const bs = 'display:block;margin:6px 0 0;padding:6px 10px;border-radius:9px;border:1px solid rgba(255,200,200,.4);background:rgba(255,255,255,.08);color:inherit;font:inherit;cursor:pointer';
+    renderPersist(persistence.status(), `<div style="margin-top:8px">${list.length ? list.map(b => `<button type="button" data-pa="restoreKey" data-k="${esc(b.key)}" style="${bs}">還原 ${esc(fmtBk(b))}</button>`).join('') : '<small>這台裝置沒有備份。</small>'}<button type="button" data-pa="restoreFile" style="${bs}">從備份檔案（.json）還原…</button></div>`);
+  } else if (a === 'restoreKey'){
+    if (!confirm('從這份備份還原？目前的資料會先另存一份。')) return;
+    try { restoreFrom(JSON.parse(localStorage.getItem(k))); } catch(e){ toast('⚠ 備份讀取失敗'); }
+  } else if (a === 'restoreFile'){
+    const inp = Object.assign(document.createElement('input'), { type:'file', accept:'application/json,.json' });
+    inp.onchange = () => { const f = inp.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { restoreFrom(JSON.parse(r.result)); } catch(e){ toast('⚠ 無法讀取備份檔'); } }; r.readAsText(f); };
+    inp.click();
+  }
+}
 const tag = t => `<span class="tag" style="--c:${colorOf(t)}">${iconOf(t)} ${esc(t)}</span>`;
 const nodeLink = n => n ? `<a href="#" class="nl" data-n="${esc(n.id)}" style="--c:${colorOf(n.type)}">${esc(n.title)}</a>` : '';
 function slot(kind, url){
@@ -1059,6 +1128,9 @@ window.AIBrain = {
   persistenceStatus:() => persistence.status(),
   getBackup:() => snapshot(localStorage),
   exportBackup:() => exportJSON(snapshot(localStorage)),
+  listBackups:() => listBackups(localStorage),
+  /* 從備份還原（物件或 localStorage 備份鍵）；成功後重新載入頁面 */
+  restoreBackup:input => restoreFrom(typeof input === 'string' ? JSON.parse(localStorage.getItem(input)) : input),
   version:1, getState:() => JSON.parse(JSON.stringify(state)),
   addQuestion, splitNode, addDirection, makeSubBrain,
   addConcept, removeConcept, setProcessPattern, getConcepts, getConceptThreads:() => JSON.parse(JSON.stringify(threads)), getConceptLinks:() => conceptLinks.map(l => ({ from:l.from, to:l.to, kind:'concept', concept:l.concept, threadKind:l.threadKind })),

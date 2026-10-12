@@ -19,7 +19,7 @@ const db = { brain_entities:[], brain_history:[] };
 const PK = { brain_entities:['graph_id', 'kind', 'id'], brain_history:['graph_id', 'hkey'] };
 const writes = [], stats = { refresh:0, denied:0 };
 let clock = 0;
-const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.json':'application/json', '.css':'text/css' };
+const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.mjs':'text/javascript; charset=utf-8', '.json':'application/json', '.css':'text/css' };
 const srv = http.createServer(async (req, res) => {
   const u = new URL(req.url, ORIGIN); const cors = { 'access-control-allow-origin':'*', 'access-control-allow-headers':'*', 'access-control-allow-methods':'*', 'access-control-expose-headers':'*' };
   if (req.method === 'OPTIONS'){ res.writeHead(204, cors); return res.end(); }
