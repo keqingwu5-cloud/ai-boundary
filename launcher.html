@@ -59,14 +59,16 @@ hr{border:0;border-top:1px solid var(--line);margin:22px 0}
 <p class="tiny">任務包會標記為「待交接」。即使裝置分享成功，也不代表指定 AI 已接收。請在接收端確認。</p>
 <hr>
 <h2>本機儲存／復原</h2>
-<p class="tiny">按下「儲存」才會把目前指令和回覆寫入本機瀏覽器，最多保留最近 12 份；重新整理後可載入。不同裝置與不同瀏覽器不會同步，清除網站資料也可能遺失。請不要保存敏感資訊。</p>
+<p class="tiny">按下「儲存」才會把目前指令和回覆寫入本機瀏覽器，最多保留 12 份，滿額時停止新增、不自動移除舊草稿；重新整理後可載入。不同裝置與不同瀏覽器不會同步，清除網站資料也可能遺失。請不要保存敏感資訊。</p>
 <label for="savedDrafts">本機已存草稿</label>
 <select id="savedDrafts" aria-label="本機已存草稿"><option value="">尚未儲存草稿</option></select>
 <div class="btns"><button type="button" id="save-draft" class="primary">儲存本機草稿</button><button type="button" id="load-draft">載入所選草稿</button><button type="button" id="delete-draft">刪除所選草稿</button></div>
-<div class="btns"><button type="button" id="export-draft">匯出草稿 JSON</button><button type="button" id="import-draft">匯入草稿 JSON</button><input id="draft-file" type="file" accept=".json,application/json" hidden></div>
+<div class="btns"><button type="button" id="export-draft">匯出草稿 JSON</button><button type="button" id="import-draft">匯入草稿 JSON</button><button type="button" id="export-raw">匯出原始儲存備份</button><input id="draft-file" type="file" accept=".json,application/json" hidden></div>
 <hr>
 <h2>回報接收區（手動）</h2>
 <p class="tiny">其他 AI 回覆後，可貼在這裡，下載含來源與原指令的回報 JSON，再交回 GPT①。若按「儲存本機草稿」，回覆也會保存在本瀏覽器；未儲存的文字重新整理後會消失。</p>
+<label for="response-command">回覆對應的原指令（請核對識別碼）</label><select id="response-command"><option value="">請先複製或下載原指令，再選擇對應項目</option></select>
+<p class="tiny">修改指令會產生新識別碼；回報保留你選定的原指令快照。接收對象不是已驗證的回覆者身分。</p>
 <label for="response">AI 回覆內容</label><textarea id="response" placeholder="在此貼上 AI 回覆。請避免放入不準備交接的私人資料。"></textarea>
 <div class="btns"><button type="button" id="export-response">下載回報 JSON</button><button type="button" id="clear-response">清空回覆</button></div>
 </section>
@@ -91,7 +93,22 @@ hr{border:0;border-top:1px solid var(--line);margin:22px 0}
 const $=s=>document.querySelector(s);
 const task=$("#task"),target=$("#target"),title=$("#title"),instruction=$("#instruction"),done=$("#done"),stop=$("#stop"),status=$("#status"),response=$("#response"),preview=$("#preview"),log=$("#log");
 const DRAFT_KEY="aiBoundary.launcher.drafts.v1",savedDrafts=$("#savedDrafts"),draftFile=$("#draft-file");
-let activeDraftId=null;
+let activeDraftId=null, commandCache=null, commandFingerprint='', commandHistory=[];
+let draftExpected, draftsBlocked=false;
+try { draftExpected=localStorage.getItem(DRAFT_KEY); } catch { draftsBlocked=true; }
+const responseCommand=$("#response-command");
+function clone(value){return JSON.parse(JSON.stringify(value));}
+function validCommand(p){return p&&p.schema==='ai-boundary.command.v0.1'&&['command_id','created_at','recipient','title','instructions','completion_criteria','stop_and_escalation','response_requirements','source_template','source','delivery_status'].every(k=>typeof p[k]==='string'&&p[k].length<=200000)&&p.command_id.length>0;}
+function rememberCommand(p){
+ if(!commandHistory.some(x=>x.command_id===p.command_id))commandHistory.push(clone(p));
+ refreshCommandChoices();
+}
+function refreshCommandChoices(selected=responseCommand.value){
+ responseCommand.replaceChildren();const empty=document.createElement('option');empty.value='';empty.textContent='請核對並選擇這份回覆對應的原指令';responseCommand.append(empty);
+ for(const p of commandHistory){const o=document.createElement('option');o.value=p.command_id;o.textContent=p.command_id+' · '+p.title+' · '+p.recipient;responseCommand.append(o);}
+ responseCommand.value=commandHistory.some(p=>p.command_id===selected)?selected:'';
+}
+
 const templates={
  audit:{title:"任務 01｜共同記憶架構漏洞審查",instructions:"獨立質疑《AI 主腦三方共同記憶規劃 V0.2／V0.3 候選》。從問題定義、單一權威記憶、分權審核、跨 AI 語意對齊、記憶污染、失聯、拒絕修復、踩坑回溯、Token 控制及私人資料安全等角度尋找漏洞。不要只表示贊同。逐項列出可重現情境、證據、影響、替代方案及可能反證，嚴格區分已確認事實、推論與待驗證。參照公開任務 https://github.com/keqingwu5-cloud/ai-boundary/issues/16。其他 AI 可以獨立質疑既有規則，不應假設其他 AI 已經完成驗證。",done:"用繁體中文提交至少五項具體高價值漏洞，提供證據／可信度／改善與驗收方法，標記是否重複現有 V0.3 候選。",stop:"遇到無權取得的私有資訊不要假裝已讀取。相同提案無新證據則停止重試；重大核心變更交使用者審核。"},
  timeline:{title:"任務 02｜主腦過去、現在、未來中文復盤",instructions:"調查 AI 認知邊界主腦的過去、現在與未來。閱讀公開 repo 程式、README、commits、PR 與驗證資料，建立有來源的變化時間軸。特別找出已證實歷史錯誤或返工，清楚區分『程式確有缺陷』『設計取捨』『環境限制』『尚未驗證風險』；不能未經證據就把工程失誤歸咎於使用者本人。每項寫出原目的、當時做法、何處出錯、為何當時未發現（未知請標示）、是否已修復及下次可提前發現的訊號。最後提出反思問題，讓使用者自己改善。參照公開任務 https://github.com/keqingwu5-cloud/ai-boundary/issues/17。",done:"提交繁體中文的過去→現在→未來報告、歷史踩坑清單、證據連結、未修復事項與三種可能發展路徑。",stop:"證據不足不可臆測動機、責任人或因果。缺乏新資料時停止推演並列出待驗證事項。"},
@@ -99,11 +116,14 @@ const templates={
 };
 function applyTemplate(){const t=templates[task.value];title.value=t.title;instruction.value=t.instructions;done.value=t.done;stop.value=t.stop;render();}
 function packet(){
- const t=templates[task.value];
- return {schema:"ai-boundary.command.v0.1",command_id:"cmd-"+new Date().toISOString().replace(/[-:.TZ]/g,"")+"-"+Math.random().toString(36).slice(2,7),created_at:new Date().toISOString(),source:"主腦發射器（人工交接）",delivery_status:"待交接（非自動傳送）",task_ref:task.value==="audit"?"https://github.com/keqingwu5-cloud/ai-boundary/issues/16":task.value==="timeline"?"https://github.com/keqingwu5-cloud/ai-boundary/issues/17":null,recipient:target.value,title:title.value.trim(),instructions:instruction.value.trim(),completion_criteria:done.value.trim(),stop_and_escalation:stop.value.trim(),response_requirements:"繁體中文；區分事實、推導、推論、預測與未知；回報來源、問題、踩坑、反證、未決及建議候選修正。不得假裝已更新其他 AI 或中央權威記憶。",source_template:task.value};
+ const data={schema:"ai-boundary.command.v0.1",command_id:"cmd-"+new Date().toISOString().replace(/[-:.TZ]/g,"")+"-"+Math.random().toString(36).slice(2,7),created_at:new Date().toISOString(),source:"主腦發射器（人工交接）",delivery_status:"待交接（非自動傳送）",task_ref:task.value==="audit"?"https://github.com/keqingwu5-cloud/ai-boundary/issues/16":task.value==="timeline"?"https://github.com/keqingwu5-cloud/ai-boundary/issues/17":null,recipient:target.value,title:title.value.trim(),instructions:instruction.value.trim(),completion_criteria:done.value.trim(),stop_and_escalation:stop.value.trim(),response_requirements:"繁體中文；區分事實、推導、推論、預測與未知；回報來源、問題、踩坑、反證、未決及建議候選修正。不得假裝已更新其他 AI 或中央權威記憶。",source_template:task.value};
+ const fingerprint=JSON.stringify([data.source_template,data.recipient,data.title,data.instructions,data.completion_criteria,data.stop_and_escalation]);
+ if(!commandCache||fingerprint!==commandFingerprint){commandCache=data;commandFingerprint=fingerprint;}
+ return clone(commandCache);
 }
 function formatted(p){return [
  "【主腦發射器・人工交接指令】",
+ "指令識別碼："+p.command_id,
  "任務："+p.title,
  "接收者："+p.recipient,
  "交接狀態："+p.delivery_status,
@@ -121,24 +141,42 @@ function addLog(s){const e=document.createElement("div");e.className="entry";e.t
 async function copyText(s){if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(s);return true;}const ta=document.createElement("textarea");ta.value=s;ta.style.cssText="position:fixed;left:-9999px;top:0";document.body.append(ta);ta.select();const ok=document.execCommand("copy");ta.remove();if(!ok)throw new Error("瀏覽器不支援自動複製");return true;}
 function downloadJSON(obj,name){const blob=new Blob([JSON.stringify(obj,null,2)],{type:"application/json;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);}
 function getDrafts(){
- try{const s=JSON.parse(localStorage.getItem(DRAFT_KEY)||"[]");return Array.isArray(s)?s.filter(x=>x&&typeof x==="object"&&x.fields&&typeof x.fields==="object"):[];}
- catch(e){say("本機儲存空間不可讀取。請使用匯出 JSON 備份。");return [];}
+ try{
+  const raw=localStorage.getItem(DRAFT_KEY);
+  if(raw!==draftExpected)throw Error('其他分頁已變更草稿，請先匯出目前編輯內容，再重新整理');
+  const items=raw===null?[]:JSON.parse(raw);
+  if(!Array.isArray(items)||items.some(x=>!x||typeof x.id!=='string'||x.schema!=='ai-boundary.launcher-draft.v1'||!fieldsValid(x.fields))||new Set(items.map(x=>x.id)).size!==items.length)throw Error('草稿格式損壞或版本不相容');
+  return items;
+ }catch(e){draftsBlocked=true;say('已停止本機寫入，原始資料保留：'+e.message);return [];}
 }
 function persistDrafts(items){
- try{localStorage.setItem(DRAFT_KEY,JSON.stringify(items.slice(0,12)));return true;}
- catch(e){say("儲存失敗：瀏覽器可能停用儲存、空間不足，或位於私人瀏覽模式。請使用匯出 JSON。");return false;}
+ getDrafts();
+ if(draftsBlocked){say('本機草稿處於保護模式，未覆寫。請先匯出目前編輯內容並保留原始備份。');return false;}
+ if(items.length>12){say('已達12份草稿上限，未刪除任何舊草稿。請先匯出並自行整理。');return false;}
+ try{
+  if(localStorage.getItem(DRAFT_KEY)!==draftExpected)throw Error('其他分頁已變更草稿');
+  if(draftExpected!==null){localStorage.setItem(DRAFT_KEY+'.backup',draftExpected);if(localStorage.getItem(DRAFT_KEY+'.backup')!==draftExpected)throw Error('備份驗證失敗');}
+  const raw=JSON.stringify(items);localStorage.setItem(DRAFT_KEY,raw);draftExpected=raw;
+  if(localStorage.getItem(DRAFT_KEY)!==raw)throw Error('寫入驗證失敗');return true;
+ }catch(e){draftsBlocked=true;say('儲存未完成，保留備份並停止後續写入：'+e.message);return false;}
 }
 function currentFields(){
- return {task:task.value,target:target.value,title:title.value,instructions:instruction.value,done:done.value,stop:stop.value,response:response.value};
+ return {task:task.value,target:target.value,title:title.value,instructions:instruction.value,done:done.value,stop:stop.value,response:response.value,command_cache:packet(),command_history:clone(commandHistory),response_command_id:responseCommand.value};
 }
 function fieldsValid(o){return !!(o&&typeof o==="object"&&
   ["title","instructions","done","stop","response"].every(k=>typeof o[k]==="string"&&o[k].length<=200000)&&
-  ["task","target"].every(k=>typeof o[k]==="string"));}
+  ["task","target"].every(k=>typeof o[k]==="string")&&
+  (!('command_cache' in o)||validCommand(o.command_cache))&&
+  (!('command_history' in o)||(Array.isArray(o.command_history)&&o.command_history.every(validCommand)&&new Set(o.command_history.map(p=>p.command_id)).size===o.command_history.length))&&
+  (!('response_command_id' in o)||typeof o.response_command_id==='string'));}
 function applyFields(f){
  if(!fieldsValid(f))throw Error("欄位格式錯誤");
  task.value=[...task.options].some(o=>o.value===f.task)?f.task:"custom";
  target.value=[...target.options].some(o=>o.value===f.target)?f.target:"GPT②";
- title.value=f.title;instruction.value=f.instructions;done.value=f.done;stop.value=f.stop;response.value=f.response;render();
+ title.value=f.title;instruction.value=f.instructions;done.value=f.done;stop.value=f.stop;response.value=f.response;
+ commandCache=null;commandFingerprint='';packet();
+ if(f.command_cache){const c=f.command_cache;const fingerprint=JSON.stringify([c.source_template,c.recipient,c.title,c.instructions,c.completion_criteria,c.stop_and_escalation]);if(fingerprint===commandFingerprint)commandCache=clone(c);}
+ commandHistory=clone(f.command_history||[]);refreshCommandChoices(f.response_command_id||'');render();
 }
 function draftLabel(d){return new Date(d.saved_at).toLocaleString("zh-TW")+" · "+(d.fields.title||"未命名").slice(0,45);}
 function refreshDrafts(selected){
@@ -177,22 +215,23 @@ draftFile.addEventListener("change",async()=>{
  applyFields(obj.fields);activeDraftId=null;refreshDrafts();say("已載入外部草稿，但尚未儲存於本機；如需保留請按「儲存本機草稿」。");
  }catch(e){say("無法匯入：格式錯誤或檔案超出限制。");}finally{draftFile.value="";}
 });
+$("#export-raw").addEventListener("click",()=>{try{downloadJSON({schema:'ai-boundary.launcher-raw-backup.v1',exported_at:new Date().toISOString(),raw:localStorage.getItem(DRAFT_KEY),previous_raw:localStorage.getItem(DRAFT_KEY+'.backup')},'launcher-raw-backup-'+Date.now()+'.json');say('已匯出原始字串與上一份備份；此檔供修復用，不直接匯入草稿。');}catch{say('無法讀取本機原始資料，請先匯出目前編輯内容。');}});
 function validate(){if(!title.value.trim()||!instruction.value.trim()){say("請先填入任務名稱與指令。");return false;}return true;}
 task.addEventListener("change",applyTemplate);
 for(const el of [target,title,instruction,done,stop])el.addEventListener("input",render);
-$("#copy").addEventListener("click",async()=>{if(!validate())return;try{await copyText(currentText());say("已複製：請貼給選定 AI，接收後再確認。");addLog("指令已複製（未證實送達 "+target.value+"）");}catch(e){say("複製失敗，請從預覽區手動複製。");}});
+$("#copy").addEventListener("click",async()=>{if(!validate())return;try{const p=packet();await copyText(formatted(p));rememberCommand(p);say("已複製：請貼給選定 AI，接收後再確認。");addLog("指令已複製（未證實送達 "+target.value+"）");}catch(e){say("複製失敗，請從預覽區手動複製。");}});
 $("#launch").addEventListener("click",async()=>{
  if(!validate())return;
- const msg=currentText(), recipient=target.value;
+ const p=packet(),msg=formatted(p), recipient=p.recipient;
  if(navigator.share){
-   try{await navigator.share({title:title.value,text:msg});say("系統分享流程已完成；仍需向 "+recipient+" 核對是否接收。");addLog("已使用裝置分享（尚未確認 AI 接收）");return;}
+   try{await navigator.share({title:p.title,text:msg});rememberCommand(p);say("系統分享流程已完成；仍需向 "+recipient+" 核對是否接收。");addLog("已使用裝置分享（尚未確認 AI 接收）");return;}
    catch(e){if(e&&e.name==="AbortError"){say("分享已取消，沒有標記為送達。");return;}}
  }
- try{await copyText(msg);say("已複製交接指令。此裝置無法直接分享，請手動貼給 "+recipient+"。");addLog("已複製（待人工交接）");}
+ try{await copyText(msg);rememberCommand(p);say("已複製交接指令。此裝置無法直接分享，請手動貼給 "+recipient+"。");addLog("已複製（待人工交接）");}
  catch(e){say("此裝置未能分享或複製，請手動選取右側預覽文字。");}
 });
-$("#download").addEventListener("click",()=>{if(!validate())return;const p=packet();downloadJSON(p,p.command_id+".json");say("已下載任務 JSON；狀態仍為待交接。");addLog("已下載任務 JSON（未送達）");});
-$("#export-response").addEventListener("click",()=>{if(!response.value.trim()){say("請先貼上 AI 回報內容。");return;}const p=packet();const r={schema:"ai-boundary.response.v0.1",exported_at:new Date().toISOString(),source_command:p,reported_by:target.value,response_text:response.value,verification_status:"待主腦審核（人工匯入）"};downloadJSON(r,"mainbrain-response-"+Date.now()+".json");say("已下載回報包，未寫入中央記憶；需人工交接審核。");addLog("已下載回報包（待審核）");});
+$("#download").addEventListener("click",()=>{if(!validate())return;const p=packet();downloadJSON(p,p.command_id+".json");rememberCommand(p);say("已下載任務 JSON；狀態仍為待交接。");addLog("已下載任務 JSON（未送達）");});
+$("#export-response").addEventListener("click",()=>{if(!response.value.trim()){say("請先貼上 AI 回報內容。");return;}const p=commandHistory.find(x=>x.command_id===responseCommand.value);if(!p){say('請核對並選擇原指令；不會把回覆自動綁到目前編輯的任務。');return;}const r={schema:"ai-boundary.response.v0.1",exported_at:new Date().toISOString(),source_command:clone(p),reported_by:null,intended_recipient:p.recipient,identity_status:'未驗證；人工貼上',binding_status:'使用者選擇原指令；待審核', response_text:response.value,verification_status:"待主腦審核（人工匯入）"};downloadJSON(r,"mainbrain-response-"+Date.now()+".json");say("已下載回報包，未寫入中央記憶；需人工交接審核。");addLog("已下載回報包（待審核）");});
 $("#clear-response").addEventListener("click",()=>{response.value="";say("回報欄位已清空。");});
 applyTemplate();refreshDrafts();
 })();
