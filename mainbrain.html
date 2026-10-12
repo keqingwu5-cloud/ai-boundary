@@ -41,12 +41,12 @@ footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font
 </style>
 </head>
 <body>
-<header><div class="header-in"><div class="brand">🧠 AI 認知邊界 · 主腦</div><span class="status">設計預覽／未連線</span>
-<nav class="links" aria-label="網站導覽"><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 認知大腦</a><a href="./feed.html">短影音</a></nav></div></header>
+<header><div class="header-in"><div class="brand">🧠 AI 認知邊界 · 主腦</div><span class="status">本機記憶可用／雲端未連線</span>
+<nav class="links" aria-label="網站導覽"><a href="./memory.html">🗂️ 記憶管理</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 認知大腦</a><a href="./feed.html">短影音</a></nav></div></header>
 <main class="shell">
 <section class="intro"><div class="eyebrow">MAIN BRAIN / REVIEW DRAFT V0.3</div><h1>一個網站、三個 AI、一份共同記憶</h1>
 <p class="lead">GPT① 連續設計問題、GPT② 衍生與模擬、BOT③ 理解目的後執行。三方都能獨立質疑、反證、建立模型；主腦管理候選記憶、分歧與版本。</p>
-<div class="notice" role="status">此頁是公開網站上的<strong>介面設計草稿</strong>：未連接私人記憶庫、未啟用 AI 調度，也不會自動儲存任何個人資訊。請勿在公開 GitHub 檔案、留言或問題節點中貼入私人記憶。</div></section>
+<div class="notice" role="status"><strong>記憶管理 V1</strong> 已提供可操作的本機加密庫與人工審核，<strong>尚未連接真正的雲端中央共同記憶或 AI 自動調度</strong>。不同裝置不會自動同步。請勿在公開 GitHub 檔案、留言或問題節點中貼入私人記憶。</div></section>
 <div class="tabbar" role="tablist" aria-label="主腦功能">
 <button type="button" role="tab" id="t-overview" data-tab="overview" aria-controls="p-overview" aria-selected="true">系統總覽</button>
 <button type="button" role="tab" id="t-tasks" data-tab="tasks" aria-controls="p-tasks" aria-selected="false">三方協作</button>
@@ -76,7 +76,7 @@ footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font
 </div><div class="block empty"><strong>尚無即時任務資料</strong><p>目前沒有連接 AI 任務協調服務，也不會顯示虛構的執行中狀態。</p></div>
 </section>
 <section id="p-memory" role="tabpanel" aria-labelledby="t-memory" hidden>
-<h2>記憶管理層</h2><p>三種記憶事件不得混寫；已推翻的想法與拒絕紀錄保留可追溯版本。</p>
+<h2>記憶管理層</h2><p>三種記憶事件不得混寫；已推翻的想法與拒絕紀錄保留可追溯版本。</p><p><a href="./memory.html">→ 開啟可用的本機加密記憶管理介面</a>（人工審核、版本、拒絕修復及差異報告）</p>
 <div class="grid">
 <div class="card"><span class="tag">事件 A</span><h3>修正答案</h3><p>同一個問題與目的，更新答案、證據或可信度，不覆蓋舊版。</p></div>
 <div class="card"><span class="tag">事件 B</span><h3>修正問題</h3><p>前提、定義或目的改變，保留原問題與語意差異。</p></div>
@@ -88,7 +88,7 @@ footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font
 <div class="detail"><dt>拒絕與修復</dt><dd>必須交代理由與修正條件；其他兩個 AI 也可以補證、挑戰或另建分支。</dd></div>
 <div class="detail"><dt>踩坑回溯</dt><dd>記錄情境、原因、修復與適用邊界；相似任務前按需檢索，舊經驗仍須再驗證。</dd></div>
 <div class="detail"><dt>傳輸與清理</dt><dd>只傳差異，使用識別碼與版本去重，限制循環與重試；重要歷史不得任意刪除。</dd></div></dl></div>
-<div class="empty"><strong>中央記憶庫尚未接入</strong><p>本頁不匯入或寫入私人 V0.2 記憶包。正式資料需經身分驗證與安全後端提供。</p></div>
+<div class="empty"><strong>雲端中央記憶庫尚未接入</strong><p>本機加密記憶管理可從上方入口操作；正式跨裝置及跨 AI 同步仍須身分驗證與安全後端。</p></div>
 </section>
 <section id="p-diff" role="tabpanel" aria-labelledby="t-diff" hidden>
 <h2>每日記憶差異</h2><p>預計呈現新增、修訂、衝突、拒絕、修復、踩坑、已結案、待決事項與資源耗用；不每日重傳整庫。</p>
