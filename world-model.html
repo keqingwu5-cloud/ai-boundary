@@ -48,7 +48,7 @@
  <details><summary>本機研究紀錄 <span id="verifyCount" class="pill">0</span></summary><p class="verify-note">以下狀態由研究者自行標註，並未由系統獨立核對；「事件事實已確認」不代表整條因果規則已證明。</p>
  <div id="verifyList"></div><div class="verify-actions"><button class="button" type="button" id="verifyExport">匯出反驗證 JSON</button><button class="button" type="button" id="verifyImportButton">匯入先前匯出的 JSON</button><input id="verifyImport" type="file" accept=".json,application/json" hidden></div>
  <p class="fine">單獨使用 worldModel.verify.v1 儲存，不變更 aiBrain.v1。清除瀏覽器資料可能使本機紀錄遺失，請定期匯出。GitHub Pages 為公開網站，請勿填入未公開資訊。</p></details>
- <details open><summary>系統反驗證自檢 <span id="auditBadge" class="pill">等待執行</span></summary><p class="fine">檢查：歷史資料發布時間、月份資料篩選、損益邊界、未來資訊隔離、原始證據結構。本檢查不等於所有資料已審核。</p><div class="row"><button class="button" id="runAudit" type="button">立即執行稽核</button><span id="auditResult" role="status" class="fine"></span></div><div id="auditDetails" class="fine"></div></details><details><summary>反驗證方法與合格條件</summary><ol>
+ <details open><summary>系統反驗證自檢 <span id="auditBadge" class="pill">等待執行</span></summary><p class="fine">執行確定性的程式邊界測試：歷史發布日、未完成月份、月份有效日期、計算公式及快照標示。來源網址實際內容、因果關係、完整歷史回測必須另行獨立核驗。</p><div class="row"><button class="button" id="runAudit" type="button">立即執行稽核</button><span id="auditResult" role="status" class="fine"></span></div><div id="auditDetails" class="fine"></div></details><details><summary>反驗證方法與合格條件</summary><ol>
  <li>先定義假設、測量方式、可推翻條件及預測期限，再觀察結果。</li>
  <li>來源需記錄<strong>觀測時間、官方發布時間、讀取時間</strong>，禁止用未來發布資料回填當時模型。</li>
  <li>標示「事件事實已確認」、「假設被反例推翻」、「仍待驗證」；不能把相關性當成因果證明。</li>
@@ -77,10 +77,14 @@ const fomc=[['2025-10-29',3.75,4,-25],['2025-12-10',3.5,3.75,-25],['2026-01-28',
 const prices=[['2025-10',682.03,109560.1965],['2025-11',683.36,90363.02],['2025-12',681.82,87488.274],['2026-01',691.8,78664.2465],['2026-02',686.16,66978.5],['2026-03',650.12,68229.221],['2026-04',718.41,76307.37],['2026-05',756.34,73591.625],['2026-06',746.65,58531.1355],['2026-07',746.79,62812.559],['2026-08',766.87,78567.102],['2026-09',762.34,83562.55]];
 const $=s=>document.querySelector(s);
 const num=v=>new Intl.NumberFormat('zh-TW',{maximumFractionDigits:0}).format(v);
-const cutoff=i=>i===12?'2026-10-12':months[i].replace('/','-')+'-31'; // lexical cutoff for month-end; no fabricated publication date
+const completedMonthEnd=ym=>{const [y,m]=ym.split('-').map(Number);return new Date(Date.UTC(y,m,0)).toISOString().slice(0,10)};
+const visibleCpi=date=>cpi.filter(r=>r.release&&r.release<=date).at(-1)||null;
+const visiblePrices=date=>prices.filter(r=>completedMonthEnd(r[0])<=date);
+const computePnl=(capital,allocation,move,cost)=>capital*(allocation/100)*(move-cost)/100;
+const cutoff=i=>{if(i===12)return '2026-10-12';const [y,m]=months[i].split('/').map(Number);return new Date(Date.UTC(y,m,0)).toISOString().slice(0,10)}; // actual calendar month-end
 let current=11, model=null;
 function render(){
- const date=cutoff(current), label=months[current], p=prices.filter(r=>r[0]<=label).at(-1);
+ const date=cutoff(current), label=months[current], p=prices.filter(r=>completedMonthEnd(r[0])<=date).at(-1);
  const f=fomc.filter(r=>r[0]<=date).at(-1), c=cpi.filter(r=>r.release&&r.release<=date).at(-1);
  $('#dateTag').textContent=label+(current===12?'（截至10/12）':'');
  $('#cpi').textContent=c?c.value.toFixed(1)+'%':'資料不足';
@@ -89,7 +93,7 @@ function render(){
  $('#fedMeta').textContent=f?'決議 '+f[0]+' · '+(f[3]===0?'維持':f[3]>0?'升息 '+f[3]+' bps':'降息 '+Math.abs(f[3])+' bps'):'此區間前政策需另行核對';
  $('#market').textContent=p?'SPY '+p[1].toFixed(2):'—';
  $('#marketMeta').textContent=p?'BTC $'+num(p[2])+' · '+p[0]+' 月K':'—';
- let visible=prices.filter(r=>r[0]<=label), points=visible.map((r,i)=>[i,100*r[1]/prices[0][1],100*r[2]/prices[0][2]]);
+ let visible=prices.filter(r=>completedMonthEnd(r[0])<=date), points=visible.map((r,i)=>[i,100*r[1]/prices[0][1],100*r[2]/prices[0][2]]);
  let values=points.flatMap(x=>x.slice(1)), min=Math.floor(Math.min(45,...values)/10)*10,max=Math.ceil(Math.max(115,...values)/10)*10;
  const xx=i=>48+i*(415/11),yy=v=>188-(v-min)/(max-min)*148;
  let svg='<line x1="48" y1="18" x2="48" y2="188" stroke="#51708b"/><line x1="48" y1="188" x2="466" y2="188" stroke="#51708b"/>';
@@ -106,7 +110,7 @@ function render(){
  $('#alerts').replaceChildren(...alerts.map(t=>{let d=document.createElement('div');d.className='node';d.textContent=t;return d}));
  model={month:label,cutoff:date,cpi:c?{observation:c.month,value:c.value,released:c.release}:null,fomc:f?{date:f[0],lower:f[1],upper:f[2]}:null,market:p?{month:p[0],spy:p[1],btc:p[2]}:null,alerts,kind:'retrospective_reconstruction_not_original_snapshot',source:'世界模型一年歷史回溯第一版'};
 }
-function calculate(){const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,Number.isFinite(v)?v:lo));let cap=clamp(+$('#capital').value,0,1e8),pct=clamp(+$('#allocation').value,0,100),change=clamp(+$('#change').value,-100,1000),cost=clamp(+$('#cost').value,0,20);let deployed=cap*pct/100,profit=deployed*(change-cost)/100;$('#deployed').textContent='NT$ '+num(deployed);$('#pnl').textContent=(profit>=0?'+':'−')+'NT$ '+num(Math.abs(profit));$('#pnl').className=profit>=0?'positive':'negative';$('#roi').textContent=(cap?100*profit/cap:0).toFixed(2)+'%';}
+function calculate(){const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,Number.isFinite(v)?v:lo));let cap=clamp(+$('#capital').value,0,1e8),pct=clamp(+$('#allocation').value,0,100),change=clamp(+$('#change').value,-100,1000),cost=clamp(+$('#cost').value,0,20);let deployed=cap*pct/100,profit=computePnl(cap,pct,change,cost);$('#deployed').textContent='NT$ '+num(deployed);$('#pnl').textContent=(profit>=0?'+':'−')+'NT$ '+num(Math.abs(profit));$('#pnl').className=profit>=0?'positive':'negative';$('#roi').textContent=(cap?100*profit/cap:0).toFixed(2)+'%';}
 $('#month').addEventListener('input',e=>{current=+e.target.value;render()});
 $('#prev').addEventListener('click',()=>{current=Math.max(0,current-1);$('#month').value=current;render()});
 $('#next').addEventListener('click',()=>{current=Math.min(12,current+1);$('#month').value=current;render()});
@@ -183,22 +187,24 @@ $('#verifyImport').addEventListener('change',async e=>{
 });
 
 function runVerifyAudit(){
- const tests=[];
- const check=(name,pass)=>tests.push({name,pass:!!pass});
- check('官方事件附有兩個不同發布機構的來源',new Set(verificationCase.evidence.map(x=>new URL(x.url).hostname)).size===2);
- check('官方事件發生時間先於政策決議',verificationCase.releaseDate<verificationCase.fomcDate);
- check('2026/03 CPI 上升但 4/29 利率維持（反例語義）',verificationCase.cpi>verificationCase.previousCpi&&verificationCase.action==='維持');
- check('時間回溯不會讀取未發布的 CPI',cpi.every((x,i)=>!x.release||x.release>x.month)&&cpi.filter(x=>x.release&&x.release<='2026-03-31').every(x=>x.month<='2026-02'));
- check('價格資料不包含選取月份以後的月K',months.every(m=>prices.filter(p=>p[0]<=m).every(p=>p[0]<=m)));
- check('試算：10萬元投入30%，上漲8%成本0.4%，淨收益2280',Math.abs(100000*.3*(8-.4)/100-2280)<1e-7);
- check('試算：價格跌100%，損失不會被顯示成正收益',100000*(-100-.4)/100<0);
- check('當時模型快照必須明確標示為事後重建',model?.kind==='retrospective_reconstruction_not_original_snapshot');
- check('台股1997資料尚未冒充已匯入',!prices.some(x=>String(x[0]).startsWith('1997')));
- const failed=tests.filter(t=>!t.pass),pass=tests.length-failed.length;
- $('#auditBadge').textContent=failed.length?'自檢未通過':'自檢通過';
- $('#auditResult').textContent=pass+'/'+tests.length+' 項通過；'+failed.length+' 項失敗';
- const root=$('#auditDetails');root.replaceChildren(...tests.map(t=>{const p=document.createElement('div');p.textContent=(t.pass?'✓ ':'✗ ')+t.name;return p}));
- return failed.length===0;
+ const tests=[];const check=(name,pass)=>tests.push({name,pass:Boolean(pass)});
+ check('日期截點：2026/02 為 2/28，而非無效的 2/31',cutoff(4)==='2026-02-28');
+ check('當期尚未結束：2026/10/12 不顯示 2026/10 月收盤價',visiblePrices('2026-10-12').every(r=>r[0]!=='2026-10'));
+ check('月末確定性：2026/09/30 可看到 9 月但不能看到 10 月價格',visiblePrices('2026-09-30').at(-1)?.[0]==='2026-09');
+ check('歷史公布隔離：2026/04/09 看不到 3 月 CPI',visibleCpi('2026-04-09')?.month==='2026-02');
+ check('公布當日可得：2026/04/10 可看到 3 月 CPI',visibleCpi('2026-04-10')?.month==='2026-03');
+ check('未發布月份不得顯示：2026/01/12 仍不能看到 2025/12 CPI',visibleCpi('2026-01-12')?.month==='2025-11');
+ check('截至 2025/10/12，無 2025/10 月收盤價',visiblePrices('2025-10-12').length===0);
+ check('收益：10萬、30%投入、漲8%、成本0.4% = +2280',Math.abs(computePnl(100000,30,8,.4)-2280)<1e-9);
+ check('收益：全部投入、跌100%、零成本 = -全部本金',computePnl(100000,100,-100,0)===-100000);
+ check('收益：零投入不產生損益',computePnl(100000,0,8,.4)===0);
+ check('實際快照與事後重建明確分離',model?.kind==='retrospective_reconstruction_not_original_snapshot');
+ check('資料起點聲明未虛報 1997 年股票資料',!prices.some(x=>String(x[0]).startsWith('1997')));
+ const passed=tests.filter(t=>t.pass).length,failed=tests.length-passed;
+ $('#auditBadge').textContent=failed?'程式檢查失敗':'程式檢查通過';
+ $('#auditResult').textContent=passed+'/'+tests.length+' 項通過；'+failed+' 項失敗（不代表來源或因果已核驗）';
+ const root=$('#auditDetails');root.replaceChildren(...tests.map(t=>{const el=document.createElement('div');el.textContent=(t.pass?'✓ ':'✗ ')+t.name;return el}));
+ return !failed;
 }
 $('#runAudit').addEventListener('click',runVerifyAudit);
 
