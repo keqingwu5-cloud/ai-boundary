@@ -305,6 +305,18 @@ function recallRender(){
  }
 }
 $("recallRun").addEventListener("click",recallRender);
+let recallTimer=null;
+$("recallQuery").addEventListener("input",()=>{
+ clearTimeout(recallTimer);
+ recallTimer=setTimeout(()=>{if(state)recallRender();},450);
+});
+$("workflowTitle").addEventListener("blur",()=>{
+ if(!state||!workflowCore)return;
+ const title=$("workflowTitle").value.trim();
+ if(title.length<2)return;
+ $("recallQuery").value=title;
+ recallRender();
+});
 $("recallQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();recallRender();}});
 $("recallCopy").addEventListener("click",async()=>{
  if(!state||!latestRecall.length){feedback("請先搜尋相關記憶。");return;}
