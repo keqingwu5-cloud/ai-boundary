@@ -126,7 +126,10 @@ test('逾時不重試且忽略晚到結果，不阻塞其他 BOT',async()=>{
 test('原始 app 實際 seed 與 migrate 結果保持媒體／節點／概念資料',async()=>{
  const source=await readFile(new URL('../app.js',import.meta.url),'utf8'); const data=await readFile(new URL('../data.js',import.meta.url),'utf8');
  const THREE=await import("../vendor/three.module.min.js");
- const ctx={window:{},Date,Math,console,THREE};vm.createContext(ctx);vm.runInContext(data,ctx);
+ // data.js 拆檔後（PR #3）改成非同步 fetch content/*.json、patches/*.json：用本機檔案提供 fetch，等 AI_DATA_READY
+ const fetch=async u=>{const f=new URL('../'+String(u).split('?')[0],import.meta.url);try{const t=await readFile(f,'utf8');return {ok:true,status:200,json:async()=>JSON.parse(t)};}catch{return {ok:false,status:404};}};
+ const ctx={window:{},Date,Math,console,THREE,fetch,Promise,Object,JSON};vm.createContext(ctx);vm.runInContext(data,ctx);
+ if(ctx.window.AI_DATA_READY)await ctx.window.AI_DATA_READY;
  Object.assign(ctx,ctx.window);
  const start=source.indexOf('function mulberry('),end=source.indexOf('const persistence =');
  const dirStart=source.indexOf('function dirPos('),dirEnd=source.indexOf('\n}',dirStart)+2;
