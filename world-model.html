@@ -45,10 +45,10 @@
   <label class="verify-full">預期如何測量結果（建議事前寫清楚）<textarea id="verifyMetric" maxlength="800" placeholder="測量指標、比較基準、樣本、成本和替代解釋"></textarea></label>
   <div class="verify-full verify-actions"><button class="button" type="submit">保存待驗證假設</button><span class="fine" id="verifyFormStatus" role="status"></span></div>
  </form></details>
- <details><summary>本機研究紀錄 <span id="verifyCount" class="pill">0</span></summary>
+ <details><summary>本機研究紀錄 <span id="verifyCount" class="pill">0</span></summary><p class="verify-note">以下狀態由研究者自行標註，並未由系統獨立核對；「事件事實已確認」不代表整條因果規則已證明。</p>
  <div id="verifyList"></div><div class="verify-actions"><button class="button" type="button" id="verifyExport">匯出反驗證 JSON</button><button class="button" type="button" id="verifyImportButton">匯入先前匯出的 JSON</button><input id="verifyImport" type="file" accept=".json,application/json" hidden></div>
  <p class="fine">單獨使用 worldModel.verify.v1 儲存，不變更 aiBrain.v1。清除瀏覽器資料可能使本機紀錄遺失，請定期匯出。GitHub Pages 為公開網站，請勿填入未公開資訊。</p></details>
- <details><summary>反驗證方法與合格條件</summary><ol>
+ <details open><summary>系統反驗證自檢 <span id="auditBadge" class="pill">等待執行</span></summary><p class="fine">檢查：歷史資料發布時間、月份資料篩選、損益邊界、未來資訊隔離、原始證據結構。本檢查不等於所有資料已審核。</p><div class="row"><button class="button" id="runAudit" type="button">立即執行稽核</button><span id="auditResult" role="status" class="fine"></span></div><div id="auditDetails" class="fine"></div></details><details><summary>反驗證方法與合格條件</summary><ol>
  <li>先定義假設、測量方式、可推翻條件及預測期限，再觀察結果。</li>
  <li>來源需記錄<strong>觀測時間、官方發布時間、讀取時間</strong>，禁止用未來發布資料回填當時模型。</li>
  <li>標示「事件事實已確認」、「假設被反例推翻」、「仍待驗證」；不能把相關性當成因果證明。</li>
@@ -116,6 +116,7 @@ render();calculate();
 
 /* first-party verification case: dates and URLs audited; no prediction or profit claim */
 const VERIFY_KEY='worldModel.verify.v1';
+const VERIFY_STATUSES=['待驗證','事件事實已確認（自評）','假設被反例推翻（自評）','證據不足'];
 const verificationCase={
  id:'cpi-fomc-20260429',hypothesis:'美國 CPI 年增率加速，下一次 FOMC 必然升息',
  falsifier:'若 CPI 年增率加速，而下一次 FOMC 決議維持政策利率不變，絕對規則即遭反例推翻',
@@ -149,7 +150,7 @@ function renderVerifyRows(){
   if(r.source){const a=document.createElement('a');a.href=r.source;a.rel='noopener noreferrer';a.target='_blank';a.textContent='來源連結';item.append(a)}
   const buttons=document.createElement('div');buttons.className='verify-actions';
   const status=document.createElement('select');status.setAttribute('aria-label','研究狀態');
-  ['待驗證','事件事實已確認','假設被反例推翻','證據不足'].forEach(s=>{let o=document.createElement('option');o.value=s;o.textContent=s;status.append(o)});status.value=['待驗證','事件事實已確認','假設被反例推翻','證據不足'].includes(r.status)?r.status:'待驗證';
+  VERIFY_STATUSES.forEach(s=>{let o=document.createElement('option');o.value=s;o.textContent=s;status.append(o)});status.value=VERIFY_STATUSES.includes(r.status)?r.status:'待驗證';
   status.addEventListener('change',()=>{const now=getVerifyRows(),target=now.find(x=>x.id===r.id);if(target){target.status=status.value;if(saveVerifyRows(now))renderVerifyRows()}});
   const del=document.createElement('button');del.className='button';del.type='button';del.textContent='刪除';del.addEventListener('click',()=>{if(confirm('刪除此筆本機研究紀錄？')){saveVerifyRows(getVerifyRows().filter(x=>x.id!==r.id));renderVerifyRows()}});
   buttons.append(status,del);item.append(buttons);root.append(item);
@@ -175,11 +176,33 @@ $('#verifyImport').addEventListener('change',async e=>{
  const f=e.target.files?.[0];if(!f)return;
  if(f.size>1024*1024){alert('匯入檔案超過 1MB');return}
  try{const d=JSON.parse(await f.text());if(d.schema!=='worldModel.verify.v1'||!Array.isArray(d.records)||d.records.length>500)throw Error('格式不符');
- const clean=d.records.filter(r=>r&&typeof r.hypothesis==='string'&&typeof r.falsifier==='string'&&typeof r.createdOn==='string'&&typeof r.deadline==='string').map((r,i)=>({id:'import-'+Date.now()+'-'+i,hypothesis:r.hypothesis.slice(0,800),falsifier:r.falsifier.slice(0,800),createdOn:r.createdOn.slice(0,10),deadline:r.deadline.slice(0,10),source:r.source?verifySafeUrl(r.source):'',metric:String(r.metric||'').slice(0,800),status:['待驗證','事件事實已確認','假設被反例推翻','證據不足'].includes(r.status)?r.status:'待驗證',createdAt:new Date().toISOString()}));
+ const clean=d.records.filter(r=>r&&typeof r.hypothesis==='string'&&typeof r.falsifier==='string'&&typeof r.createdOn==='string'&&typeof r.deadline==='string').map((r,i)=>({id:'import-'+Date.now()+'-'+i,hypothesis:r.hypothesis.slice(0,800),falsifier:r.falsifier.slice(0,800),createdOn:r.createdOn.slice(0,10),deadline:r.deadline.slice(0,10),source:r.source?verifySafeUrl(r.source):'',metric:String(r.metric||'').slice(0,800),status:VERIFY_STATUSES.includes(r.status)?r.status:'待驗證',createdAt:new Date().toISOString()}));
  if(!confirm('匯入 '+clean.length+' 筆紀錄？將取代此裝置的反驗證紀錄（不影響 3D 主腦）。'))return;
  if(!saveVerifyRows(clean))throw Error('無法寫入本機儲存');renderVerifyRows();
  }catch(err){alert('無法匯入：'+err.message)}finally{e.target.value=''}
 });
+
+function runVerifyAudit(){
+ const tests=[];
+ const check=(name,pass)=>tests.push({name,pass:!!pass});
+ check('官方事件附有兩個不同發布機構的來源',new Set(verificationCase.evidence.map(x=>new URL(x.url).hostname)).size===2);
+ check('官方事件發生時間先於政策決議',verificationCase.releaseDate<verificationCase.fomcDate);
+ check('2026/03 CPI 上升但 4/29 利率維持（反例語義）',verificationCase.cpi>verificationCase.previousCpi&&verificationCase.action==='維持');
+ check('時間回溯不會讀取未發布的 CPI',cpi.every((x,i)=>!x.release||x.release>x.month)&&cpi.filter(x=>x.release&&x.release<='2026-03-31').every(x=>x.month<='2026-02'));
+ check('價格資料不包含選取月份以後的月K',months.every(m=>prices.filter(p=>p[0]<=m).every(p=>p[0]<=m)));
+ check('試算：10萬元投入30%，上漲8%成本0.4%，淨收益2280',Math.abs(100000*.3*(8-.4)/100-2280)<1e-7);
+ check('試算：價格跌100%，損失不會被顯示成正收益',100000*(-100-.4)/100<0);
+ check('當時模型快照必須明確標示為事後重建',model?.kind==='retrospective_reconstruction_not_original_snapshot');
+ check('台股1997資料尚未冒充已匯入',!prices.some(x=>String(x[0]).startsWith('1997')));
+ const failed=tests.filter(t=>!t.pass),pass=tests.length-failed.length;
+ $('#auditBadge').textContent=failed.length?'自檢未通過':'自檢通過';
+ $('#auditResult').textContent=pass+'/'+tests.length+' 項通過；'+failed.length+' 項失敗';
+ const root=$('#auditDetails');root.replaceChildren(...tests.map(t=>{const p=document.createElement('div');p.textContent=(t.pass?'✓ ':'✗ ')+t.name;return p}));
+ return failed.length===0;
+}
+$('#runAudit').addEventListener('click',runVerifyAudit);
+
 verifiedRender();renderVerifyRows();
+runVerifyAudit();
 
 </script></body></html>
