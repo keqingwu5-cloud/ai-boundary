@@ -267,6 +267,9 @@ scripts/publish_episode.sh ep03 n_q3 --no-push  # 只在本機 commit，先不�
   | `AISync.isEditor()` | `true`＝已登入而且在編輯名單（＝`canWrite()`） |
   | `AISync.pending()` | 還沒上傳的修改數（有快取：大腦 `change` 事件、拉取、上傳、別的分頁改了資料時才重算，`status()` 也一樣） |
   | `AISync.pull()`／`flush()` | 手動拉取／上傳 |
+  | `AISync.ready` | **Promise，只會 resolve、不會 reject、不會永遠等**：`config.js` 空白 → 立刻 resolve；啟用 → Supabase client 建好、第一次 session＋編輯名單檢查做完就 resolve（不等第一次拉取，所以 `status` 通常還是 `'syncing'`，但 `reason`／`canWrite`／`user` 已經是確定的）；初始化失敗（例如 `vendor/supabase.js` 載不到）也會 resolve，帶 `error`，狀態變 `'offline'`；超過 10 秒還沒好（`config.js` 可用 `READY_TIMEOUT_MS` 改）就帶 `timedOut:true` resolve（這時 `status:'syncing'`、`canWrite:false`；之後連上了照常同步，聽 `aisync:change` 就知道）。值＝`{ enabled, status, reason, canWrite, user, error?, timedOut? }` |
+  | `AISync.isReady` | `ready` 已 resolve 時是 `true` |
+  介面要等同步準備好再決定顯示什麼時，用 `const s = await AISync.ready;`，不用輪詢；也可以聽 `window` 上只發一次的 `aisync:ready` 事件（`detail` 同上；停用時事件在下一輪事件迴圈才發，所以稍晚載入的 script 也收得到，但最穩的還是 `await AISync.ready`）。
   狀態、原因或待上傳數改變時，`window` 會發出 `aisync:change` 事件（`detail:{ status, reason, pending }`），介面可以聽這個事件，不用一直輪詢。
   同步按鈕 `#bSync` 的 `aria-label` 固定是「雲端同步：已同步／同步中／離線／唯讀」（有待上傳時加「，N 筆待上傳」），跟 `title` 一起更新；`aria-expanded` 表示選單有沒有打開。
 - **重置**（🕘 → 重置）只重置這台裝置：捨棄本機修改、改用雲端版本，**不會**清掉共享大腦或其他裝置（↶ 還能找回）。
@@ -323,9 +326,10 @@ curl -s "$SB/rest/v1/brain_history" -H "apikey: $ANON" -H "Authorization: Bearer
 ### 測試
 ```bash
 node --test tests/safe.test.mjs tests/sync-core.test.mjs   # XSS／safeUrl／顏色、合併、快照差異、墓碑、第一次同步（不需要任何套件）
+node --test tests/sync-ready.test.mjs                      # AISync.ready：停用／初始化失敗／逾時都會 resolve、aisync:ready 只發一次
 PGLITE=<@electric-sql/pglite>/dist/index.js node --test tests/rls.test.mjs   # 在 PGlite（WASM Postgres）跑真的 schema.sql 和 RLS
 python3 -m http.server 8000 &                              # 冒煙測試（config 空白 → 跟原本一樣、沒有 JS 錯誤）
 PUPPETEER=<puppeteer-core>/lib/esm/puppeteer/puppeteer-core.js node tests/smoke.mjs http://127.0.0.1:8000/
-PUPPETEER=… node tests/mock-supabase.mjs                   # 假的 Supabase：編輯者／非編輯者 🔒／兩台裝置／離線／復原／墓碑／401 refresh／重置／XSS／feed
+PUPPETEER=… node tests/mock-supabase.mjs                   # 假的 Supabase：編輯者／非編輯者 🔒／兩台裝置／離線／復原／墓碑／401 refresh／重置／XSS／feed／AISync.ready
 ```
 這些都不是真的 Supabase；接上真專案後請再手動確認一次登入信回跳和兩台裝置同步。
