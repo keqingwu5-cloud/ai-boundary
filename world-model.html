@@ -1,7 +1,23 @@
 <!doctype html>
 <html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>世界模型整合工作台 · AI 主腦</title>
 <style>
-:root{color-scheme:dark;--bg:#080d1b;--panel:#111a2e;--line:#293951;--txt:#ebf2ff;--muted:#9aaec9;--accent:#86cbe5;--gold:#f6cf83}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 85% 0%,#18304f,transparent 45%),var(--bg);color:var(--txt);font:15px/1.6 system-ui,"Noto Sans TC",sans-serif}a{color:#abdafa}header{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:18px max(18px,calc((100vw - 1120px)/2));border-bottom:1px solid var(--line);background:#0c1324bb}h1{font-size:21px;margin:0}.muted,small{color:var(--muted)}main{max-width:1120px;margin:22px auto;padding:0 16px 50px}.panel{background:#101a2ddd;border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 8px 30px #0002}h2{font-size:17px;margin:0 0 13px}h3{margin:8px 0;font-size:15px}p{margin:7px 0}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.pill{border:1px solid #46637b;border-radius:30px;padding:3px 9px;font-size:12px;color:#d6e7f3}.warning{border-left:3px solid var(--gold);padding:8px 12px;color:#f1dbad;background:#66502a20}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.metric{background:#18243a;border:1px solid #293c57;border-radius:12px;padding:11px}.metric b{display:block;font-size:21px}.metric small{display:block}input[type=range]{width:100%;accent-color:var(--accent)}input[type=number],select{background:#0b1425;color:var(--txt);border:1px solid #3a4d65;border-radius:8px;padding:8px;max-width:100%;font:inherit}label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:#d3e0f4}.cols{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}details{background:#121e32;border:1px solid #293b55;border-radius:12px;margin-top:9px;padding:11px 13px}summary{cursor:pointer;font-weight:700}summary::marker{color:#9adbf3}.steps{display:flex;gap:5px;flex-wrap:wrap;margin:12px 0}.step{border:1px solid #38546d;border-radius:9px;padding:7px 9px;background:#19304855;font-size:13px}.arrow{color:#85a2be;align-self:center}.nodes{display:grid;gap:7px;margin-top:10px}.node{display:flex;justify-content:space-between;gap:12px;padding:8px 10px;border:1px solid #31445e;border-radius:10px}.node span{color:var(--muted);font-size:12px}.controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.button{border:1px solid #43627c;background:#1e3549;color:white;border-radius:10px;padding:9px 12px;cursor:pointer;font:inherit}.button:hover{background:#294c65}.button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}svg{width:100%;height:auto;overflow:visible}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:8px;border-bottom:1px solid #2b4059;vertical-align:top}th{color:#a8c0d7}#alerts .node{display:block}.positive{color:#98e4ba}.negative{color:#f6abb1}.fine{font-size:12px;color:var(--muted)}@media(max-width:720px){.grid,.cols,.controls{grid-template-columns:1fr}header{padding:14px 16px}h1{font-size:17px}.panel{padding:14px}.metric b{font-size:18px}}</style></head>
+:root{color-scheme:dark;--bg:#080d1b;--panel:#111a2e;--line:#293951;--txt:#ebf2ff;--muted:#9aaec9;--accent:#86cbe5;--gold:#f6cf83}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 85% 0%,#18304f,transparent 45%),var(--bg);color:var(--txt);font:15px/1.6 system-ui,"Noto Sans TC",sans-serif}a{color:#abdafa}header{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:18px max(18px,calc((100vw - 1120px)/2));border-bottom:1px solid var(--line);background:#0c1324bb}h1{font-size:21px;margin:0}.muted,small{color:var(--muted)}main{max-width:1120px;margin:22px auto;padding:0 16px 50px}.panel{background:#101a2ddd;border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 8px 30px #0002}h2{font-size:17px;margin:0 0 13px}h3{margin:8px 0;font-size:15px}p{margin:7px 0}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.pill{border:1px solid #46637b;border-radius:30px;padding:3px 9px;font-size:12px;color:#d6e7f3}.warning{border-left:3px solid var(--gold);padding:8px 12px;color:#f1dbad;background:#66502a20}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.metric{background:#18243a;border:1px solid #293c57;border-radius:12px;padding:11px}.metric b{display:block;font-size:21px}.metric small{display:block}input[type=range]{width:100%;accent-color:var(--accent)}input[type=number],select{background:#0b1425;color:var(--txt);border:1px solid #3a4d65;border-radius:8px;padding:8px;max-width:100%;font:inherit}label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:#d3e0f4}.cols{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}details{background:#121e32;border:1px solid #293b55;border-radius:12px;margin-top:9px;padding:11px 13px}summary{cursor:pointer;font-weight:700}summary::marker{color:#9adbf3}.steps{display:flex;gap:5px;flex-wrap:wrap;margin:12px 0}.step{border:1px solid #38546d;border-radius:9px;padding:7px 9px;background:#19304855;font-size:13px}.arrow{color:#85a2be;align-self:center}.nodes{display:grid;gap:7px;margin-top:10px}.node{display:flex;justify-content:space-between;gap:12px;padding:8px 10px;border:1px solid #31445e;border-radius:10px}.node span{color:var(--muted);font-size:12px}.controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.button{border:1px solid #43627c;background:#1e3549;color:white;border-radius:10px;padding:9px 12px;cursor:pointer;font:inherit}.button:hover{background:#294c65}.button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}svg{width:100%;height:auto;overflow:visible}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:8px;border-bottom:1px solid #2b4059;vertical-align:top}th{color:#a8c0d7}#alerts .node{display:block}.positive{color:#98e4ba}.negative{color:#f6abb1}.fine{font-size:12px;color:var(--muted)}@media(max-width:720px){.grid,.cols,.controls{grid-template-columns:1fr}header{padding:14px 16px}h1{font-size:17px}.panel{padding:14px}.metric b{font-size:18px}}
+/* verification center, isolated from legacy brain data */
+.verify-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.verify-controls input,.verify-controls textarea,.verify-controls select{width:100%;background:#0b1425;color:var(--txt);border:1px solid #3a4d65;border-radius:8px;padding:9px;font:inherit}
+.verify-controls textarea{min-height:76px;resize:vertical}
+.verify-controls label{font-size:13px}
+.verify-full{grid-column:1/-1}
+.verify-case{border:1px solid #38516a;border-radius:12px;padding:12px;margin-top:10px;background:#14233a}
+.verify-case h3{margin:0 0 6px}
+.verify-case .fine{margin:4px 0}
+.verify-case a{overflow-wrap:anywhere}
+.verify-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.verify-note{border-left:3px solid #f6cf83;padding:9px 12px;background:#66502a20}
+.verify-good{color:#93e5c2}
+.verify-dim{color:#9fb0c6}
+@media(max-width:720px){.verify-controls{grid-template-columns:1fr}.verify-full{grid-column:auto}}
+</style></head>
 <body><header><div><h1>🌐 世界模型 · 整合工作台</h1><small>AI 主腦內的單一研究入口 · 歷史重建版</small></div><a href="./index.html">← 回到 3D 主腦</a></header><main>
 <section class="panel"><div class="top"><h2>歷史回溯</h2><span class="pill" id="dateTag">2026/09</span></div><label for="month">移動時間，還原當時已公布的資料（以每月月底為截止；2026/10 以 10/12 為截止）</label><input id="month" type="range" min="0" max="12" value="11" step="1" aria-label="月份時間回溯"><div class="top fine"><span>2025/10</span><span>2026/10</span></div><div class="row"><button class="button" id="prev">← 上個月</button><button class="button" id="next">下個月 →</button><span class="pill">當時可得資料視角</span></div><p class="warning">重要：本頁是根據歷史資料重建的觀察畫面，不是當年實際封存的 AI 模型快照；不使用未到發布時間的資料。歷史月度價不能代替事件後 15/60 分鐘行情。</p></section>
 <section class="grid" aria-label="當時觀察數據"><div class="metric"><small>最近已發布 CPI 年增</small><b id="cpi">—</b><small id="cpiMeta">—</small></div><div class="metric"><small>最近 FOMC 目標利率</small><b id="fed">—</b><small id="fedMeta">—</small></div><div class="metric"><small>最近已結束月份市場</small><b id="market">—</b><small id="marketMeta">—</small></div></section>
@@ -12,6 +28,34 @@
 <section class="panel"><h2>跨市場同步觀察</h2><p class="fine">SPY / BTC 為 Alpaca 月度樣本；2025/10 收盤設為 100。台股及 ADR 的同口徑資料尚未匯入，因此不顯示虛構的台美價差。</p><svg id="chart" viewBox="0 0 480 225" role="img" aria-label="SPY 與 BTC 月度指數比較"></svg><div class="row fine"><span style="color:#8be0f8">● SPY</span><span style="color:#f0c57f">● BTC</span></div><div id="marketCompare" class="fine"></div><details><summary>台股 / 美股價差分析（待補資料）</summary><p>之後接入台灣證交所價格、ADR、匯率與美國科技股；需對齊收盤時刻、除權息、非交易日、夜盤資訊，再研究領先與延遲。暫時不能計算有效的落後幅度。</p></details></section></div>
 <section class="panel"><div class="top"><h2>警報與機會觀察</h2><span class="pill">只提示，不自動下單</span></div><div id="alerts"></div><p class="fine">這裡根據選取月份與既有資料顯示研究提醒，並非即時監控或確定可獲利機會。未連接持續執行的通知服務。</p></section>
 <section class="panel"><div class="top"><h2>本金 · 收益與風險試算</h2><span class="pill">假設情境</span></div><div class="controls"><label>總本金（新台幣）<input id="capital" type="number" min="0" max="100000000" value="100000" step="1000"></label><label>投入比例（%）<input id="allocation" type="number" min="0" max="100" value="30" step="5"></label><label>情境價格變動（%）<input id="change" type="number" min="-100" max="1000" value="8" step="1"></label><label>估計來回交易成本（%）<input id="cost" type="number" min="0" max="20" value="0.4" step="0.1"></label><label>預設研究期限<select id="horizon"><option>1 週</option><option selected>1 個月</option><option>3 個月</option></select></label><label>貨幣單位<select id="currency"><option>新台幣 TWD</option></select></label></div><div class="grid" style="margin-top:12px"><div class="metric"><small>投入本金</small><b id="deployed">—</b></div><div class="metric"><small>情境淨損益</small><b id="pnl">—</b></div><div class="metric"><small>總本金報酬率</small><b id="roi">—</b></div></div><p class="fine">以不使用槓桿的線性單次買入賣出為假設；總資金未投入部分保持現金。尚未計入股息、台美市場不同稅制、換匯差額和滑價。這是計算而非收益預測。</p></section>
+
+<section class="panel" id="verification-center">
+ <div class="top"><h2>反驗證中心 · V1</h2><span class="pill">研究原型／非商業認證</span></div>
+ <p class="fine">1997–2026 為台股研究的目標範圍，<strong>不是已驗證的歷史覆蓋率</strong>。本中心先對可核對的事件做邏輯反證，建立往後長期回測的紀錄結構。</p>
+ <details open><summary>已核對案例：通膨升高必然立即升息？</summary>
+  <div id="verifiedExample"></div>
+ </details>
+ <details><summary>新增待驗證假設（僅儲存在這台裝置）</summary>
+ <form id="verifyForm" class="verify-controls" autocomplete="off">
+  <label>假設或規則 <textarea id="verifyHypothesis" maxlength="800" placeholder="例：某種經濟條件出現後，特定市場一定會有某種反應" required></textarea></label>
+  <label>可推翻條件 <textarea id="verifyFalsifier" maxlength="800" placeholder="例：若發生 X 但未出現 Y，則推翻絕對規則" required></textarea></label>
+  <label>假設提出時間（當地日期）<input id="verifyDate" type="date" required></label>
+  <label>驗證截止日期<input id="verifyDeadline" type="date" required></label>
+  <label class="verify-full">來源 URL（選填，僅允許 https 網址）<input id="verifySource" type="url" placeholder="https://..." maxlength="900"></label>
+  <label class="verify-full">預期如何測量結果（建議事前寫清楚）<textarea id="verifyMetric" maxlength="800" placeholder="測量指標、比較基準、樣本、成本和替代解釋"></textarea></label>
+  <div class="verify-full verify-actions"><button class="button" type="submit">保存待驗證假設</button><span class="fine" id="verifyFormStatus" role="status"></span></div>
+ </form></details>
+ <details><summary>本機研究紀錄 <span id="verifyCount" class="pill">0</span></summary><p class="verify-note">以下狀態由研究者自行標註，並未由系統獨立核對；「事件事實已確認」不代表整條因果規則已證明。</p>
+ <div id="verifyList"></div><div class="verify-actions"><button class="button" type="button" id="verifyExport">匯出反驗證 JSON</button><button class="button" type="button" id="verifyImportButton">匯入先前匯出的 JSON</button><input id="verifyImport" type="file" accept=".json,application/json" hidden></div>
+ <p class="fine">單獨使用 worldModel.verify.v1 儲存，不變更 aiBrain.v1。清除瀏覽器資料可能使本機紀錄遺失，請定期匯出。GitHub Pages 為公開網站，請勿填入未公開資訊。</p></details>
+ <details open><summary>系統反驗證自檢 <span id="auditBadge" class="pill">等待執行</span></summary><p class="fine">檢查：歷史資料發布時間、月份資料篩選、損益邊界、未來資訊隔離、原始證據結構。本檢查不等於所有資料已審核。</p><div class="row"><button class="button" id="runAudit" type="button">立即執行稽核</button><span id="auditResult" role="status" class="fine"></span></div><div id="auditDetails" class="fine"></div></details><details><summary>反驗證方法與合格條件</summary><ol>
+ <li>先定義假設、測量方式、可推翻條件及預測期限，再觀察結果。</li>
+ <li>來源需記錄<strong>觀測時間、官方發布時間、讀取時間</strong>，禁止用未來發布資料回填當時模型。</li>
+ <li>標示「事件事實已確認」、「假設被反例推翻」、「仍待驗證」；不能把相關性當成因果證明。</li>
+ <li>1997 年起按資料涵蓋率逐年清點，包含下市公司、除權息及市場制度變遷；不能聲稱未完成的 30 年回測已通過。</li>
+ <li>商業發布前另測試錯誤率、樣本數、樣本外表現、引用可核查性及資料使用授權。</li>
+ </ol></details>
+</section>
 <section class="panel"><h2>來源與資料限制</h2><div class="row"><a href="https://www.bls.gov/news.release/cpi.toc.htm" target="_blank" rel="noopener noreferrer">BLS · CPI</a><a href="https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm" target="_blank" rel="noopener noreferrer">Fed · FOMC</a><a href="https://alpaca.markets/" target="_blank" rel="noopener noreferrer">Alpaca · 市場月K</a></div><p class="fine">歷史數據取自既有《世界模型一年回溯第一版》工作簿；本頁為挑選後的靜態資料子集，不會自動抓取最新發布。美元 DXY、同日 2Y/10Y、台股 / ADR、事件前市場預期、當時模型原始快照仍待補齊。</p><div class="row"><button id="export" class="button">匯出目前研究狀態（JSON）</button><a class="button" href="./index.html" style="text-decoration:none">返回主腦</a></div></section></main>
 <script>
 'use strict';
@@ -69,4 +113,96 @@ $('#next').addEventListener('click',()=>{current=Math.min(12,current+1);$('#mont
 ['capital','allocation','change','cost'].forEach(k=>$('#'+k).addEventListener('input',calculate));
 $('#export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({...model,simulation:{capital:$('#capital').value,allocationPct:$('#allocation').value,priceChangePct:$('#change').value,costPct:$('#cost').value,horizon:$('#horizon').value}},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='world-model-'+months[current].replace('/','-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
 render();calculate();
+
+/* first-party verification case: dates and URLs audited; no prediction or profit claim */
+const VERIFY_KEY='worldModel.verify.v1';
+const VERIFY_STATUSES=['待驗證','事件事實已確認（自評）','假設被反例推翻（自評）','證據不足'];
+const verificationCase={
+ id:'cpi-fomc-20260429',hypothesis:'美國 CPI 年增率加速，下一次 FOMC 必然升息',
+ falsifier:'若 CPI 年增率加速，而下一次 FOMC 決議維持政策利率不變，絕對規則即遭反例推翻',
+ observedAt:'2026-03',releaseDate:'2026-04-10',cpi:3.3,previousCpi:2.4,
+ fomcDate:'2026-04-29',rate:'3.50%–3.75%',action:'維持',
+ outcome:'絕對規則遭反例推翻',scope:'只能反駁「必然下一次升息」，不能證明 CPI 與政策沒有因果關係',
+ evidence:[
+ {label:'BLS：2026 年 3 月 CPI，4/10 發布',url:'https://www.bls.gov/news.release/archives/cpi_04102026.htm'},
+ {label:'Fed：2026/4/29 FOMC 決議',url:'https://www.federalreserve.gov/newsevents/pressreleases/monetary20260429a.htm'}
+ ]
+};
+const verifyEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const verifySafeUrl=url=>{try{const u=new URL(url);return u.protocol==='https:'?u.href:null}catch{return null}};
+function getVerifyRows(){try{const data=JSON.parse(localStorage.getItem(VERIFY_KEY));return Array.isArray(data)?data.filter(x=>x&&typeof x==='object').slice(0,500):[]}catch{return []}}
+function saveVerifyRows(rows){try{localStorage.setItem(VERIFY_KEY,JSON.stringify(rows));return true}catch{return false}}
+function verifiedRender(){
+ const x=verificationCase;
+ $('#verifiedExample').innerHTML='<div class="verify-case"><h3>'+verifyEsc(x.hypothesis)+'</h3><p>2026/03 CPI 年增率 <strong>'+x.cpi+'%</strong>（2026/04/10 發布），相較 2026/02 的 '+x.previousCpi+'% 上升。下一次 FOMC 在 <strong>'+x.fomcDate+'</strong> 維持 '+x.rate+'。</p><p class="verify-good"><strong>判定：</strong>'+verifyEsc(x.outcome)+'</p><p class="fine">'+verifyEsc(x.scope)+'</p><p class="fine">來源：'+x.evidence.map(e=>'<a target="_blank" rel="noopener noreferrer" href="'+e.url+'">'+verifyEsc(e.label)+'</a>').join(' · ')+'</p></div>';
+}
+function renderVerifyRows(){
+ const rows=getVerifyRows();$('#verifyCount').textContent=rows.length;
+ const root=$('#verifyList');root.replaceChildren();
+ if(!rows.length){const p=document.createElement('p');p.className='fine';p.textContent='目前沒有自行建立的假設。';root.append(p);return}
+ rows.slice().reverse().forEach(r=>{
+  const item=document.createElement('div');item.className='verify-case';
+  const title=document.createElement('h3');title.textContent=r.hypothesis;
+  const falsifier=document.createElement('p');falsifier.textContent='推翻條件：'+r.falsifier;
+  const date=document.createElement('p');date.className='fine';date.textContent='提出 '+r.createdOn+' · 截止 '+r.deadline+' · 狀態：'+r.status;
+  item.append(title,falsifier,date);
+  if(r.metric){const metric=document.createElement('p');metric.className='fine';metric.textContent='測量：'+r.metric;item.append(metric)}
+  if(r.source){const a=document.createElement('a');a.href=r.source;a.rel='noopener noreferrer';a.target='_blank';a.textContent='來源連結';item.append(a)}
+  const buttons=document.createElement('div');buttons.className='verify-actions';
+  const status=document.createElement('select');status.setAttribute('aria-label','研究狀態');
+  VERIFY_STATUSES.forEach(s=>{let o=document.createElement('option');o.value=s;o.textContent=s;status.append(o)});status.value=VERIFY_STATUSES.includes(r.status)?r.status:'待驗證';
+  status.addEventListener('change',()=>{const now=getVerifyRows(),target=now.find(x=>x.id===r.id);if(target){target.status=status.value;if(saveVerifyRows(now))renderVerifyRows()}});
+  const del=document.createElement('button');del.className='button';del.type='button';del.textContent='刪除';del.addEventListener('click',()=>{if(confirm('刪除此筆本機研究紀錄？')){saveVerifyRows(getVerifyRows().filter(x=>x.id!==r.id));renderVerifyRows()}});
+  buttons.append(status,del);item.append(buttons);root.append(item);
+ });
+}
+$('#verifyDate').value=new Date().toLocaleDateString('en-CA');
+$('#verifyForm').addEventListener('submit',e=>{
+ e.preventDefault();
+ const hypothesis=$('#verifyHypothesis').value.trim(),falsifier=$('#verifyFalsifier').value.trim(),createdOn=$('#verifyDate').value,deadline=$('#verifyDeadline').value;
+ const sourceRaw=$('#verifySource').value.trim(),source=sourceRaw?verifySafeUrl(sourceRaw):'';
+ if(!hypothesis||!falsifier||!createdOn||!deadline||deadline<createdOn||(sourceRaw&&!source)){ $('#verifyFormStatus').textContent='請檢查日期、必填欄位或 https 來源網址。';return}
+ const rows=getVerifyRows();if(rows.length>=500){$('#verifyFormStatus').textContent='本機最多儲存 500 筆；請先匯出並清理。';return}
+ rows.push({id:'v'+Date.now()+'-'+Math.random().toString(36).slice(2,8),hypothesis,falsifier,createdOn,deadline,source,metric:$('#verifyMetric').value.trim(),status:'待驗證',createdAt:new Date().toISOString()});
+ if(!saveVerifyRows(rows)){ $('#verifyFormStatus').textContent='儲存失敗，請檢查瀏覽器儲存權限。';return}
+ $('#verifyForm').reset();$('#verifyDate').value=new Date().toLocaleDateString('en-CA');$('#verifyFormStatus').textContent='已儲存在此裝置；請定期匯出備份。';renderVerifyRows();
+});
+$('#verifyExport').addEventListener('click',()=>{
+ const blob=new Blob([JSON.stringify({schema:'worldModel.verify.v1',exportedAt:new Date().toISOString(),verifiedReference:verificationCase,records:getVerifyRows()},null,2)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='world-model-verification-v1.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+$('#verifyImportButton').addEventListener('click',()=>$('#verifyImport').click());
+$('#verifyImport').addEventListener('change',async e=>{
+ const f=e.target.files?.[0];if(!f)return;
+ if(f.size>1024*1024){alert('匯入檔案超過 1MB');return}
+ try{const d=JSON.parse(await f.text());if(d.schema!=='worldModel.verify.v1'||!Array.isArray(d.records)||d.records.length>500)throw Error('格式不符');
+ const clean=d.records.filter(r=>r&&typeof r.hypothesis==='string'&&typeof r.falsifier==='string'&&typeof r.createdOn==='string'&&typeof r.deadline==='string').map((r,i)=>({id:'import-'+Date.now()+'-'+i,hypothesis:r.hypothesis.slice(0,800),falsifier:r.falsifier.slice(0,800),createdOn:r.createdOn.slice(0,10),deadline:r.deadline.slice(0,10),source:r.source?verifySafeUrl(r.source):'',metric:String(r.metric||'').slice(0,800),status:VERIFY_STATUSES.includes(r.status)?r.status:'待驗證',createdAt:new Date().toISOString()}));
+ if(!confirm('匯入 '+clean.length+' 筆紀錄？將取代此裝置的反驗證紀錄（不影響 3D 主腦）。'))return;
+ if(!saveVerifyRows(clean))throw Error('無法寫入本機儲存');renderVerifyRows();
+ }catch(err){alert('無法匯入：'+err.message)}finally{e.target.value=''}
+});
+
+function runVerifyAudit(){
+ const tests=[];
+ const check=(name,pass)=>tests.push({name,pass:!!pass});
+ check('官方事件附有兩個不同發布機構的來源',new Set(verificationCase.evidence.map(x=>new URL(x.url).hostname)).size===2);
+ check('官方事件發生時間先於政策決議',verificationCase.releaseDate<verificationCase.fomcDate);
+ check('2026/03 CPI 上升但 4/29 利率維持（反例語義）',verificationCase.cpi>verificationCase.previousCpi&&verificationCase.action==='維持');
+ check('時間回溯不會讀取未發布的 CPI',cpi.every((x,i)=>!x.release||x.release>x.month)&&cpi.filter(x=>x.release&&x.release<='2026-03-31').every(x=>x.month<='2026-02'));
+ check('價格資料不包含選取月份以後的月K',months.every(m=>prices.filter(p=>p[0]<=m).every(p=>p[0]<=m)));
+ check('試算：10萬元投入30%，上漲8%成本0.4%，淨收益2280',Math.abs(100000*.3*(8-.4)/100-2280)<1e-7);
+ check('試算：價格跌100%，損失不會被顯示成正收益',100000*(-100-.4)/100<0);
+ check('當時模型快照必須明確標示為事後重建',model?.kind==='retrospective_reconstruction_not_original_snapshot');
+ check('台股1997資料尚未冒充已匯入',!prices.some(x=>String(x[0]).startsWith('1997')));
+ const failed=tests.filter(t=>!t.pass),pass=tests.length-failed.length;
+ $('#auditBadge').textContent=failed.length?'自檢未通過':'自檢通過';
+ $('#auditResult').textContent=pass+'/'+tests.length+' 項通過；'+failed.length+' 項失敗';
+ const root=$('#auditDetails');root.replaceChildren(...tests.map(t=>{const p=document.createElement('div');p.textContent=(t.pass?'✓ ':'✗ ')+t.name;return p}));
+ return failed.length===0;
+}
+$('#runAudit').addEventListener('click',runVerifyAudit);
+
+verifiedRender();renderVerifyRows();
+runVerifyAudit();
+
 </script></body></html>
