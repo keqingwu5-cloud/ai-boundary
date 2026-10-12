@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>發射器｜AI 認知邊界・主腦</title>
+<style>
+:root{color-scheme:dark;--bg:#080c18;--panel:#151d30;--panel2:#1a2540;--line:#384661;--ink:#f0f4ff;--muted:#aebfdb;--blue:#a9bdff;--green:#a0e3c7}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse 850px 360px at 48% -80px,#253357 0,transparent 78%),var(--bg);color:var(--ink);font:15px/1.65 system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+a{color:#d3dfff}.wrap{max-width:1000px;margin:auto;padding:0 18px 70px}
+header{border-bottom:1px solid var(--line);background:#0a0e1ada}.nav{max-width:1000px;margin:auto;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.nav strong{font-size:18px}.nav a{font-size:14px;text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:6px 10px}.nav a:hover{background:var(--panel)}
+.intro{padding:34px 0 12px}.eyebrow{letter-spacing:2px;font-size:12px;color:var(--blue)}
+h1{font-size:clamp(29px,4.6vw,43px);line-height:1.3;margin:7px 0 10px}h2{font-size:18px;margin:0 0 14px}h3{font-size:15px;margin:0}
+p{color:var(--muted);margin:6px 0 10px}.note{border:1px solid #726143;border-radius:12px;padding:12px 14px;background:#32281d;color:#ffe8bd;font-size:13px;margin:18px 0}.pill{font-size:12px;border:1px solid #806b4c;border-radius:99px;padding:4px 9px;color:#f6d8a0}
+.grid{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}.panel{border:1px solid var(--line);border-radius:17px;background:linear-gradient(140deg,#161f35,#11192b);padding:20px;min-width:0}.panel+.panel{margin-top:0}
+label{font-size:13px;font-weight:650;color:#d2dfff;display:block;margin:14px 0 6px}
+select,textarea,input{width:100%;background:#0b1325;color:var(--ink);border:1px solid #526180;border-radius:10px;padding:10px 12px;font:inherit;outline-offset:3px}
+textarea{resize:vertical;min-height:128px;line-height:1.65}textarea#instruction{min-height:170px}textarea#response{min-height:105px}
+select:focus-visible,textarea:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.optionline{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}button{appearance:none;border:1px solid #63749a;background:#25324e;color:var(--ink);border-radius:10px;font:inherit;font-size:14px;padding:10px 14px;cursor:pointer}
+button.primary{background:#526bb0;border-color:#8ea7ef;font-weight:700}button:hover{filter:brightness(1.15)}
+button:disabled{opacity:.55;cursor:not-allowed}
+.preview{min-height:225px;border:1px solid var(--line);border-radius:12px;background:#0b1122;padding:13px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.65;color:#d9e3fc;max-height:420px;overflow:auto}
+.status{background:#162a2c;color:#b6e7cc;border:1px solid #36544c;border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px}
+.status:empty{display:none}.tiny{font-size:12px;color:var(--muted)}
+.steps{padding-left:22px;color:var(--muted);font-size:14px}.steps li{margin-bottom:10px}
+.log{border:1px dashed #526180;border-radius:10px;padding:12px;margin-top:12px;max-height:270px;overflow:auto;font-size:12px;color:#cdd9f2}.log:empty{display:none}
+.entry{border-bottom:1px solid #384661;padding:6px 0}.entry:last-child{border:0}.bad{color:#ffe1b8}
+hr{border:0;border-top:1px solid var(--line);margin:22px 0}
+.backlink{display:inline-block;margin:14px 0 0;font-size:12px}
+@media(max-width:750px){.grid,.optionline{grid-template-columns:1fr}.wrap{padding:0 12px 45px}.panel{padding:15px}.nav{padding:12px}.intro{padding:22px 0 8px}}
+</style>
+</head>
+<body>
+<header><div class="nav"><strong>🚀 主腦 · 發射器</strong><nav aria-label="站內功能"><a href="./mainbrain.html">主腦控制台</a> <a href="./index.html">3D 認知大腦</a> <a href="./feed.html">短影音</a></nav></div></header>
+<main class="wrap">
+<section class="intro"><div class="eyebrow">CENTRAL COMMAND LAUNCHER · V0.1</div><h1>從主腦中央發射指令</h1>
+<p>你可以在這裡自行輸入任務，或選擇已建立的首輪任務；選擇 GPT①、GPT②、BOT③ 或全部作為接收對象。</p>
+<div class="note">目前是<strong>人工交接版</strong>：發射會使用裝置分享功能或複製指令，並非直接傳送給 AI。網頁不收集、不上傳、不儲存你輸入的任務與回覆；公開 GitHub Pages 不適合放私人記憶，切勿將私人內容貼進公開 Issue。</div>
+</section>
+<div class="grid">
+<section class="panel" aria-labelledby="editorTitle">
+<h2 id="editorTitle">指令編輯台</h2>
+<div class="optionline">
+<div><label for="task">任務模板</label><select id="task"><option value="audit">任務 01｜共同記憶漏洞審查（#16）</option><option value="timeline">任務 02｜主腦過去、現在、未來（#17）</option><option value="custom">自訂指令</option></select></div>
+<div><label for="target">發射對象</label><select id="target"><option value="GPT②">GPT②｜模型攻擊與測試</option><option value="BOT③">BOT③｜實作驗證與回報</option><option value="GPT①">GPT①｜問題與目的協調</option><option value="三方 AI">三方 AI｜相同任務分別執行</option></select></div>
+</div>
+<label for="title">任務名稱</label><input id="title" type="text" maxlength="120" autocomplete="off">
+<label for="instruction">要發射的指令（可修改）</label><textarea id="instruction" spellcheck="false"></textarea>
+<div class="optionline">
+<div><label for="done">完成條件</label><textarea id="done" rows="3" style="min-height:92px"></textarea></div>
+<div><label for="stop">停止與升級條件</label><textarea id="stop" rows="3" style="min-height:92px"></textarea></div>
+</div>
+<div class="btns"><button class="primary" type="button" id="launch">🚀 發射（分享或複製）</button><button type="button" id="copy">複製指令</button><button type="button" id="download">下載任務 JSON</button></div>
+<div id="status" class="status" role="status" aria-live="polite"></div>
+<p class="tiny">任務包會標記為「待交接」。即使裝置分享成功，也不代表指定 AI 已接收。請在接收端確認。</p>
+<hr>
+<h2>回報接收區（手動）</h2>
+<p class="tiny">其他 AI 回覆後，可貼在這裡，下載含來源與原指令的回報 JSON，再交回 GPT①。回覆僅存在此頁目前的記憶體中，重新整理即消失。</p>
+<label for="response">AI 回覆內容</label><textarea id="response" placeholder="在此貼上 AI 回覆。請避免放入不準備交接的私人資料。"></textarea>
+<div class="btns"><button type="button" id="export-response">下載回報 JSON</button><button type="button" id="clear-response">清空回覆</button></div>
+</section>
+<aside class="panel" aria-label="發射狀態與預覽">
+<h2>發射內容預覽</h2><div id="preview" class="preview" aria-label="完整指令"></div>
+<p class="tiny">預覽隨左側欄位更新。資料不會傳送到本站伺服器。</p>
+<hr>
+<h2>發射規則</h2><ol class="steps">
+<li>先選問題與目的；自訂內容可隨時輸入。</li>
+<li>發射時只交付相關資訊與完成／停止條件，不直接修改中央核心記憶。</li>
+<li>AI 應保留證據、反證、漏洞與踩坑紀錄，區分「已確認／推論／待驗證」。</li>
+<li>接收者回覆後，你可以把結果手動帶回這裡，供主腦候選審核。</li></ol>
+<h2>本次頁面操作紀錄</h2><p class="tiny">僅限本次開啟，非雲端日誌。沒有成功接收的項目不能標記為已送達。</p><div id="log" class="log"></div>
+<p class="tiny">關聯公開任務：<a href="https://github.com/keqingwu5-cloud/ai-boundary/issues/16" target="_blank" rel="noopener noreferrer">#16 漏洞審查</a> ・ <a href="https://github.com/keqingwu5-cloud/ai-boundary/issues/17" target="_blank" rel="noopener noreferrer">#17 歷史復盤</a></p>
+</aside>
+</div>
+<p class="backlink"><a href="./mainbrain.html">← 回主腦控制台</a></p>
+</main>
+<script>
+"use strict";
+(()=>{
+const $=s=>document.querySelector(s);
+const task=$("#task"),target=$("#target"),title=$("#title"),instruction=$("#instruction"),done=$("#done"),stop=$("#stop"),status=$("#status"),response=$("#response"),preview=$("#preview"),log=$("#log");
+const templates={
+ audit:{title:"任務 01｜共同記憶架構漏洞審查",instructions:"獨立質疑《AI 主腦三方共同記憶規劃 V0.2／V0.3 候選》。從問題定義、單一權威記憶、分權審核、跨 AI 語意對齊、記憶污染、失聯、拒絕修復、踩坑回溯、Token 控制及私人資料安全等角度尋找漏洞。不要只表示贊同。逐項列出可重現情境、證據、影響、替代方案及可能反證，嚴格區分已確認事實、推論與待驗證。參照公開任務 https://github.com/keqingwu5-cloud/ai-boundary/issues/16。其他 AI 可以獨立質疑既有規則，不應假設其他 AI 已經完成驗證。",done:"用繁體中文提交至少五項具體高價值漏洞，提供證據／可信度／改善與驗收方法，標記是否重複現有 V0.3 候選。",stop:"遇到無權取得的私有資訊不要假裝已讀取。相同提案無新證據則停止重試；重大核心變更交使用者審核。"},
+ timeline:{title:"任務 02｜主腦過去、現在、未來中文復盤",instructions:"調查 AI 認知邊界主腦的過去、現在與未來。閱讀公開 repo 程式、README、commits、PR 與驗證資料，建立有來源的變化時間軸。特別找出已證實歷史錯誤或返工，清楚區分『程式確有缺陷』『設計取捨』『環境限制』『尚未驗證風險』；不能未經證據就把工程失誤歸咎於使用者本人。每項寫出原目的、當時做法、何處出錯、為何當時未發現（未知請標示）、是否已修復及下次可提前發現的訊號。最後提出反思問題，讓使用者自己改善。參照公開任務 https://github.com/keqingwu5-cloud/ai-boundary/issues/17。",done:"提交繁體中文的過去→現在→未來報告、歷史踩坑清單、證據連結、未修復事項與三種可能發展路徑。",stop:"證據不足不可臆測動機、責任人或因果。缺乏新資料時停止推演並列出待驗證事項。"},
+ custom:{title:"自訂主腦任務",instructions:"先釐清問題、目的及前提，按任務選擇適當方法；保留證據、不確定性、踩坑、拒絕及修正脈絡。最後用繁體中文回報。",done:"說明交付成果、證據、待決項目。",stop:"權限不足或證據不足時停止越權行動並明確回報。"}
+};
+function applyTemplate(){const t=templates[task.value];title.value=t.title;instruction.value=t.instructions;done.value=t.done;stop.value=t.stop;render();}
+function packet(){
+ const t=templates[task.value];
+ return {schema:"ai-boundary.command.v0.1",command_id:"cmd-"+new Date().toISOString().replace(/[-:.TZ]/g,"")+"-"+Math.random().toString(36).slice(2,7),created_at:new Date().toISOString(),source:"主腦發射器（人工交接）",delivery_status:"待交接（非自動傳送）",task_ref:task.value==="audit"?"https://github.com/keqingwu5-cloud/ai-boundary/issues/16":task.value==="timeline"?"https://github.com/keqingwu5-cloud/ai-boundary/issues/17":null,recipient:target.value,title:title.value.trim(),instructions:instruction.value.trim(),completion_criteria:done.value.trim(),stop_and_escalation:stop.value.trim(),response_requirements:"繁體中文；區分事實、推導、推論、預測與未知；回報來源、問題、踩坑、反證、未決及建議候選修正。不得假裝已更新其他 AI 或中央權威記憶。",source_template:task.value};
+}
+function formatted(p){return [
+ "【主腦發射器・人工交接指令】",
+ "任務："+p.title,
+ "接收者："+p.recipient,
+ "交接狀態："+p.delivery_status,
+ p.task_ref?"參考："+p.task_ref:"",
+ "【任務內容】",p.instructions,
+ "【完成條件】",p.completion_criteria,
+ "【停止／升級條件】",p.stop_and_escalation,
+ "【回報要求】",p.response_requirements,
+ "收到後請先確認你的實際角色、可執行能力及未取得的授權；不要自行宣稱已接入主腦。"
+ ].filter(Boolean).join("\n\n");}
+function currentText(){const p=packet();return formatted(p);}
+function render(){preview.textContent=currentText();}
+function say(s){status.textContent=s;}
+function addLog(s){const e=document.createElement("div");e.className="entry";e.textContent=new Date().toLocaleTimeString("zh-TW")+"｜"+s;log.prepend(e);}
+async function copyText(s){if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(s);return true;}const ta=document.createElement("textarea");ta.value=s;ta.style.cssText="position:fixed;left:-9999px;top:0";document.body.append(ta);ta.select();const ok=document.execCommand("copy");ta.remove();if(!ok)throw new Error("瀏覽器不支援自動複製");return true;}
+function downloadJSON(obj,name){const blob=new Blob([JSON.stringify(obj,null,2)],{type:"application/json;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);}
+function validate(){if(!title.value.trim()||!instruction.value.trim()){say("請先填入任務名稱與指令。");return false;}return true;}
+task.addEventListener("change",applyTemplate);
+for(const el of [target,title,instruction,done,stop])el.addEventListener("input",render);
+$("#copy").addEventListener("click",async()=>{if(!validate())return;try{await copyText(currentText());say("已複製：請貼給選定 AI，接收後再確認。");addLog("指令已複製（未證實送達 "+target.value+"）");}catch(e){say("複製失敗，請從預覽區手動複製。");}});
+$("#launch").addEventListener("click",async()=>{
+ if(!validate())return;
+ const msg=currentText(), recipient=target.value;
+ if(navigator.share){
+   try{await navigator.share({title:title.value,text:msg});say("系統分享流程已完成；仍需向 "+recipient+" 核對是否接收。");addLog("已使用裝置分享（尚未確認 AI 接收）");return;}
+   catch(e){if(e&&e.name==="AbortError"){say("分享已取消，沒有標記為送達。");return;}}
+ }
+ try{await copyText(msg);say("已複製交接指令。此裝置無法直接分享，請手動貼給 "+recipient+"。");addLog("已複製（待人工交接）");}
+ catch(e){say("此裝置未能分享或複製，請手動選取右側預覽文字。");}
+});
+$("#download").addEventListener("click",()=>{if(!validate())return;const p=packet();downloadJSON(p,p.command_id+".json");say("已下載任務 JSON；狀態仍為待交接。");addLog("已下載任務 JSON（未送達）");});
+$("#export-response").addEventListener("click",()=>{if(!response.value.trim()){say("請先貼上 AI 回報內容。");return;}const p=packet();const r={schema:"ai-boundary.response.v0.1",exported_at:new Date().toISOString(),source_command:p,reported_by:target.value,response_text:response.value,verification_status:"待主腦審核（人工匯入）"};downloadJSON(r,"mainbrain-response-"+Date.now()+".json");say("已下載回報包，未寫入中央記憶；需人工交接審核。");addLog("已下載回報包（待審核）");});
+$("#clear-response").addEventListener("click",()=>{response.value="";say("回報欄位已清空。");});
+applyTemplate();
+})();
+</script>
+</body></html>
