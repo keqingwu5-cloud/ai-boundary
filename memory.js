@@ -75,17 +75,31 @@ $("reportInput").addEventListener("change",async e=>{
  }catch(error){feedback("AI 回報匯入失敗："+error.message);}
 });
 function norm(s){return String(s||"").normalize("NFKC").replace(/\s+/g," ").trim();}
+function semantic(s){return norm(s).toLocaleLowerCase("zh-TW").replace(/[\s.,，。;；:：!?！？"'“”‘’、]+/g,"");}
 function fingerprint(c){return [c.eventType,c.parentId||"",c.question,c.purpose,c.content,c.evidence,c.evidenceLevel,c.reason].map(norm).join("\u241f");}
+function coreKey(c){return [c.eventType,c.parentId||"",c.question,c.content].map(semantic).join("\u241f");}
+function validateCandidate(c){
+ const parent=parentOf(c.parentId);
+ if(["revise_answer","revise_question"].includes(c.eventType)&&!parent)return "修正答案或問題，必須選既有記憶。";
+ if(c.eventType==="revise_answer"&&parent&&(c.question!==parent.question||c.purpose!==parent.purpose))return "修正答案不能改寫原問題或目的，請選擇修正問題。";
+ if(!c.question||!c.purpose||!c.content||!c.reason)return "請完整填寫原問題、目的、內容與修正理由。";
+ const prior=c.repairOf?state.candidates.find(x=>x.id===c.repairOf&&x.status==="rejected"):null;
+ if(c.repairOf&&!prior)return "找不到被拒絕的原始候選。";
+ if(prior&&fingerprint(c)===fingerprint(prior))return "原樣重新提交被拒絕內容，請先修改內容、證據或理由。";
+ const match=state.candidates.find(x=>x.id!==c.id&&coreKey(x)===coreKey(c));
+ if(match?.status==="pending")return "相同核心內容已有待審候選，請先處理舊提案。";
+ if(match?.status==="rejected"&&!match.resolvedBy&&c.repairOf!==match.id)return "相同內容曾被拒絕（理由："+(match.review?.reason||"未記錄")+"）。請由該拒絕項目按「修正後重新提交」。";
+ if(match?.status==="approved"&&c.eventType==="new_question")return "已有相同核心內容的已核准提案，請檢查是否應使用原記憶的答案修正。";
+ if(c.eventType==="new_question"&&state.memories.some(m=>semantic(m.question)===semantic(c.question)&&semantic(m.versions.at(-1)?.content)===semantic(c.content)))return "已有相同問題與內容的已核准記憶，請勿重複建立。";
+ return null;
+}
 $("candidateForm").addEventListener("submit",e=>{
  e.preventDefault();
  const c={id:uid(),eventType:$("eventType").value,parentId:$("parentMemory").value||null,question:$("question").value.trim(),purpose:$("purpose").value.trim(),content:$("content").value.trim(),evidence:$("evidence").value.trim(),reason:$("reason").value.trim(),proposer:$("proposer").value,evidenceLevel:$("evidenceLevel").value,createdAt:utc(),status:"pending",repairOf:revising,review:null};
- const parent=parentOf(c.parentId);
- if(["revise_answer","revise_question"].includes(c.eventType)&&!parent){feedback("修正答案或問題，必須先選既有記憶。");return;}
- if(c.eventType==="revise_answer"&&parent&&(c.question!==parent.question||c.purpose!==parent.purpose)){feedback("修正答案不能改寫原問題或目的；請選擇「修正問題」。");return;}
- if(!c.question||!c.purpose||!c.content||!c.reason){feedback("請填寫原問題、目的、候選內容與修正理由。");return;}
- if(c.repairOf){const prior=state.candidates.find(x=>x.id===c.repairOf&&x.status==="rejected");if(!prior){feedback("找不到原始拒絕項目。");return;}if(fingerprint(c)===fingerprint(prior)){feedback("與原被拒提案完全相同，請先修改內容／理由，再重新提交。");return;}}
- if(state.candidates.some(x=>x.status==="pending"&&fingerprint(x)===fingerprint(c))){feedback("已有完全相同的待審提案；請避免重複提交。");return;}
- queueChange(()=>{state.candidates.unshift(c);evt("candidate.created",c.id,names[c.eventType]+"・"+c.question.slice(0,56));resetForm();selectTab("review");return "候選已建立並加密儲存，尚未寫入權威記憶。";});
+ const problem=validateCandidate(c);if(problem){feedback(problem);return;}
+ if(c.eventType==="new_question"&&state.memories.some(m=>semantic(m.question)===semantic(c.question))&&!confirm("記憶庫已有相同問題。確定要另外建立新問題，而不是修正既有答案？"))return;
+ queueChange(()=>{const again=validateCandidate(c);if(again)throw Error(again);
+ state.candidates.unshift(c);evt("candidate.created",c.id,names[c.eventType]+"・"+c.question.slice(0,56));resetForm();selectTab("review");return "候選已加密儲存，等待你的審核。";});
 });
 function reviewApproval(c){
  const parent=parentOf(c.parentId);
