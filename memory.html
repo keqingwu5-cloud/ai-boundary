@@ -35,14 +35,14 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 #lockedState[hidden],#workspace[hidden]{display:none}.footer{font-size:12px;border-top:1px solid var(--line);padding-top:13px;margin-top:30px;color:var(--muted)}
 @media(max-width:720px){.cols,.grid3{grid-template-columns:1fr}.panel{padding:14px}main{padding:18px 12px 45px}header nav{padding:11px}header strong{width:100%}}
 </style>
-<script src="./memory.js" defer></script>
+<script src="./memory.js?v=20261012integrity01" defer></script>
 </head>
 <body>
 <header><nav><strong>🧠 主腦 · 共同記憶管理</strong><a href="./mainbrain.html">主腦控制台</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 大腦</a></nav></header>
 <main>
 <div class="kicker">MEMORY GOVERNANCE · LOCAL VAULT V1</div><h1>共同記憶審核與修正</h1>
 <p>先讓「提交候選 → 審核／拒絕 → 保留歷史 → 修正再提交 → 差異回顧」真正可操作。你是目前本機記憶庫的核准者。</p>
-<div class="notice"><strong>儲存邊界：</strong>本版只在這台裝置的瀏覽器中加密儲存，不會自動上傳至 GitHub 或其他 AI。不是雲端中央共同記憶；其他 AI 不會自動收到。忘記密碼無法解密，換手機或清除瀏覽器資料前請匯出加密備份。不要在公開 Issue 貼私人記憶。</div>
+<div class="notice"><strong>儲存邊界：</strong>本版只在這台裝置的瀏覽器中加密儲存，不會自動上傳至 GitHub 或其他 AI。本站所有同源頁面仍存在潛在安全影響，請暫勿儲存高度敏感個人資訊。不是雲端中央共同記憶；其他 AI 不會自動收到。忘記密碼無法解密，換手機或清除瀏覽器資料前請匯出加密備份。不要在公開 Issue 貼私人記憶。</div>
 <div id="feedback" role="status" aria-live="polite"></div>
 <section id="lockedState" class="panel">
 <h2 id="lockTitle">建立／解鎖私人記憶庫</h2>
@@ -53,7 +53,7 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 </section>
 <div id="workspace" hidden>
 <div class="actions" style="margin:0 0 15px"><span class="pill">本機已解鎖・加密保存</span><button id="lockButton" type="button">鎖定記憶庫</button><button id="saveBackupTop" type="button">下載加密備份</button></div>
-<div class="tabs" role="tablist" aria-label="記憶管理頁籤">
+<p id="vaultMetadata" class="small"></p><div class="tabs" role="tablist" aria-label="記憶管理頁籤">
 <button type="button" role="tab" data-tab="overview" aria-controls="tab-overview" aria-selected="true">總覽</button>
 <button type="button" role="tab" data-tab="propose" aria-controls="tab-propose" aria-selected="false">提交候選</button>
 <button type="button" role="tab" data-tab="review" aria-controls="tab-review" aria-selected="false">候選審核</button>
@@ -106,7 +106,7 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 <div id="diffSummary" class="help"></div><div id="auditList"></div>
 <hr class="line">
 <h2>備份與人工交接</h2>
-<p>加密備份包含本機記憶、候選與審核歷史；還原時必須知道原密碼。可另行匯出單一候選作人工交接，請先檢查有無私人資訊。</p>
+<p>加密備份包含本機記憶、候選與審核歷史；還原時必須知道原密碼。新版具有記憶庫識別碼和修訂版次，還原可能回滾或覆蓋目前歷史；<strong>如裝置已存在記憶，須先解鎖、下載現有加密備份，再明確確認覆蓋</strong>。目前不會自動合併不同裝置的資料。可另行匯出單一候選作人工交接，請先檢查有無私人資訊。</p>
 <div class="actions"><button type="button" id="exportBackup" class="primary">下載加密記憶庫 JSON</button><button type="button" id="restoreBackup">還原加密備份（取代本機庫）</button></div>
 </div></section>
 </div>
