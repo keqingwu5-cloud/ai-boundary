@@ -73,6 +73,7 @@ async function device(name, t){
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|fonts/i.test(m.text())) errs.push(m.text()); });
   page.on('request', r => { if (r.method() === 'POST' && /rest\/v1\/brain/.test(r.url())) posts.push(r.url()); });
   page.on('dialog', d => d.accept());
+  await page.evaluateOnNewDocument(() => { window.__readyEv = []; addEventListener('aisync:ready', e => window.__readyEv.push(e.detail)); });
   if (t) await page.evaluateOnNewDocument(s => { if (!localStorage.getItem('aiBrain.auth')) localStorage.setItem('aiBrain.auth', s); }, session(t));
   return { name, ctx, page, errs, posts };
 }
@@ -116,6 +117,12 @@ try {
   const perf = await B.page.evaluate(async () => { const t0 = performance.now(); for (let i = 0; i < 2000; i++){ AISync.pending(); AISync.status(); } const ms = performance.now() - t0;
     const before = AISync.pending(); AIBrain.addQuestion({ title:'快取測試', type:'其他' }); const after = AISync.pending(); return { ms, before, after }; });
   ok(perf.ms < 300 && perf.after === perf.before + 1, `pending()／status() 快取：2000 次 ${perf.ms.toFixed(1)}ms；改了之後立刻重算（${perf.before} → ${perf.after}）`);
+  // AISync.ready：啟用時在第一次 session＋編輯名單檢查之後 resolve，值帶 reason；'aisync:ready' 每次載入只發一次
+  const rdy = d => d.page.evaluate(async () => ({ v:await Promise.race([AISync.ready, new Promise(r => setTimeout(() => r('hang'), 5000))]), ev:window.__readyEv, isReady:AISync.isReady }));
+  const rA = await rdy(A), rB = await rdy(B), rBob = await rdy(Bob);
+  ok([rA, rB, rBob].every(r => r.v !== 'hang' && r.isReady && r.v.enabled === true && !r.v.error && !r.v.timedOut && r.ev.length === 1 && r.ev[0].reason === r.v.reason && typeof r.v.status === 'string')
+    && rA.v.reason === 'editor' && rA.v.canWrite === true && rB.v.reason === 'anon' && rB.v.canWrite === false && rB.v.user === null && rBob.v.reason === 'not-editor' && rBob.v.canWrite === false && rBob.v.user.email === 'bob@example.com',
+    `AISync.ready（啟用）: A=${rA.v.reason}/${rA.v.status}、B=${rB.v.reason}/${rB.v.status}、Bob=${rBob.v.reason}/${rBob.v.status}，事件各發 1 次`);
   await Bob.page.close();   // 之後用不到 Bob：關掉省 CPU（每個分頁都在跑 3D）
   // 4. 新增 → C 看得到；兩台同時改不同節點
   const aid = await A.page.evaluate(() => AIBrain.addQuestion({ title:'A 新問題', type:'其他' })); await settle(A);
@@ -230,6 +237,19 @@ try {
   await G.page.evaluate(id => { const k = AIBrain.getState().nodes.find(n => n.parentId === id); AIBrain.select(k.id); }, root.id); await sleep(600);
   const gx = await G.page.evaluate(() => ({ x:window.__xss || 0, inj:document.querySelectorAll('#pBody img[onerror]').length }));
   ok(!gx.x && !gx.inj, 'G: 從雲端拉回的匯入節點，惡意文字不會執行');
+  // AISync.ready（失敗）：supabase.js 載不到 → ready 照樣 resolve（帶 error、離線、不能寫），不會卡 10 秒，大腦照常
+  const H = await device('H（supabase.js 載不到）', T_MERLIN);
+  await H.page.setRequestInterception(true);
+  H.page.on('request', r => /vendor\/supabase\.js/.test(r.url()) ? r.abort() : r.continue());
+  const h0 = Date.now();
+  await H.page.goto(`${ORIGIN}/index.html`, { waitUntil:'domcontentloaded', timeout:120000 });
+  await H.page.waitForFunction('document.body.dataset.ready === "1"', { timeout:90000 });
+  const rH = await H.page.evaluate(async () => { const v = await Promise.race([AISync.ready, new Promise(r => setTimeout(() => r('hang'), 9000))]); await new Promise(r => setTimeout(r, 50));
+    return { v, ev:window.__readyEv.length, icon:document.getElementById('bSync')?.textContent, nodes:AIBrain.getState().nodes.length }; });
+  const hErr = H.errs.filter(e => !/\[sync\]/.test(e));   // 預期會有一行 console.error('[sync]', …)
+  ok(rH.v !== 'hang' && rH.v.enabled && rH.v.status === 'offline' && !rH.v.canWrite && /supabase/.test(rH.v.error || '') && !rH.v.timedOut && rH.ev === 1 && rH.icon === '⚠️' && rH.nodes > 90 && !hErr.length && !H.posts.length,
+    `AISync.ready（失敗）: ${Date.now() - h0}ms 內 resolve ${JSON.stringify(rH.v)}，⚠️、${rH.nodes} 節點、沒有其他 JS 錯誤`);
+  await H.ctx.close();
   for (const d of [E, F, G]) ok(!d.errs.length, `${d.name}: 沒有 JS 錯誤 ${JSON.stringify(d.errs.slice(0, 3))}`);
   for (const d of [A, B, C, Bob, D]) ok(!d.errs.length, `${d.name}: 沒有 JS 錯誤 ${JSON.stringify(d.errs.slice(0, 3))}`);
 } catch(e){ console.error(e); fails++; }
