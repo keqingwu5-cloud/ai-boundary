@@ -52,6 +52,28 @@ $("eventType").addEventListener("change",updateFormHint);
 $("parentMemory").addEventListener("change",updateFormHint);
 function resetForm(){revising=null;$("candidateForm").reset();renderSelectors();$("eventType").value="new_question";$("proposer").value="user";$("evidenceLevel").value="hypothesis";updateFormHint();}
 $("resetProposal").addEventListener("click",resetForm);
+$("importReport").addEventListener("click",()=>$("reportInput").click());
+$("reportInput").addEventListener("change",async e=>{
+ const file=e.target.files&&e.target.files[0];e.target.value="";if(!file)return;
+ try{
+  if(file.size>250000)throw Error("檔案超過大小限制");
+  const pkg=JSON.parse(await file.text());
+  if(pkg.schema!=="ai-boundary.response.v0.1"||!pkg.source_command||
+     typeof pkg.source_command.title!=="string"||typeof pkg.source_command.instructions!=="string"||
+     typeof pkg.response_text!=="string"||!pkg.response_text.trim()||
+     pkg.response_text.length>12000)throw Error("回報格式不符，或內容太長");
+  resetForm();$("eventType").value="new_question";$("parentMemory").value="";
+  $("question").value=pkg.source_command.title.slice(0,3000);
+  $("purpose").value=(pkg.source_command.completion_criteria||pkg.source_command.instructions||"待使用者重新界定目的").slice(0,3000);
+  $("content").value=pkg.response_text;
+  $("reason").value="來源為發射器的 AI 人工回報；此為尚未完成記憶分類與事實驗證的候選草稿。";
+  $("evidence").value="來源任務："+(pkg.source_command.task_ref||pkg.source_command.title)+"；AI 回報來源為人工聲稱，未獨立驗證。";
+  const p=pkg.reported_by;
+  $("proposer").value=p==="GPT①"?"GPT1":p==="GPT②"?"GPT2":p==="BOT③"?"BOT3":"other";
+  $("evidenceLevel").value="hypothesis";updateFormHint();
+  selectTab("propose");feedback("已從回報 JSON 填入未提交的候選草稿，請人工檢查與分類後再提交。");
+ }catch(error){feedback("AI 回報匯入失敗："+error.message);}
+});
 function norm(s){return String(s||"").normalize("NFKC").replace(/\s+/g," ").trim();}
 function fingerprint(c){return [c.eventType,c.parentId||"",c.question,c.purpose,c.content,c.reason].map(norm).join("\u241f");}
 $("candidateForm").addEventListener("submit",e=>{
@@ -70,8 +92,11 @@ function reviewApproval(c){
  if(["revise_answer","revise_question"].includes(c.eventType)&&!parent){feedback("原記憶不存在，無法核准此修正。");return;}
  if(c.eventType==="revise_answer"&&parent&&(c.question!==parent.question||c.purpose!==parent.purpose)){feedback("問題或目的與原版不同，須另建分支。");return;}
  if(c.proposer!=="user"&&["revise_answer","revise_question"].includes(c.eventType)){
-  if(!confirm("跨 AI 提案的原問題對齊目前只能由你人工查驗。你是否已向原提出者核對修正內容，或確認原提出者無法回覆且此修正應以分支方式保留？"))return;
-  if(c.eventType==="revise_answer"&&!confirm("此為原答案修訂，不是更換問題。你是否確認問題與目的完全不變？"))return;
+  if(c.eventType==="revise_answer"){
+   if(!confirm("此為其他 AI 的答案修訂。目前系統無法驗證原提出者回覆。只有你確實向原提出者核對，並確認問題與目的都不變，才能追加答案版本。是否已人工核對完成？"))return;
+  }else{
+   if(!confirm("此為其他 AI 提出的問題修訂；核准將另建分支，原問題不會覆蓋。請確認已檢查語意差異及來源，是否繼續？"))return;
+  }
  }
  if(!confirm("核准後會新增本機權威版本或記憶分支並保留歷史。確定核准？"))return;
  queueChange(()=>{
