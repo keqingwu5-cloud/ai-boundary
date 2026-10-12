@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "content/series.json — 影集順序",
+  "type": "object",
+  "required": [
+    "episodes",
+    "extras"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "episodes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    },
+    "extras": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "additionalProperties": false
+}

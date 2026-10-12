@@ -1,0 +1,39 @@
+# 每個 PR（和推到 main）都跑：JSON 格式檢查、Node 單元測試、headless Chrome 冒煙測試。
+# 測試工具只裝在 CI 的 /tmp，網站本身照樣零建置、不需要 npm。
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 檢查 content/、patches/ 的 JSON（schemas/）＋只增不減
+        run: node scripts/validate_content.mjs --base "origin/${{ github.base_ref || 'main' }}"
+      - name: 安裝測試工具（只在 CI）
+        run: npm install --no-save --no-package-lock --prefix /tmp/ci @electric-sql/pglite@0.5.8 puppeteer-core@23.11.1
+      - name: Node 單元測試（含 PGlite 跑 schema.sql 的 RLS）
+        env:
+          PGLITE: /tmp/ci/node_modules/@electric-sql/pglite/dist/index.js
+        run: node --test tests/*.test.mjs
+      - name: 冒煙測試（headless Chrome，config 空白）
+        env:
+          PUPPETEER: /tmp/ci/node_modules/puppeteer-core/lib/esm/puppeteer/puppeteer-core.js
+          CHROME: /usr/bin/google-chrome
+        run: |
+          python3 -m http.server 8871 --bind 127.0.0.1 >/tmp/http.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf http://127.0.0.1:8871/index.html >/dev/null && break; sleep 0.5; done
+          node tests/smoke.mjs http://127.0.0.1:8871/

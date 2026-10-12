@@ -3,6 +3,7 @@ import { openGuardedStore, backup, snapshot, validateGraph, verifyTopology } fro
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { esc, safeUrl, safeColor, playable } from './safe.js';
+await window.AI_DATA_READY;           // data.js：等 content/*.json、patches/*.json 載入完（QUESTIONS、TYPES… 才會有值）
 
 /* ================= constants ================= */
 const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';

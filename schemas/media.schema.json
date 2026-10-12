@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "content/media.json — 種子媒體（scripts/publish_episode.sh 維護）",
+  "type": "object",
+  "propertyNames": {
+    "type": "string",
+    "pattern": "^[A-Za-z0-9_-]{1,80}$"
+  },
+  "additionalProperties": {
+    "type": "object",
+    "properties": {
+      "video": {
+        "type": "string",
+        "maxLength": 2000,
+        "pattern": "^(|https?://[^\\s<>\"'`\\\\]+|[^\\s:<>\"'`\\\\/][^\\s:<>\"'`\\\\]*)$"
+      },
+      "image": {
+        "type": "string",
+        "maxLength": 2000,
+        "pattern": "^(|https?://[^\\s<>\"'`\\\\]+|[^\\s:<>\"'`\\\\/][^\\s:<>\"'`\\\\]*)$"
+      },
+      "subtitles": {
+        "type": "string",
+        "maxLength": 2000,
+        "pattern": "^(|https?://[^\\s<>\"'`\\\\]+|[^\\s:<>\"'`\\\\/][^\\s:<>\"'`\\\\]*)$"
+      },
+      "subtitlesBurnedIn": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": false
+  }
+}

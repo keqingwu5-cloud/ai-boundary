@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "content/concepts.json — 概念層",
+  "type": "object",
+  "required": [
+    "defs",
+    "patterns",
+    "tags",
+    "process"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "defs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "color"
+        ],
+        "properties": {
+          "color": {
+            "type": "string",
+            "pattern": "^(#[0-9a-fA-F]{3,8}|hsla?\\([^)]*\\))$"
+          },
+          "desc": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "kw": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "patterns": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "color"
+        ],
+        "properties": {
+          "color": {
+            "type": "string",
+            "pattern": "^(#[0-9a-fA-F]{3,8}|hsla?\\([^)]*\\))$"
+          },
+          "desc": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "process": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  }
+}
