@@ -1,0 +1,11 @@
+name = "ai-boundary-private-brain"
+main = "src/index.js"
+compatibility_date = "2026-10-12"
+
+# Example only. Create a *private* D1 database first and replace the placeholder ID.
+# The actual credentials must be configured as Workers secrets, never in this repository.
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-boundary-private-memory"
+database_id = "REPLACE_WITH_PRIVATE_D1_DATABASE_ID"
+migrations_dir = "migrations"
