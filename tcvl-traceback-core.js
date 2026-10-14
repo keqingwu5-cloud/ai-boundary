@@ -23,7 +23,7 @@
     if (errors.length) return errors;
     const ids = new Set(), eventIds = new Set();
     for (const r of h.records) {
-      if (!caseRecord(r) || !validId(r.id) || ids.has(r.id) || !validTime(r.createdAt) || !['evidence','claim','memory','task','revision'].includes(r.type)) {
+      if (!caseRecord(r) || !validId(r.id) || ids.has(r.id) || !validTime(r.createdAt) || !validTime(r.recordedAt) || Date.parse(r.recordedAt) < Date.parse(r.createdAt) || !['evidence','claim','memory','task','revision'].includes(r.type)) {
         errors.push('record_invalid'); continue;
       }
       ids.add(r.id);
@@ -52,7 +52,7 @@
   function replayAt(history, cutoff) {
     ensureHistory(history);
     const t = ensureCutoff(cutoff);
-    const records = history.records.filter(r => Date.parse(r.createdAt) <= t);
+    const records = history.records.filter(r => Date.parse(r.createdAt) <= t && Date.parse(r.recordedAt) <= t);
     const ids = new Set(records.map(r => r.id));
     const events = history.events.filter(e => ids.has(e.recordId) && Date.parse(e.happenedAt) <= t && Date.parse(e.recordedAt) <= t)
       .sort((a, b) => Date.parse(a.recordedAt) - Date.parse(b.recordedAt) || Date.parse(a.happenedAt) - Date.parse(b.happenedAt) || a.id.localeCompare(b.id));
