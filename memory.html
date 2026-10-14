@@ -39,7 +39,7 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 <script src="./memory.js?v=20261013workflow01" defer></script>
 </head>
 <body>
-<header><nav><strong>🧠 主腦 · 共同記憶管理</strong><a href="./mainbrain.html">主腦控制台</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 大腦</a></nav></header>
+<header><nav><strong>🧠 主腦 · 共同記憶管理</strong><a href="./mainbrain.html">主腦控制台</a><a href="./architecture-hub.html">🧩 架構導覽</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 大腦</a></nav></header>
 <main>
 <div class="kicker">MEMORY GOVERNANCE · LOCAL VAULT V1</div><h1>共同記憶審核與修正</h1>
 <p>先讓「提交候選 → 審核／拒絕 → 保留歷史 → 修正再提交 → 差異回顧」真正可操作。你是目前本機記憶庫的核准者。</p>
@@ -102,6 +102,13 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 </section>
 <section id="tab-memory" role="tabpanel" hidden>
 <div class="panel"><h2>權威版本（僅限本機）</h2><p>這裡的權威指「你在此裝置核准過的版本」，不代表客觀真理或雲端三方共識。</p><div id="memoryList"></div></div>
+<div class="panel" id="architectureHistoryPanel"><h2>主腦架構｜拒絕、修正與版本紀錄</h2>
+<p>只在<strong>已解鎖的本機加密記憶庫</strong>內查看已匯入的主腦架構候選、拒絕理由、修復關聯與核准版本。架構導覽頁不直接讀取此處資料。</p>
+<div class="actions"><button type="button" id="toggleArchitectureHistory" aria-controls="architectureHistoryWrap" aria-expanded="true">隱藏架構歷史</button><button type="button" id="jumpArchitectureReview">查看候選審核與修復</button><a href="./architecture-hub.html">返回架構導覽</a></div>
+<div id="architectureHistoryWrap"><label for="architectureFilter">依紀錄狀態篩選</label><select id="architectureFilter">
+<option value="all">全部主腦架構紀錄</option><option value="rejected">已拒絕／修復鏈</option><option value="corrected">修正與版本</option><option value="pending">待審候選</option><option value="approved">已核准</option>
+</select><div id="architectureHistoryCount" class="small" role="status"></div><div id="architectureHistoryList"></div></div>
+</div>
 </section>
 <section id="tab-diff" role="tabpanel" hidden>
 <div class="panel"><h2>事件差異與變更歷史</h2>
