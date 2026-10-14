@@ -230,7 +230,7 @@ function buildDraft(){
  if(!name)throw Error("請先填寫要完成的目標");
  const ids=draftIds?[...draftIds]:[...t.ids];
  if(!ids.length)throw Error("至少保留一個模組；可用還原範本重新開始");
- const steps=ids.map((id,i)=>({order:i+1,id,title:allModulesById(id).title,input:allModulesById(id).input,action:allModulesById(id).work,output:allModulesById(id).output,next:ids[i+1]||"人工審批／下一輪"}));
+ const steps=ids.map((id,i)=>({order:i+1,id,title:allModulesById(id).title,status:allModulesById(id).status,input:allModulesById(id).input,action:allModulesById(id).work,output:allModulesById(id).output,next:ids[i+1]||"人工審批／下一輪"}));
  return {schema:"tcvl.quick-blueprint.v0.1",name,template:by("blueprintType").value,stage:"concept_only_not_deployed",steps,reverseRule:t.reverse,verificationGates:t.gates};
 }
 function refreshBlueprint(){
@@ -260,7 +260,7 @@ by("addCustomModule").addEventListener("click",()=>{
  draftIds.push(id);
  for(const inputId of ["customTitle","customInput","customWork","customOutput","customReverse"])by(inputId).value="";
  by("customStatus").textContent="已新增模組：「"+title+"」，可點架構圖查看作用，也能在預覽區調整順序。";
- selectModule(id);refreshBlueprint();
+ selectModule(id);refreshBlueprint();if(globalThis.TcvlArchitectureCore){refreshRouteSelectors();renderInterfaceCards();renderRoute();}
 });
 function describe(d){
  return ["【主腦 TCVL｜架構草稿（未部署）】","目標："+d.name,"範本："+templates[d.template].label,"",
@@ -273,7 +273,155 @@ by("exportBlueprint").addEventListener("click",()=>{
  const content=JSON.stringify({...currentDraft,exportedAt:new Date().toISOString(),delivery:"manual_not_sent"},null,2);
  const blob=new Blob([content],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="tcvl-blueprint-"+Date.now()+".json";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);by("exportStatus").textContent="已觸發架構草稿下載；請確認檔案已保存。";
 });
-selectModule("launcher");refreshBlueprint();
+
+/* Connector status, bidirectional history and memory candidate exports: no private vault access. */
+const architectureCore=globalThis.TcvlArchitectureCore;
+let recentRecords=[];
+const sampleRecords=[
+ {id:"EXAMPLE-01",direction:"inbound",kind:"general",title:"虛構：研究資料進站",summary:"GPT①（自填來源）→ 資料治理；等待來源核對，未寫入正式記憶",at:"示範時間 10/01",origin:"虛構"},
+ {id:"EXAMPLE-02",direction:"outbound",kind:"rejection",title:"虛構：拒絕缺乏來源的資料",summary:"TCVL-01 → 提出者；保留原提案 ID、拒絕原因及補證要求",at:"示範時間 10/02",origin:"虛構"},
+ {id:"EXAMPLE-03",direction:"inbound",kind:"correction",title:"虛構：提交修正後的候選",summary:"提出者 → TCVL-01；新增證據與舊拒絕 ID 連結，尚未核准",at:"示範時間 10/03",origin:"虛構"},
+ {id:"EXAMPLE-04",direction:"outbound",kind:"general",title:"虛構：人工交接重新測試",summary:"發射器 → BOT③；只是指令草稿，沒有自動送達證明",at:"示範時間 10/04",origin:"虛構"}
+];
+function downloadLocalJSON(payload,filename){
+ const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json;charset=utf-8"});
+ const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download=filename;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);
+}
+function nonce(){return (typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID().replace(/-/g,""):(Date.now().toString(36)+Math.random().toString(36).slice(2))).slice(0,60)}
+function assertCore(){if(!architectureCore)throw Error("架構檢查模組未載入，請確認相同分支的核心檔案是否存在");return architectureCore}
+function routeName(id){
+ const module=allModulesById(id);if(module)return module.title;
+ return architectureCore.INTERFACES.find(x=>x.id===id)?.title||id;
+}
+function refreshRouteSelectors(){
+ const start=by("routeStart"),end=by("routeEnd"),oldStart=start.value||"launcher",oldEnd=end.value||"vault";
+ for(const el of [start,end]){el.replaceChildren();for(const m of modules){const opt=document.createElement("option");opt.value=m.id;opt.textContent=m.title;el.append(opt)}}
+ start.value=modules.some(x=>x.id===oldStart)?oldStart:"launcher";
+ end.value=modules.some(x=>x.id===oldEnd)?oldEnd:"vault";
+}
+function renderInterfaceCards(){
+ const core=assertCore(),box=by("interfaceCards");box.replaceChildren();
+ for(const item of core.INTERFACES){
+  const status=core.STATUSES[item.status];
+  const card=textNode("div","statecard");card.append(textNode("span","chip",status.label),textNode("h3","",item.title),textNode("p","",item.detail),textNode("p","helper",status.note));box.append(card);
+ }
+ if(customCount){const card=textNode("div","statecard");card.append(textNode("span","chip","設計草稿"),textNode("h3","","新增 "+customCount+" 個自訂節點"),textNode("p","","只包含設計說明，沒有已建立的遠端接口、憑證或實際傳輸。"));box.append(card)}
+}
+function effectiveRoutes(){
+ const base=architectureCore.ROUTES.map(x=>({...x})),used=new Set(base.map(x=>x.from+"->"+x.to));
+ const d=currentDraft;
+ if(d){for(let i=0;i<d.steps.length-1;i++){const from=d.steps[i].id,to=d.steps[i+1].id,key=from+"->"+to;if(!used.has(key)){base.push({from,to,status:"planned",action:"快速架構中定義的先後順序，尚未實作資料交換／交接驗證"});used.add(key)}}}
+ return base;
+}
+function renderRoute(){
+ const box=by("routeResult");box.replaceChildren();
+ try{
+  const core=assertCore(),start=by("routeStart").value,end=by("routeEnd").value,plan=core.routePlan(start,end,effectiveRoutes());
+  const lead=textNode("div","detailrow");lead.append(textNode("span","","路徑摘要（依靜態規格，非實際連線測試）"),textNode("p","",routeName(start)+" → "+routeName(end)+"： "+plan.summary));box.append(lead);
+  if(plan.unreachable){box.append(textNode("p","note","目前沒有已定義的交接邊。可在快速架構中建立這兩個模組的先後順序，再查看規劃中的路徑。"));return}
+  for(const [i,step] of plan.steps.entries()){
+    const block=textNode("div","pathstep");const status=core.STATUSES[step.status];
+    block.append(textNode("b","",String(i+1)+"｜"+routeName(step.from)+" → "+routeName(step.to)),
+       textNode("span","chip",status.label),
+       textNode("p","", "這段做什麼："+step.action),
+       textNode("p","helpnote","接口限制："+status.note));box.append(block);
+  }
+  if(plan.steps.length===0)box.append(textNode("p","helper","沒有跨模組移動，仍需檢查此節點本身的權限與驗收。"));
+ }catch(e){box.append(textNode("p","note","無法規劃："+e.message))}
+}
+function recordCategory(x){return x.kind==="rejection"?"拒絕／退回":x.kind==="correction"?"修正／重測":"一般事件"}
+function renderHistory(){
+ const wrap=by("historyWrap");if(wrap.hidden)return;
+ const flags={showInbound:by("showInbound").checked,showOutbound:by("showOutbound").checked,showReject:by("showReject").checked,showCorrections:by("showCorrections").checked,showGeneral:by("showGeneral").checked};
+ const rows=architectureCore.filterHistory([...recentRecords,...sampleRecords],{showInbound:flags.showInbound,showOutbound:flags.showOutbound});
+ const filtered=rows.filter(x=>x.kind==="rejection"?flags.showReject:x.kind==="correction"?flags.showCorrections:flags.showGeneral);
+ by("historyCount").textContent="可見 "+filtered.length+" 筆｜虛構示例 "+sampleRecords.length+" 筆；本次新增 "+recentRecords.length+" 筆未保存草稿。";
+ const box=by("historyList");box.replaceChildren();
+ if(!filtered.length){box.append(textNode("p","helper","目前篩選條件下沒有紀錄。"));return}
+ for(const x of filtered){
+  const card=textNode("div","track");card.dataset.kind=x.kind;
+  card.append(textNode("strong","",x.title),
+    textNode("span","meta",(x.direction==="inbound"?"進站":"送出")+"｜"+recordCategory(x)+"｜"+x.id+"｜"+x.at),
+    textNode("p","",x.summary),textNode("p","helpnote",x.origin==="虛構"?"虛構展示資料；不是已發生事件":"本次暫存，尚未匯出至加密記憶庫"));
+  box.append(card);
+ }
+}
+by("toggleHistory").addEventListener("click",()=>{
+ const wrap=by("historyWrap");wrap.hidden=!wrap.hidden;
+ by("toggleHistory").textContent=wrap.hidden?"顯示雙向紀錄":"隱藏雙向紀錄";
+ by("toggleHistory").setAttribute("aria-expanded",String(!wrap.hidden));
+ if(!wrap.hidden)renderHistory();
+});
+for(const id of ["showInbound","showOutbound","showReject","showCorrections","showGeneral"])by(id).addEventListener("change",renderHistory);
+function rebuildRecordFields(){
+ const core=assertCore(),type=by("recordTemplate").value,t=core.FIELD_TEMPLATES[type],box=by("recordFields");box.replaceChildren();
+ for(const [key,label] of t.fields){
+  const group=textNode("div","detailrow");const elementId="recordField_"+key;
+  const lbl=textNode("label","",label);lbl.htmlFor=elementId;const inp=document.createElement("input");
+  inp.type="text";inp.id=elementId;inp.maxLength=1200;inp.required=true;
+  inp.placeholder=key==="recordId"?"請填原始任務／候選 ID，方便回溯":"填寫這一環節的實際內容或標註待驗證";
+  group.append(lbl,inp);box.append(group);
+ }
+ by("recordMessage").textContent="已套用「"+t.name+"」欄位，請填入實際資料與原因；不會自動核准。";
+}
+function readRecord(){
+ const core=assertCore(),type=by("recordTemplate").value,t=core.FIELD_TEMPLATES[type];
+ const fields={};for(const [key] of t.fields)fields[key]=by("recordField_"+key).value.trim();
+ const uid=nonce();const pack=core.recordPack(type,fields,uid);
+ const direction=["outbound","rejection"].includes(type)?"outbound":"inbound";
+ const kind=type==="rejection"?"rejection":type==="correction"?"correction":"general";
+ return {type,t,fields,pack,direction,kind,uid};
+}
+function recordPreview(e){
+ if(e)e.preventDefault();
+ try{
+  const x=readRecord();recentRecords.unshift({id:x.fields.recordId,direction:x.direction,kind:x.kind,title:x.t.name+"｜"+x.fields.recordId,summary:x.t.fields.map(([key,label])=>label+"："+x.fields[key]).join("；").slice(0,1700),at:"本次未保存",origin:"暫存"});
+  if(recentRecords.length>40)recentRecords.length=40;
+  by("recordMessage").textContent="已加入本次紀錄預覽。只存在目前頁面記憶體，尚未存入加密記憶；請匯出候選包。";
+  renderHistory();
+ }catch(err){by("recordMessage").textContent="無法加入："+err.message}
+}
+by("recordForm").addEventListener("submit",recordPreview);
+by("downloadRecordPack").addEventListener("click",()=>{
+ try{
+  const x=readRecord();
+  downloadLocalJSON(x.pack,"tcvl-record-candidate-"+x.uid+".json");
+  by("recordMessage").textContent="已觸發下載待審記憶包。請確認檔案存在，再到加密記憶管理匯入審核；未自動存入。";
+ }catch(e){by("recordMessage").textContent="匯出失敗："+e.message}
+});
+function allArchitectureDraft(){
+ const list=[...modules];
+ return {schema:"tcvl.quick-blueprint.v0.1",name:"主腦完整架構｜Launcher Hub × TCVL",template:"research",stage:"concept_only_not_deployed",
+  steps:list.map((m,i)=>({order:i+1,id:m.id,title:m.title,status:m.status,input:m.input,action:m.work,output:m.output,next:list[i+1]?.id||"人工審批／後續研究"})),
+  reverseRule:"任何進站、送出、反證、否決及修正應保留原始 ID、時間、版本與退回目標；不能將接口示範視為實際送達。",
+  verificationGates:"雙向來源與身分查核、拒絕與修正歷史、時間隔離、獨立三方驗證、修正後重測、人工核准、加密保存及備份驗收。"};
+}
+function exportMemory(which){
+ try{
+  const core=assertCore(),draft=which==="full"?allArchitectureDraft():currentDraft;
+  if(!draft)throw Error("請先建立有效架構");
+  const pack=core.architecturePack(draft,nonce());
+  downloadLocalJSON(pack,"tcvl-"+(which==="full"?"full":"draft")+"-architecture-memory-candidate.json");
+  by("memoryMessage").textContent="已觸發下載「"+(which==="full"?"完整主腦架構":"目前快速架構")+"」候選包。下一步：到記憶管理頁解鎖 → 提交候選 → 批次匯入 GPT① 記憶候選包 → 比較內容／核准或拒絕。並未自動寫入。";
+ }catch(err){by("memoryMessage").textContent="無法產生完整架構候選："+err.message+"。可以移除不必要內容或拆分架構，不能直接截斷造成資訊遺失。"}
+}
+by("downloadFullMemory").addEventListener("click",()=>exportMemory("full"));
+by("downloadDraftMemory").addEventListener("click",()=>exportMemory("draft"));
+by("planRoute").addEventListener("click",renderRoute);
+
+if(architectureCore){
+ for(const [key,t] of Object.entries(architectureCore.FIELD_TEMPLATES)){
+  const option=document.createElement("option");option.value=key;option.textContent=t.name;by("recordTemplate").append(option);
+ }
+ by("recordTemplate").value="inbound";
+ by("recordTemplate").addEventListener("change",rebuildRecordFields);
+ rebuildRecordFields();
+ refreshRouteSelectors();renderInterfaceCards();renderHistory();
+}else{
+ by("recordMessage").textContent="缺少架構核心程式，暫停建立紀錄";
+ by("memoryMessage").textContent="缺少架構核心程式，不能匯出候選記憶包";
+}
+selectModule("launcher");refreshBlueprint();if(architectureCore)renderRoute();
 })();
 </script>
 </body></html>
