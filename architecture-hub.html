@@ -94,7 +94,13 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
      <option value="research">一般研究驗證</option><option value="repair">被否決資料重新驗證</option><option value="interface">新接口與匯入匯出</option><option value="trace">歷史回溯與影響追查</option>
    </select></div>
    <div><label for="extraModule">加入模組（選取後立即加入預覽）</label><select id="extraModule"><option value="">選擇要增加的模組</option></select></div>
-   <div class="miniactions"><button type="submit">產生架構說明</button><button type="button" id="clearBuilder" class="ghost">還原範本</button></div>
+   <details id="newModulePanel"><summary>＋ 建立新的模組節點（選填）</summary>
+   <div class="fields" style="margin-top:12px"><div><label for="customTitle">新模組名稱</label><input id="customTitle" maxlength="80" placeholder="例如：品質評估中心"></div><div><label for="customInput">接收什麼？</label><input id="customInput" maxlength="250" placeholder="證據、測試結果、任務版本"></div></div>
+   <div class="fields"><div><label for="customWork">具體做什麼？</label><textarea id="customWork" maxlength="500" placeholder="說明處理與檢查動作"></textarea></div><div><label for="customOutput">交出什麼？</label><textarea id="customOutput" maxlength="400" placeholder="評估報告、修正建議等"></textarea></div></div>
+   <div><label for="customReverse">失敗時退回哪裡？</label><input id="customReverse" maxlength="300" placeholder="例如：退回測試設計並要求補充證據"></div>
+   <div class="miniactions"><button type="button" id="addCustomModule">建立節點並加入預覽</button></div><p class="helper" id="customStatus" role="status">僅建立可說明的設計節點；不產生程式碼或自動連線。</p>
+  </details>
+  <div class="miniactions"><button type="submit">產生架構說明</button><button type="button" id="clearBuilder" class="ghost">還原範本</button></div>
    <p class="helper" id="builderStatus" role="status"></p>
   </form>
   <div class="note">這裡產生的是<strong>尚未部署的架構草稿</strong>。不會自動連接其他 AI、建立正式任務或修改任何資料庫。</div>
@@ -136,13 +142,14 @@ const by=id=>document.getElementById(id);
 const map=by("moduleMap");let active="launcher",currentDraft=null,draftIds=null;
 function textNode(tag,cls,value){const el=document.createElement(tag);if(cls)el.className=cls;if(value!==undefined)el.textContent=value;return el}
 function allModulesById(id){return modules.find(m=>m.id===id)}
-modules.forEach((m,i)=>{
+function appendModule(m){
+ if(map.children.length)map.append(textNode("div","flowarrow","↓"));
  const b=textNode("button","node");b.type="button";b.dataset.module=m.id;
  b.append(textNode("span","num",m.n));const desc=textNode("span");desc.append(textNode("strong","",m.title),textNode("small","",m.short));b.append(desc);
  b.addEventListener("click",()=>selectModule(m.id));map.append(b);
- if(i<modules.length-1)map.append(textNode("div","flowarrow","↓"));
  const option=document.createElement("option");option.value=m.id;option.textContent=m.title;by("extraModule").append(option);
-});
+}
+modules.forEach(appendModule);
 function selectModule(id){
  const m=allModulesById(id);if(!m)return;
  active=id;by("detailNumber").textContent="MODULE "+m.n;by("detailTitle").textContent=m.title;
@@ -180,6 +187,20 @@ by("blueprintType").addEventListener("change",()=>{draftIds=[...templates[by("bl
 by("extraModule").addEventListener("change",()=>{const id=by("extraModule").value;if(id){if(!draftIds)draftIds=[...templates[by("blueprintType").value].ids];if(!draftIds.includes(id))draftIds.push(id);by("extraModule").value="";}refreshBlueprint()});
 by("blueprintName").addEventListener("input",refreshBlueprint);
 by("clearBuilder").addEventListener("click",()=>{by("blueprintName").value="驗證一個研究主張並保留修正歷史";by("blueprintType").value="research";by("extraModule").value="";draftIds=null;refreshBlueprint()});
+let customCount=0;
+by("addCustomModule").addEventListener("click",()=>{
+ const title=by("customTitle").value.trim(),input=by("customInput").value.trim(),work=by("customWork").value.trim(),output=by("customOutput").value.trim(),reverse=by("customReverse").value.trim();
+ if(!title||!input||!work||!output||!reverse){by("customStatus").textContent="請填寫模組用途、輸入、處理、輸出及退回方向。";return}
+ if(customCount>=9){by("customStatus").textContent="本次草稿最多新增 9 個自訂節點，避免圖面難以閱讀。";return}
+ const id="custom-"+(++customCount);
+ const m={id,n:"NEW",title,short:work.slice(0,45),status:"設計草稿",desc:"自訂設計節點。未實作，也沒有自動資料連線。",input,work,output,check:"尚未驗證：需先定義資料真實性、操作權限與驗收方法。",forward:"下一個架構節點（順序可調整）",reverse,links:[]};
+ modules.push(m);appendModule(m);
+ if(!draftIds)draftIds=[...templates[by("blueprintType").value].ids];
+ draftIds.push(id);
+ for(const inputId of ["customTitle","customInput","customWork","customOutput","customReverse"])by(inputId).value="";
+ by("customStatus").textContent="已新增模組：「"+title+"」，可點架構圖查看作用，也能在預覽區調整順序。";
+ selectModule(id);refreshBlueprint();
+});
 function describe(d){
  return ["【主腦 TCVL｜架構草稿（未部署）】","目標："+d.name,"範本："+templates[d.template].label,"",
  ...d.steps.flatMap(s=>[s.order+"｜"+s.title,"接收："+s.input,"執行："+s.action,"產出："+s.output,"交接："+s.next,""]),
