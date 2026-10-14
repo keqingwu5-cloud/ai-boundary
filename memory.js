@@ -239,13 +239,15 @@ $("memoryPackInput").addEventListener("change",async e=>{
    const next=workflowCore.planImport(pack,state);
    if(next.accepted.length!==plan.accepted.length)throw Error("資料已變動，請重新選檔檢查");
    for(const {item,possibleConflictWith} of next.accepted){
+    const architectureCandidate=typeof item.question==="string" && item.question.startsWith("【主腦架構】");
+    const context=architectureCandidate?"；架構候選來自人工匯入檔案，來源身分尚未驗證":"";
     const c={id:uid(),originId:item.id,eventType:"new_question",parentId:null,
       question:item.question,purpose:item.purpose,content:item.content,
-      evidence:item.evidence,reason:item.reason+(possibleConflictWith.length?"；同題不同版本需人工比較："+possibleConflictWith.join(","):""),
-      proposer:"GPT1",evidenceLevel:item.evidenceLevel||"hypothesis",
+      evidence:item.evidence,reason:item.reason+context+(possibleConflictWith.length?"；同題不同版本需人工比較："+possibleConflictWith.join(","):""),
+      proposer:architectureCandidate?"other":"GPT1",evidenceLevel:item.evidenceLevel||"hypothesis",
       createdAt:utc(),status:"pending",repairOf:null,review:null};
     const problem=validateCandidate(c);if(problem)throw Error(problem);
-    state.candidates.unshift(c);evt("candidate.created",c.id,"GPT①記憶包 "+item.id+"・"+c.question.slice(0,50));
+    state.candidates.unshift(c);evt("candidate.created",c.id,(architectureCandidate?"架構候選包（來源未驗證） ":"GPT①記憶包 ")+item.id+"・"+c.question.slice(0,50));
    }
    evt("memory.pack_imported",pack.schema,"新增 "+next.accepted.length+" 筆，跳過 "+next.duplicated.length+" 筆，待人工比較 "+next.conflicts.length+" 筆");
    selectTab("review");
