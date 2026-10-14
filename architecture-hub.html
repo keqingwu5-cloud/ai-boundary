@@ -160,7 +160,11 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
   <span class="overline">RECORD TEMPLATES</span><h2>套用欄位｜建立一筆紀錄</h2>
   <p>選擇模板，產生需要填寫的欄位；可先在目前頁面檢查，再匯出「待審記憶包」。尚未送出、尚未核准、重整後未匯出的草稿會消失。</p>
   <div><label for="recordTemplate">選擇紀錄模板</label><select id="recordTemplate"></select></div>
-  <form id="recordForm"><div id="recordFields" class="detailgrid"></div><div class="miniactions">
+  <form id="recordForm"><div id="recordFields" class="detailgrid"></div>
+  <details><summary>＋ 自訂額外欄位（最多 8 欄）</summary>
+  <div class="fields" style="margin-top:10px"><div><label for="customRecordLabel">欄位名稱</label><input id="customRecordLabel" maxlength="80" placeholder="例如：補證截止條件"></div><div><label for="customRecordValue">欄位內容</label><input id="customRecordValue" maxlength="1200" placeholder="說明欄位作用及內容"></div></div>
+  <button type="button" id="addRecordField">加入這個欄位</button><div id="customRecordFields" class="detailgrid"></div></details>
+  <div class="miniactions">
    <button type="submit">加入本次紀錄預覽</button>
    <button type="button" id="downloadRecordPack">匯出本筆記憶候選包</button>
   </div></form>
@@ -276,7 +280,7 @@ by("exportBlueprint").addEventListener("click",()=>{
 
 /* Connector status, bidirectional history and memory candidate exports: no private vault access. */
 const architectureCore=globalThis.TcvlArchitectureCore;
-let recentRecords=[];
+let recentRecords=[],extraRecordFields=[];
 const sampleRecords=[
  {id:"EXAMPLE-01",direction:"inbound",kind:"general",title:"虛構：研究資料進站",summary:"GPT①（自填來源）→ 資料治理；等待來源核對，未寫入正式記憶",at:"示範時間 10/01",origin:"虛構"},
  {id:"EXAMPLE-02",direction:"outbound",kind:"rejection",title:"虛構：拒絕缺乏來源的資料",summary:"TCVL-01 → 提出者；保留原提案 ID、拒絕原因及補證要求",at:"示範時間 10/02",origin:"虛構"},
@@ -360,6 +364,7 @@ by("toggleHistory").addEventListener("click",()=>{
 });
 for(const id of ["showInbound","showOutbound","showReject","showCorrections","showGeneral"])by(id).addEventListener("change",renderHistory);
 function rebuildRecordFields(){
+ extraRecordFields=[];renderExtraRecordFields();
  const core=assertCore(),type=by("recordTemplate").value,t=core.FIELD_TEMPLATES[type],box=by("recordFields");box.replaceChildren();
  for(const [key,label] of t.fields){
   const group=textNode("div","detailrow");const elementId="recordField_"+key;
@@ -370,9 +375,29 @@ function rebuildRecordFields(){
  }
  by("recordMessage").textContent="已套用「"+t.name+"」欄位，請填入實際資料與原因；不會自動核准。";
 }
+function renderExtraRecordFields(){
+ const box=by("customRecordFields");box.replaceChildren();
+ for(const [i,extra] of extraRecordFields.entries()){
+  const row=textNode("div","detailrow");
+  row.append(textNode("span","",extra.label),textNode("p","",extra.value));
+  const btn=textNode("button","ghost","移除欄位");btn.type="button";
+  btn.addEventListener("click",()=>{extraRecordFields.splice(i,1);renderExtraRecordFields()});
+  row.append(btn);box.append(row);
+ }
+}
+by("addRecordField").addEventListener("click",()=>{
+ const label=by("customRecordLabel").value.trim(),value=by("customRecordValue").value.trim();
+ if(!label||!value){by("recordMessage").textContent="請輸入自訂欄位名稱及內容。";return}
+ if(extraRecordFields.length>=8){by("recordMessage").textContent="自訂欄位最多 8 欄。";return}
+ if(extraRecordFields.some(x=>x.label===label)){by("recordMessage").textContent="欄位名稱不能重複。";return}
+ extraRecordFields.push({label,value});by("customRecordLabel").value="";by("customRecordValue").value="";
+ by("recordMessage").textContent="已加入自訂欄位「"+label+"」，匯出時會保留完整內容。";
+ renderExtraRecordFields();
+});
 function readRecord(){
  const core=assertCore(),type=by("recordTemplate").value,t=core.FIELD_TEMPLATES[type];
  const fields={};for(const [key] of t.fields)fields[key]=by("recordField_"+key).value.trim();
+ fields.extraFields=extraRecordFields.map(x=>({...x}));
  const uid=nonce();const pack=core.recordPack(type,fields,uid);
  const direction=["outbound","rejection"].includes(type)?"outbound":"inbound";
  const kind=type==="rejection"?"rejection":type==="correction"?"correction":"general";
@@ -381,7 +406,7 @@ function readRecord(){
 function recordPreview(e){
  if(e)e.preventDefault();
  try{
-  const x=readRecord();recentRecords.unshift({id:x.fields.recordId,direction:x.direction,kind:x.kind,title:x.t.name+"｜"+x.fields.recordId,summary:x.t.fields.map(([key,label])=>label+"："+x.fields[key]).join("；").slice(0,1700),at:"本次未保存",origin:"暫存"});
+  const x=readRecord();recentRecords.unshift({id:x.fields.recordId,direction:x.direction,kind:x.kind,title:x.t.name+"｜"+x.fields.recordId,summary:x.pack.items[0].content.slice(0,1700),at:"本次未保存",origin:"暫存"});
   if(recentRecords.length>40)recentRecords.length=40;
   by("recordMessage").textContent="已加入本次紀錄預覽。只存在目前頁面記憶體，尚未存入加密記憶；請匯出候選包。";
   renderHistory();
