@@ -23,6 +23,7 @@ button:disabled{opacity:.5;cursor:default}.controls{display:flex;flex-wrap:wrap;
 .node.affected{border:2px solid #e2bd82}.node.clear{border:1px solid #73b9a4}
 .full{grid-column:1/-1}.arrow{text-align:center;color:#adc5e9;grid-column:1/-1}.list{margin:12px 0;padding-left:20px;line-height:1.8;color:#d3e0f8}
 dl{display:grid;grid-template-columns:128px 1fr;gap:9px;margin:0}dt{color:#9bb6da}dd{margin:0;overflow-wrap:anywhere}
+label{display:block;margin-bottom:7px;color:#c7d9f5;font-size:13px}select,input{width:100%;border:1px solid #5c7599;background:#0c1729;color:#f1f6ff;border-radius:10px;padding:11px;font:inherit}select:focus-visible,input:focus-visible{outline:3px solid #c5d6ff;outline-offset:2px}
 .notice{border:1px solid #90794d;background:#332b1d;border-radius:12px;padding:12px;margin:15px 0;color:#f7e6c1}
 .output{background:#0c1729;border:1px solid #394f70;border-radius:12px;padding:14px;white-space:pre-wrap;line-height:1.7;overflow-wrap:anywhere}
 @media(max-width:720px){.grid{grid-template-columns:1fr}.steps{grid-template-columns:repeat(2,1fr)}.panel{padding:15px}dl{grid-template-columns:1fr}dd{margin-bottom:10px}}
@@ -61,12 +62,25 @@ dl{display:grid;grid-template-columns:128px 1fr;gap:9px;margin:0}dt{color:#9bb6d
 <div><span class="tag">舊版 C-001</span><p>「所有測試條件下均成立。」</p><p class="small">問題：主張範圍過大，且尚未完成跨條件檢查。</p></div>
 <div><span class="tag">候選修正版 R-001</span><p>「目前僅在已取得支持的條件下有證據；其他條件待驗證。」</p><p class="small">狀態：修正建議，尚未核准為正式記憶。</p></div>
 </div></section>
+<section class="panel" style="margin-top:16px" aria-label="三方驗證測試器"><h2>三項測試決策｜互動演練</h2>
+<p class="small">選擇 GPT① 方向、GPT② 證據、BOT③ 條件變化的測試狀態。按下執行後，由獨立測試核心計算應採用的處置。全部通過也僅代表「可以送人工審批」，不是自動驗證為真。</p>
+<div class="grid">
+<div><label for="checkDirection">GPT①｜方向符合</label><select id="checkDirection"><option value="pass">通過</option><option value="fail">不成立</option><option value="unknown">無法判定</option><option value="invalid">測試無效</option></select></div>
+<div><label for="checkEvidence">GPT②｜證據支持</label><select id="checkEvidence"><option value="pass">通過</option><option value="fail">不成立</option><option value="unknown">無法判定</option><option value="invalid">測試無效</option></select></div>
+<div><label for="checkVariations">BOT③｜條件變化</label><select id="checkVariations"><option value="pass">通過</option><option value="fail" selected>不成立</option><option value="unknown">無法判定</option><option value="invalid">測試無效</option></select></div>
+<div><label for="reason">本輪共同說明</label><input id="reason" maxlength="200" value="虛構示例：跨條件測試未得到一致結果"></div>
+</div>
+<div class="controls"><button type="button" id="runTripleCheck">計算處置與退回</button><button type="button" id="runImpact">示範依賴影響追蹤</button></div>
+<div class="output" id="testDecision" role="status" aria-live="polite">尚未執行測試模擬。</div>
+<p class="small">判斷規則只檢查提供的測試結果與必填原因；不代表已自動查證外部世界，也不會寫入正式記憶。</p>
+</section>
 <section class="panel" style="margin-top:16px"><h2>示範資料與影片安全規則</h2>
 <p>此頁只展示資料結構的效果，不揭露私人記憶或內部操作憑證。錄影時保留「虛構示範」標示。正式資料未來應經脫敏、人工授權和驗證後才能公開。</p>
 <div class="controls"><button type="button" id="copySummary">複製示範摘要</button></div>
 <div id="copyStatus" class="small" role="status"></div>
 </section>
 </main>
+<script src="./tcvl-traceback-core.js"></script>
 <script>
 "use strict";
 const data=[
@@ -86,5 +100,27 @@ byId("next").addEventListener("click",()=>{stop();show(pos+1)});
 byId("reset").addEventListener("click",()=>{stop();show(0)});
 byId("play").addEventListener("click",()=>{if(timer!==null){stop();return}if(pos>=data.length-1)show(0);byId("play").textContent="⏸ 暫停";timer=setInterval(()=>{if(pos>=data.length-1){stop();return}show(pos+1)},1900)});
 byId("copySummary").addEventListener("click",async()=>{const report="TCVL-04 虛構示範：原始主張 → 獨立反證 → 條件變化測試 → 依賴影響掃描 → 提案修正與再驗證。此摘要不代表任何真實 AI 已完成測試。";try{await navigator.clipboard.writeText(report);byId("copyStatus").textContent="已複製示範摘要。"}catch(e){byId("copyStatus").textContent="無法存取剪貼簿，請檢查瀏覽器權限。"}});
+const statusLabel={eligible_for_human_review:"可提交人工審批",return_for_revision:"退回修正",hold_for_evidence:"保留待驗證",test_invalid:"測試無效，需要重設測試"};
+const roleLabel={GPT1:"GPT①｜研究目標",GPT2:"GPT②｜證據與反證",BOT3:"BOT③｜條件測試"};
+const resultLabel={pass:"通過",fail:"不成立",unknown:"無法判定",invalid:"測試無效"};
+byId("runTripleCheck").addEventListener("click",()=>{
+ if(!globalThis.TcvlTracebackCore){byId("testDecision").textContent="測試核心尚未載入，請確認檔案是否存在。";return}
+ const reason=byId("reason").value.trim();
+ const values={direction:byId("checkDirection").value,evidence:byId("checkEvidence").value,variations:byId("checkVariations").value};
+ try{
+  const result=globalThis.TcvlTracebackCore.tripleCheck(Object.fromEntries(Object.entries(values).map(([k,outcome])=>[k,{outcome,reason}])));
+  const report=["三方測試結果｜虛構演練","① 方向："+resultLabel[values.direction],"② 證據："+resultLabel[values.evidence],"③ 條件變化："+resultLabel[values.variations],"處置："+statusLabel[result.decision],"反向退回："+(result.returnTargets.length?result.returnTargets.map(k=>roleLabel[k]).join("、"):"不需退回，等待人工審批"),"原因："+reason,"不會自動核准或更新正式記憶。"];
+  byId("testDecision").textContent=report.join("\n");
+ }catch(err){byId("testDecision").textContent="未執行：請補上具體原因。"+err.message}
+});
+byId("runImpact").addEventListener("click",()=>{
+ const core=globalThis.TcvlTracebackCore;
+ if(!core){byId("testDecision").textContent="測試核心尚未載入。";return}
+ const now="2026-10-15T00:00:00.000Z";
+ const records=[{id:"E-001",type:"evidence",createdAt:now},{id:"C-001",type:"claim",createdAt:now},{id:"M-001",type:"memory",createdAt:now},{id:"T-002",type:"task",createdAt:now},{id:"U-001",type:"task",createdAt:now}];
+ const edges=[{from:"C-001",to:"E-001",type:"depends_on",recordedAt:now},{from:"M-001",to:"C-001",type:"depends_on",recordedAt:now},{from:"T-002",to:"M-001",type:"depends_on",recordedAt:now}];
+ const result=core.impactOf({schema:core.SCHEMA,records,events:[],edges},"E-001","2026-10-15T01:00:00.000Z");
+ byId("testDecision").textContent=["虛構依賴關係測試","來源：E-001","需評估的依賴紀錄："+result.affected.map(x=>x.id+"（第"+x.depth+"層）").join(" → "),"無直接依賴證據： "+result.unaffected.join("、"),"注意：依賴 ≠ 已證實因果；所有項目仍需個別審查。"].join("\n");
+});
 show(0);
 </script></body></html>
