@@ -329,7 +329,15 @@ $("recallCopy").addEventListener("click",async()=>{
 /* Architecture governance lens: read-only views of already decrypted, locally approved/rejected records. */
 const ARCH_PREFIX="【主腦架構】";
 let architecturePageSize=60;
-function isArchitecture(item){return item && typeof item.question==="string" && item.question.startsWith(ARCH_PREFIX);}
+function isArchitecture(item,seen=new Set()){
+ if(!item||typeof item!=="object")return false;
+ if(typeof item.question==="string"&&item.question.startsWith(ARCH_PREFIX))return true;
+ if(item.id&&seen.has(item.id))return false;
+ if(item.id)seen.add(item.id);
+ if(item.parentId){const parent=state.memories.find(m=>m.id===item.parentId);if(parent&&isArchitecture(parent,seen))return true}
+ if(item.repairOf){const old=state.candidates.find(c=>c.id===item.repairOf);if(old&&isArchitecture(old,seen))return true}
+ return false;
+}
 function architectureHistoryRender(){
  const box=$("architectureHistoryList");box.replaceChildren();
  if(!state || $("architectureHistoryWrap").hidden)return;
