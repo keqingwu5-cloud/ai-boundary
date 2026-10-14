@@ -230,7 +230,7 @@ function buildDraft(){
  if(!name)throw Error("請先填寫要完成的目標");
  const ids=draftIds?[...draftIds]:[...t.ids];
  if(!ids.length)throw Error("至少保留一個模組；可用還原範本重新開始");
- const steps=ids.map((id,i)=>({order:i+1,id,title:allModulesById(id).title,status:allModulesById(id).status,input:allModulesById(id).input,action:allModulesById(id).work,output:allModulesById(id).output,next:ids[i+1]||"人工審批／下一輪"}));
+ const steps=ids.map((id,i)=>({order:i+1,id,title:allModulesById(id).title,status:allModulesById(id).status,input:allModulesById(id).input,action:allModulesById(id).work,output:allModulesById(id).output,check:allModulesById(id).check,forward:allModulesById(id).forward,reverse:allModulesById(id).reverse,next:ids[i+1]||"人工審批／下一輪"}));
  return {schema:"tcvl.quick-blueprint.v0.1",name,template:by("blueprintType").value,stage:"concept_only_not_deployed",steps,reverseRule:t.reverse,verificationGates:t.gates};
 }
 function refreshBlueprint(){
@@ -398,7 +398,7 @@ by("downloadRecordPack").addEventListener("click",()=>{
 function allArchitectureDraft(){
  const list=[...modules];
  return {schema:"tcvl.quick-blueprint.v0.1",name:"主腦完整架構｜Launcher Hub × TCVL",template:"research",stage:"concept_only_not_deployed",
-  steps:list.map((m,i)=>({order:i+1,id:m.id,title:m.title,status:m.status,input:m.input,action:m.work,output:m.output,next:list[i+1]?.id||"人工審批／後續研究"})),
+  steps:list.map((m,i)=>({order:i+1,id:m.id,title:m.title,status:m.status,input:m.input,action:m.work,output:m.output,check:m.check,forward:m.forward,reverse:m.reverse,next:list[i+1]?.id||"人工審批／後續研究"})),
   reverseRule:"任何進站、送出、反證、否決及修正應保留原始 ID、時間、版本與退回目標；不能將接口示範視為實際送達。",
   verificationGates:"雙向來源與身分查核、拒絕與修正歷史、時間隔離、獨立三方驗證、修正後重測、人工核准、加密保存及備份驗收。"};
 }
