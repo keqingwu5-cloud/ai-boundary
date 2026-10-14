@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'unsafe-inline';style-src 'unsafe-inline';connect-src 'none';img-src 'none';base-uri 'none';form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'self' 'unsafe-inline';style-src 'unsafe-inline';connect-src 'none';img-src 'none';base-uri 'none';form-action 'none'">
 <title>TCVL｜回溯驗證可視化實驗室</title>
 <style>
 :root{color-scheme:dark;font-family:system-ui,-apple-system,"PingFang TC",sans-serif;background:#09101d;color:#f1f6ff}
@@ -31,7 +31,7 @@ label{display:block;margin-bottom:7px;color:#c7d9f5;font-size:13px}select,input{
 </style>
 </head>
 <body><main>
-<header><span class="tag">TCVL-04 · 視覺原型 V0.1</span><a href="./memory.html">返回記憶管理</a></header>
+<header><span class="tag">TCVL-04 · 視覺原型 V0.1</span><nav aria-label="平台導覽"><a href="./architecture-hub.html">架構導覽／快速設計</a>　<a href="./launcher.html">發射器</a>　<a href="./memory.html">記憶管理</a></nav></header><p id="fromModule" class="muted small" role="status"></p>
 <h1>回溯驗證可視化實驗室</h1>
 <p>從原始主張、反證、條件變化測試，一路追蹤到受影響的判斷與修正方案。可用於展示影片的分鏡。這是一個<strong>獨立示範頁</strong>，不會讀取、修改、傳送任何正式記憶。</p>
 <div class="notice" role="status">展示資料為虛構案例，並非 GPT①、GPT②、BOT③ 已實際執行的結果。本頁不提供真正的 AI 自動連線或事實查證。</div>
@@ -122,5 +122,15 @@ byId("runImpact").addEventListener("click",()=>{
  const result=core.impactOf({schema:core.SCHEMA,records,events:[],edges},"E-001","2026-10-15T01:00:00.000Z");
  byId("testDecision").textContent=["虛構依賴關係測試","來源：E-001","需評估的依賴紀錄："+result.affected.map(x=>x.id+"（第"+x.depth+"層）").join(" → "),"無直接依賴證據： "+result.unaffected.join("、"),"注意：依賴 ≠ 已證實因果；所有項目仍需個別審查。"].join("\n");
 });
-show(0);
+const moduleEntry={
+ launcher:{name:"Launcher Hub",stage:0,desc:"回溯任務是從哪個指令建立、誰交辦，以及是否真正送達。"},
+ governance:{name:"TCVL-01 資料治理",stage:0,desc:"回溯資料的來源、版本、審核及匯入匯出紀錄。"},
+ collaboration:{name:"TCVL-02 三方協作",stage:1,desc:"回溯 GPT① 方向、GPT② 反例與 BOT③ 不同條件測試。"},
+ correction:{name:"TCVL-03 反向修正",stage:3,desc:"回溯錯誤如何影響已有結論，以及修正應退回哪一個節點。"},
+ vault:{name:"共同記憶",stage:4,desc:"回溯正式版本與否決、修正候選之間的關係。"},
+ traceback:{name:"TCVL-04 時序回溯",stage:0,desc:"依時間重建原始主張、反證、測試與修正歷史。"}
+};
+const entry=moduleEntry[decodeURIComponent(location.hash.slice(1))];
+if(entry){byId("fromModule").textContent="從「"+entry.name+"」進入｜"+entry.desc+"（目前全為示範資料）";show(entry.stage)}
+else show(0);
 </script></body></html>
