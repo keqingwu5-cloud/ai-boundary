@@ -36,7 +36,7 @@ p{color:var(--sub);margin:5px 0 12px}.lead{font-size:16px;max-width:850px}
 form{display:grid;gap:12px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block;font-size:13px;font-weight:650;color:#d3e3ff;margin-bottom:6px}
 input,select,textarea{width:100%;background:#0c182b;border:1px solid #5e7497;border-radius:11px;color:var(--ink);padding:11px 12px}
 textarea{min-height:75px;resize:vertical}.helper{font-size:12px;color:var(--dim)}
-#draftSteps{display:grid;gap:8px;margin:10px 0} .draftstep{border:1px solid #506b90;border-radius:12px;padding:12px;background:#102039}.draftstep b{display:block}.draftstep span{font-size:12px;color:var(--sub)}
+#draftSteps{display:grid;gap:8px;margin:10px 0}.draftstep .stepactions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.draftstep .stepactions button{font-size:12px;padding:5px 9px}.draftstep p{font-size:12px;margin:6px 0;color:#bcd0e9} .draftstep{border:1px solid #506b90;border-radius:12px;padding:12px;background:#102039}.draftstep b{display:block}.draftstep span{font-size:12px;color:var(--sub)}
 footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:var(--dim);font-size:12px}
 #builderStatus{min-height:20px}.ghost{background:#1c2e49}
 @media(max-width:800px){.layout{grid-template-columns:1fr}.fields{grid-template-columns:1fr}main{padding:14px 13px 65px}.panel{padding:16px}}
@@ -87,13 +87,13 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
  <div class="panel">
   <span class="overline">QUICK BLUEPRINT</span>
   <h2>快速架構｜先畫流程再開發</h2>
-  <p>選一種任務，系統會產生對應節點與交接說明。你可以修改任務名稱、參與模組，先做設計檢查。</p>
+  <p>選一種任務，系統會產生對應節點與交接說明。你可以修改任務名稱、新增或刪除模組、調整步驟順序，先看每個環節做什麼，再檢查交接與缺漏。</p>
   <form id="builderForm">
    <div><label for="blueprintName">這個架構要完成什麼？</label><input id="blueprintName" maxlength="140" value="驗證一個研究主張並保留修正歷史" required></div>
    <div><label for="blueprintType">快速範本</label><select id="blueprintType">
      <option value="research">一般研究驗證</option><option value="repair">被否決資料重新驗證</option><option value="interface">新接口與匯入匯出</option><option value="trace">歷史回溯與影響追查</option>
    </select></div>
-   <div><label for="extraModule">額外加入的模組（選填）</label><select id="extraModule"><option value="">不額外加入</option></select></div>
+   <div><label for="extraModule">加入模組（選取後立即加入預覽）</label><select id="extraModule"><option value="">選擇要增加的模組</option></select></div>
    <div class="miniactions"><button type="submit">產生架構說明</button><button type="button" id="clearBuilder" class="ghost">還原範本</button></div>
    <p class="helper" id="builderStatus" role="status"></p>
   </form>
@@ -101,7 +101,7 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
  </div>
  <div class="panel" aria-live="polite">
   <div class="side-title"><h2>你的架構預覽</h2><span class="chip" id="blueprintTag">設計草稿</span></div>
-  <p id="draftGoal" style="font-weight:650;color:#eaf2ff"></p>
+  <p id="draftGoal" style="font-weight:650;color:#eaf2ff"></p><p class="helper">每個步驟都能移動或移除；這只是流程草圖，不代表模組已經實際連線。</p>
   <div id="draftSteps" aria-label="架構步驟"></div>
   <div class="detailrow"><span>資料如何反向退回？</span><p id="draftReverse"></p></div>
   <div class="detailrow" style="margin-top:10px"><span>哪些事情仍需驗證？</span><p id="draftGates"></p></div>
@@ -133,7 +133,7 @@ interface:{label:"新接口與匯入匯出",ids:["launcher","governance","vault"
 trace:{label:"歷史回溯與影響追查",ids:["vault","traceback","correction","governance"],reverse:"若發現過去的證據失效，標記需重審的後續主張與記憶；不自動視為全部錯誤。",gates:"歷史時間隔離、事件與記錄時間、引用依賴、修正前後可比性。"}
 };
 const by=id=>document.getElementById(id);
-const map=by("moduleMap");let active="launcher",extra="",currentDraft=null;
+const map=by("moduleMap");let active="launcher",currentDraft=null,draftIds=null;
 function textNode(tag,cls,value){const el=document.createElement(tag);if(cls)el.className=cls;if(value!==undefined)el.textContent=value;return el}
 function allModulesById(id){return modules.find(m=>m.id===id)}
 modules.forEach((m,i)=>{
@@ -154,14 +154,14 @@ function selectModule(id){
  }
 }
 by("traceFromModule").addEventListener("click",()=>{window.location.href="./traceback-visual.html#"+encodeURIComponent(active)});
-by("useInBuilder").addEventListener("click",()=>{by("extraModule").value=active;refreshBlueprint();by("quickBuilder").scrollIntoView({behavior:"smooth",block:"start"})});
+by("useInBuilder").addEventListener("click",()=>{if(!draftIds)draftIds=[...templates[by("blueprintType").value].ids];if(!draftIds.includes(active))draftIds.push(active);refreshBlueprint();by("builderStatus").textContent="已將「"+allModulesById(active).title+"」加入架構預覽。";by("quickBuilder").scrollIntoView({behavior:"smooth",block:"start"})});
 function safeName(s){return String(s||"").trim().slice(0,140)}
 function buildDraft(){
  const t=templates[by("blueprintType").value];if(!t)throw Error("未知架構範本");
  const name=safeName(by("blueprintName").value);
  if(!name)throw Error("請先填寫要完成的目標");
- const extraId=by("extraModule").value;const ids=[...t.ids];
- if(extraId && !ids.includes(extraId)){const before=ids.indexOf("traceback"); if(before>=0)ids.splice(before,0,extraId);else ids.push(extraId)}
+ const ids=draftIds?[...draftIds]:[...t.ids];
+ if(!ids.length)throw Error("至少保留一個模組；可用還原範本重新開始");
  const steps=ids.map((id,i)=>({order:i+1,id,title:allModulesById(id).title,input:allModulesById(id).input,action:allModulesById(id).work,output:allModulesById(id).output,next:ids[i+1]||"人工審批／下一輪"}));
  return {schema:"tcvl.quick-blueprint.v0.1",name,template:by("blueprintType").value,stage:"concept_only_not_deployed",steps,reverseRule:t.reverse,verificationGates:t.gates};
 }
@@ -170,16 +170,16 @@ function refreshBlueprint(){
  currentDraft=buildDraft();const d=currentDraft;
  by("draftGoal").textContent=d.name;
  const box=by("draftSteps");box.replaceChildren();
- for(const step of d.steps){const el=textNode("div","draftstep");el.append(textNode("b","",step.order+". "+step.title),textNode("span","", "接收："+step.input),textNode("span","", "　→　產出："+step.output));box.append(el)}
- by("draftReverse").textContent=d.reverseRule;by("draftGates").textContent=d.verificationGates;
+ for(const step of d.steps){const el=textNode("div","draftstep");el.append(textNode("b","",step.order+". "+step.title),textNode("p","", "接收："+step.input),textNode("p","", "作用："+step.action),textNode("p","", "產出："+step.output));const controls=textNode("div","stepactions");for(const [caption,diff] of [["↑ 上移",-1],["↓ 下移",1]]){const b=textNode("button","",caption);b.type="button";const target=step.order-1+diff;b.disabled=target<0||target>=d.steps.length;b.addEventListener("click",()=>{if(!draftIds)draftIds=[...d.steps.map(x=>x.id)];[draftIds[step.order-1],draftIds[target]]=[draftIds[target],draftIds[step.order-1]];refreshBlueprint()});controls.append(b)}const remove=textNode("button","ghost","移除");remove.type="button";remove.addEventListener("click",()=>{draftIds=(draftIds||d.steps.map(x=>x.id)).filter(x=>x!==step.id);refreshBlueprint()});controls.append(remove);el.append(controls);box.append(el)}
+ by("draftReverse").textContent=d.reverseRule;const missing=["governance","vault"].filter(id=>!d.steps.some(x=>x.id===id));by("draftGates").textContent=d.verificationGates+(missing.length?"\n提醒：目前已略過 "+missing.map(id=>allModulesById(id).title).join("、")+"，真實導入前需重新檢查資料與審批安全。":"");
  by("blueprintTag").textContent=templates[d.template].label;by("builderStatus").textContent="已產生可說明的流程草稿（未部署）。";by("exportStatus").textContent="";
  }catch(err){currentDraft=null;by("builderStatus").textContent=err.message}
 }
 by("builderForm").addEventListener("submit",e=>{e.preventDefault();refreshBlueprint()});
-by("blueprintType").addEventListener("change",refreshBlueprint);
-by("extraModule").addEventListener("change",refreshBlueprint);
+by("blueprintType").addEventListener("change",()=>{draftIds=[...templates[by("blueprintType").value].ids];refreshBlueprint()});
+by("extraModule").addEventListener("change",()=>{const id=by("extraModule").value;if(id){if(!draftIds)draftIds=[...templates[by("blueprintType").value].ids];if(!draftIds.includes(id))draftIds.push(id);by("extraModule").value="";}refreshBlueprint()});
 by("blueprintName").addEventListener("input",refreshBlueprint);
-by("clearBuilder").addEventListener("click",()=>{by("blueprintName").value="驗證一個研究主張並保留修正歷史";by("blueprintType").value="research";by("extraModule").value="";refreshBlueprint()});
+by("clearBuilder").addEventListener("click",()=>{by("blueprintName").value="驗證一個研究主張並保留修正歷史";by("blueprintType").value="research";by("extraModule").value="";draftIds=null;refreshBlueprint()});
 function describe(d){
  return ["【主腦 TCVL｜架構草稿（未部署）】","目標："+d.name,"範本："+templates[d.template].label,"",
  ...d.steps.flatMap(s=>[s.order+"｜"+s.title,"接收："+s.input,"執行："+s.action,"產出："+s.output,"交接："+s.next,""]),
