@@ -4,12 +4,12 @@ const test=require('node:test');
 const core=require('../tcvl-traceback-core.js');
 const t=n=>'2026-10-'+String(n).padStart(2,'0')+'T00:00:00.000Z';
 const base={schema:core.SCHEMA,records:[
- {id:'E1',type:'evidence',createdAt:t(1),source:{claimedActor:'GPT1',verified:false}},
- {id:'C1',type:'claim',createdAt:t(1)},
- {id:'M1',type:'memory',createdAt:t(2)},
- {id:'T1',type:'task',createdAt:t(2)},
- {id:'Z1',type:'task',createdAt:t(2)},
- {id:'E2',type:'evidence',createdAt:t(4)}
+ {id:'E1',type:'evidence',createdAt:t(1),recordedAt:t(1),source:{claimedActor:'GPT1',verified:false}},
+ {id:'C1',type:'claim',createdAt:t(1),recordedAt:t(1)},
+ {id:'M1',type:'memory',createdAt:t(2),recordedAt:t(2)},
+ {id:'T1',type:'task',createdAt:t(2),recordedAt:t(2)},
+ {id:'Z1',type:'task',createdAt:t(2),recordedAt:t(2)},
+ {id:'E2',type:'evidence',createdAt:t(4),recordedAt:t(4)}
 ],events:[
  {id:'a',recordId:'C1',kind:'submitted',happenedAt:t(1),recordedAt:t(1)},
  {id:'b',recordId:'C1',kind:'approved',happenedAt:t(2),recordedAt:t(2)},
@@ -26,6 +26,8 @@ test('schema and references are validated',()=>assert.deepEqual(core.validateHis
 test('missing dependent record rejects before replay',()=>{const x=cloned(base);x.edges.push({from:'ghost',to:'C1',type:'depends_on',recordedAt:t(2)});assert.match(core.validateHistory(x).join(','),/edge_invalid/);assert.throws(()=>core.replayAt(x,t(6)));});
 test('duplicated event IDs are not silently accepted',()=>{const x=cloned(base);x.events.push({...x.events[0]});assert.ok(core.validateHistory(x).length>0);});
 test('as-of replay excludes events recorded only later even if occurrence was earlier',()=>{const s=core.replayAt(base,t(4));assert.equal(s.records.find(r=>r.id==='C1').latest.kind,'approved');assert.equal(s.events.length,3);});
+test('late-imported record cannot leak backwards into earlier snapshot',()=>{const x=cloned(base);x.records.push({id:'LATE',type:'evidence',createdAt:t(1),recordedAt:t(5)});assert.ok(!core.replayAt(x,t(4)).records.some(r=>r.id==='LATE'));assert.ok(core.replayAt(x,t(6)).records.some(r=>r.id==='LATE'));});
+test('missing recorded-at timestamp is rejected',()=>{const x=cloned(base);delete x.records[0].recordedAt;assert.ok(core.validateHistory(x).includes('record_invalid'));});
 test('as-of replay includes delayed report after its recording time',()=>assert.equal(core.replayAt(base,t(6)).records.find(r=>r.id==='C1').latest.kind,'rejected'));
 test('original scenario remains unchanged after replay',()=>{const x=cloned(base);core.replayAt(base,t(6));assert.deepEqual(base,x);});
 test('reverse impact traces direct and indirect dependencies',()=>{const result=core.impactOf(base,'E1',t(6));assert.deepEqual(result.affected.map(x=>x.id),['C1','M1','T1']);assert.ok(result.unaffected.includes('Z1'));});
