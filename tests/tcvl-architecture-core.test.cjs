@@ -92,3 +92,19 @@ test("history kind filtering preserves only corrections",()=>{
  const arr=[{direction:"inbound",kind:"correction"},{direction:"outbound",kind:"rejection"}];
  assert.deepEqual(c.filterHistory(arr,{kinds:["correction"]}),[arr[0]]);
 });
+
+test("module-specific verification, handoff and rollback persist in complete memory text",()=>{
+ const d=clone(draft);
+ d.steps[0].check="需要核對當時證據";
+ d.steps[0].forward="轉給資料治理";
+ d.steps[0].reverse="退回人工修正指令";
+ const text=c.fullArchitectureText(d);
+ assert.match(text,/檢查：需要核對當時證據/);
+ assert.match(text,/交接：轉給資料治理/);
+ assert.match(text,/出錯退回：退回人工修正指令/);
+});
+test("interface statuses never declare remote AI API operational",()=>{
+ const api=c.INTERFACES.find(x=>x.id==="ai_api");
+ assert.equal(api.status,"planned");
+ assert.match(c.STATUSES[api.status].label,/尚未接通/);
+});
