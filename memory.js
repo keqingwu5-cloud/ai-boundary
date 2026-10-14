@@ -25,7 +25,7 @@ async function persist(){
  try{const value=await encryptCurrent();localStorage.setItem(STORE,value);observedEnvelope=value;}
  catch(e){state.revision=r;state.updatedAt=t;throw e;}
 }
-function showLocked(){key=null;salt=null;state=null;revising=null;observedEnvelope=null;lastBackupEnvelope=null;$("workspace").hidden=true;$("lockedState").hidden=false;const exists=!!stored();$("lockTitle").textContent=exists?"解鎖本機加密記憶庫":"首次建立本機加密記憶庫";$("lockHint").textContent=exists?"輸入原密碼以讀取此瀏覽器中加密的記憶。密碼不會儲存在網站。":"設定至少 12 字元的密碼；忘記密碼便無法復原內容。請妥善保管加密備份。";$("confirmArea").hidden=exists;$("unlockButton").textContent=exists?"解鎖記憶庫":"建立記憶庫";$("passphrase").value="";$("confirmPassphrase").value="";}
+function showLocked(){key=null;salt=null;state=null;revising=null;observedEnvelope=null;lastBackupEnvelope=null;$("architectureHistoryList").replaceChildren();$("architectureHistoryCount").textContent="";$("workspace").hidden=true;$("lockedState").hidden=false;const exists=!!stored();$("lockTitle").textContent=exists?"解鎖本機加密記憶庫":"首次建立本機加密記憶庫";$("lockHint").textContent=exists?"輸入原密碼以讀取此瀏覽器中加密的記憶。密碼不會儲存在網站。":"設定至少 12 字元的密碼；忘記密碼便無法復原內容。請妥善保管加密備份。";$("confirmArea").hidden=exists;$("unlockButton").textContent=exists?"解鎖記憶庫":"建立記憶庫";$("passphrase").value="";$("confirmPassphrase").value="";}
 function showOpen(){ $("lockedState").hidden=true;$("workspace").hidden=false;$("passphrase").value="";$("confirmPassphrase").value="";renderAll();}
 $("unlockButton").addEventListener("click",async()=>{
  const pass=$("passphrase").value;
@@ -324,8 +324,76 @@ $("recallCopy").addEventListener("click",async()=>{
  const txt=latestRecall.map(x=>"【"+x.type+"】"+x.title+"\n"+x.content+"\n來源："+x.id+"\n證據："+x.evidence).join("\n\n");
  try{await navigator.clipboard.writeText(txt);feedback("已複製回溯摘要，未自動發送。");}catch(err){feedback("無法複製，請檢查剪貼簿權限。");}
 });
+/* Architecture governance lens: read-only views of already decrypted, locally approved/rejected records. */
+const ARCH_PREFIX="【主腦架構】";
+let architecturePageSize=60;
+function isArchitecture(item){return item && typeof item.question==="string" && item.question.startsWith(ARCH_PREFIX);}
+function architectureHistoryRender(){
+ const box=$("architectureHistoryList");box.replaceChildren();
+ if(!state || $("architectureHistoryWrap").hidden)return;
+ const mode=$("architectureFilter").value;
+ const candidates=(state.candidates||[]).filter(isArchitecture);
+ const memories=(state.memories||[]).filter(isArchitecture);
+ const rows=[];
+ for(const c of candidates){
+  const revised=c.eventType==="revise_answer"||c.eventType==="revise_question"||!!c.repairOf||!!c.resolvedBy;
+  if(mode==="rejected" && c.status!=="rejected" && !c.repairOf && !c.resolvedBy)continue;
+  if(mode==="corrected"&&!revised)continue;
+  if(mode==="pending"&&c.status!=="pending")continue;
+  if(mode==="approved"&&c.status!=="approved")continue;
+  rows.push({type:"candidate",at:c.createdAt||"",ref:c.id,entry:c});
+ }
+ for(const m of memories){
+  if(mode==="rejected"||mode==="pending")continue;
+  const revised=m.relation==="question_revision"||(Array.isArray(m.versions)&&m.versions.length>1);
+  if(mode==="corrected"&&!revised)continue;
+  rows.push({type:"memory",at:m.createdAt||"",ref:m.id,entry:m});
+ }
+ rows.sort((a,b)=>b.at.localeCompare(a.at)||a.ref.localeCompare(b.ref));
+ $("architectureHistoryCount").textContent="共找到 "+rows.length+" 項（架構候選 "+candidates.length+" 筆、已核准架構主題 "+memories.length+" 筆）。目前僅顯示前 "+Math.min(rows.length,architecturePageSize)+" 項；所有核准與否決仍依原庫版本保存。";
+ if(!rows.length){box.append(node("div","empty","沒有符合條件的架構紀錄。可先在架構導覽匯出待審記憶包，再於提交候選頁人工匯入；未匯入的草稿不會出現在這裡。"));return;}
+ for(const x of rows.slice(0,architecturePageSize)){
+  const item=x.entry,card=node("article","card");
+  if(x.type==="candidate"){
+   const stateLabel=item.status==="pending"?"待審":item.status==="rejected"?"被拒絕":item.status==="approved"?"已核准":"未知";
+   appendText(card,"b","",item.question);
+   appendText(card,"p","small","候選 "+item.id+"｜"+stateLabel+"｜"+fmtDate(item.createdAt));
+   appendText(card,"p","small","提出者："+(sources[item.proposer]||item.proposer||"未知")+"（人工標示）｜事件："+(names[item.eventType]||item.eventType));
+   if(item.review)appendText(card,"p","small","人工審核："+(item.review.action||"未知")+"；理由："+(item.review.reason||"未提供")+"；時間："+fmtDate(item.review.at));
+   if(item.repairOf)appendText(card,"p","small","修復原拒絕 ID："+item.repairOf);
+   if(item.resolvedBy)appendText(card,"p","small","後續修復候選 ID："+item.resolvedBy);
+   if(item.parentId)appendText(card,"p","small","來源架構記憶 ID："+item.parentId);
+   const d=node("details");appendText(d,"summary","","展開完整候選內容、證據與修正理由");
+   appendText(d,"p","",item.content||"");appendText(d,"p","small","來源／證據："+(item.evidence||"無"));
+   appendText(d,"p","small","提出／修正理由："+(item.reason||"無"));
+   card.append(d);
+  } else {
+   appendText(card,"b","",item.question);
+   appendText(card,"p","small","核准架構 "+item.id+"｜"+(Array.isArray(item.versions)?item.versions.length:0)+" 個版本｜"+fmtDate(item.createdAt));
+   if(item.parentId)appendText(card,"p","small","父記憶 ID："+item.parentId+"｜分支："+item.relation);
+   for(const v of [...(item.versions||[])].reverse()){
+    const d=node("details");appendText(d,"summary","","版本 "+v.number+"｜"+fmtDate(v.approvedAt)+"｜來源候選 "+(v.candidateId||"未知"));
+    appendText(d,"p","",v.content||"");appendText(d,"p","small","來源："+(sources[v.source]||v.source||"未知")+"（來源聲稱）");
+    appendText(d,"p","small","依據："+(v.evidence||"無")+"｜修正原因："+(v.reason||"無"));card.append(d);
+   }
+  }
+  box.append(card);
+ }
+ if(rows.length>architecturePageSize){
+  const more=node("button","", "再顯示 "+Math.min(60,rows.length-architecturePageSize)+" 項");more.type="button";
+  more.addEventListener("click",()=>{architecturePageSize+=60;architectureHistoryRender();});box.append(more);
+ }
+}
+$("architectureFilter").addEventListener("change",()=>{architecturePageSize=60;architectureHistoryRender();});
+$("toggleArchitectureHistory").addEventListener("click",()=>{
+ const wrap=$("architectureHistoryWrap");wrap.hidden=!wrap.hidden;
+ $("toggleArchitectureHistory").setAttribute("aria-expanded",String(!wrap.hidden));
+ $("toggleArchitectureHistory").textContent=wrap.hidden?"顯示架構歷史":"隱藏架構歷史";
+ if(!wrap.hidden)architectureHistoryRender();
+});
+$("jumpArchitectureReview").addEventListener("click",()=>{selectTab("review");});
 const originalRenderAll=renderAll;
-renderAll=function(){originalRenderAll();workflowRender();};
+renderAll=function(){originalRenderAll();workflowRender();architectureHistoryRender();};
 
 $("dateFilter").value=localDay(utc());
 showLocked();selectTab("overview");
