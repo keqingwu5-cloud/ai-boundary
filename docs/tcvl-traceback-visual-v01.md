@@ -2,7 +2,7 @@
 
 ## 定位
 
-本分支只新增 `traceback-visual.html`，不更動 `memory.js`、`memory.html`、`launcher.html`、`memory-workflow-core.js` 或正式記憶庫。頁面為**純虛構示範**，可獨立開啟，用於討論介面與錄製展示影片。
+本 PR 已擴充為**架構導覽、雙向記錄、回溯測試、快速路徑、加密記憶的唯讀歷史檢視**，包含 `architecture-hub.html`、`tcvl-architecture-core.js`、`tcvl-traceback-core.js`、兩個測試檔、`launcher.html`、`memory.html` 與 `memory.js` 的開發分支改動。正式分支未合併，正式加密儲存格式及既有記憶未被直接變更。回溯頁的測試仍使用虛構資料。
 
 ### 展示三種回溯
 1. **歷史回溯**：保留原主張、反證及版本來源。
