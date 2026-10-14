@@ -108,3 +108,16 @@ test("interface statuses never declare remote AI API operational",()=>{
  assert.equal(api.status,"planned");
  assert.match(c.STATUSES[api.status].label,/尚未接通/);
 });
+
+test("record candidate preserves user-defined extra fields and their explanations",()=>{
+ const data={recordId:"T-300",source:"人工",receivedAt:"2026-10-15",version:"1",evidence:"參考",validation:"待核",next:"補件",extraFields:[{label:"復盤理由",value:"需要比較前後差異"}]};
+ const packet=c.recordPack("inbound",data,"extra1");
+ assert.equal(memory.validatePack(packet).length,1);
+ assert.match(packet.items[0].content,/復盤理由：需要比較前後差異/);
+});
+test("too many, duplicate or blank extra fields are rejected",()=>{
+ const d={recordId:"T-1",source:"人工",receivedAt:"2026-10-15",version:"1",evidence:"參考",validation:"待核",next:"補件"};
+ assert.throws(()=>c.recordPack("inbound",{...d,extraFields:Array.from({length:9},(_,i)=>({label:String(i),value:"內容"}))},"extra2"),/最多/);
+ assert.throws(()=>c.recordPack("inbound",{...d,extraFields:[{label:"A",value:"ok"},{label:"A",value:"dup"}]},"extra3"),/重複/);
+ assert.throws(()=>c.recordPack("inbound",{...d,extraFields:[{label:"",value:"empty"}]},"extra4"),/無效/);
+});
