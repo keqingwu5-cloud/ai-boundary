@@ -113,6 +113,14 @@
       if(typeof value!=="string"||value.trim().length===0||value.length>1200)throw Error("請填寫："+label);
       rows.push(label+"："+value.trim());
     }
+    const custom=fields.extraFields||[];
+    if(!Array.isArray(custom)||custom.length>8)throw Error("自訂欄位最多 8 項");
+    const seenLabels=new Set();
+    for(const extra of custom){
+      if(!extra||!str(extra.label,80)||!str(extra.value,1200)||seenLabels.has(extra.label.trim()))throw Error("自訂欄位名稱或內容無效、重複");
+      seenLabels.add(extra.label.trim());
+      rows.push(extra.label.trim()+"："+extra.value.trim());
+    }
     const content="【"+t.name+"｜設計／人工記錄，尚未查證】\n"+rows.join("\n")+"\n資料未經 API 自動送達確認；不得直接當成事實成立。";
     const title="紀錄｜"+t.name+"｜"+fields.recordId;
     return memoryPack(title,content,"將紀錄模板作為記憶候選；具體身分及來源仍須人工驗證。","人工提交，來源聲稱未自動認證；待審核、未送達其他 AI。",uid);
