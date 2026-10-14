@@ -54,7 +54,7 @@
   }
   function routePlan(start,end,edges=ROUTES) {
     if(!validModuleId(start)||!validModuleId(end))throw Error("起點或終點 ID 無效");
-    if(start===end)return {steps:[],summary:"同一個節點，無需跨模組傳遞",fullyConnected:true,containsDemo:false};
+    if(start===end)return {steps:[],summary:"同一個節點，無需跨模組傳遞",fullyConnected:false,containsDemo:false,automatic:false};
     if(!Array.isArray(edges)||edges.length>150)throw Error("路徑連線數量無效");
     for(const e of edges)if(!e||!validModuleId(e.from)||!validModuleId(e.to)||!STATUSES[e.status]||!str(e.action,500))throw Error("不合法的路徑連線");
     const best=new Map([[start,{score:0,steps:[]}]]),q=[start],closed=new Set();
@@ -73,8 +73,9 @@
     const steps=best.get(end).steps;
     const hasPlanned=steps.some(s=>s.status==="planned");
     const hasDemo=steps.some(s=>s.status==="demo");
+    const hasManual=steps.some(s=>["local_manual","local_review"].includes(s.status));
     const summary=hasPlanned?"路徑包含尚未接通的接口；無法直接自動執行":hasDemo?"含展示路徑，僅能示範，不等於真實資料已送達":"目前只能人工操作與核對；不是全自動接口";
-    return {steps,summary,fullyConnected:!hasPlanned&&!hasDemo,containsDemo:hasDemo,hasUnbuilt:hasPlanned};
+    return {steps,summary,fullyConnected:false,containsDemo:hasDemo,hasUnbuilt:hasPlanned,requiresManual:hasManual,automatic:false};
   }
   function fullArchitectureText(draft,interfaces=INTERFACES,edges=ROUTES) {
     const problems=validateBlueprint(draft);if(problems.length)throw Error("架構草稿格式錯誤："+problems.join(", "));
