@@ -65,10 +65,9 @@ label{display:block;margin-bottom:7px;color:#c7d9f5;font-size:13px}select,input{
 <section class="panel" style="margin-top:16px" aria-label="三方驗證測試器"><h2>三項測試決策｜互動演練</h2>
 <p class="small">選擇 GPT① 方向、GPT② 證據、BOT③ 條件變化的測試狀態。按下執行後，由獨立測試核心計算應採用的處置。全部通過也僅代表「可以送人工審批」，不是自動驗證為真。</p>
 <div class="grid">
-<div><label for="checkDirection">GPT①｜方向符合</label><select id="checkDirection"><option value="pass">通過</option><option value="fail">不成立</option><option value="unknown">無法判定</option><option value="invalid">測試無效</option></select></div>
-<div><label for="checkEvidence">GPT②｜證據支持</label><select id="checkEvidence"><option value="pass">通過</option><option value="fail">不成立</option><option value="unknown">無法判定</option><option value="invalid">測試無效</option></select></div>
-<div><label for="checkVariations">BOT③｜條件變化</label><select id="checkVariations"><option value="pass">通過</option><option value="fail" selected>不成立</option><option value="unknown">無法判定</option><option value="invalid">測試無效</option></select></div>
-<div><label for="reason">本輪共同說明</label><input id="reason" maxlength="200" value="虛構示例：跨條件測試未得到一致結果"></div>
+<div><label for="checkDirection">GPT①｜方向符合</label><select id="checkDirection"><option value="pass">通過</option><option value="fail">不成立</option><option value="unknown">無法判定</option><option value="invalid">測試無效</option></select><label for="reasonDirection">方向判斷依據</label><input id="reasonDirection" maxlength="240" value="虛構：研究目的及完成條件已明確"></div>
+<div><label for="checkEvidence">GPT②｜證據支持</label><select id="checkEvidence"><option value="pass">通過</option><option value="fail">不成立</option><option value="unknown">無法判定</option><option value="invalid">測試無效</option></select><label for="reasonEvidence">證據與反證說明</label><input id="reasonEvidence" maxlength="240" value="虛構：已列出可比較的支持與反對證據"></div>
+<div><label for="checkVariations">BOT③｜條件變化</label><select id="checkVariations"><option value="pass">通過</option><option value="fail" selected>不成立</option><option value="unknown">無法判定</option><option value="invalid">測試無效</option></select><label for="reasonVariations">變化測試發現</label><input id="reasonVariations" maxlength="240" value="虛構：條件改變後未重現，需要重設適用範圍"></div>
 </div>
 <div class="controls"><button type="button" id="runTripleCheck">計算處置與退回</button><button type="button" id="runImpact">示範依賴影響追蹤</button></div>
 <div class="output" id="testDecision" role="status" aria-live="polite">尚未執行測試模擬。</div>
@@ -105,11 +104,11 @@ const roleLabel={GPT1:"GPT①｜研究目標",GPT2:"GPT②｜證據與反證",BO
 const resultLabel={pass:"通過",fail:"不成立",unknown:"無法判定",invalid:"測試無效"};
 byId("runTripleCheck").addEventListener("click",()=>{
  if(!globalThis.TcvlTracebackCore){byId("testDecision").textContent="測試核心尚未載入，請確認檔案是否存在。";return}
- const reason=byId("reason").value.trim();
  const values={direction:byId("checkDirection").value,evidence:byId("checkEvidence").value,variations:byId("checkVariations").value};
+ const reasons={direction:byId("reasonDirection").value.trim(),evidence:byId("reasonEvidence").value.trim(),variations:byId("reasonVariations").value.trim()};
  try{
-  const result=globalThis.TcvlTracebackCore.tripleCheck(Object.fromEntries(Object.entries(values).map(([k,outcome])=>[k,{outcome,reason}])));
-  const report=["三方測試結果｜虛構演練","① 方向："+resultLabel[values.direction],"② 證據："+resultLabel[values.evidence],"③ 條件變化："+resultLabel[values.variations],"處置："+statusLabel[result.decision],"反向退回："+(result.returnTargets.length?result.returnTargets.map(k=>roleLabel[k]).join("、"):"不需退回，等待人工審批"),"原因："+reason,"不會自動核准或更新正式記憶。"];
+  const result=globalThis.TcvlTracebackCore.tripleCheck(Object.fromEntries(Object.entries(values).map(([k,outcome])=>[k,{outcome,reason:reasons[k]}])));
+  const report=["三方測試結果｜虛構演練","① 方向："+resultLabel[values.direction]+"｜依據："+reasons.direction,"② 證據："+resultLabel[values.evidence]+"｜依據："+reasons.evidence,"③ 條件變化："+resultLabel[values.variations]+"｜發現："+reasons.variations,"處置："+statusLabel[result.decision],"反向退回："+(result.returnTargets.length?result.returnTargets.map(k=>roleLabel[k]).join("、"):"不需退回，等待人工審批"),"三項結果和原因各自保留，不會自動核准或更新正式記憶。"];
   byId("testDecision").textContent=report.join("\n");
  }catch(err){byId("testDecision").textContent="未執行：請補上具體原因。"+err.message}
 });
