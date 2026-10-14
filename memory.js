@@ -342,8 +342,8 @@ function architectureHistoryRender(){
  const box=$("architectureHistoryList");box.replaceChildren();
  if(!state || $("architectureHistoryWrap").hidden)return;
  const mode=$("architectureFilter").value;
- const candidates=(state.candidates||[]).filter(isArchitecture);
- const memories=(state.memories||[]).filter(isArchitecture);
+ const candidates=(state.candidates||[]).filter(item=>isArchitecture(item));
+ const memories=(state.memories||[]).filter(item=>isArchitecture(item));
  const rows=[];
  for(const c of candidates){
   const revised=c.eventType==="revise_answer"||c.eventType==="revise_question"||!!c.repairOf||!!c.resolvedBy;
