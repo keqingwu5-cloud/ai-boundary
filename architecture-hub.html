@@ -22,7 +22,7 @@ p{color:var(--sub);margin:5px 0 12px}.lead{font-size:16px;max-width:850px}
 .layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(310px,.88fr);gap:17px;margin-top:22px;align-items:start}
 .panel{background:linear-gradient(145deg,#172640,#101c30);border:1px solid var(--edge);border-radius:18px;padding:20px;min-width:0}
 .stack{display:grid;gap:9px;margin:15px 0}.node{width:100%;text-align:left;display:flex;align-items:center;gap:12px;background:#111d32;border:1px solid #51698e;border-radius:15px;padding:12px 13px;min-height:76px;transition:background .14s,border-color .14s}
-.node.active{border:2px solid #bdd1ff;background:#253c5e}.node.related{border-color:#79ac9c}.node strong{display:block;font-size:15px}.node small{display:block;font-size:12px;color:var(--dim)}.num{border-radius:12px;background:#273954;width:43px;min-width:43px;height:43px;display:flex;justify-content:center;align-items:center;font-size:13px;font-weight:750;color:#d9e7ff}
+.node.active{border:2px solid #bdd1ff;background:#253c5e}.node.onpath{box-shadow:inset 0 0 0 2px #86cbb9}.node.unbuilt{border-style:dashed;border-color:#d9b981}.patharrow{display:flex;justify-content:center;align-items:center;font-size:20px;color:#b0c7e9;margin:3px auto}.node .chip{margin-left:auto;max-width:110px;text-align:center}.node.related{border-color:#79ac9c}.node strong{display:block;font-size:15px}.node small{display:block;font-size:12px;color:var(--dim)}.num{border-radius:12px;background:#273954;width:43px;min-width:43px;height:43px;display:flex;justify-content:center;align-items:center;font-size:13px;font-weight:750;color:#d9e7ff}
 .flowarrow{text-align:center;color:#a5bddc;font-size:20px;line-height:1}.rolelines{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .role{border:1px solid #51698e;background:#101e34;border-radius:12px;padding:12px 9px;text-align:center}.role strong{display:block}.role span{font-size:12px;color:var(--sub)}
 .side-title{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
@@ -138,7 +138,7 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
    <div><label for="routeStart">資料／任務從哪個模組開始？</label><select id="routeStart"></select></div>
    <div><label for="routeEnd">要到哪個模組？</label><select id="routeEnd"></select></div>
  </div>
- <div class="section-actions"><button type="button" id="planRoute">顯示雙向路徑與接口狀態</button><span class="helpnote">反向路徑必須有明確交接規則，不代表反向一定能直通。</span></div>
+ <div class="section-actions"><button type="button" id="planRoute">查看路徑及接口狀態</button><button type="button" id="reverseRoute">交換起點／終點</button><span class="helpnote">反向路徑必須有明確交接規則，不代表反向一定能直通。</span></div>
  <div id="routeResult" aria-live="polite" aria-atomic="true"></div>
 </section>
 <section class="layout" id="recordStudio" aria-label="雙向紀錄與欄位模板">
@@ -206,7 +206,7 @@ function allModulesById(id){return modules.find(m=>m.id===id)}
 function appendModule(m){
  if(map.children.length)map.append(textNode("div","flowarrow","↓"));
  const b=textNode("button","node");b.type="button";b.dataset.module=m.id;
- b.append(textNode("span","num",m.n));const desc=textNode("span");desc.append(textNode("strong","",m.title),textNode("small","",m.short));b.append(desc);
+ b.append(textNode("span","num",m.n));const desc=textNode("span");desc.append(textNode("strong","",m.title),textNode("small","",m.short));b.append(desc);b.append(textNode("span","chip",m.status));
  b.addEventListener("click",()=>selectModule(m.id));map.append(b);
  const option=document.createElement("option");option.value=m.id;option.textContent=m.title;by("extraModule").append(option);
 }
@@ -318,13 +318,19 @@ function renderRoute(){
  try{
   const core=assertCore(),start=by("routeStart").value,end=by("routeEnd").value,plan=core.routePlan(start,end,effectiveRoutes());
   const lead=textNode("div","detailrow");lead.append(textNode("span","","路徑摘要（依靜態規格，非實際連線測試）"),textNode("p","",routeName(start)+" → "+routeName(end)+"： "+plan.summary));box.append(lead);
-  if(plan.unreachable){box.append(textNode("p","note","目前沒有已定義的交接邊。可在快速架構中建立這兩個模組的先後順序，再查看規劃中的路徑。"));return}
+  if(plan.unreachable){for(const button of map.querySelectorAll("button.node")){button.classList.toggle("onpath",false);button.classList.toggle("unbuilt",false)}box.append(textNode("p","note","目前沒有已定義的交接邊。可在快速架構中建立這兩個模組的先後順序，再查看規劃中的路徑。"));return}
   for(const [i,step] of plan.steps.entries()){
+    if(i>0)box.append(textNode("div","patharrow","↓"));
     const block=textNode("div","pathstep");const status=core.STATUSES[step.status];
     block.append(textNode("b","",String(i+1)+"｜"+routeName(step.from)+" → "+routeName(step.to)),
        textNode("span","chip",status.label),
        textNode("p","", "這段做什麼："+step.action),
        textNode("p","helpnote","接口限制："+status.note));box.append(block);
+  }
+  const pathNodes=new Set([start,...plan.steps.map(x=>x.to)]);
+  for(const button of map.querySelectorAll("button.node")){
+    button.classList.toggle("onpath",pathNodes.has(button.dataset.module));
+    button.classList.toggle("unbuilt",plan.steps.some(e=>e.status==="planned"&&e.to===button.dataset.module));
   }
   if(plan.steps.length===0)box.append(textNode("p","helper","沒有跨模組移動，仍需檢查此節點本身的權限與驗收。"));
  }catch(e){box.append(textNode("p","note","無法規劃："+e.message))}
@@ -408,6 +414,7 @@ function exportMemory(which){
 by("downloadFullMemory").addEventListener("click",()=>exportMemory("full"));
 by("downloadDraftMemory").addEventListener("click",()=>exportMemory("draft"));
 by("planRoute").addEventListener("click",renderRoute);
+by("reverseRoute").addEventListener("click",()=>{const start=by("routeStart").value;by("routeStart").value=by("routeEnd").value;by("routeEnd").value=start;renderRoute()});
 
 if(architectureCore){
  for(const [key,t] of Object.entries(architectureCore.FIELD_TEMPLATES)){
