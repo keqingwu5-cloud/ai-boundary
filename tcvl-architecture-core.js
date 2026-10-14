@@ -86,7 +86,7 @@
       "架構格式："+SCHEMA,
       "此紀錄保存設計主張，不代表 AI 已連線、驗收或資料來源已驗證。",
       "流程節點數："+draft.steps.length,
-      ...draft.steps.flatMap((s,i)=>["","節點 "+(i+1)+"｜"+s.id+"｜"+s.title,"狀態："+(s.status||"未提供狀態，待核對"),"接收："+s.input,"處理："+s.action,"產出："+s.output,"下一步："+s.next]),
+      ...draft.steps.flatMap((s,i)=>["","節點 "+(i+1)+"｜"+s.id+"｜"+s.title,"狀態："+(s.status||"未提供狀態，待核對"),"接收："+s.input,"處理："+s.action,"產出："+s.output,"檢查："+(s.check||"未定義，待補齊"),"交接："+(s.forward||s.next),"出錯退回："+(s.reverse||draft.reverseRule),"下一步："+s.next]),
       "","反向退回規則："+draft.reverseRule,
       "審查與驗收門檻："+draft.verificationGates,
       "","【路徑與接口狀態｜靜態盤點，不是即時連線檢查】",
