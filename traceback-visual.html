@@ -117,7 +117,7 @@ byId("runImpact").addEventListener("click",()=>{
  const core=globalThis.TcvlTracebackCore;
  if(!core){byId("testDecision").textContent="測試核心尚未載入。";return}
  const now="2026-10-15T00:00:00.000Z";
- const records=[{id:"E-001",type:"evidence",createdAt:now},{id:"C-001",type:"claim",createdAt:now},{id:"M-001",type:"memory",createdAt:now},{id:"T-002",type:"task",createdAt:now},{id:"U-001",type:"task",createdAt:now}];
+ const records=[{id:"E-001",type:"evidence",createdAt:now,recordedAt:now},{id:"C-001",type:"claim",createdAt:now,recordedAt:now},{id:"M-001",type:"memory",createdAt:now,recordedAt:now},{id:"T-002",type:"task",createdAt:now,recordedAt:now},{id:"U-001",type:"task",createdAt:now,recordedAt:now}];
  const edges=[{from:"C-001",to:"E-001",type:"depends_on",recordedAt:now},{from:"M-001",to:"C-001",type:"depends_on",recordedAt:now},{from:"T-002",to:"M-001",type:"depends_on",recordedAt:now}];
  const result=core.impactOf({schema:core.SCHEMA,records,events:[],edges},"E-001","2026-10-15T01:00:00.000Z");
  byId("testDecision").textContent=["虛構依賴關係測試","來源：E-001","需評估的依賴紀錄："+result.affected.map(x=>x.id+"（第"+x.depth+"層）").join(" → "),"無直接依賴證據： "+result.unaffected.join("、"),"注意：依賴 ≠ 已證實因果；所有項目仍需個別審查。"].join("\n");
