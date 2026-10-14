@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'unsafe-inline';style-src 'unsafe-inline';img-src 'none';connect-src 'none';object-src 'none';base-uri 'none';form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'self' 'unsafe-inline';style-src 'unsafe-inline';img-src 'none';connect-src 'none';object-src 'none';base-uri 'none';form-action 'none'">
 <title>主腦系統地圖｜模組用途・交接・快速架構</title>
 <style>
 :root{color-scheme:dark;--bg:#080e19;--panel:#142039;--panel2:#1b2b45;--ink:#edf4ff;--sub:#bed0e9;--dim:#9eb4d1;--edge:#425a7c;--blue:#b2cafa;--mint:#a6e5d0;--amber:#f0d19b;--rose:#f5b4b4}
@@ -38,6 +38,16 @@ input,select,textarea{width:100%;background:#0c182b;border:1px solid #5e7497;bor
 textarea{min-height:75px;resize:vertical}.helper{font-size:12px;color:var(--dim)}
 #draftSteps{display:grid;gap:8px;margin:10px 0}.draftstep .stepactions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.draftstep .stepactions button{font-size:12px;padding:5px 9px}.draftstep p{font-size:12px;margin:6px 0;color:#bcd0e9} .draftstep{border:1px solid #506b90;border-radius:12px;padding:12px;background:#102039}.draftstep b{display:block}.draftstep span{font-size:12px;color:var(--sub)}
 footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:var(--dim);font-size:12px}
+.switchline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}.switchline label{font-size:13px;font-weight:450;display:flex;align-items:center;gap:6px;margin:0 7px 0 0}.switchline input[type=checkbox]{width:18px;height:18px;accent-color:#b4ceff}
+.states{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:10px}.statecard{border:1px solid var(--edge);border-radius:13px;background:#102037;padding:13px;min-width:0}.statecard h3{font-size:14px;margin:4px 0}.statecard p{font-size:12px;margin:4px 0}
+.track{border:1px solid #5b7297;border-radius:12px;padding:13px;margin:9px 0;background:#12243b}.track .meta{font-size:12px;color:#b9cbeb}.track strong{display:block;font-size:14px}
+#routeResult .pathstep{padding:13px;margin:8px 0;border-left:3px solid #aec7f4;background:#10233b;border-radius:5px 11px 11px 5px}
+#routeResult .pathstep b{display:block}#routeResult .pathstep p{font-size:13px;margin:4px 0}
+[data-kind=rejection]{border-left:4px solid #edc79b}[data-kind=correction]{border-left:4px solid #9ed8c9}
+.section-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:12px 0}.helpnote{color:#b4c8e9;font-size:12px}
+.historywrap[hidden]{display:none}.pathlabel{font-size:12px;color:#c3d5f2}
+#historyFilters{border:1px solid #536787;border-radius:13px;padding:12px;margin:10px 0}
+
 #builderStatus{min-height:20px}.ghost{background:#1c2e49}
 @media(max-width:800px){.layout{grid-template-columns:1fr}.fields{grid-template-columns:1fr}main{padding:14px 13px 65px}.panel{padding:16px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.node{transition:none}}
@@ -119,8 +129,59 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
   <p class="helper" id="exportStatus" role="status"></p>
  </div>
 </section>
+
+<section class="panel" style="margin-top:20px" id="routePlanner" aria-label="接口與路徑規劃">
+ <div class="side-title"><h2>接口狀態與路徑規劃</h2><span class="chip idea">靜態狀態，不是即時連線</span></div>
+ <p>先看接口目前能不能實際送達，再選擇起點及終點，逐站理解資料如何交接、哪些步驟需要人工、哪裡尚未接通。</p>
+ <div class="states" id="interfaceCards" aria-label="目前接口狀態"></div>
+ <div class="fields" style="margin-top:16px">
+   <div><label for="routeStart">資料／任務從哪個模組開始？</label><select id="routeStart"></select></div>
+   <div><label for="routeEnd">要到哪個模組？</label><select id="routeEnd"></select></div>
+ </div>
+ <div class="section-actions"><button type="button" id="planRoute">顯示雙向路徑與接口狀態</button><span class="helpnote">反向路徑必須有明確交接規則，不代表反向一定能直通。</span></div>
+ <div id="routeResult" aria-live="polite" aria-atomic="true"></div>
+</section>
+<section class="layout" id="recordStudio" aria-label="雙向紀錄與欄位模板">
+ <div class="panel">
+  <div class="side-title"><h2>雙向紀錄檢視</h2><span class="chip">進站／送出可獨立隱藏</span></div>
+  <p>可依方向與事件類型檢視。拒絕、修正紀錄都要留下原始編號和理由。此頁只顯示虛構示例及本次尚未保存的手動草稿，正式歷史請到加密記憶庫查看。</p>
+  <button id="toggleHistory" type="button" aria-expanded="true" aria-controls="historyWrap">隱藏雙向紀錄</button>
+  <div id="historyWrap" class="historywrap">
+   <fieldset id="historyFilters"><legend class="helper">篩選紀錄</legend>
+    <div class="switchline"><label><input id="showInbound" type="checkbox" checked> 顯示進站</label><label><input id="showOutbound" type="checkbox" checked> 顯示送出</label></div>
+    <div class="switchline"><label><input id="showReject" type="checkbox" checked> 拒絕／退回</label><label><input id="showCorrections" type="checkbox" checked> 修正／重測</label><label><input id="showGeneral" type="checkbox" checked> 一般紀錄</label></div>
+   </fieldset>
+   <div id="historyCount" class="helper" role="status"></div>
+   <div id="historyList"></div>
+  </div>
+  <div class="section-actions"><a href="./memory.html">進入加密記憶庫，查看真正的拒絕與修正歷史 →</a></div>
+ </div>
+ <div class="panel">
+  <span class="overline">RECORD TEMPLATES</span><h2>套用欄位｜建立一筆紀錄</h2>
+  <p>選擇模板，產生需要填寫的欄位；可先在目前頁面檢查，再匯出「待審記憶包」。尚未送出、尚未核准、重整後未匯出的草稿會消失。</p>
+  <div><label for="recordTemplate">選擇紀錄模板</label><select id="recordTemplate"></select></div>
+  <form id="recordForm"><div id="recordFields" class="detailgrid"></div><div class="miniactions">
+   <button type="submit">加入本次紀錄預覽</button>
+   <button type="button" id="downloadRecordPack">匯出本筆記憶候選包</button>
+  </div></form>
+  <p class="helper" id="recordMessage" role="status"></p>
+ </div>
+</section>
+<section class="panel" style="margin-top:20px" id="memoryBridge" aria-label="完整架構與記憶審核">
+ <div class="side-title"><h2>將完整架構保存為可審核記憶</h2><span class="chip">需人工核准</span></div>
+ <p>架構並不直接寫入公開網站或其他 AI。先產生符合現有記憶庫格式的候選包；你到加密記憶頁解鎖、匯入、查看衝突與拒絕歷史，再決定核准、否決或另建修正版。</p>
+ <div class="section-actions">
+  <button id="downloadFullMemory" type="button">匯出完整主腦架構記憶包</button>
+  <button id="downloadDraftMemory" type="button">匯出目前快速架構記憶包</button>
+  <a href="./memory.html">前往記憶審核 →</a>
+ </div>
+ <div class="detailrow"><span>為什麼不是按一下就寫進記憶？</span><p>因為完整架構仍可能包含未實作的接口與未驗證的設計。核准前必須讓你檢查來源、版本、修正依據與內容差異；正式記憶保留舊版或分支，不默默覆寫。</p></div>
+ <div id="memoryMessage" class="helper" role="status"></div>
+ <p class="helpnote">本頁產生的架構記憶包採「新問題候選」格式。同名舊架構如需追加版本，請在記憶管理頁人工比對後使用「修正答案」；此處不會自動覆寫。</p>
+</section>
 <footer>TCVL × Launcher Hub · 介面草稿。資料流是設計方向而非已完成的自動化。任何真實記憶或企業資料進出，都必須另經來源、權限與證據驗證。</footer>
 </main>
+<script src="./tcvl-architecture-core.js"></script>
 <script>
 "use strict";
 (function(){
