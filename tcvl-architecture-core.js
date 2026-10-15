@@ -15,6 +15,11 @@
     planned:{label:"規劃中／尚未接通",note:"是未來資料流設計，並無自動發送及回報能力",weight:5}
   };
   const ROUTES=[
+    {from:"launcher",to:"relay",status:"local_manual",action:"建立三個角色的獨立指令，手動複製／分享，尚無實際 AI 收件回執"},
+    {from:"relay",to:"governance",status:"local_manual",action:"核對專案 ID 及原指令 ID，下載三方交接報告，再由使用者在專案治理人工匯入"},
+    {from:"governance",to:"relay",status:"local_manual",action:"從專案目標整理具體指令，在交接節點重新建立待審三方任務"},
+    {from:"relay",to:"collaboration",status:"planned",action:"未來才會將人工指令轉成經授權的三模型 API 自動發送"},
+    {from:"collaboration",to:"relay",status:"planned",action:"未來接入具來源驗證的真實 AI 回覆，現在只能人工貼回"},
     {from:"launcher",to:"governance",status:"local_manual",action:"把發射器指令或回報包人工匯入本機審核"},
     {from:"governance",to:"launcher",status:"local_manual",action:"來源不明或資料不合格，退回人工調整任務"},
     {from:"governance",to:"collaboration",status:"local_manual",action:"人工分享已篩選的必要候選資料到三方"},
@@ -27,6 +32,7 @@
   ];
   const INTERFACES=[
     {id:"launcher",title:"發射器／人工指令",status:"local_manual",detail:"本機草稿及人工分享；收件 AI 是否收到仍需人工確認"},
+    {id:"relay",title:"三方 AI 中樞交接",status:"local_manual",detail:"已可為 GPT①、GPT②、BOT③ 建立各自原指令並核對人工回報；沒有真實遠端 API 自動收發"},
     {id:"vault",title:"本機加密共同記憶",status:"local_review",detail:"人工提交、拒絕、修正與審批；不支援雲端同步"},
     {id:"traceback",title:"回溯視覺原型",status:"demo",detail:"虛構案例可播放及跑測試邏輯，不讀取真實記憶"},
     {id:"ai_api",title:"GPT①／GPT②／BOT③ 自動接口",status:"planned",detail:"目前沒有三方身分認證、實際 API 自動互傳"},
