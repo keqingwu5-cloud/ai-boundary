@@ -49,8 +49,9 @@
     planned:"規劃中",building:"建置中",review:"待整體驗收",completed:"✅ 已完成（人工確認）"
   });
   const completionCopy=value=>JSON.parse(JSON.stringify(value));
-  function initialModuleCompletion(){
-    return {stage:"planned",nodes:NODE_CHECKS.map(x=>({id:x.id,state:"unverified",evidence:""})),reviewer:"",acceptanceRef:"",approvedAt:"",history:[]};
+  function initialModuleCompletion(stage="planned"){
+    if(!["planned","building"].includes(stage))throw Error("新的模組不能跳過驗證直接進入待驗收或已完成");
+    return {stage,nodes:NODE_CHECKS.map(x=>({id:x.id,state:"unverified",evidence:""})),reviewer:"",acceptanceRef:"",approvedAt:"",history:[]};
   }
   function assertCompletion(c){
     if(!c||!MODULE_STATES[c.stage]||!Array.isArray(c.nodes)||c.nodes.length!==NODE_CHECKS.length||!Array.isArray(c.history)||c.history.length>200)throw Error("模組驗收資料格式不合法");
