@@ -132,4 +132,6 @@ const moduleEntry={
 const entry=moduleEntry[decodeURIComponent(location.hash.slice(1))];
 if(entry){byId("fromModule").textContent="從「"+entry.name+"」進入｜"+entry.desc+"（目前全為示範資料）";show(entry.stage)}
 else show(0);
-</script></body></html>
+</script><script src="./tcvl-platform-core.js"></script>
+<script src="./tcvl-platform-shell.js"></script>
+</body></html>
