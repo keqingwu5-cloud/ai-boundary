@@ -21,7 +21,8 @@ button{font:inherit;border:1px solid #6e8aae;background:#2d496d;color:#f9fbff;bo
 .continuation-card:empty::before{content:"請先建立並選擇專案";color:#a5bddc}.continuation-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .continuation-meta .pill{border-style:dashed}#continuationStatus{min-height:21px}
 .thread{max-height:280px;overflow:auto;border:1px solid #476383;border-radius:13px;padding:12px;background:#0d1c30;min-height:90px}.message{border-bottom:1px solid #2c4563;padding:9px 0;white-space:pre-wrap;overflow-wrap:anywhere}.message:last-child{border:0}.message small{display:block;color:#9fb7d6}
-#alerts{max-height:280px;overflow:auto}#workspaceStatus,#boardStatus{min-height:20px}
+#alerts{max-height:280px;overflow:auto}#gateSummary{min-height:24px}.gate-row{border-left:3px solid #86abc9;padding:10px 13px;background:#11223a;margin:9px 0;border-radius:6px 11px 11px 6px}.gate-row.failure{border-left-color:#e6ad8c}.gate-row h3{font-size:14px;margin:0}.gate-row p{font-size:12px;margin:5px 0;white-space:pre-line}.gate-checks{font-size:12px;padding-left:18px;color:#c6d8f0;line-height:1.7}
+#workspaceStatus,#boardStatus{min-height:20px}
 @media(max-width:760px){.grid,.cols{grid-template-columns:1fr}.panel{padding:15px}}
 </style></head><body><main>
 <span class="pill">TCVL｜專案治理原型 V0.1</span> <a href="./mainbrain.html#workspace">主腦主控制台</a> · <a href="./relay-hub.html">三方交接節點</a>
@@ -74,6 +75,21 @@ button{font:inherit;border:1px solid #6e8aae;background:#2d496d;color:#f9fbff;bo
  <div id="projectContext"></div>
  <p class="muted" id="threadStatus" role="status"></p>
 </div>
+</section>
+<section class="panel" id="gateCenter" aria-label="條件式門檻及修改紀錄">
+ <div class="pills"><h2 style="margin-right:auto">條件式門檻｜修改前後的紀錄</h2><span class="pill">V0.1 · 人工治理，不是事實查證</span></div>
+ <p>每次在此頁修改專案工作空間，都先檢查操作範圍、專案、版次與來源；通過才執行，完成後再次檢查資料與歷史是否完整。<strong>未通過會保留 failure 紀錄並主動提醒原因、影響與下一步。</strong> 門檻通過不代表其他 AI 已收到回報。</p>
+ <div class="cols">
+  <div><label for="gateInspectAction">想預先檢查哪種操作？</label>
+   <select id="gateInspectAction"><option value="task.transition">任務狀態／工作控制</option><option value="proposal.review">候選架構審核</option><option value="thread.message">同專案對話</option><option value="project.create">新增專案</option><option value="workspace.manual">一般工作空間操作</option></select></div>
+  <div><label for="gateFilter">篩選門檻紀錄</label><select id="gateFilter">
+   <option value="all">全部</option><option value="before">修改前</option><option value="after">修改後</option><option value="failure">失敗／拒絕</option>
+  </select></div>
+ </div>
+ <div class="actions"><button type="button" id="gatePreviewButton">先檢查目前門檻（只預覽）</button><a href="./architecture-hub.html">架構與路徑規劃 →</a></div>
+ <div class="muted" id="gateSummary" role="status">尚未執行預先檢查。</div>
+ <div class="muted" id="gateCount"></div>
+ <div id="gateList" aria-live="polite"></div>
 </section>
 <section class="panel" id="continuationCenter" aria-label="專案工作續接卡">
  <div class="pills"><h2 style="margin-right:auto">工作續接卡｜新對話不打斷原工作</h2><span class="pill">僅在本頁使用／不自動傳給其他 AI</span></div>
@@ -137,7 +153,20 @@ function options(el,pairs,preferred){el.replaceChildren();for(const [v,t]of pair
 function report(text,id="boardStatus"){by(id).textContent=text}
 function currentProject(){return w.projects.find(x=>x.id===activeProject)}
 function assertProject(){if(!currentProject())throw Error("請先建立並選擇專案")}
-function commit(fn,msg,id){try{w=fn();hasUnsavedChanges=true;renderAll();report(msg+"｜變更仍僅在本頁，離開前請匯出 JSON。",id||"boardStatus")}catch(e){report("無法執行："+e.message,id||"boardStatus")}}
+function commit(fn,msg,id,action="workspace.manual",projectId=activeProject){
+ const outputId=id||"boardStatus",gateId=uid(),at=clock();
+ try{
+  const outcome=core.runGatedChange(w,{id:gateId,at,action,projectId:projectId||"",expectedRevision:w.revision,source:"user_manual"},fn);
+  w=outcome.workspace;hasUnsavedChanges=true;renderAll();
+  if(!outcome.applied){
+   report("門檻"+(outcome.decision==="hold"?"保留待補證":"拒絕")+"："+outcome.reason+"｜影響："+outcome.impact+"｜下一步："+outcome.next,outputId);
+   document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason:outcome.reason,impact:outcome.impact,next:outcome.next}}));
+   return false;
+  }
+  report(msg+"｜已通過修改前／後門檻，保留事件與版本；仍僅在本頁，離開前請匯出 JSON。",outputId);
+  return true;
+ }catch(e){report("門檻操作無法處理："+e.message,outputId);return false}
+}
 function download(content,name){
  const blob=new Blob([JSON.stringify(content,null,2)],{type:"application/json;charset=utf-8"});
  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -217,13 +246,30 @@ function renderAlerts(){
   const e=txt("div","", "record alert");
   e.append(txt("b","需要處理："+a.category+"｜"+a.ref),txt("p","原因："+a.reason),txt("p","影響："+a.impact),txt("p","下一步："+a.next));
   const close=txt("button",a.seen?"已閱":"標記已閱");close.type="button";close.disabled=!!a.seen;
-  close.addEventListener("click",()=>commit(()=>core.dismissAlert(w,{alertId:a.id}),"已標記提醒，不代表問題已解決。"));e.append(close);box.append(e);
+  close.addEventListener("click",()=>commit(()=>core.dismissAlert(w,{alertId:a.id}),"已標記提醒，不代表問題已解決。",undefined,"alert.acknowledge"));e.append(close);box.append(e);
  }
  if(!activeProject||!core.projectAlerts(w,activeProject).length)box.append(txt("p","目前專案沒有可追溯的拒絕或阻塞事件；跨專案資料不在此混合顯示。","muted"));
  const events=by("events");events.replaceChildren();
  for(const x of w.events.slice(0,35)){const item=txt("div","", "record");item.append(txt("b",x.message),txt("p",x.at+"｜"+x.kind));events.append(item)}
 }
-function renderAll(){renderProjects();fillStatuses();renderTasks();renderThreads();renderMap();renderAlerts();renderContinuation()}
+function renderGateHistory(){
+ const box=by("gateList");box.replaceChildren();
+ const phase=by("gateFilter").value;
+ const items=core.gateHistory(w,{projectId:activeProject||"",phase:phase==="all"?"":phase}).slice(0,60);
+ by("gateCount").textContent="目前專案可見 "+items.length+" 筆門檻紀錄（最多顯示最近 60 筆）。實際修改的前後檢查及拒絕結果都保留在工作空間 JSON。";
+ if(!items.length){box.append(txt("p","目前沒有符合條件的門檻紀錄；建立專案或修改工作後會出現。","muted"));return}
+ for(const item of items){
+  const g=item.gate;
+  const div=txt("article","", "gate-row"+(g.decision!=="pass"?" failure":""));
+  div.append(txt("h3",(g.phase==="before"?"建置前":g.phase==="after"?"變更後":"未通過")+"｜"+g.action+"｜"+(g.decision==="pass"?"通過":g.decision==="hold"?"保留待補證":"拒絕")));
+  div.append(txt("p","事件："+g.id+"｜版次 "+g.revisionBefore+" → "+g.revisionAfter+"｜來源："+g.source+"｜"+g.at));
+  div.append(txt("p","原因："+g.reason+"\n影響："+g.impact+"\n下一步："+g.next));
+  const checks=document.createElement("ul");checks.className="gate-checks";
+  for(const c of g.conditions){const li=txt("li",(c.passed?"✓":"未通過")+"｜"+c.description);checks.append(li)}
+  div.append(checks);box.append(div);
+ }
+}
+function renderAll(){renderProjects();fillStatuses();renderTasks();renderThreads();renderMap();renderAlerts();renderContinuation();renderGateHistory()}
 function showPendingProjectAlert(){
  if(!activeProject)return;
  const pending=core.projectAlerts(w,activeProject,{unreadOnly:true});
@@ -256,6 +302,13 @@ function renderContinuation(){
   by("continuationPreview").textContent=core.continuationText(data);
  }catch(e){by("continuationPreview").textContent="續接摘要無法建立："+e.message}
 }
+by("gatePreviewButton").addEventListener("click",()=>{
+ const checks=core.gateConditions(w,{action:by("gateInspectAction").value,projectId:activeProject,expectedRevision:w.revision,source:"user_manual"});
+ const outcome=core.gateDecision(checks);
+ by("gateSummary").textContent=(outcome.decision==="pass"?"預先檢查通過":"預先檢查未通過")+"｜"+outcome.reason+"｜下一步："+outcome.next+
+  "（這是預覽，不建立門檻事件；真正操作會自動記錄前後或拒絕原因）";
+});
+by("gateFilter").addEventListener("change",renderGateHistory);
 by("previewContinuation").addEventListener("click",()=>{
  renderContinuation();
  by("continuationDetails").open=true;
@@ -267,7 +320,7 @@ by("createContinuation").addEventListener("click",()=>{
   const title="續接｜"+data.title.slice(0,120);
   if(!confirm("將在同一個專案建立新的人工對話索引，保留原任務的暫停狀態，且不會呼叫任何外部 AI。確定？"))return;
   commit(()=>core.startContinuation(w,{id,projectId:activeProject,fromThreadId:activeThread||"",title,at:clock(),seq}),
-    "已建立續接對話。原工作狀態與進度不變，對話可繼續；此工作空間尚未匯出。","continuationStatus");
+    "已建立續接對話。原工作狀態與進度不變，對話可繼續；此工作空間尚未匯出。","continuationStatus","thread.continue");
   if(w!==old){activeThread=id;renderAll();by("continuationDetails").open=true}
  }catch(e){report("無法建立續接對話："+e.message,"continuationStatus")}
 });
@@ -299,13 +352,13 @@ by("copyProjectId").addEventListener("click",async()=>{
 by("projectList").addEventListener("change",()=>selectProject(by("projectList").value));
 by("createProject").addEventListener("click",()=>{
  const id=uid(),title=clean(by("projectTitle").value,140),goal=clean(by("projectGoal").value,1000);
- commit(()=>core.addProject(w,{id,title,goal,at:clock()}),"專案已建立；尚未儲存至加密記憶。");
+ commit(()=>core.addProject(w,{id,title,goal,at:clock()}),"專案已建立；尚未儲存至加密記憶。",undefined,"project.create",id);
  if(w.projects.some(x=>x.id===id)){selectProject(id);by("projectTitle").value="";by("projectGoal").value=""}
 });
 by("createTask").addEventListener("click",()=>{
  if(!currentProject()){report("請先建立專案。","taskActionStatus");return}
  const id=uid(),at=clock();
- commit(()=>core.addTask(w,{id,projectId:activeProject,title:clean(by("taskTitle").value,160),owner:by("taskOwner").value,reason:clean(by("taskReason").value,1000),at}),"已建立任務（本頁手動治理）","taskActionStatus");
+ commit(()=>core.addTask(w,{id,projectId:activeProject,title:clean(by("taskTitle").value,160),owner:by("taskOwner").value,reason:clean(by("taskReason").value,1000),at}),"已建立任務（本頁手動治理）","taskActionStatus","task.create");
  if(w.tasks.some(t=>t.id===id)){by("taskList").value=id;by("taskTitle").value=""}
  renderTasks();
 });
@@ -321,7 +374,7 @@ by("applyStatus").addEventListener("click",()=>{
   let updated=core.transition(w,payload);
   if(!option.builtIn)updated=core.setTaskDisplay(updated,{taskId,label:option.label});
   return updated;
- },"已記錄為「"+option.label+"」；只代表人工填寫，非 AI 回報證明。","taskActionStatus");
+ },"已記錄為「"+option.label+"」；只代表人工填寫，非 AI 回報證明。","taskActionStatus","task.transition");
  attentionIfNew(before);
 });
 by("pauseTask").addEventListener("click",()=>{
@@ -330,27 +383,27 @@ by("pauseTask").addEventListener("click",()=>{
   let next=w;
   if(progress)next=core.setProgress(next,{taskId,progress});
   return core.pauseTask(next,{taskId,at:clock(),seq,reason:"使用者停止指定工作，保留進度；對話繼續"});
- },"指定工作已暫停；專案對話仍可繼續。這不會向遠端 AI 發送停止命令。","taskActionStatus");
+ },"指定工作已暫停；專案對話仍可繼續。這不會向遠端 AI 發送停止命令。","taskActionStatus","task.pause");
 });
-by("resumeTask").addEventListener("click",()=>commit(()=>core.resumeTask(w,{taskId:by("taskList").value,seq:uid(),at:clock()}),"指定工作已恢復為人工記錄的進行中。","taskActionStatus"));
+by("resumeTask").addEventListener("click",()=>commit(()=>core.resumeTask(w,{taskId:by("taskList").value,seq:uid(),at:clock()}),"指定工作已恢復為人工記錄的進行中。","taskActionStatus","task.resume"));
 by("createThread").addEventListener("click",()=>{
  if(!currentProject()){report("請先建立專案。","threadStatus");return}
- const id=uid();commit(()=>core.addThread(w,{id,projectId:activeProject,title:clean(by("threadTitle").value,160),at:clock()}),"已建立並關聯新對話；尚無 AI 連線。","threadStatus");
+ const id=uid();commit(()=>core.addThread(w,{id,projectId:activeProject,title:clean(by("threadTitle").value,160),at:clock()}),"已建立並關聯新對話；尚無 AI 連線。","threadStatus","thread.create");
  if(w.threads.some(t=>t.id===id)){activeThread=id;by("threadTitle").value="";renderThreads()}
 });
 by("threadList").addEventListener("change",()=>{activeThread=by("threadList").value;renderThreads()});
 by("sendMessage").addEventListener("click",()=>{
  const message=clean(by("messageText").value,2400);
- commit(()=>core.addMessage(w,{id:uid(),threadId:activeThread,author:"使用者",text:message,at:clock()}),"訊息已加入此專案對話（不是 AI 自動回覆）。","threadStatus");
+ commit(()=>core.addMessage(w,{id:uid(),threadId:activeThread,author:"使用者",text:message,at:clock()}),"訊息已加入此專案對話（不是 AI 自動回覆）。","threadStatus","thread.message");
  if(message)by("messageText").value="";
 });
 by("saveMemo").addEventListener("click",()=>{
  const text=clean(by("memoText").value,1000);
- commit(()=>core.projectMemo(w,{id:uid(),projectId:activeProject,kind:by("memoKind").value,text,at:clock()}),"決策／待辦已連到專案。","threadStatus");
+ commit(()=>core.projectMemo(w,{id:uid(),projectId:activeProject,kind:by("memoKind").value,text,at:clock()}),"決策／待辦已連到專案。","threadStatus","project.memo");
  if(text)by("memoText").value="";
 });
 by("addProposal").addEventListener("click",()=>{
- const id=uid();commit(()=>core.addProposal(w,{id,projectId:activeProject,title:clean(by("proposalTitle").value,140),purpose:clean(by("proposalPurpose").value,1000),fromNode:by("proposalOrigin").value,at:clock()}),"已加入候選版塊。視覺淡化，尚未接線。","proposalStatus");
+ const id=uid();commit(()=>core.addProposal(w,{id,projectId:activeProject,title:clean(by("proposalTitle").value,140),purpose:clean(by("proposalPurpose").value,1000),fromNode:by("proposalOrigin").value,at:clock()}),"已加入候選版塊。視覺淡化，尚未接線。","proposalStatus","proposal.create");
  if(w.proposals.some(x=>x.id===id)){by("proposalTitle").value="";by("proposalPurpose").value=""}
 });
 by("exportCandidateMap").addEventListener("click",()=>{
@@ -362,11 +415,11 @@ by("exportCandidateMap").addEventListener("click",()=>{
  }catch(e){report("無法匯出："+e.message,"proposalStatus")}
 });
 by("addLink").addEventListener("click",()=>{
- commit(()=>core.addLink(w,{id:uid(),from:by("linkFrom").value,to:by("linkTo").value,kind:by("linkKind").value,at:clock()}),"已增加候選關聯，不覆蓋原有路徑。","proposalStatus");
+ commit(()=>core.addLink(w,{id:uid(),from:by("linkFrom").value,to:by("linkTo").value,kind:by("linkKind").value,at:clock()}),"已增加候選關聯，不覆蓋原有路徑。","proposalStatus","link.plan");
 });
 by("applyProposal").addEventListener("click",()=>{
  const before=w.alerts.length,decision=by("proposalDecision").value;
- commit(()=>core.proposalDecision(w,{proposalId:by("proposalList").value,decision,reason:clean(by("proposalReason").value,1000),impact:clean(by("proposalImpact").value,1000),next:clean(by("proposalNext").value,1000),at:clock(),seq:uid()}),decision==="rejected"?"已記錄拒絕，提醒已顯示。":"已更新候選規劃；沒有啟用接口。","proposalStatus");
+ commit(()=>core.proposalDecision(w,{proposalId:by("proposalList").value,decision,reason:clean(by("proposalReason").value,1000),impact:clean(by("proposalImpact").value,1000),next:clean(by("proposalNext").value,1000),at:clock(),seq:uid()}),decision==="rejected"?"已記錄拒絕，提醒已顯示。":"已更新候選規劃；沒有啟用接口。","proposalStatus","proposal.review");
  attentionIfNew(before);
 });
 by("saveWorkspace").addEventListener("click",()=>{try{download(w,"tcvl-project-workspace-"+Date.now()+".json");report("已觸發工作空間 JSON 下載；請確認檔案已保存。檔案為未加密資料，請妥善保管。","workspaceStatus")}catch(e){report("匯出失敗："+e.message,"workspaceStatus")}});
