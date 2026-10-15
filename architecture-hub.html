@@ -433,7 +433,7 @@ function exportMemory(which){
  try{
   const core=assertCore(),draft=which==="full"?allArchitectureDraft():currentDraft;
   if(!draft)throw Error("請先建立有效架構");
-  const pack=core.architecturePack(draft,nonce());
+  const pack=core.architecturePack(draft,nonce(),core.INTERFACES,effectiveRoutes());
   downloadLocalJSON(pack,"tcvl-"+(which==="full"?"full":"draft")+"-architecture-memory-candidate.json");
   by("memoryMessage").textContent="已觸發下載「"+(which==="full"?"完整主腦架構":"目前快速架構")+"」候選包。下一步：到記憶管理頁解鎖 → 提交候選 → 批次匯入 GPT① 記憶候選包 → 比較內容／核准或拒絕。並未自動寫入。";
  }catch(err){by("memoryMessage").textContent="無法產生完整架構候選："+err.message+"。可以移除不必要內容或拆分架構，不能直接截斷造成資訊遺失。"}
