@@ -32,6 +32,68 @@
     {id:"ai_api",title:"GPT①／GPT②／BOT③ 自動接口",status:"planned",detail:"目前沒有三方身分認證、實際 API 自動互傳"},
     {id:"external",title:"其他 AI／Webhook／企業資料接口",status:"planned",detail:"需後端授權、安全存放金鑰與資料治理後才可使用"}
   ];
+
+  /* A node's validation outcome is not the lifecycle state of the entire module. */
+  const NODE_CHECKS=Object.freeze([
+    {id:"input",label:"輸入資料與來源"},
+    {id:"processing",label:"功能處理與規則"},
+    {id:"output",label:"輸出與結果"},
+    {id:"testing",label:"測試及反證"},
+    {id:"handoff",label:"交接與接口"},
+    {id:"traceability",label:"版本及回溯"}
+  ]);
+  const NODE_STATES=Object.freeze({
+    unverified:"待驗證",reviewing:"驗證中",verified:"節點已驗證",failed:"驗證不成立"
+  });
+  const MODULE_STATES=Object.freeze({
+    planned:"規劃中",building:"建置中",review:"待整體驗收",completed:"✅ 已完成（人工確認）"
+  });
+  const completionCopy=value=>JSON.parse(JSON.stringify(value));
+  function initialModuleCompletion(){
+    return {stage:"planned",nodes:NODE_CHECKS.map(x=>({id:x.id,state:"unverified",evidence:""})),reviewer:"",acceptanceRef:"",approvedAt:"",history:[]};
+  }
+  function assertCompletion(c){
+    if(!c||!MODULE_STATES[c.stage]||!Array.isArray(c.nodes)||c.nodes.length!==NODE_CHECKS.length||!Array.isArray(c.history)||c.history.length>200)throw Error("模組驗收資料格式不合法");
+    const ids=new Set();
+    for(const n of c.nodes){
+      if(!n||!NODE_CHECKS.some(x=>x.id===n.id)||ids.has(n.id)||!NODE_STATES[n.state]||typeof n.evidence!=="string"||n.evidence.length>1000||(n.state==="verified"&&!n.evidence.trim()))throw Error("節點驗證狀態或證據不合法");
+      ids.add(n.id);
+    }
+    for(const h of c.history)if(!h||typeof h.at!=="string"||h.at.length>40||typeof h.action!=="string"||h.action.length>90)throw Error("驗收歷史資料格式不合法");
+    if(c.stage==="completed"&&(!c.nodes.every(n=>n.state==="verified")||typeof c.reviewer!=="string"||!c.reviewer.trim()||typeof c.acceptanceRef!=="string"||!c.acceptanceRef.trim()||typeof c.approvedAt!=="string"||!c.approvedAt.trim()))throw Error("完成模組缺少全部節點驗證及人工驗收");
+    return true;
+  }
+  function moduleCompletionSummary(c){
+    assertCompletion(c);
+    const verified=c.nodes.filter(x=>x.state==="verified").length;
+    return {label:MODULE_STATES[c.stage],verified,total:NODE_CHECKS.length,completed:c.stage==="completed",missing:c.nodes.filter(x=>x.state!=="verified").map(x=>x.id)};
+  }
+  function updateNodeVerification(c,{nodeId,state,evidence,at}){
+    assertCompletion(c);
+    if(!NODE_STATES[state]||!NODE_CHECKS.some(x=>x.id===nodeId)||typeof evidence!=="string"||evidence.length>1000||typeof at!=="string"||!at.trim())throw Error("節點結果缺少必要欄位");
+    if(state==="verified"&&!evidence.trim())throw Error("節點驗證通過必須有具體證據或驗收引用");
+    const next=completionCopy(c),item=next.nodes.find(x=>x.id===nodeId);
+    item.state=state;item.evidence=evidence.trim();
+    if(next.stage==="completed"){next.stage="review";next.reviewer="";next.acceptanceRef="";next.approvedAt="";}
+    else next.stage=next.nodes.every(x=>x.state==="verified")?"review":"building";
+    next.history.push({at,action:"node."+state,nodeId,note:evidence.trim()});
+    assertCompletion(next);return next;
+  }
+  function approveModuleCompletion(c,{reviewer,acceptanceRef,at}){
+    assertCompletion(c);
+    if(typeof reviewer!=="string"||!reviewer.trim()||reviewer.length>80||typeof acceptanceRef!=="string"||!acceptanceRef.trim()||acceptanceRef.length>250||typeof at!=="string"||!at.trim())throw Error("完成確認需要核准人與驗收紀錄引用");
+    if(c.nodes.some(x=>x.state!=="verified"))throw Error("六個必要節點尚未全部驗證，不能標示 ✅ 已完成");
+    const next=completionCopy(c);next.stage="completed";next.reviewer=reviewer.trim();next.acceptanceRef=acceptanceRef.trim();next.approvedAt=at;
+    next.history.push({at,action:"module.completed",note:"人工確認："+next.reviewer+"｜驗收："+next.acceptanceRef});
+    assertCompletion(next);return next;
+  }
+  function reopenModuleCompletion(c,{reason,at}){
+    assertCompletion(c);
+    if(typeof reason!=="string"||!reason.trim()||reason.length>500||typeof at!=="string"||!at.trim())throw Error("退回重審須保留理由");
+    const next=completionCopy(c);next.stage="review";next.reviewer="";next.acceptanceRef="";next.approvedAt="";
+    next.history.push({at,action:"module.reopened",note:reason.trim()});
+    assertCompletion(next);return next;
+  }
   const FIELD_TEMPLATES={
     inbound:{name:"資料進站紀錄",fields:[["recordId","資料 ID"],["source","來源聲稱"],["receivedAt","取得時間"],["version","版本"],["evidence","證據或檔案引用"],["validation","格式／權限檢查"],["next","下一步"]]},
     outbound:{name:"資料送出紀錄",fields:[["recordId","任務／資料 ID"],["destination","預計送達對象"],["sentAt","人工操作時間"],["delivery","接收確認狀態"],["version","版本"],["permissions","分享範圍"],["next","回報要求"]]},
@@ -86,7 +148,7 @@
       "架構格式："+SCHEMA,
       "此紀錄保存設計主張，不代表 AI 已連線、驗收或資料來源已驗證。",
       "流程節點數："+draft.steps.length,
-      ...draft.steps.flatMap((s,i)=>["","節點 "+(i+1)+"｜"+s.id+"｜"+s.title,"狀態："+(s.status||"未提供狀態，待核對"),"接收："+s.input,"處理："+s.action,"產出："+s.output,"檢查："+(s.check||"未定義，待補齊"),"交接："+(s.forward||s.next),"出錯退回："+(s.reverse||draft.reverseRule),"下一步："+s.next]),
+      ...draft.steps.flatMap((s,i)=>["","節點 "+(i+1)+"｜"+s.id+"｜"+s.title,"狀態："+(s.status||"未提供狀態，待核對"),"接收："+s.input,"處理："+s.action,"產出："+s.output,"檢查："+(s.check||"未定義，待補齊"),"交接："+(s.forward||s.next),"出錯退回："+(s.reverse||draft.reverseRule),"節點驗證及模組完成："+(s.completion?JSON.stringify((assertCompletion(s.completion),s.completion)):"未建立人工驗收紀錄"),"下一步："+s.next]),
       "","反向退回規則："+draft.reverseRule,
       "審查與驗收門檻："+draft.verificationGates,
       "","【路徑與接口狀態｜靜態盤點，不是即時連線檢查】",
@@ -159,6 +221,6 @@
     return history.filter(x=>x&&typeof x==="object"&&(x.direction==="inbound"?showInbound:x.direction==="outbound"?showOutbound:false)
       &&(!kinds.length||kinds.includes(x.kind)));
   }
-  return {SCHEMA,MEMORY_PACK,ARCH_PREFIX,STATUSES,ROUTES,INTERFACES,FIELD_TEMPLATES,
+  return {SCHEMA,MEMORY_PACK,ARCH_PREFIX,STATUSES,ROUTES,INTERFACES,FIELD_TEMPLATES,NODE_CHECKS,NODE_STATES,MODULE_STATES,initialModuleCompletion,assertCompletion,moduleCompletionSummary,updateNodeVerification,approveModuleCompletion,reopenModuleCompletion,
     validateBlueprint,routePlan,fullArchitectureText,architecturePack,recordPack,filterHistory,normalizeCandidateTransfer};
 });
