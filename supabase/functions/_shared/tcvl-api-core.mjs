@@ -20,7 +20,10 @@ export const ROUTE_CATALOG = Object.freeze([
  {method:"POST",path:"/v1/tasks/:id/refuse",purpose:"記錄拒絕理由、影響與後續處理"},
  {method:"GET",path:"/v1/events",purpose:"取得可回溯的雙向與審核事件"},
  {method:"GET",path:"/v1/connectors",purpose:"讀取接口註冊清單和狀態"},
- {method:"POST",path:"/v1/connectors",purpose:"新增規劃中的接口，不含憑證或自動執行"}
+ {method:"POST",path:"/v1/connectors",purpose:"新增規劃中的接口，不含憑證或自動執行"},
+ {method:"GET",path:"/v1/connectors/template",purpose:"取得雙向接口訂製範本"},
+ {method:"POST",path:"/v1/connectors/validate",purpose:"驗證雙向接口規格，不連線、不儲存"},
+ {method:"POST",path:"/v1/transfers/preview",purpose:"模擬送出／接收決策，未執行任何外部傳輸"}
 ]);
 export function isObject(v){return v!==null && typeof v==="object" && !Array.isArray(v)}
 export function stringField(v,max){return typeof v==="string"&&v.trim().length>=1&&v.length<=max?v.trim():null}
