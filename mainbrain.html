@@ -42,10 +42,10 @@ footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font
 </head>
 <body>
 <header><div class="header-in"><div class="brand">🧠 AI 認知邊界 · 主腦</div><span class="status">本機記憶可用／雲端未連線</span>
-<nav class="links" aria-label="網站導覽"><a href="./governance-board.html">📁 專案治理</a><a href="./relay-hub.html">🔗 三方中樞交接</a><a href="./architecture-hub.html">🧩 架構圖</a><a href="./traceback-visual.html">↩ 回溯驗證</a><a href="./memory.html">🗂️ 記憶管理</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 認知大腦</a><a href="./feed.html">短影音</a></nav></div></header>
+<nav class="links" aria-label="網站導覽"><a href="./brain-branches.html">🌿 分支版圖</a><a href="./governance-board.html">📁 專案治理</a><a href="./relay-hub.html">🔗 三方中樞交接</a><a href="./architecture-hub.html">🧩 架構圖</a><a href="./traceback-visual.html">↩ 回溯驗證</a><a href="./memory.html">🗂️ 記憶管理</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 認知大腦</a><a href="./feed.html">短影音</a></nav></div></header>
 <main class="shell">
-<section class="intro"><div class="eyebrow">MAIN BRAIN / REVIEW DRAFT V0.3</div><h1>一個網站、三個 AI、一份共同記憶</h1>
-<p class="lead">GPT① 連續設計問題、GPT② 衍生與模擬、BOT③ 理解目的後執行。三方都能獨立質疑、反證、建立模型；主腦管理候選記憶、分歧與版本。</p>
+<section class="intro"><div class="eyebrow">MAIN BRAIN / REVIEW DRAFT V0.3</div><h1>主腦統一入口，各個系統先獨立分支</h1>
+<p class="lead">主腦負責總覽與協作入口；三方中樞、發射器、專案治理、回溯與加密記憶先各自運行。GPT① 負責問題與整合、GPT② 負責反證、BOT③ 負責測試，未完成的接口不會假裝已接通。</p>
 <div class="notice" role="status"><strong>記憶管理 V1</strong> 已提供可操作的本機加密庫與人工審核，<strong>尚未連接真正的雲端中央共同記憶或 AI 自動調度</strong>。不同裝置不會自動同步。請勿在公開 GitHub 檔案、留言或問題節點中貼入私人記憶。</div></section>
 <div class="tabbar" role="tablist" aria-label="主腦功能">
 <button type="button" role="tab" id="t-overview" data-tab="overview" aria-controls="p-overview" aria-selected="true">系統總覽</button>
@@ -57,13 +57,17 @@ footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font
 <button type="button" role="tab" id="t-security" data-tab="security" aria-controls="p-security" aria-selected="false">安全與部署</button>
 </div>
 <section id="p-workspace" role="tabpanel" aria-labelledby="t-workspace" hidden>
-  <div class="block"><h2>同一個主腦控制台，管理工作和對話</h2>
-  <p>在下方工作台建立專案、補充決策、記錄對話、暫停指定任務或規劃未來節點。切換本頁的分頁時，此內嵌工作區會保留目前頁面狀態；<strong>重新整理、關閉頁面或離開前必須先匯出 JSON</strong>。這是介面整合，尚未將 GPT①、GPT②、BOT③ 自動連到主腦。</p>
-  <div class="notice">正在使用人工專案工作區。內部的「停止指定工作」只會標記任務暫停，不能停止遠端 AI 呼叫；新對話也只是人工紀錄，不是已接通的 AI 聊天。</div>
-  <p><a href="./governance-board.html">在獨立分頁開啟專案治理工作區</a>　<a href="./architecture-hub.html">架構導覽</a>　<a href="./memory.html">記憶審核</a></p>
-  <iframe title="主腦專案治理工作台，人工交接模式" src="./governance-board.html" loading="lazy" style="width:100%;min-height:920px;border:1px solid #526487;border-radius:14px;background:#0a1323;" referrerpolicy="no-referrer"></iframe>
-  <p class="small">注意：內嵌工作區與獨立開啟的頁面是兩個不同的頁面執行個體，資料不會自動互相同步。需要交接時，請從來源工作區匯出 JSON，再到目標工作區明確匯入。</p>
-  </div>
+<div class="block"><h2>主腦是入口，工作空間先分支獨立</h2>
+<p>主腦只負責顯示各條分支、現有狀態與需要人工交接的關聯；各分支的資料、任務與驗證規則不會因為打開主腦頁面就合併。</p>
+<div class="notice">原本內嵌的專案治理頁已改成獨立入口，避免兩個頁面執行個體造成資料不同步。下方連結只是導航，不等於三個 AI 互通或資料庫已共享。</div>
+<div class="grid two">
+<div class="card"><span class="tag">總分支圖</span><h3><a href="./brain-branches.html">查看主腦分支版圖 →</a></h3><p>展開系統用途、目前接口狀態、候選分支與驗證後才能接線的條件。</p></div>
+<div class="card"><span class="tag">獨立專案</span><h3><a href="./governance-board.html">開啟專案治理 →</a></h3><p>單一專案中可暫停指定工作、延續人工對話、處理拒絕提醒。重整前請自行匯出工作空間 JSON。</p></div>
+<div class="card"><span class="tag">獨立交接</span><h3><a href="./relay-hub.html">開啟三方中樞 →</a></h3><p>三條角色通路的任務與回報仍需要人工轉交，不能視為自動連線。</p></div>
+<div class="card"><span class="tag">獨立治理</span><h3><a href="./architecture-hub.html">開啟 TCVL 架構與回溯 →</a></h3><p>設計和驗證流程可先看見與規劃，不直接讀取私人記憶。</p></div>
+</div>
+<p class="small">跨分支資料只在你明確匯出／匯入後交接；未驗證的候選路徑不會取代舊版本。</p>
+</div>
 </section>
 <section id="p-overview" role="tabpanel" aria-labelledby="t-overview">
 <div class="block"><h2>三方 AI 的工作主軸</h2><div class="grid">
