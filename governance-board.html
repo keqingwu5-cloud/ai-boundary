@@ -102,6 +102,7 @@ button{font:inherit;border:1px solid #6e8aae;background:#2d496d;color:#f9fbff;bo
 </div>
 </section>
 </main>
+<script src="./tcvl-relay-core.js"></script>
 <script src="./tcvl-platform-core.js"></script>
 <script src="./tcvl-platform-shell.js"></script>
 <script>
@@ -311,6 +312,8 @@ by("relayFile").addEventListener("change",async()=>{
  try{
   if(file.size>120000)throw Error("三方回報檔超過 120KB，請另行安全封存");
   const data=JSON.parse(await file.text());
+  if(!globalThis.TcvlRelayCore)throw Error("三方交接驗證核心尚未載入");
+  globalThis.TcvlRelayCore.checkTransfer(data);
   const before=w.alerts.length;
   if(!confirm("將未經外部驗證的三方回報追加到目前專案／對話。原始內容可能包含機密，請確認已獲授權。確定匯入？"))return;
   const next=core.acceptRelayTransfer(w,data,{projectId:activeProject,threadId:activeThread,at:clock(),seq:uid()});
