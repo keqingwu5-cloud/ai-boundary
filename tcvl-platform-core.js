@@ -70,6 +70,112 @@ function makeEvent(w,e){unique(w,"events",e.id);w.events.unshift(e)}
 function alert(w,{id,at,category,reason,impact,next,ref,projectId}){
  unique(w,"alerts",id);w.alerts.unshift({id,at,category,reason,impact,next,ref:ref||"",projectId:projectId||null,seen:false});
 }
+/* Conditional governance gate. A gate checks the permission to record a change,
+   not whether a model's answer is true or whether an API was really reached. */
+const GATE_ACTIONS=new Set(["project.create","thread.create","thread.message","thread.continue",
+ "project.memo","task.create","task.transition","task.pause","task.resume",
+ "proposal.create","proposal.review","link.plan","alert.acknowledge","relay.import",
+ "project.workspace","workspace.manual"]);
+function gateConditions(w,{action,projectId,expectedRevision,source}={}){
+ const projectNeeded=!["project.create","workspace.manual"].includes(action);
+ return [
+  {id:"scope_authorized",description:"動作屬本批已核准的治理、專案、狀態、提醒或候選架構功能",
+   expected:true,actual:GATE_ACTIONS.has(action),required:true},
+  {id:"version_fresh",description:"操作時的記憶／工作空間版次等於當前版次",
+   expected:true,actual:Number.isInteger(expectedRevision)&&expectedRevision===w.revision,required:true},
+  {id:"project_exists",description:"需要專案的操作必須連到真實存在的專案 ID",
+   expected:true,actual:!projectNeeded||w.projects.some(p=>p.id===projectId),required:true},
+  {id:"source_declared",description:"保留操作來源，不將人工輸入偽裝為遠端 AI 已驗證訊息",
+   expected:true,actual:source==="user_manual"||source==="import_unverified",required:true}
+ ];
+}
+function gateDecision(checks){
+ const failed=checks.filter(c=>c.required&&!c.actual===c.expected); // replaced by explicit comparison below
+ const missed=checks.filter(c=>c.required&&c.actual!==c.expected);
+ return missed.length?{decision:missed.some(c=>c.id==="scope_authorized"||c.id==="version_fresh")?"reject":"hold",
+   reason:missed.map(c=>c.description).join("；"),
+   impact:"本次工作空間更新暫不生效；既有專案、歷史與暫停狀態保持不變。",
+   next:"核對專案、來源與版次，補齊門檻後重新執行。"}:
+   {decision:"pass",reason:"本階段必要條件均已符合，可進入下一環節；不代表證據真實或 AI 已送達。",
+    impact:"本次條件式檢查未發現阻塞；實際內容仍須人工審核。",
+    next:"繼續下個階段並記錄變更後的資料、版本與問題。"};
+}
+function retained(oldArr,newArr,comparator){
+ if(!Array.isArray(oldArr)||!Array.isArray(newArr)||newArr.length<oldArr.length)return false;
+ const newer=new Map(newArr.map(x=>[x.id,x]));
+ return oldArr.every(item=>newer.has(item.id)&&(!comparator||comparator(item,newer.get(item.id))));
+}
+function retainedHistory(oldW,newW){
+ return retained(oldW.projects,newW.projects,(a,b)=>retained(a.decisions,b.decisions,(x,y)=>JSON.stringify(x)===JSON.stringify(y))
+     &&retained(a.todos,b.todos,(x,y)=>JSON.stringify(x)===JSON.stringify(y)))
+   &&retained(oldW.threads,newW.threads,(a,b)=>retained(a.messages,b.messages,(x,y)=>JSON.stringify(x)===JSON.stringify(y)))
+   &&retained(oldW.tasks,newW.tasks,(a,b)=>retained(a.history,b.history,(x,y)=>JSON.stringify(x)===JSON.stringify(y)))
+   &&retained(oldW.proposals,newW.proposals)
+   &&retained(oldW.links,newW.links,(a,b)=>JSON.stringify(a)===JSON.stringify(b))
+   &&retained(oldW.events,newW.events,(a,b)=>JSON.stringify(a)===JSON.stringify(b))
+   &&retained(oldW.alerts,newW.alerts);
+}
+function gateEvent({id,at,action,projectId,phase,decision,checks,reason,impact,next,source,revisionBefore,revisionAfter}){
+ return {id:"gate:"+phase+":"+id,kind:"gate."+phase,
+  message:"門檻 "+(decision==="pass"?"通過":decision==="hold"?"保留待補證":"拒絕")+"｜"+action+"｜"+reason,
+  at,ref:projectId||"workspace",gate:{id,action,projectId:projectId||null,at,phase,decision,
+   conditions:checks.map(c=>({...c,passed:c.actual===c.expected})),
+   reason,impact,next,source,revisionBefore,revisionAfter}};
+}
+function runGatedChange(w,{id,at,action,projectId="",expectedRevision,source="user_manual"}={},changer){
+ assertWorkspace(w);
+ if(!idOk(id)||!val(at,40)||typeof changer!=="function")throw Error("門檻序號、時間或更新處理缺失");
+ const conditions=gateConditions(w,{action,projectId,expectedRevision,source});
+ const before=gateDecision(conditions);
+ function failure(reason,decision="reject",additional=[]){
+  const checks=[...conditions,...additional];
+  const failureDecision={...before,decision,reason,impact:"這次操作沒有生效；原本工作、版本和對話保留。",
+   next:"檢查阻塞原因及上一版紀錄後，再提交修正。"};
+  const workspace=update(w,n=>{
+   makeEvent(n,gateEvent({id,at,action,projectId,phase:"failure",...failureDecision,checks,source,
+     revisionBefore:w.revision,revisionAfter:w.revision}));
+   const validProject=n.projects.some(x=>x.id===projectId)?projectId:null;
+   alert(n,{id:"alert:gate:"+id,at,category:"gate_rejected",reason,impact:failureDecision.impact,
+     next:failureDecision.next,ref:id,projectId:validProject});
+  });
+  return {workspace,applied:false,...failureDecision,checks};
+ }
+ if(before.decision!=="pass")return failure(before.reason,before.decision);
+ const beforeCopy=JSON.stringify(w);
+ let candidate;
+ try{
+  candidate=changer();
+  if(JSON.stringify(w)!==beforeCopy)throw Error("原始工作空間被直接修改；禁止無版本覆寫");
+  const errors=validate(candidate);
+  if(errors.length)throw Error("更新後資料格式不符合門檻："+errors.join(", "));
+  if(candidate.revision<=w.revision)throw Error("更新未增加版次");
+  if(!retainedHistory(w,candidate))throw Error("發現舊對話、歷史、事件、關聯或版本被覆蓋");
+ }catch(e){
+  return failure("執行／變更後門檻未通過："+String(e?.message||e));
+ }
+ const afterChecks=[
+  {id:"schema_valid",description:"更新後整個工作空間資料格式有效",expected:true,actual:true,required:true},
+  {id:"preserve_lineage",description:"舊任務、決策、對話、否決及依賴仍可追溯",expected:true,actual:true,required:true},
+  {id:"revision_advanced",description:"狀態更新有新版本而非原地覆寫",expected:true,actual:true,required:true}
+ ];
+ const success=gateDecision(afterChecks);
+ const workspace=update(candidate,n=>{
+  makeEvent(n,gateEvent({id,at,action,projectId,phase:"before",decision:before.decision,checks:conditions,
+    reason:before.reason,impact:before.impact,next:before.next,source,
+    revisionBefore:w.revision,revisionAfter:candidate.revision}));
+  makeEvent(n,gateEvent({id,at,action,projectId,phase:"after",decision:success.decision,checks:afterChecks,
+    reason:success.reason,impact:success.impact,next:success.next,source,
+    revisionBefore:w.revision,revisionAfter:candidate.revision}));
+ });
+ return {workspace,applied:true,decision:"pass",reason:success.reason,impact:success.impact,
+   next:success.next,checks:[...conditions,...afterChecks]};
+}
+function gateHistory(w,{projectId="",decision="",phase=""}={}){
+ assertWorkspace(w);
+ return w.events.filter(e=>e.gate&&(!projectId||e.gate.projectId===projectId)&&
+  (!decision||e.gate.decision===decision)&&(!phase||e.gate.phase===phase));
+}
+
 function addProject(w,{id,title,goal,at}){
  if(!val(title,140)||!val(goal,1000)||!val(at,40))throw Error("專案需要名稱、目的與時間");
  return update(w,n=>{unique(n,"projects",id);n.projects.push({id,title,goal,decisions:[],todos:[],createdAt:at});
@@ -313,6 +419,7 @@ function packet(workspace,uid){
    evidence:"來源：瀏覽器治理工作區人工建立；尚未驗證任何外部 AI 身分。",eventType:"new_question",evidenceLevel:"hypothesis"}]};
 }
 return {SCHEMA,STATUS_SCHEMA,DEFAULT_STATUSES,registry,statusOf,addCustomStatus,
+ gateConditions,gateDecision,runGatedChange,gateHistory,
  createWorkspace,validate,safeImport,addProject,addThread,addMessage,projectMemo,
  addTask,transition,pauseTask,resumeTask,setProgress,setTaskDisplay,addProposal,proposalDecision,addLink,dismissAlert,transferCandidateMap,acceptRelayTransfer,
  projectAlerts,continuationSnapshot,continuationText,startContinuation,packet};
