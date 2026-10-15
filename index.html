@@ -8,9 +8,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <script>window.__errs=[];addEventListener("error",function(e){window.__errs.push(String(e.message||e));});addEventListener("unhandledrejection",function(e){window.__errs.push("rej:"+String(e.reason&&e.reason.message||e.reason));});</script>
-<script>window.__V="20261012openness01";(function(){try{fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v||j.v===window.__V)return;var k="aiBoundary.reloadFor."+j.v;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");var u=new URL(location.href);u.searchParams.set("v",j.v);location.replace(u.toString());}).catch(function(){});}catch(e){}})();</script>
-<script src="./data.js?v=20261012openness01"></script>
-<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/controls/OrbitControls.js":"./vendor/OrbitControls.js"}}</script>
+<script>window.__V="20261012094628";(function(){try{fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v||j.v===window.__V)return;var k="aiBoundary.reloadFor."+j.v;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");var u=new URL(location.href);u.searchParams.set("v",j.v);location.replace(u.toString());}).catch(function(){});}catch(e){}})();</script>
+<script src="./data.js?v=20261012094628"></script>
+<script src="./config.js?v=20261012094628"></script>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/controls/OrbitControls.js":"./vendor/OrbitControls.js","./safe.js":"./safe.js?v=20261012094628","./reliability/storage.mjs":"./reliability/storage.mjs?v=20261012094628"}}</script>
 <style>
 :root{--glass:rgba(14,18,40,.58);--line:rgba(160,180,255,.16);--text:#eef0ff;--muted:#8f98c4;--gold:#f5c451;--glow:#9db7ff}
 *{box-sizing:border-box}
@@ -261,8 +262,9 @@ a.ib{display:inline-grid;place-items:center;text-decoration:none;color:inherit}
   <label>每行一個（可加「｜類型」）</label><textarea name="lines" rows="4" required></textarea>
   <div class="row"><button value="cancel" formnovalidate>取消</button><button value="ok" class="go">分裂 ❖</button></div>
 </form></dialog>
-<script type="module" src="./app.js?v=20261012openness01"></script>
-<script type="module" src="./knowledge-score.js?v=20261012openness01"></script>
-<script type="module" src="./audio-lab-import.js?v=20261012openness01"></script>
+<script type="module" src="./app.js?v=20261012094628"></script>
+<script type="module" src="./knowledge-score.js?v=20261012094628"></script>
+<script type="module" src="./audio-lab-import.js?v=20261012094628"></script>
+<script type="module" src="./sync.js?v=20261012094628"></script>
 </body>
 </html>

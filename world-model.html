@@ -135,7 +135,17 @@ const verificationCase={
 const verifyEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const verifySafeUrl=url=>{try{const u=new URL(url);return u.protocol==='https:'?u.href:null}catch{return null}};
 function getVerifyRows(){try{const data=JSON.parse(localStorage.getItem(VERIFY_KEY));return Array.isArray(data)?data.filter(x=>x&&typeof x==='object').slice(0,500):[]}catch{return []}}
-function saveVerifyRows(rows){try{localStorage.setItem(VERIFY_KEY,JSON.stringify(rows));return true}catch{return false}}
+/* [P0] 存檔保護：原始內容若無法辨識（損毀、非陣列、含非物件或超過 500 筆），不覆寫、不截斷，暫停寫入並顯示提示 */
+function verifyStoreState(){const raw=localStorage.getItem(VERIFY_KEY);if(raw===null)return 'empty';try{const d=JSON.parse(raw);return Array.isArray(d)&&d.length<=500&&d.every(x=>x&&typeof x==='object'&&!Array.isArray(x))?'ok':'protected'}catch{return 'protected'}}
+function verifyProtectNotice(){
+ document.body.dataset.verifyStore='protected';if(document.getElementById('verifyProtect'))return;
+ const box=document.createElement('div');box.id='verifyProtect';box.setAttribute('role','alert');box.className='verify-case';box.style.borderColor='#d97a7a';
+ const p=document.createElement('p');p.textContent='⚠ 資料保護：這台裝置的反驗證紀錄（worldModel.verify.v1）格式無法辨識，原始內容沒有被覆寫，已暫停寫入。請先匯出原始內容，或回到 3D 主腦用備份還原。';
+ const b=document.createElement('button');b.className='button';b.type='button';b.textContent='匯出原始內容';
+ b.addEventListener('click',()=>{const blob=new Blob([localStorage.getItem(VERIFY_KEY)||''],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='worldModel.verify.v1-原始內容.txt';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
+ box.append(p,b);const form=document.getElementById('verifyForm');form.parentNode.insertBefore(box,form);
+}
+function saveVerifyRows(rows){if(verifyStoreState()==='protected'){verifyProtectNotice();return false}try{localStorage.setItem(VERIFY_KEY,JSON.stringify(rows));return true}catch{return false}}
 function verifiedRender(){
  const x=verificationCase;
  $('#verifiedExample').innerHTML='<div class="verify-case"><h3>'+verifyEsc(x.hypothesis)+'</h3><p>2026/03 CPI 年增率 <strong>'+x.cpi+'%</strong>（2026/04/10 發布），相較 2026/02 的 '+x.previousCpi+'% 上升。下一次 FOMC 在 <strong>'+x.fomcDate+'</strong> 維持 '+x.rate+'。</p><p class="verify-good"><strong>判定：</strong>'+verifyEsc(x.outcome)+'</p><p class="fine">'+verifyEsc(x.scope)+'</p><p class="fine">來源：'+x.evidence.map(e=>'<a target="_blank" rel="noopener noreferrer" href="'+e.url+'">'+verifyEsc(e.label)+'</a>').join(' · ')+'</p></div>';
@@ -168,7 +178,7 @@ $('#verifyForm').addEventListener('submit',e=>{
  if(!hypothesis||!falsifier||!createdOn||!deadline||deadline<createdOn||(sourceRaw&&!source)){ $('#verifyFormStatus').textContent='請檢查日期、必填欄位或 https 來源網址。';return}
  const rows=getVerifyRows();if(rows.length>=500){$('#verifyFormStatus').textContent='本機最多儲存 500 筆；請先匯出並清理。';return}
  rows.push({id:'v'+Date.now()+'-'+Math.random().toString(36).slice(2,8),hypothesis,falsifier,createdOn,deadline,source,metric:$('#verifyMetric').value.trim(),status:'待驗證',createdAt:new Date().toISOString()});
- if(!saveVerifyRows(rows)){ $('#verifyFormStatus').textContent='儲存失敗，請檢查瀏覽器儲存權限。';return}
+ if(!saveVerifyRows(rows)){ $('#verifyFormStatus').textContent=verifyStoreState()==='protected'?'未儲存：原有紀錄格式無法辨識，已啟用資料保護（見上方提示）。':'儲存失敗，請檢查瀏覽器儲存權限。';return}
  $('#verifyForm').reset();$('#verifyDate').value=new Date().toLocaleDateString('en-CA');$('#verifyFormStatus').textContent='已儲存在此裝置；請定期匯出備份。';renderVerifyRows();
 });
 $('#verifyExport').addEventListener('click',()=>{
@@ -182,6 +192,7 @@ $('#verifyImport').addEventListener('change',async e=>{
  try{const d=JSON.parse(await f.text());if(d.schema!=='worldModel.verify.v1'||!Array.isArray(d.records)||d.records.length>500)throw Error('格式不符');
  const clean=d.records.filter(r=>r&&typeof r.hypothesis==='string'&&typeof r.falsifier==='string'&&typeof r.createdOn==='string'&&typeof r.deadline==='string').map((r,i)=>({id:'import-'+Date.now()+'-'+i,hypothesis:r.hypothesis.slice(0,800),falsifier:r.falsifier.slice(0,800),createdOn:r.createdOn.slice(0,10),deadline:r.deadline.slice(0,10),source:r.source?verifySafeUrl(r.source):'',metric:String(r.metric||'').slice(0,800),status:VERIFY_STATUSES.includes(r.status)?r.status:'待驗證',createdAt:new Date().toISOString()}));
  if(!confirm('匯入 '+clean.length+' 筆紀錄？將取代此裝置的反驗證紀錄（不影響 3D 主腦）。'))return;
+ if(verifyStoreState()==='ok'&&!(window.__wmBackup&&window.__wmBackup('before-world-model-import'))&&!confirm('無法先建立備份，仍要取代此裝置的反驗證紀錄？'))return;
  if(!saveVerifyRows(clean))throw Error('無法寫入本機儲存');renderVerifyRows();
  }catch(err){alert('無法匯入：'+err.message)}finally{e.target.value=''}
 });
@@ -209,6 +220,14 @@ function runVerifyAudit(){
 $('#runAudit').addEventListener('click',runVerifyAudit);
 
 verifiedRender();renderVerifyRows();
+document.body.dataset.verifyStore=verifyStoreState();if(document.body.dataset.verifyStore==='protected')verifyProtectNotice();
 runVerifyAudit();
 
+</script>
+<script type="module">
+/* [P0] 世界模型紀錄納入同一套本機備份（reliability/storage.mjs；與 3D 主腦共用備份清單與輪替） */
+import { backupWorldModel, WORLD_MODEL_KEY } from './reliability/storage.mjs';
+window.__wmBackup=reason=>{try{return backupWorldModel(localStorage,reason)}catch(e){return null}};
+if(localStorage.getItem(WORLD_MODEL_KEY)!==null&&document.body.dataset.verifyStore==='ok')window.__wmBackup('world-model-load');
+document.body.dataset.wmBackupReady='1';
 </script></body></html>

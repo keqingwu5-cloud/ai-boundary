@@ -10,8 +10,13 @@
 | `index.html` | 介面（zh-TW）、樣式、`QUESTIONS`／`TYPES` 種子資料（6 題真實來源，原文未改） |
 | `app.js` | Three.js 場景、資料模型、操作、儲存、歷史、公開 API |
 | `vendor/three.module.min.js`、`vendor/OrbitControls.js` | Three.js r169（MIT，見 `vendor/LICENSE-three.txt`），本地化不依賴 CDN |
+| `config.js` | 雲端同步設定（`SUPABASE_URL`／`SUPABASE_ANON_KEY`），預設空白＝只用 localStorage |
+| `sync.js`、`sync-core.js` | Supabase 同步（頁面整合／純合併邏輯；`safe.js` 跳脫、網址與顏色檢查），見「☁️ 雲端同步」 |
+| `supabase/schema.sql` | 資料表、RLS、編輯名單（預填 keqingwu5@gmail.com），在 Supabase SQL Editor 執行 |
+| `vendor/supabase.js` | supabase-js 2.117.3 UMD（MIT，見 `vendor/LICENSE-supabase.txt`），只有填了 config 才會載入 |
+| `tests/` | `sync-core.test.mjs`（node 單元測試）、`smoke.mjs`（無頭瀏覽器冒煙測試）、`mock-supabase.mjs`（假 Supabase 整合測試）、`rls.test.mjs`（PGlite RLS）、`p0-storage.test.mjs`／`p0-browser.mjs`（P0 本機存檔保護） |
 
-除 Google Fonts 外沒有任何外部依賴，也不需要 build。
+除 Google Fonts 外沒有任何外部依賴，也不需要 build。（雲端同步是選用的：`config.js` 空白時不會連任何外部服務。）
 
 ## 技術選擇：Three.js（原生 ES Modules） vs React Three Fiber
 | | Three.js 原生 | React Three Fiber |
@@ -223,3 +228,99 @@ scripts/publish_episode.sh ep03 n_q3 --no-push  # 只在本機 commit，先不�
 ### 實驗證據界線
 
 本次「50 次」是 50 個可重現的**合成樣本及程式化結構測試**；尚未完成 50 人盲聽，沒有量測日本語句切點精確度、TikTok 觀眾反應、聲音採用率或真實收入。日後的市場驗證結果應另附來源、時間、樣本數及反證，與結構代理分數分開。
+
+## ☁️ 雲端同步（Supabase）
+
+讓 Merlin 和 bot 在不同裝置上看到、編輯**同一顆大腦**。`config.js` 兩個值空白時，網站跟以前完全一樣（只用這台裝置的 localStorage，也不會下載 supabase-js）。
+
+### 一次性設定（3 步）
+1. 到 https://supabase.com 用 **keqingwu5@gmail.com** 建立新專案（地區選 Tokyo 或 Singapore 比較快）→ 左側 **SQL Editor** → New query → 把 `supabase/schema.sql` 整份貼上 → **Run**。編輯名單 `brain_editors` 已經預先放好 `keqingwu5@gmail.com`（可以重複執行）。
+2. **Authentication → URL Configuration → Site URL** 填 `https://keqingwu5-cloud.github.io/ai-boundary/`（同一個網域底下的大腦和 feed 都能回跳，不用另外加 Redirect URL）。
+3. **Project Settings → API**：把 Project URL 和 **anon public**（或 publishable）key 交給我，填進 `config.js` 後 bump 版本、push：
+   ```js
+   window.AI_BOUNDARY_CONFIG = { SUPABASE_URL:'https://xxxx.supabase.co', SUPABASE_ANON_KEY:'eyJ…', GRAPH_ID:'main' };
+   ```
+   anon key 本來就是公開的（權限由 RLS 控管），可以 commit。**service_role key 絕對不能放進 repo 或前端。**
+
+之後打開網站 → 工具列同步按鈕 → 輸入 email → 寄登入連結 → 點信裡的連結就登入了。雲端是空的時候，第一位**編輯者**打開網站會自動把種子資料（加上那台裝置的本機修改）整份上傳。（Supabase 內建寄信每小時只能寄幾封；需要的話可以在 Authentication → Emails → SMTP Settings 換成自己的 SMTP。）
+
+### 誰可以讀、誰可以寫（P0 保護基線）
+- **雲端資料是私人的**：`brain_entities`／`brain_history`／`brain_proposals`／`brain_revisions` 只有「該 graph 的編輯者」讀得到（RLS `is_graph_editor(graph_id)`）。匿名（anon）連 select 權限都沒有；登入但不在名單的人讀到 0 列。
+- **未登入的公開網站**照樣可以用：大腦和 feed 用網站內建的公開資料（`data.js`），不連雲端資料，本機修改只存在這台裝置（🔒）。
+- 編輯者＝`brain_editors` 裡的 email（小寫比對），JWT 的 email 必須跟 `auth.users` 裡**已驗證**的 email 一致；`graph_ids` 是 null 代表所有 graph，否則只限列出的 graph。名單本身網頁完全碰不到，只能在 SQL Editor 管理：
+  ```sql
+  insert into public.brain_editors (email, note) values ('someone@example.com', '說明');                       -- 加人（小寫）
+  insert into public.brain_editors (email, note, graph_ids) values ('someone@example.com', '說明', array['main']); -- 只限某個 graph
+  delete from public.brain_editors where email = 'someone@example.com';                                         -- 移除
+  ```
+- ⚠ **不要把 BOT 帳號加進 `brain_editors`**：編輯者可以直接改正式資料；依架構稿，BOT 只能提案、由人審核（P1 的提案／審核 API）。
+- **版本化寫入**：用戶端不能直接 insert／update `brain_entities`，只能呼叫 `brain_apply(graph, ops)`。每筆帶「我根據的版本」（`base`）；雲端版本已經不同（別人先改了）→ **不覆寫**，回報 conflict（相當於 API 的 409），被擋下的內容存進 `brain_proposals`（status `conflict`）可查閱。重送內容一樣的修改是冪等的（不算衝突、不多一個版本）。每次被接受的修改在 `brain_revisions` 留前後內容（只增不減）。
+- 沒有 DELETE 權限：刪除一律寫墓碑（`deleted=true`），墓碑也要版本相符。
+
+### 介面
+- 大腦工具列（🕘 左邊）和 feed 工具列（⚙ 左邊）多一顆同步按鈕：☁️ 已同步／⏳ 同步中／⚠️ 離線（修改先存在這台裝置）／🔒 唯讀。右上角小數字＝還沒上傳的修改數。
+- 點一下打開選單：輸入 email 寄登入連結、登出、↻ 重新同步。
+- 登入過期：自動用 refresh token 換新 token 再重試一次；換不到才提示「登入已過期，請重新登入」。只有資料庫真的拒絕（403／RLS）才會變成 🔒。
+- **給介面／bot 用的 JS API**（`window.AISync`，`config.js` 空白時也存在，`enabled:false`）：
+  | 呼叫 | 回傳 |
+  |---|---|
+  | `AISync.status()` | `'off'`（沒設定）／`'synced'`／`'syncing'`／`'offline'`／`'readonly'`／`'conflict'`（有修改跟雲端衝突、等你決定） |
+  | `AISync.reason()` | 為什麼能不能寫：`'off'`（沒設定）／`'anon'`（沒登入）／`'checking'`（已登入、正在查編輯名單）／`'not-editor'`（已登入但不在 `brain_editors`）／`'editor'`（可以寫） |
+  | `AISync.user()` | `null` 或 `{ id, email }` |
+  | `AISync.isEditor()` | `true`＝已登入而且在編輯名單（＝`canWrite()`） |
+  | `AISync.pending()` | 還沒上傳的修改數（有快取：大腦 `change` 事件、拉取、上傳、別的分頁改了資料時才重算，`status()` 也一樣） |
+  | `AISync.pull()`／`flush()` | 手動拉取／上傳 |
+  | `AISync.conflicts()` | 衝突清單：`[{ key, kind, id, base, current, proposalId, cloud:{data,deleted}, mine:{data,deleted}, at }]` |
+  | `AISync.resolveConflict(key, 'cloud'｜'mine')` | 人決定：`'cloud'` 改用雲端版本（提案標成 rejected）；`'mine'` 以衝突時看到的雲端版本為 base 用我的版本覆蓋（雲端若又被改過 → 新的衝突，不會覆寫）。回傳 Promise&lt;boolean&gt; |
+  | `AISync.ready` | **Promise，只會 resolve、不會 reject、不會永遠等**：`config.js` 空白 → 立刻 resolve；啟用 → Supabase client 建好、第一次 session＋編輯名單檢查做完就 resolve（不等第一次拉取，所以 `status` 通常還是 `'syncing'`，但 `reason`／`canWrite`／`user` 已經是確定的）；初始化失敗（例如 `vendor/supabase.js` 載不到）也會 resolve，帶 `error`，狀態變 `'offline'`；超過 10 秒還沒好（`config.js` 可用 `READY_TIMEOUT_MS` 改）就帶 `timedOut:true` resolve（這時 `status:'syncing'`、`canWrite:false`；之後連上了照常同步，聽 `aisync:change` 就知道）。值＝`{ enabled, status, reason, canWrite, user, error?, timedOut? }` |
+  | `AISync.isReady` | `ready` 已 resolve 時是 `true` |
+  介面要等同步準備好再決定顯示什麼時，用 `const s = await AISync.ready;`，不用輪詢；也可以聽 `window` 上只發一次的 `aisync:ready` 事件（`detail` 同上；停用時事件在下一輪事件迴圈才發，所以稍晚載入的 script 也收得到，但最穩的還是 `await AISync.ready`）。
+  狀態、原因、待上傳數或衝突數改變時，`window` 會發出 `aisync:change` 事件（`detail:{ status, reason, pending, conflicts }`），介面可以聽這個事件，不用一直輪詢。上傳時出現新衝突會另外發 `aisync:conflict`，並在畫面上方顯示 zh-TW 衝突提示（`#syncConflict`，每筆有「改用雲端版本」「用我的版本覆蓋」），`body[data-sync-conflicts]` 是衝突數。
+  同步按鈕 `#bSync` 的 `aria-label` 固定是「雲端同步：已同步／同步中／離線／唯讀」（有待上傳時加「，N 筆待上傳」），跟 `title` 一起更新；`aria-expanded` 表示選單有沒有打開。
+- **重置**（🕘 → 重置）只重置這台裝置：編輯者 → 捨棄本機修改、改用雲端版本；其他人 → 重置成內建資料。**不會**清掉共享大腦或其他裝置（↶ 還能找回）。
+
+### 資料模型（雲端）
+| 資料表 | 內容 | 權限 |
+|---|---|---|
+| `brain_entities` | 共享大腦，一個實體一列：`(graph_id, kind, id)` 主鍵，`kind` = `brain`／`node`／`link`／`concept`／`pattern`／`meta`；`data` jsonb＝跟 `localStorage['aiBrain.v1']` 裡一模一樣的物件（上限 256 KB）；`deleted` 墓碑；`version` 內容版本；`updated_at`、`updated_by` 由 trigger 填 | 該 graph 的編輯者可讀；只能經 `brain_apply()` 寫；不能刪除 |
+| `brain_history` | 🕘 生長紀錄，只增不減，`hkey` 去重（payload 上限 16 KB） | 該 graph 的編輯者可讀、可新增 |
+| `brain_proposals` | 版本衝突被擋下的修改（`base_version`、`current_version`、`patch`、`status`、`actor`、`decided_by`） | 編輯者可讀；只能經 `brain_apply()`／`brain_reject_proposal()` 寫 |
+| `brain_revisions` | 每次接受的修改：版本、前後內容、`proposal_id`、`actor` | 編輯者可讀；誰都不能改 |
+| `brain_editors` | 可讀寫的 email 名單（`graph_ids` 範圍） | 網頁完全碰不到 |
+
+沒有個人資料表：喜歡／收藏、知識掌握度照舊只存在各自裝置的 localStorage。`meta` 列放 graph 頂層的其他欄位（`seedExtras`、`seedPatches`），`concepts`／`patterns` 每個名稱一列。`graph_id` 預設 `main`。
+
+**為什麼一個實體一列**：兩台裝置改不同節點時互不影響；同一個節點被兩邊根據同一版本修改時，第一筆成功、第二筆變成衝突等人決定（不再是「最後寫入者為準」）。用 jsonb 是因為節點欄位還在一直長，不用每次改 schema。
+
+### 合併規則（沒有 Realtime）
+- **什麼時候抓**：載入時、回到這個分頁（focus／visibilitychange，最多 5 秒一次）、恢復連線時、自己寫入之後。不訂閱 Realtime。
+- **待上傳＝跟快照的差異**：`localStorage['aiBrain.sync.v2:main']` 存「上次跟雲端一致時」每個實體的指紋。本機現在跟快照不一樣的實體就是還沒上傳的修改（刪掉的 → 墓碑）。快照另外記雲端各實體的 `version`（`vers`）和本機修改當初根據的版本（`base`）；拉取時本機待上傳的實體保留原本的 `base`，不會被換成雲端最新版本（那樣就變成靜默覆寫）。衝突中的實體記在 `conflicts`，不會自動重送。
+- **合併**：雲端資料先在本機跑一次 `migrate()`（`SEED_EXTRAS`／`SEED_PATCHES`／`SEED_MEDIA`／概念定義，只做加法），每一列都先經過 `sanitizeEntity` 補齊欄位、檢查網址和顏色，再把本機還沒上傳的修改疊上去。`seedExtras`／`seedPatches` 是只增不減的集合，所以「刪掉的種子不會長回來」「同一個補丁不會套兩次」在所有裝置都成立。編輯者會把補丁結果上傳；唯讀的人只在本機套用，不算成本機修改。這兩個集合比對時不管順序（新種子插在 `SEED_EXTRAS` 最前面也不會多出一筆待上傳）。
+- **🎧 日文轉場音實驗室**：`SEED_EXTRAS` 裡的 6 個實驗室節點跟其他種子一樣處理。「送入主腦」（`audio-lab-import.js`）透過 `AIBrain.addQuestion`／`addDirection` 新增的節點就是一般的本機修改：編輯者會上傳，唯讀的人只留在這台裝置；同一份快照用來源網址去重，所以已同步的裝置再送一次不會重複。實驗室自己的 50 筆紀錄（`aiBrain.audioLab.*`）不會上雲端。
+- **meta 種子紀錄**（`seedExtras`／`seedPatches` 字串陣列）在伺服器端取聯集，不算衝突（跟本機 `putEntity` 規則一樣）。
+- **第一次同步**：雲端有的實體（含墓碑）以雲端為準；只在本機有的實體當成本機修改，編輯者登入後會上傳；雲端才有的實體直接加進來。
+- **離線**：修改照樣存 localStorage，恢復連線就自動上傳。
+- **復原 ↶**：雲端來的修改也會套進復原快照，↶ 只撤銷你自己的上一步，撤銷本身也會同步。
+- **feed** 只讀共享大腦（播影片時會等暫停再更新清單），不會寫回雲端。
+
+### 🤖 bot 怎麼寫進共享大腦
+**P0 起暫停**：依架構稿，BOT 只能提案、不能直接改正式知識。在 P1 的提案／人工審核 API 上線前，bot 的修改請走 PR（`patches/`，見 #3 的協作流程），不要把 bot 帳號加進 `brain_editors`，也不要把 service role key 給 bot。
+真人編輯者若要用 REST 手動寫入，請呼叫 `rpc/brain_apply`（帶 `base` 版本），不能再直接 upsert `brain_entities`：
+```bash
+curl -s "$SB/rest/v1/rpc/brain_apply" -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"p_graph":"main","p_ops":[{"kind":"node","id":"n_q1","data":{…完整節點…},"base":3}]}'
+# 回傳 {"applied":[{"kind":"node","id":"n_q1","version":4}],"conflicts":[]}；版本不符時 applied 為空、conflicts 帶雲端目前內容與 proposal_id
+```
+
+### 測試
+```bash
+node --test tests/safe.test.mjs tests/sync-core.test.mjs   # XSS／safeUrl／顏色、合併、快照差異、墓碑、第一次同步（不需要任何套件）
+node --test tests/sync-ready.test.mjs                      # AISync.ready：停用／初始化失敗／逾時都會 resolve、aisync:ready 只發一次
+PGLITE=<@electric-sql/pglite>/dist/index.js node --test tests/rls.test.mjs   # 在 PGlite（WASM Postgres）跑真的 schema.sql：未授權讀寫全拒、版本衝突、修訂只增不減、從 PR #2 草稿升級
+node --test tests/reliability.test.mjs tests/p0-storage.test.mjs   # 本機存檔保護：損毀不覆寫、容量已滿、分頁衝突、備份輪替與排除鍵、世界模型備份、還原
+PUPPETEER=… node tests/p0-browser.mjs                      # 真瀏覽器（SwiftShader）：損毀存檔＋從備份還原、容量已滿、分頁衝突橫幅、備份輪替、世界模型保護、輕量復原快照
+python3 -m http.server 8000 &                              # 冒煙測試（config 空白 → 跟原本一樣、沒有 JS 錯誤）
+PUPPETEER=<puppeteer-core>/lib/esm/puppeteer/puppeteer-core.js node tests/smoke.mjs http://127.0.0.1:8000/
+PUPPETEER=… node tests/mock-supabase.mjs                   # 假的 Supabase：未登入／非編輯者讀寫被拒、兩台裝置、同節點衝突（改用雲端／用我的版本）、離線／復原／墓碑／401 refresh／重置／XSS／feed／AISync.ready
+```
+這些都不是真的 Supabase；接上真專案後請再手動確認一次登入信回跳和兩台裝置同步。
