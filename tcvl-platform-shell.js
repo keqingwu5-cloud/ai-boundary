@@ -85,6 +85,7 @@ function render(){
  });
  apply();listStatuses();
  globalThis.TcvlPlatformShell={getStatuses:()=>core?core.registry(prefs.customStatuses):[],getSettings:()=>JSON.parse(JSON.stringify(prefs)),showSettings:()=>{panel.hidden=false;toggle.setAttribute("aria-expanded","true")}};
+ document.dispatchEvent(new Event("tcvl:statuses-updated"));
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",render,{once:true});else render();
 })();
