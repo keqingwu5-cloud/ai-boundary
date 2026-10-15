@@ -152,3 +152,61 @@ test("complete architecture memory export preserves planned routes and candidate
  assert.match(pack.items[0].content,/未接線/);
  assert.match(pack.items[0].content,/governance → future1/);
 });
+
+test("node verified state and completed module state are separate concepts",()=>{
+ const base=c.initialModuleCompletion();
+ assert.equal(c.moduleCompletionSummary(base).completed,false);
+ assert.equal(c.moduleCompletionSummary(base).verified,0);
+ const partial=c.updateNodeVerification(base,{nodeId:"input",state:"verified",evidence:"TEST-E-001",at:"2026-10-15T10:00:00Z"});
+ assert.equal(partial.nodes.find(x=>x.id==="input").state,"verified");
+ assert.equal(c.moduleCompletionSummary(partial).completed,false);
+ assert.equal(c.moduleCompletionSummary(partial).verified,1);
+ assert.equal(base.nodes.find(x=>x.id==="input").state,"unverified");
+});
+test("verified node cannot be marked without an evidence reference",()=>{
+ assert.throws(()=>c.updateNodeVerification(c.initialModuleCompletion(),{nodeId:"input",state:"verified",evidence:"",at:"2026-10-15T10:00:00Z"}),/證據/);
+});
+test("completed module requires all six verified nodes and human acceptance",()=>{
+ let status=c.initialModuleCompletion();
+ const at="2026-10-15T10:00:00Z";
+ assert.throws(()=>c.approveModuleCompletion(status,{reviewer:"使用者",acceptanceRef:"QA1",at}),/六個/);
+ for(const node of c.NODE_CHECKS)status=c.updateNodeVerification(status,{nodeId:node.id,state:"verified",evidence:"證據："+node.id,at});
+ assert.equal(status.stage,"review");
+ assert.throws(()=>c.approveModuleCompletion(status,{reviewer:"",acceptanceRef:"QA1",at}),/核准人/);
+ status=c.approveModuleCompletion(status,{reviewer:"人工確認者",acceptanceRef:"REVIEW-2026-1",at});
+ assert.equal(c.moduleCompletionSummary(status).completed,true);
+ assert.equal(status.stage,"completed");
+ assert.match(c.moduleCompletionSummary(status).label,/已完成/);
+ assert.ok(status.history.some(h=>h.action==="module.completed"));
+});
+test("changing completed node invalidates completed status, original history stays intact",()=>{
+ let state=c.initialModuleCompletion(),at="2026-10-15T11:00:00Z";
+ for(const n of c.NODE_CHECKS)state=c.updateNodeVerification(state,{nodeId:n.id,state:"verified",evidence:"E-"+n.id,at});
+ state=c.approveModuleCompletion(state,{reviewer:"人工",acceptanceRef:"QA2",at});
+ state=c.updateNodeVerification(state,{nodeId:"handoff",state:"failed",evidence:"接口未回傳",at});
+ assert.equal(state.stage,"review");
+ assert.equal(c.moduleCompletionSummary(state).completed,false);
+ assert.equal(state.reviewer,"");
+ assert.ok(state.history.some(e=>e.action==="module.completed"));
+});
+test("completed module can be reopened without losing historical approval evidence",()=>{
+ let state=c.initialModuleCompletion(),at="2026-10-15T11:00:00Z";
+ for(const n of c.NODE_CHECKS)state=c.updateNodeVerification(state,{nodeId:n.id,state:"verified",evidence:"E-"+n.id,at});
+ state=c.approveModuleCompletion(state,{reviewer:"人工",acceptanceRef:"QA2",at});
+ const record=c.reopenModuleCompletion(state,{reason:"發現新的安全缺口",at});
+ assert.equal(record.stage,"review");
+ assert.equal(c.moduleCompletionSummary(record).completed,false);
+ assert.ok(record.history.some(e=>e.action==="module.reopened"));
+ assert.ok(record.history.some(e=>e.action==="module.completed"));
+ assert.equal(state.stage,"completed");
+});
+test("complete architecture memory snapshot retains separate node and module states",()=>{
+ let progress=c.initialModuleCompletion();
+ progress=c.updateNodeVerification(progress,{nodeId:"input",state:"verified",evidence:"EV-007",at:"2026-10-15T11:00:00Z"});
+ const d=clone(draft);d.steps[0].completion=progress;
+ const output=c.fullArchitectureText(d);
+ assert.match(output,/節點驗證及模組完成/);
+ assert.match(output,/EV-007/);
+ assert.match(output,/"stage":"building"/);
+ assert.ok(!output.includes('"stage":"completed"'));
+});
