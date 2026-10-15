@@ -109,11 +109,14 @@ function transfer(batch){
 }
 function checkTransfer(data){
  if(!data||data.schema!==TRANSFER_SCHEMA||!idOk(data.id)||!idOk(data.projectId)||!str(data.projectTitle,140)||!Array.isArray(data.roles)||data.roles.length!==3||!data.note?.includes("未驗證"))throw Error("不是 TCVL 中樞交接回報");
- const ids=new Set();
+ const ids=new Set(),responseIds=new Set();
  for(const r of data.roles){
   if(!r||!roleBy(r.id)||ids.has(r.id)||!STATES.includes(r.state)||r.commandId!==data.id+":"+r.id||!Array.isArray(r.responses)||r.responses.length>20||r.responseCount!==r.responses.length)throw Error("交接角色不完整或被修改");
   ids.add(r.id);
-  for(const v of r.responses)if(!v||!idOk(v.id)||!str(v.text,8000)||!str(v.source,150)||v.identityVerified!==false||!atOk(v.at))throw Error("交接回報格式或來源聲稱無效");
+  for(const v of r.responses){
+   if(!v||!idOk(v.id)||responseIds.has(v.id)||!str(v.text,8000)||!str(v.source,150)||v.identityVerified!==false||!atOk(v.at))throw Error("交接回報格式、重複 ID 或來源聲稱無效");
+   responseIds.add(v.id);
+  }
   if(r.rejection&&(!str(r.rejection.reason,1200)||!str(r.rejection.impact,1200)||!str(r.rejection.next,1200)))throw Error("缺少拒絕原因或修正措施");
  }
  return data;
