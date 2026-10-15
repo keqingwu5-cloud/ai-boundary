@@ -37,7 +37,7 @@ button{font:inherit;border:1px solid #6e8aae;background:#2d496d;color:#f9fbff;bo
  <input type="file" id="relayFile" accept=".json,application/json" hidden>
  <input type="file" id="workspaceFile" accept=".json,application/json" hidden>
  <p id="workspaceStatus" class="muted" role="status">尚無專案資料。</p>
- <div class="pills"><span id="activeProject" class="pill">未選擇</span><span id="projectCounters" class="pill">0 任務 · 0 對話</span></div>
+ <div class="pills"><span id="activeProject" class="pill">未選擇</span><span id="projectCounters" class="pill">0 任務 · 0 對話</span><button type="button" id="copyProjectId">複製目前專案 ID</button></div>
 </section>
 <section class="grid">
 <div class="panel">
@@ -129,7 +129,7 @@ function renderProjects(){
  if(w.projects.length&&!currentProject())activeProject=w.projects[0].id;
  if(activeProject)by("projectList").value=activeProject;
  const p=currentProject(),tasks=w.tasks.filter(x=>x.projectId===activeProject),threads=w.threads.filter(x=>x.projectId===activeProject);
- by("activeProject").textContent=p?"專案："+p.title:"未選擇";
+ by("activeProject").textContent=p?"專案："+p.title+"｜專案 ID："+p.id:"未選擇";
  by("projectCounters").textContent=tasks.length+" 任務 · "+threads.length+" 對話";
  by("projectGoal").placeholder=p?"目前專案目標："+p.goal:"描述長期目標、驗收標準與限制";
 }
@@ -209,6 +209,14 @@ function attentionIfNew(oldCount){
  if(w.alerts.length<=oldCount)return;
  const a=w.alerts[0];document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason:a.reason,impact:a.impact,next:a.next}}));
 }
+by("copyProjectId").addEventListener("click",async()=>{
+ try{
+  assertProject();
+  if(!navigator.clipboard||!window.isSecureContext)throw Error("瀏覽器不允許自動複製；可直接從專案名稱旁複製 ID");
+  await navigator.clipboard.writeText(activeProject);
+  report("已複製專案 ID："+activeProject+"。在三方中樞輸入同一 ID，才能把回報正確匯回。","workspaceStatus");
+ }catch(e){report(e.message,"workspaceStatus")}
+});
 by("projectList").addEventListener("change",()=>selectProject(by("projectList").value));
 by("createProject").addEventListener("click",()=>{
  const id=uid(),title=clean(by("projectTitle").value,140),goal=clean(by("projectGoal").value,1000);
