@@ -1,6 +1,7 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict");
 const c=require("../tcvl-platform-core.js");
+const memory=require("../memory-workflow-core.js");
 const now="2026-10-16T00:20:00.000Z";
 function base(){return c.addProject(c.createWorkspace(),{id:"P1",title:"治理專案",goal:"記錄每個門檻的修改原因、影響及後續",at:now})}
 function gate(w,{id="g1",action="task.create",projectId="P1",expectedRevision=w.revision,source="user_manual"}={},change=()=>w){
@@ -84,4 +85,18 @@ test("gate history can filter phase and project",()=>{
  let w=base();const x=gate(w,{id:"f1"},()=>c.addTask(w,{id:"T1",projectId:"P1",title:"任務",owner:"使用者",reason:"條件",at:now}));
  assert.equal(c.gateHistory(x.workspace,{projectId:"P1",phase:"after"}).length,1);
  assert.equal(c.gateHistory(x.workspace,{projectId:"other"}).length,0);
+});
+
+test("conditional GPT handoff candidate is not produced without a recorded change gate",()=>{
+ const w=base();
+ assert.throws(()=>c.conditionMemoryCandidate(w,{projectId:"P1",uid:"candidate-1",at:now}),/尚無/);
+});
+test("condition-based memory packet preserves gate outcomes and stays unapproved",()=>{
+ const w=base(),g=gate(w,{id:"gate_memory"},()=>c.addTask(w,{id:"T1",projectId:"P1",title:"保留歷史",owner:"使用者",reason:"研究",at:now}));
+ const packet=c.conditionMemoryCandidate(g.workspace,{projectId:"P1",uid:"candidate-2",at:now});
+ assert.equal(memory.validatePack(packet).length,1);
+ assert.equal(packet.items[0].evidenceLevel,"hypothesis");
+ assert.match(packet.items[0].content,/最近門檻與拒絕結果/);
+ assert.match(packet.items[0].content,/新版本|條件式|門檻/);
+ assert.match(packet.items[0].content,/不得自動寫入 GPT 長期記憶/);
 });
