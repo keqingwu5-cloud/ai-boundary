@@ -153,10 +153,10 @@ function options(el,pairs,preferred){el.replaceChildren();for(const [v,t]of pair
 function report(text,id="boardStatus"){by(id).textContent=text}
 function currentProject(){return w.projects.find(x=>x.id===activeProject)}
 function assertProject(){if(!currentProject())throw Error("請先建立並選擇專案")}
-function commit(fn,msg,id,action="workspace.manual",projectId=activeProject){
+function commit(fn,msg,id,action="workspace.manual",projectId=activeProject,source="user_manual"){
  const outputId=id||"boardStatus",gateId=uid(),at=clock();
  try{
-  const outcome=core.runGatedChange(w,{id:gateId,at,action,projectId:projectId||"",expectedRevision:w.revision,source:"user_manual"},fn);
+  const outcome=core.runGatedChange(w,{id:gateId,at,action,projectId:projectId||"",expectedRevision:w.revision,source},fn);
   w=outcome.workspace;hasUnsavedChanges=true;renderAll();
   if(!outcome.applied){
    report("門檻"+(outcome.decision==="hold"?"保留待補證":"拒絕")+"："+outcome.reason+"｜影響："+outcome.impact+"｜下一步："+outcome.next,outputId);
@@ -429,7 +429,7 @@ by("workspaceFile").addEventListener("change",async()=>{
  try{
   if(file.size>1000000)throw Error("上限 1 MB");
   const imported=core.safeImport(JSON.parse(await file.text()));
-  if(!confirm("將用匯入工作空間取代本頁尚未匯出的專案草稿，確定？"))return;
+  if(!confirm("匯入會取代目前頁面的全部專案工作空間，與一般非破壞性新增不同。請先確認已保存目前工作空間 JSON 備份，且確認新檔案來源可信。確定進行整庫復原？"))return;
   w=imported;hasUnsavedChanges=false;activeProject=w.projects[0]?.id||"";activeThread="";renderAll();report("已載入工作空間（只在本頁暫存）。新變更需再次匯出。","workspaceStatus");showPendingProjectAlert();
  }catch(e){report("無法匯入："+e.message,"workspaceStatus")}finally{by("workspaceFile").value=""}
 });
@@ -447,9 +447,9 @@ by("relayFile").addEventListener("change",async()=>{
   globalThis.TcvlRelayCore.checkTransfer(data);
   const before=w.alerts.length;
   if(!confirm("將未經外部驗證的三方回報追加到目前專案／對話。原始內容可能包含機密，請確認已獲授權。確定匯入？"))return;
-  const next=core.acceptRelayTransfer(w,data,{projectId:activeProject,threadId:activeThread,at:clock(),seq:uid()});
-  w=next;hasUnsavedChanges=true;renderAll();attentionIfNew(before);
-  report("已將三方交接回報加入指定專案對話，仍屬未驗證來源；沒有標記為三個 AI 已實際送達。","workspaceStatus");
+  const applied=commit(()=>core.acceptRelayTransfer(w,data,{projectId:activeProject,threadId:activeThread,at:clock(),seq:uid()}),
+   "已將三方人工交接回報追加至指定專案對話，來源仍未驗證，沒有宣稱遠端送達。","workspaceStatus","relay.import",activeProject,"import_unverified");
+  if(applied)attentionIfNew(before);
  }catch(e){report("匯入未成功："+e.message+"。原專案與歷史不變。","workspaceStatus")}
  finally{by("relayFile").value=""}
 });
