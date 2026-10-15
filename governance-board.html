@@ -110,7 +110,7 @@ button{font:inherit;border:1px solid #6e8aae;background:#2d496d;color:#f9fbff;bo
 "use strict";
 const core=globalThis.TcvlPlatformCore,by=id=>document.getElementById(id);
 let w=core.createWorkspace(),activeProject="",activeThread="",idSeq=0;
-const nodes=[["launcher","Launcher Hub｜發射器","部分已實作"],["governance","TCVL-01｜雙向治理","部分已實作"],["collaboration","TCVL-02｜三方協作","尚未連線"],["correction","TCVL-03｜反向修正","規劃中"],["vault","本機加密記憶","部分已實作"],["traceback","TCVL-04｜回溯實驗","展示模式"]];
+const nodes=[["launcher","Launcher Hub｜發射器","部分已實作"],["relay","三方中樞交接｜人工","API 未接通／人工交接"],["governance","TCVL-01｜雙向治理","部分已實作"],["collaboration","TCVL-02｜三方協作","尚未連線"],["correction","TCVL-03｜反向修正","規劃中"],["vault","本機加密記憶","部分已實作"],["traceback","TCVL-04｜回溯實驗","展示模式"]];
 const clock=()=>new Date().toISOString(),uid=()=>("board-"+Date.now().toString(36)+"-"+(++idSeq));
 const clean=(x,max)=>String(x||"").trim().slice(0,max||1000);
 const txt=(tag,text,cls)=>{const e=document.createElement(tag);e.textContent=text;if(cls)e.className=cls;return e};
