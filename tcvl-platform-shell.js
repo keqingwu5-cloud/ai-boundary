@@ -39,7 +39,7 @@ function render(){
  document.head.append(css);
  const nav=el("nav");nav.id="tcvlSharedBar";nav.setAttribute("aria-label","TCVL 共用平台入口");
  const brand=el("strong","TCVL｜共同平台");brand.style.marginRight="auto";nav.append(brand);
- for(const [name,href]of [["主腦首頁","./mainbrain.html#workspace"],["專案治理","./governance-board.html"],["架構圖","./architecture-hub.html"],["發射器","./launcher.html"],["回溯","./traceback-visual.html"],["記憶審核","./memory.html"]]){const a=el("a",name);a.href=href;nav.append(a)}
+ for(const [name,href]of [["主腦首頁","./mainbrain.html#workspace"],["三方中樞","./relay-hub.html"],["專案治理","./governance-board.html"],["架構圖","./architecture-hub.html"],["發射器","./launcher.html"],["回溯","./traceback-visual.html"],["記憶審核","./memory.html"]]){const a=el("a",name);a.href=href;nav.append(a)}
  const toggle=el("button","狀態／圖片設定");toggle.type="button";toggle.setAttribute("aria-expanded","false");toggle.setAttribute("aria-controls","tcvlSharedSettings");nav.append(toggle);
  const panel=el("section");panel.id="tcvlSharedSettings";panel.hidden=true;
  const heading=el("h2","共用設定");heading.style.fontSize="18px";heading.style.margin="0";panel.append(heading);
