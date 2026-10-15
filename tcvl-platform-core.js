@@ -148,6 +148,12 @@ function addLink(w,{id,from,to,kind,at}){
  return update(w,n=>{unique(n,"links",id);
  if(!val(from,120)||!val(to,120)||from===to)throw Error("不可建立空白或自身依賴");
  if(n.links.some(x=>x.from===from&&x.to===to&&x.kind===kind))throw Error("已有相同關聯，不重複新增");
+ if(kind==="depends_on"){
+  const seen=new Set(),queue=[to];
+  while(queue.length){const value=queue.shift();if(value===from)throw Error("依賴關係不能形成循環；請改成分支或交接規劃");if(seen.has(value))continue;seen.add(value);
+   for(const e of n.links.filter(x=>x.kind==="depends_on"&&x.from===value))queue.push(e.to);
+  }
+ }
  n.links.push({id,from,to,kind,stage:"candidate",createdAt:at});
  makeEvent(n,{id:"event:"+id,kind:"link.candidate",message:from+" → "+to+"｜"+kind+"；規劃候選，尚未接線",at,ref:id});});
 }
