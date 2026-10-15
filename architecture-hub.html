@@ -150,14 +150,14 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
   <div class="miniactions">
     <button type="button" id="copyBlueprint">複製文字規格</button>
     <button type="button" id="exportBlueprint">匯出架構 JSON</button>
-    <a href="./traceback-visual.html">開啟回溯測試 →</a>
+    <a href="./relay-hub.html">進入三方中樞交接 →</a> <a href="./traceback-visual.html">開啟回溯測試 →</a>
   </div>
   <p class="helper" id="exportStatus" role="status"></p>
  </div>
 </section>
 
 <section class="panel" style="margin-top:20px" id="routePlanner" aria-label="接口與路徑規劃">
- <div class="side-title"><h2>接口狀態與路徑規劃</h2><span class="chip idea">靜態狀態，不是即時連線</span></div>
+ <div class="side-title"><h2>接口狀態與路徑規劃</h2><p class="helper">三方中樞交接節點已加入可操作的人工任務路徑；未來 AI API 仍顯示規劃中。</p><span class="chip idea">靜態狀態，不是即時連線</span></div>
  <p>先看接口目前能不能實際送達，再選擇起點及終點，逐站理解資料如何交接、哪些步驟需要人工、哪裡尚未接通。</p>
  <div class="states" id="interfaceCards" aria-label="目前接口狀態"></div>
  <div class="fields" style="margin-top:16px">
@@ -218,6 +218,7 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
 const moduleCore=globalThis.TcvlArchitectureCore;
 const modules=[
 {id:"launcher",n:"00",title:"Launcher Hub｜發射器協作入口",short:"接收問題、建立任務、指派角色",status:"部分已實作",desc:"你從同一個平台交辦工作、追蹤任務，未來在此整合多 AI 聊天與接口。現階段仍需人工交接，不能把『複製指令』當成『已送達』。 ",input:"你的問題、目標、限制、期望成果",work:"建立任務 ID 與完成條件；指向適合的 AI 或模組；區分待交接、收到回報和待驗收。",output:"任務指令包、回報草稿、待處理狀態",check:"回報必須綁定原指令；遠端接收身分仍未自動驗證。",forward:"資料治理（TCVL-01）",reverse:"若任務定義模糊，由下游帶問題與證據退回發射器。",links:["governance","collaboration"]},
+{id:"relay",n:"HUB",title:"三方 AI 中樞交接節點",short:"三方獨立指令、來源核對、回報回收",status:"人工交接可用／API 未接通",desc:"同一專案分別建立 GPT①、GPT②、BOT③ 的指令識別碼。平台能複製指令、記錄人工貼回的回報、停止追蹤、保存拒絕與修正，不表示其他 AI 已實際收到。",input:"專案 ID、目標、經許可的背景、完成和停止條件",work:"為三個 AI 產生相互獨立的指令；人工發送；核對原指令 ID；記錄身分未驗證的回覆及失敗原因；可匯出交接報告供專案治理人工匯入。",output:"三份指令 JSON、人工回報檔、拒絕與修正事件、對應專案的待驗證交接結果",check:"每條通路可檢查任務／回覆關聯，但遠端收件、作者身分、AI 取消與跨裝置同步尚未接通。",forward:"專案治理、TCVL-01 資料來源審查與候選記憶",reverse:"原指令 ID 不符即拒絕匯入；資料不足保留原因、影響及下一步，退回指定角色重做。",links:["launcher","governance","collaboration"]},
 {id:"governance",n:"01",title:"TCVL-01｜雙向資料治理",short:"篩選資料、驗證進出、保存來源",status:"部分已實作",desc:"所有入口與出口都經過資料檢查；拒絕的資料可以留存和補證，但不得當成已驗證事實。",input:"原始資料、AI 回報、任務 ID、來源、版本、進出目的",work:"檢查格式、權限、來源聲稱、重複、版本與否決歷史；標記待驗證／衝突／可審查。",output:"分類候選、可信狀態、進出事件與問題清單",check:"現有系統只具備部分格式與本機審核能力；來源真偽及完整雙向事件鏈尚未完成。",forward:"三方協作（TCVL-02）及共同記憶",reverse:"缺來源、權限或必要欄位就退回來源端，留下原因與原始 ID。",links:["launcher","collaboration","vault"]},
 {id:"collaboration",n:"02",title:"TCVL-02｜三方協作與交叉驗證",short:"方向、反證、條件變化測試",status:"規劃中",desc:"三個 AI 圍繞同一個目的，分開承擔不同的審查責任。不同結論可以並存，不依多數票決定真實性。",input:"任務目的、候選資料、既有反證與待測條件",work:"GPT① 定義與整合；GPT② 找反例及替代主張；BOT③ 變動條件並記錄可重現性。",output:"三方獨立報告、支持程度、測試紀錄及替代方案",check:"每方必須說明完成什麼、依據何在、在哪些條件不成立；目前無真正的三方自動對話。",forward:"異常與修正（TCVL-03）",reverse:"若證據不足，向資料治理索取或重新查證；方向偏離時退回 GPT①。",links:["governance","correction"]},
 {id:"correction",n:"03",title:"TCVL-03｜反向退回與解決方案",short:"問題歸因、影響追查、修正後重測",status:"規劃中",desc:"發現錯誤不是任務結束，而是判斷影響了什麼、是否該暫停、應該怎麼修正。",input:"三方異常回報、反例、失效條件、依賴記錄",work:"判定需重審／暫停／可繼續；標記受影響資料；提出具條件的修正方案與退回對象。",output:"修正候選、影響清單、再驗證任務、責任歸因",check:"應保留舊版、否決理由與未被推翻的反證；避免原作者單獨核准自身修正。",forward:"人工審批與共同記憶",reverse:"退回正確節點，依失敗類型交給 GPT①、GPT②、BOT③ 或資料入口。",links:["collaboration","vault","traceback"]},
