@@ -138,7 +138,7 @@ body.playing .dots,body.playing .ph *{animation-play-state:paused!important}
 @media (max-width:700px){.keys{display:none}}
 </style>
 </head>
-<body>
+<body data-tcvl-layout="compact">
 <div id="feed" tabindex="0"></div>
 <div id="none"><div>這個篩選條件下還沒有內容。<br>影像導演 bot 產出影片後會出現在這裡。<br><button class="opt" id="clearF">顯示全部</button></div></div>
 <header class="top glass">
@@ -179,5 +179,7 @@ body.playing .dots,body.playing .ph *{animation-play-state:paused!important}
 <div id="toast" class="glass"></div>
 <script type="module" src="./feed.js?v=20261012openness01"></script>
 <script type="module" src="./knowledge-score.js?v=20261012openness01"></script>
+<script src="./tcvl-platform-core.js"></script>
+<script src="./tcvl-platform-shell.js"></script>
 </body>
 </html>
