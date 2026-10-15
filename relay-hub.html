@@ -154,7 +154,7 @@ $("reject").addEventListener("click",()=>{
   const reason=$("rejectReason").value.trim(),impact=$("rejectImpact").value.trim(),next=$("rejectNext").value.trim(),roleId=$("roleSelect").value;
   batch=core.reject(batch,{roleId,at:date(),reason,impact,next});render();
   const notice=$("roleNotice");notice.classList.remove("hidden");notice.textContent="已拒絕 "+core.ROLES.find(x=>x.id===roleId).label+"｜原因："+reason+"｜影響："+impact+"｜下一步："+next;
-  notice.focus();info("已保留拒絕與修正要求。");
+  notice.focus();document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason,impact,next}}));info("已保留拒絕與修正要求；共用提醒入口已更新。");
  }catch(e){info("拒絕登記未完成："+e.message)}
 });
 $("pause").addEventListener("click",()=>{
