@@ -17,6 +17,9 @@ button{font:inherit;border:1px solid #6e8aae;background:#2d496d;color:#f9fbff;bo
 .record.waiting{opacity:.58;filter:saturate(.35);border-style:dashed}.record.alert{border-left:4px solid #e2b37d}.record.selected{outline:2px solid #b3c9f1}
 .node-map{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px;margin:10px 0}.node{border:1px solid #607d9f;border-radius:14px;background:#102139;padding:13px;min-height:114px}.node b{display:block}.node small{color:#b7cbe7}.node.candidate{opacity:.52;filter:grayscale(.7);border-style:dashed}.node.approved-plan{opacity:.7;border-style:dashed}.node .label{font-size:11px;color:#e7ca9f}
 .link{padding:8px 12px;border-left:2px solid #a5c0e1;margin:7px 2px;background:#12263e;border-radius:6px}.link small{display:block;color:#bdd0e8}
+.continuation-card{white-space:pre-wrap;overflow-wrap:anywhere;background:#102037;border:1px solid #506d95;border-radius:13px;padding:14px;max-height:390px;overflow-y:auto;font-size:13px;color:#e7f0ff}
+.continuation-card:empty::before{content:"請先建立並選擇專案";color:#a5bddc}.continuation-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.continuation-meta .pill{border-style:dashed}#continuationStatus{min-height:21px}
 .thread{max-height:280px;overflow:auto;border:1px solid #476383;border-radius:13px;padding:12px;background:#0d1c30;min-height:90px}.message{border-bottom:1px solid #2c4563;padding:9px 0;white-space:pre-wrap;overflow-wrap:anywhere}.message:last-child{border:0}.message small{display:block;color:#9fb7d6}
 #alerts{max-height:280px;overflow:auto}#workspaceStatus,#boardStatus{min-height:20px}
 @media(max-width:760px){.grid,.cols{grid-template-columns:1fr}.panel{padding:15px}}
@@ -72,6 +75,21 @@ button{font:inherit;border:1px solid #6e8aae;background:#2d496d;color:#f9fbff;bo
  <p class="muted" id="threadStatus" role="status"></p>
 </div>
 </section>
+<section class="panel" id="continuationCenter" aria-label="專案工作續接卡">
+ <div class="pills"><h2 style="margin-right:auto">工作續接卡｜新對話不打斷原工作</h2><span class="pill">僅在本頁使用／不自動傳給其他 AI</span></div>
+ <p>這張卡會把目前專案的<strong>目標、近期決策、待辦、未完成任務、暫停進度與待處理拒絕</strong>整理成索引。開啟新對話時，原任務保持原本狀態，不會偷偷恢復執行。切換頁面前仍須匯出完整工作空間 JSON。</p>
+ <div class="continuation-meta"><span class="pill" id="continuationProject">未選擇專案</span><span class="pill" id="continuationCounts">待建立</span></div>
+ <div class="actions">
+   <button id="previewContinuation" type="button">更新續接摘要</button>
+   <button id="createContinuation" type="button">在同專案開新續接對話</button>
+   <button id="copyContinuation" type="button">複製續接摘要（手動交接）</button>
+   <button id="exportContinuation" type="button">匯出續接索引 JSON</button>
+ </div>
+ <details id="continuationDetails"><summary>顯示／隱藏續接卡內容</summary>
+  <div class="continuation-card" id="continuationPreview" aria-live="polite"></div>
+ </details>
+ <p class="muted" id="continuationStatus" role="status">此續接卡只是專案摘要，完整歷史應以工作空間 JSON 保存，並經審核後才進入加密記憶。</p>
+</section>
 <section class="grid" style="margin-top:14px">
 <div class="panel" aria-label="未來候選版圖">
  <div class="pills"><h2 style="margin-right:auto">未來新版圖｜先規劃再接線</h2><span class="pill">候選節點淡化顯示</span></div>
@@ -124,7 +142,7 @@ function download(content,name){
  const blob=new Blob([JSON.stringify(content,null,2)],{type:"application/json;charset=utf-8"});
  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-function selectProject(id){activeProject=id;const t=w.threads.find(x=>x.projectId===id);activeThread=t?.id||"";renderAll()}
+function selectProject(id){activeProject=id;const t=w.threads.find(x=>x.projectId===id);activeThread=t?.id||"";renderAll();showPendingProjectAlert()}
 function renderProjects(){
  options(by("projectList"),w.projects.map(x=>[x.id,x.title]),activeProject);
  if(w.projects.length&&!currentProject())activeProject=w.projects[0].id;
@@ -195,21 +213,81 @@ function renderMap(){
 }
 function renderAlerts(){
  const box=by("alerts");box.replaceChildren();
- for(const a of w.alerts.slice(0,35)){
+ for(const a of (activeProject?core.projectAlerts(w,activeProject):[]).slice(0,35)){
   const e=txt("div","", "record alert");
   e.append(txt("b","需要處理："+a.category+"｜"+a.ref),txt("p","原因："+a.reason),txt("p","影響："+a.impact),txt("p","下一步："+a.next));
   const close=txt("button",a.seen?"已閱":"標記已閱");close.type="button";close.disabled=!!a.seen;
   close.addEventListener("click",()=>commit(()=>core.dismissAlert(w,{alertId:a.id}),"已標記提醒，不代表問題已解決。"));e.append(close);box.append(e);
  }
- if(!w.alerts.length)box.append(txt("p","目前沒有本頁已記錄的拒絕或阻塞事件。","muted"));
+ if(!activeProject||!core.projectAlerts(w,activeProject).length)box.append(txt("p","目前專案沒有可追溯的拒絕或阻塞事件；跨專案資料不在此混合顯示。","muted"));
  const events=by("events");events.replaceChildren();
  for(const x of w.events.slice(0,35)){const item=txt("div","", "record");item.append(txt("b",x.message),txt("p",x.at+"｜"+x.kind));events.append(item)}
 }
-function renderAll(){renderProjects();fillStatuses();renderTasks();renderThreads();renderMap();renderAlerts()}
-function attentionIfNew(oldCount){
- if(w.alerts.length<=oldCount)return;
- const a=w.alerts[0];document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason:a.reason,impact:a.impact,next:a.next}}));
+function renderAll(){renderProjects();fillStatuses();renderTasks();renderThreads();renderMap();renderAlerts();renderContinuation()}
+function showPendingProjectAlert(){
+ if(!activeProject)return;
+ const pending=core.projectAlerts(w,activeProject,{unreadOnly:true});
+ by("continuationStatus").textContent=pending.length?"專案尚有 "+pending.length+" 筆未讀拒絕／阻塞。請查看右側提醒、原因、影響與下一步；已讀不代表問題已解決。":"目前專案沒有未讀拒絕／阻塞提醒；續接卡僅是人工摘要。";
+ if(!pending.length)return;
+ const a=pending[0];
+ document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason:a.reason,impact:a.impact,next:a.next}}));
 }
+function attentionIfNew(oldCount){
+ if(w.alerts.length<=oldCount||!activeProject)return;
+ const pending=core.projectAlerts(w,activeProject,{unreadOnly:true});
+ if(!pending.length)return;
+ const a=pending[0];
+ document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason:a.reason,impact:a.impact,next:a.next}}));
+}
+function snapshotNow(){
+ if(!activeProject)throw Error("請先選擇專案");
+ return core.continuationSnapshot(w,{projectId:activeProject,threadId:activeThread||""});
+}
+function renderContinuation(){
+ const project=currentProject();
+ if(!project){
+  by("continuationProject").textContent="未選擇專案";by("continuationCounts").textContent="0 筆";
+  by("continuationPreview").textContent="尚無續接資料。";return;
+ }
+ try{
+  const data=snapshotNow();
+  by("continuationProject").textContent="所屬專案："+data.title;
+  by("continuationCounts").textContent="未結工作 "+data.totals.unresolved+" · 未讀提醒 "+data.totals.unreadAlerts+" · 候選 "+data.totals.proposalNodes;
+  by("continuationPreview").textContent=core.continuationText(data);
+ }catch(e){by("continuationPreview").textContent="續接摘要無法建立："+e.message}
+}
+by("previewContinuation").addEventListener("click",()=>{
+ renderContinuation();
+ by("continuationDetails").open=true;
+ report("已更新本專案的近期工作續接卡；完整紀錄仍需手動匯出工作空間。","continuationStatus");
+});
+by("createContinuation").addEventListener("click",()=>{
+ try{
+  const data=snapshotNow(),id=uid(),seq=uid(),old=w;
+  const title="續接｜"+data.title.slice(0,120);
+  if(!confirm("將在同一個專案建立新的人工對話索引，保留原任務的暫停狀態，且不會呼叫任何外部 AI。確定？"))return;
+  commit(()=>core.startContinuation(w,{id,projectId:activeProject,fromThreadId:activeThread||"",title,at:clock(),seq}),
+    "已建立續接對話。原工作狀態與進度不變，對話可繼續；此工作空間尚未匯出。","continuationStatus");
+  if(w!==old){activeThread=id;renderAll();by("continuationDetails").open=true}
+ }catch(e){report("無法建立續接對話："+e.message,"continuationStatus")}
+});
+by("copyContinuation").addEventListener("click",async()=>{
+ try{
+  const text=core.continuationText(snapshotNow());
+  if(!confirm("續接摘要可能包含私人專案、決策及拒絕理由。要將其複製到系統剪貼簿，供你自行選擇是否貼到其他對話嗎？"))return;
+  if(!navigator.clipboard)throw Error("瀏覽器不支援此剪貼簿操作");
+  await navigator.clipboard.writeText(text);
+  report("已複製人類可讀的近期工作摘要。尚未送達其他 AI。","continuationStatus");
+ }catch(e){report("複製失敗："+e.message,"continuationStatus")}
+});
+by("exportContinuation").addEventListener("click",()=>{
+ try{
+  const data=snapshotNow();
+  if(!confirm("將下載含專案目標、進度及未讀提醒的未加密 JSON。請確認檔案的保存位置與分享對象。"))return;
+  download(data,"tcvl-continuation-"+Date.now()+".json");
+  report("已觸發續接索引下載。請確認檔案已保存；完整專案歷史仍需匯出工作空間 JSON。","continuationStatus");
+ }catch(e){report("下載失敗："+e.message,"continuationStatus")}
+});
 by("copyProjectId").addEventListener("click",async()=>{
  try{
   assertProject();
@@ -299,7 +377,7 @@ by("workspaceFile").addEventListener("change",async()=>{
   if(file.size>1000000)throw Error("上限 1 MB");
   const imported=core.safeImport(JSON.parse(await file.text()));
   if(!confirm("將用匯入工作空間取代本頁尚未匯出的專案草稿，確定？"))return;
-  w=imported;hasUnsavedChanges=false;activeProject=w.projects[0]?.id||"";activeThread="";renderAll();report("已載入工作空間（只在本頁暫存）。新變更需再次匯出。","workspaceStatus");
+  w=imported;hasUnsavedChanges=false;activeProject=w.projects[0]?.id||"";activeThread="";renderAll();report("已載入工作空間（只在本頁暫存）。新變更需再次匯出。","workspaceStatus");showPendingProjectAlert();
  }catch(e){report("無法匯入："+e.message,"workspaceStatus")}finally{by("workspaceFile").value=""}
 });
 by("importRelay").addEventListener("click",()=>{
