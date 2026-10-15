@@ -33,6 +33,8 @@ button{font:inherit;border:1px solid #6e8aae;background:#2d496d;color:#f9fbff;bo
  </div>
  <label for="projectGoal">這個專案想解決什麼？</label><textarea id="projectGoal" maxlength="1000" placeholder="描述長期目標、驗收標準與限制"></textarea>
  <div class="actions"><button id="createProject" type="button">建立專案</button><button id="saveWorkspace" type="button">匯出全部工作空間 JSON</button><button id="importWorkspace" type="button">匯入既有工作空間</button><button id="exportProjectMemory" type="button">匯出待審記憶包</button></div>
+ <div class="actions"><a href="./relay-hub.html">三方 AI 中樞交接節點 →</a><button id="importRelay" type="button">匯入三方交接回報（人工）</button><span class="muted">只接受專案 ID 相同的回報；匯入後進入本專案對話，不會自動核准。</span></div>
+ <input type="file" id="relayFile" accept=".json,application/json" hidden>
  <input type="file" id="workspaceFile" accept=".json,application/json" hidden>
  <p id="workspaceStatus" class="muted" role="status">尚無專案資料。</p>
  <div class="pills"><span id="activeProject" class="pill">未選擇</span><span id="projectCounters" class="pill">0 任務 · 0 對話</span></div>
@@ -290,6 +292,24 @@ by("workspaceFile").addEventListener("change",async()=>{
   if(!confirm("將用匯入工作空間取代本頁尚未匯出的專案草稿，確定？"))return;
   w=imported;activeProject=w.projects[0]?.id||"";activeThread="";renderAll();report("已載入工作空間（只在本頁暫存）。","workspaceStatus");
  }catch(e){report("無法匯入："+e.message,"workspaceStatus")}finally{by("workspaceFile").value=""}
+});
+by("importRelay").addEventListener("click",()=>{
+ if(!currentProject()){report("請先建立並選擇對應的專案，再匯入三方回報。","workspaceStatus");return}
+ if(!activeThread){report("此專案還沒有對話；請先在右側建立新對話。","workspaceStatus");return}
+ by("relayFile").click();
+});
+by("relayFile").addEventListener("change",async()=>{
+ const file=by("relayFile").files?.[0];if(!file)return;
+ try{
+  if(file.size>120000)throw Error("三方回報檔超過 120KB，請另行安全封存");
+  const data=JSON.parse(await file.text());
+  const before=w.alerts.length;
+  if(!confirm("將未經外部驗證的三方回報追加到目前專案／對話。原始內容可能包含機密，請確認已獲授權。確定匯入？"))return;
+  const next=core.acceptRelayTransfer(w,data,{projectId:activeProject,threadId:activeThread,at:clock(),seq:uid()});
+  w=next;renderAll();attentionIfNew(before);
+  report("已將三方交接回報加入指定專案對話，仍屬未驗證來源；沒有標記為三個 AI 已實際送達。","workspaceStatus");
+ }catch(e){report("匯入未成功："+e.message+"。原專案與歷史不變。","workspaceStatus")}
+ finally{by("relayFile").value=""}
 });
 by("exportProjectMemory").addEventListener("click",()=>{
  try{
