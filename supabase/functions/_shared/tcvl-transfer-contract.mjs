@@ -148,6 +148,11 @@ export function resolveOutbound(config,envelope){
  if(envelope.direction!=="outbound")return {decision:"invalid",errors:["direction_mismatch"]};
  if(!config.enabled)return {decision:"blocked",errors:["outbound_disabled"]};
  if(!config.allowed_event_types.includes(envelope.event_type))return {decision:"blocked",errors:["event_not_allowed"]};
+ if(config.payload_schema!==envelope.payload_schema)return {decision:"blocked",errors:["outbound_payload_schema_mismatch"]};
+ if(new TextEncoder().encode(JSON.stringify(envelope.payload)).byteLength>config.max_bytes)
+   return {decision:"blocked",errors:["payload_size_exceeded"]};
+ if(config.require_source_verification&&!envelope.provenance.verified_source)
+   return {decision:"awaiting_source_verification",errors:["source_unverified"]};
  return {decision:"awaiting_human_approval",errors:[],note:"已驗證格式；未實際傳送、未取得回執"};
 }
 export function resolveInbound(config,envelope){
@@ -156,6 +161,9 @@ export function resolveInbound(config,envelope){
  if(envelope.direction!=="inbound")return {decision:"invalid",errors:["direction_mismatch"]};
  if(!config.enabled)return {decision:"blocked",errors:["inbound_disabled"]};
  if(!config.allowed_event_types.includes(envelope.event_type))return {decision:"quarantine",errors:["event_not_allowed"]};
+ if(config.payload_schema!==envelope.payload_schema)return {decision:"quarantine",errors:["inbound_payload_schema_mismatch"]};
+ if(new TextEncoder().encode(JSON.stringify(envelope.payload)).byteLength>config.max_bytes)
+   return {decision:"quarantine",errors:["payload_size_exceeded"]};
  if(config.require_source_verification&&!envelope.provenance.verified_source)
    return {decision:"quarantine",errors:["source_unverified"]};
  return {decision:"awaiting_human_review",errors:[],note:"資料已通過欄位檢查，未核准正式記憶"};
