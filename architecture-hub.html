@@ -22,7 +22,7 @@ p{color:var(--sub);margin:5px 0 12px}.lead{font-size:16px;max-width:850px}
 .layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(310px,.88fr);gap:17px;margin-top:22px;align-items:start}
 .panel{background:linear-gradient(145deg,#172640,#101c30);border:1px solid var(--edge);border-radius:18px;padding:20px;min-width:0}
 .stack{display:grid;gap:9px;margin:15px 0}.node{width:100%;text-align:left;display:flex;align-items:center;gap:12px;background:#111d32;border:1px solid #51698e;border-radius:15px;padding:12px 13px;min-height:76px;transition:background .14s,border-color .14s}
-.node.active{border:2px solid #bdd1ff;background:#253c5e}.node.onpath{box-shadow:inset 0 0 0 2px #86cbb9}.node.unbuilt{border-style:dashed;border-color:#d9b981}.patharrow{display:flex;justify-content:center;align-items:center;font-size:20px;color:#b0c7e9;margin:3px auto}.node .chip{margin-left:auto;max-width:110px;text-align:center}.node.related{border-color:#79ac9c}.node strong{display:block;font-size:15px}.node small{display:block;font-size:12px;color:var(--dim)}.num{border-radius:12px;background:#273954;width:43px;min-width:43px;height:43px;display:flex;justify-content:center;align-items:center;font-size:13px;font-weight:750;color:#d9e7ff}
+.node.active{border:2px solid #bdd1ff;background:#253c5e}.node.candidate{opacity:.55;filter:grayscale(.7);border-style:dashed}.node.candidate.active{opacity:.9;filter:none}.node.onpath{box-shadow:inset 0 0 0 2px #86cbb9}.node.unbuilt{border-style:dashed;border-color:#d9b981}.patharrow{display:flex;justify-content:center;align-items:center;font-size:20px;color:#b0c7e9;margin:3px auto}.node .chip{margin-left:auto;max-width:110px;text-align:center}.node.related{border-color:#79ac9c}.node strong{display:block;font-size:15px}.node small{display:block;font-size:12px;color:var(--dim)}.num{border-radius:12px;background:#273954;width:43px;min-width:43px;height:43px;display:flex;justify-content:center;align-items:center;font-size:13px;font-weight:750;color:#d9e7ff}
 .flowarrow{text-align:center;color:#a5bddc;font-size:20px;line-height:1}.rolelines{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .role{border:1px solid #51698e;background:#101e34;border-radius:12px;padding:12px 9px;text-align:center}.role strong{display:block}.role span{font-size:12px;color:var(--sub)}
 .side-title{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
@@ -104,6 +104,8 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
      <option value="research">一般研究驗證</option><option value="repair">被否決資料重新驗證</option><option value="interface">新接口與匯入匯出</option><option value="trace">歷史回溯與影響追查</option>
    </select></div>
    <div><label for="extraModule">加入模組（選取後立即加入預覽）</label><select id="extraModule"><option value="">選擇要增加的模組</option></select></div>
+ <div class="miniactions"><button id="importCandidateMap" type="button">匯入專案的未來候選版圖</button><input id="candidateMapFile" type="file" accept=".json,application/json" hidden></div>
+ <p id="candidateMapStatus" class="helper" role="status">候選版圖匯入後會顯示成淡化節點與未接線路徑，不覆寫既有架構。</p>
    <details id="newModulePanel"><summary>＋ 建立新的模組節點（選填）</summary>
    <div class="fields" style="margin-top:12px"><div><label for="customTitle">新模組名稱</label><input id="customTitle" maxlength="80" placeholder="例如：品質評估中心"></div><div><label for="customInput">接收什麼？</label><input id="customInput" maxlength="250" placeholder="證據、測試結果、任務版本"></div></div>
    <div class="fields"><div><label for="customWork">具體做什麼？</label><textarea id="customWork" maxlength="500" placeholder="說明處理與檢查動作"></textarea></div><div><label for="customOutput">交出什麼？</label><textarea id="customOutput" maxlength="400" placeholder="評估報告、修正建議等"></textarea></div></div>
@@ -204,12 +206,12 @@ interface:{label:"新接口與匯入匯出",ids:["launcher","governance","vault"
 trace:{label:"歷史回溯與影響追查",ids:["vault","traceback","correction","governance"],reverse:"若發現過去的證據失效，標記需重審的後續主張與記憶；不自動視為全部錯誤。",gates:"歷史時間隔離、事件與記錄時間、引用依賴、修正前後可比性。"}
 };
 const by=id=>document.getElementById(id);
-const map=by("moduleMap");let active="launcher",currentDraft=null,draftIds=null;
+const map=by("moduleMap");let active="launcher",currentDraft=null,draftIds=null,importedRoutes=[];
 function textNode(tag,cls,value){const el=document.createElement(tag);if(cls)el.className=cls;if(value!==undefined)el.textContent=value;return el}
 function allModulesById(id){return modules.find(m=>m.id===id)}
 function appendModule(m){
  if(map.children.length)map.append(textNode("div","flowarrow","↓"));
- const b=textNode("button","node");b.type="button";b.dataset.module=m.id;
+ const b=textNode("button","node"+(m.status==="候選規劃／未接線"?" candidate":""));b.type="button";b.dataset.module=m.id;
  b.append(textNode("span","num",m.n));const desc=textNode("span");desc.append(textNode("strong","",m.title),textNode("small","",m.short));b.append(desc);b.append(textNode("span","chip",m.status));
  b.addEventListener("click",()=>selectModule(m.id));map.append(b);
  const option=document.createElement("option");option.value=m.id;option.textContent=m.title;by("extraModule").append(option);
@@ -312,7 +314,7 @@ function renderInterfaceCards(){
  if(customCount){const card=textNode("div","statecard");card.append(textNode("span","chip","設計草稿"),textNode("h3","","新增 "+customCount+" 個自訂節點"),textNode("p","","只包含設計說明，沒有已建立的遠端接口、憑證或實際傳輸。"));box.append(card)}
 }
 function effectiveRoutes(){
- const base=architectureCore.ROUTES.map(x=>({...x})),used=new Set(base.map(x=>x.from+"->"+x.to));
+ const base=[...architectureCore.ROUTES,...importedRoutes].map(x=>({...x})),used=new Set(base.map(x=>x.from+"->"+x.to));
  const d=currentDraft;
  if(d){for(let i=0;i<d.steps.length-1;i++){const from=d.steps[i].id,to=d.steps[i+1].id,key=from+"->"+to;if(!used.has(key)){base.push({from,to,status:"planned",action:"快速架構中定義的先後順序，尚未實作資料交換／交接驗證"});used.add(key)}}}
  return base;
@@ -438,6 +440,23 @@ function exportMemory(which){
 }
 by("downloadFullMemory").addEventListener("click",()=>exportMemory("full"));
 by("downloadDraftMemory").addEventListener("click",()=>exportMemory("draft"));
+by("importCandidateMap").addEventListener("click",()=>by("candidateMapFile").click());
+by("candidateMapFile").addEventListener("change",async()=>{
+ const file=by("candidateMapFile").files?.[0];if(!file)return;
+ try{
+  if(file.size>150000)throw Error("候選版圖上限 150 KB");
+  const payload=JSON.parse(await file.text());
+  const normalized=architectureCore.normalizeCandidateTransfer(payload,modules.map(m=>m.id));
+  if(modules.length+normalized.nodes.length>30)throw Error("架構目前最多 30 個模組；請分批匯入");
+  if(!normalized.nodes.length)throw Error("候選版圖內沒有可加入的節點");
+  modules.push(...normalized.nodes);
+  importedRoutes.push(...normalized.edges);
+  for(const m of normalized.nodes)appendModule(m);
+  refreshRouteSelectors();renderInterfaceCards();refreshBlueprint();renderRoute();
+  by("candidateMapStatus").textContent="已匯入 "+normalized.nodes.length+" 個未啟用版塊及 "+normalized.edges.length+" 條規劃關聯，原始節點與正式接口不受影響。";
+ }catch(e){by("candidateMapStatus").textContent="未匯入："+e.message+"。原架構保持不變。"}
+ finally{by("candidateMapFile").value=""}
+});
 by("planRoute").addEventListener("click",renderRoute);
 by("reverseRoute").addEventListener("click",()=>{const start=by("routeStart").value;by("routeStart").value=by("routeEnd").value;by("routeEnd").value=start;renderRoute()});
 
