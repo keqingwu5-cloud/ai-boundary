@@ -40,9 +40,9 @@ button{font:inherit;border:1px solid #6e8aae;background:#2d496d;color:#f9fbff;bo
  <div class="pills"><span id="activeProject" class="pill">未選擇</span><span id="projectCounters" class="pill">0 任務 · 0 對話</span><button type="button" id="copyProjectId">複製目前專案 ID</button></div>
 </section>
 <section class="grid">
-<div class="panel">
+<div class="panel" id="workControls">
  <h2>工作與停止控制</h2>
- <p>「停止」只暫停指定任務並保留進度，與右側對話互不影響。重新啟動須由你明確選擇。</p>
+ <p>「停止」只暫停<strong>本頁所選的指定任務</strong>並保留進度，與右側對話互不影響。重新啟動須由你明確選擇。<strong>如果是從其他頁面進來，需要先匯入先前匯出的工作空間 JSON，才能看到原任務。</strong></p>
  <label for="taskTitle">任務名稱</label><input id="taskTitle" maxlength="160" placeholder="例如：測試世界模型路徑">
  <div class="cols"><div><label for="taskOwner">負責角色</label><select id="taskOwner"><option>GPT①</option><option>GPT②</option><option>BOT③</option><option>使用者</option></select></div>
  <div><label for="taskReason">建立原因</label><input id="taskReason" maxlength="1000" value="需要先釐清規劃目標"></div></div>
@@ -92,7 +92,7 @@ button{font:inherit;border:1px solid #6e8aae;background:#2d496d;color:#f9fbff;bo
  <div class="actions"><button id="applyProposal" type="button">儲存審查與提醒</button><a href="./architecture-hub.html">查看完整 TCVL 架構圖 →</a></div>
  <p id="proposalStatus" class="muted" role="status"></p>
 </div>
-<div class="panel" aria-label="拒絕提醒及事件歷史">
+<div class="panel" id="attentionCenter" aria-label="拒絕提醒及事件歷史">
  <h2>即時拒絕／阻塞提醒</h2>
  <p>當你在平台記錄拒絕或阻塞時，立即顯示原因、受影響對象和下一步；沒有接收遠端事件前，不會假裝已偵測到外部 AI 的拒絕。</p>
  <div id="alerts" aria-live="assertive"></div>
