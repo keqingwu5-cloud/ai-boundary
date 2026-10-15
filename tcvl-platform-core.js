@@ -23,10 +23,10 @@ const idOk=x=>val(x,120)&&/^[a-z0-9_.:-]+$/i.test(x);
 const copy=x=>JSON.parse(JSON.stringify(x));
 function registry(extra=[]){
  if(!Array.isArray(extra)||extra.length>20)throw Error("狀態選項數量過多");
- const seen=new Set(DEFAULT_STATUSES.map(s=>s.id)),all=DEFAULT_STATUSES.map(x=>({...x}));
+ const seen=new Set(DEFAULT_STATUSES.map(s=>s.id)),labels=new Set(DEFAULT_STATUSES.map(s=>s.label)),all=DEFAULT_STATUSES.map(x=>({...x}));
  for(const s of extra){
-  if(!s||!idOk(s.id)||seen.has(s.id)||!val(s.label,48)||!LABELS[s.base]||typeof s.note!=="string"||s.note.length>200)throw Error("自訂狀態不合法或名稱重複");
-  seen.add(s.id);all.push({id:s.id,label:s.label,base:s.base,group:LABELS[s.base].group,builtIn:false,note:s.note});
+  if(!s||!idOk(s.id)||seen.has(s.id)||labels.has(s.label.trim())||!val(s.label,48)||!LABELS[s.base]||typeof s.note!=="string"||s.note.length>200)throw Error("自訂狀態不合法或名稱重複");
+  seen.add(s.id);labels.add(s.label.trim());all.push({id:s.id,label:s.label,base:s.base,group:LABELS[s.base].group,builtIn:false,note:s.note});
  }
  return all;
 }
@@ -106,7 +106,7 @@ function transition(w,{taskId,status,reason,impact,next,at,seq}){
   const t=n.tasks.find(x=>x.id===taskId);if(!t)throw Error("找不到指定任務");
   if(t.status==="done"&&status!=="review")throw Error("已結案任務須重新審查，不能直接改寫完成狀態");
   if(t.status==="paused"&&status==="done")throw Error("已暫停的任務不能直接跳到完成");
-  const old=t.status;t.status=status;t.reason=reason;t.history.push({at,status,reason,previous:old});
+  const old=t.status;t.status=status;t.reason=reason;delete t.displayStatus;t.history.push({at,status,reason,previous:old});
   makeEvent(n,{id:"event:"+seq,kind:"task."+status,message:t.title+"："+reason,at,ref:taskId});
   if(requiresAttention)alert(n,{id:"alert:"+seq,at,category:status,reason,impact,next,ref:taskId});
  });
@@ -124,6 +124,10 @@ function resumeTask(w,args){
 function setProgress(w,{taskId,progress}){
  if(!val(progress,1000))throw Error("進度描述不可為空");
  return update(w,n=>{const t=n.tasks.find(x=>x.id===taskId);if(!t)throw Error("任務不存在");t.progress=progress});
+}
+function setTaskDisplay(w,{taskId,label}){
+ if(!val(label,48))throw Error("自訂狀態顯示名稱無效");
+ return update(w,n=>{const t=n.tasks.find(x=>x.id===taskId);if(!t)throw Error("任務不存在");t.displayStatus=label;});
 }
 function addProposal(w,{id,projectId,title,purpose,fromNode,at}){
  if(!val(title,140)||!val(purpose,1000)||!val(fromNode,120)||!val(at,40))throw Error("候選版塊缺少用途與來源");
@@ -166,5 +170,5 @@ function packet(workspace,uid){
 }
 return {SCHEMA,STATUS_SCHEMA,DEFAULT_STATUSES,registry,statusOf,addCustomStatus,
  createWorkspace,validate,safeImport,addProject,addThread,addMessage,projectMemo,
- addTask,transition,pauseTask,resumeTask,setProgress,addProposal,proposalDecision,addLink,dismissAlert,packet};
+ addTask,transition,pauseTask,resumeTask,setProgress,setTaskDisplay,addProposal,proposalDecision,addLink,dismissAlert,packet};
 });
