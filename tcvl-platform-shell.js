@@ -30,6 +30,11 @@ function render(){
  "#tcvlSharedSettings select,#tcvlSharedSettings input{width:100%;background:#0c1a30;color:white;border:1px solid #6d83a9;padding:9px;border-radius:8px;font:inherit}",
  "#tcvlSharedSettings .tcvl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}",
  "#tcvlSharedSettings .tcvl-info{color:#bed0e9;font-size:12px;margin:5px 0}",
+ "#tcvlSharedBar.tcvl-compact{position:fixed;top:61px;right:12px;left:auto;width:min(93vw,430px);max-height:75vh;overflow-y:auto;z-index:100;border:1px solid #7c94b9;border-radius:13px;background:#111d34ee;box-shadow:0 8px 28px #030611bb;flex-wrap:wrap}",
+ "#tcvlSharedBar.tcvl-compact:not(.tcvl-expanded)>a,#tcvlSharedBar.tcvl-compact:not(.tcvl-expanded)>#tcvlSettingsButton{display:none}",
+ "#tcvlSharedBar.tcvl-compact #tcvlQuickMenu{font-size:12px;white-space:nowrap}",
+ "body[data-tcvl-layout=compact] #tcvlSharedSettings{position:fixed;right:12px;top:114px;max-height:calc(100vh - 125px);overflow-y:auto;width:min(94vw,690px);z-index:103;box-shadow:0 14px 36px #040710c7}",
+ "body[data-tcvl-layout=compact] #tcvlLiveNotice{position:fixed;top:16px;left:10px;right:10px;max-width:790px;margin:0 auto;z-index:105;box-shadow:0 8px 28px #040710b8}",
  "#tcvlLiveNotice{background:#3c3026;border:1px solid #d1a76c;color:#fff0cc;border-radius:11px;padding:12px;margin:9px;font:13px/1.7 system-ui,-apple-system,sans-serif}",
  "body[data-tcvl-images=hidden] img:not([data-essential]){visibility:hidden!important}",
  "body[data-tcvl-images=simplified] img:not([data-essential]){filter:grayscale(1)!important;opacity:.55!important}",
@@ -37,12 +42,14 @@ function render(){
  "body[data-tcvl-fit=cover] img:not([data-essential]){object-fit:cover}"
  ].join("\n");
  document.head.append(css);
+ const compact=document.body.dataset.tcvlLayout==="compact";
  const nav=el("nav");nav.id="tcvlSharedBar";nav.setAttribute("aria-label","TCVL 共用平台入口");
+ if(compact){nav.classList.add("tcvl-compact");const menu=el("button","展開主腦入口");menu.type="button";menu.id="tcvlQuickMenu";menu.setAttribute("aria-expanded","false");menu.setAttribute("aria-controls","tcvlSharedBar");menu.addEventListener("click",()=>{const active=nav.classList.toggle("tcvl-expanded");menu.setAttribute("aria-expanded",String(active));menu.textContent=active?"收合主腦入口":"展開主腦入口"});nav.append(menu)}
  const brand=el("strong","TCVL｜共同平台");brand.style.marginRight="auto";nav.append(brand);
  for(const [name,href]of [["主腦首頁","./mainbrain.html#workspace"],["三方中樞","./relay-hub.html"],["專案治理","./governance-board.html"],["架構圖","./architecture-hub.html"],["發射器","./launcher.html"],["回溯","./traceback-visual.html"],["記憶審核","./memory.html"]]){const a=el("a",name);a.href=href;nav.append(a)}
  const stopEntry=el("a","停止指定工作");stopEntry.href="./governance-board.html#workControls";stopEntry.title="開啟專案工作控制。只暫停本機選定的工作；若由其他頁面進入，先匯入工作空間 JSON。不是遠端 AI 停止指令。";stopEntry.setAttribute("aria-label","前往專案控制，停止本機指定工作");nav.append(stopEntry);
  const attentionEntry=el("a","拒絕／阻塞提醒");attentionEntry.href="./governance-board.html#attentionCenter";attentionEntry.title="查看已載入專案的拒絕與阻塞紀錄。跨頁不自動同步，離開前請匯出專案 JSON。";nav.append(attentionEntry);
- const toggle=el("button","狀態／圖片設定");toggle.type="button";toggle.setAttribute("aria-expanded","false");toggle.setAttribute("aria-controls","tcvlSharedSettings");nav.append(toggle);
+ const toggle=el("button","狀態／圖片設定");toggle.type="button";toggle.id="tcvlSettingsButton";toggle.setAttribute("aria-expanded","false");toggle.setAttribute("aria-controls","tcvlSharedSettings");nav.append(toggle);
  const panel=el("section");panel.id="tcvlSharedSettings";panel.hidden=true;
  const heading=el("h2","共用設定");heading.style.fontSize="18px";heading.style.margin="0";panel.append(heading);
  const info=el("p","此入口提供全平台共用圖片偏好、狀態名稱與任務／提醒導覽。僅儲存圖片偏好及自訂狀態名稱，不儲存或跨頁同步專案、聊天與加密記憶。停止鍵需進入對應專案操作，無法遠端取消 AI。請勿在狀態名稱輸入私人資訊。");info.className="tcvl-info";panel.append(info);
