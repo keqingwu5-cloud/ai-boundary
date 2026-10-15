@@ -121,3 +121,34 @@ test("too many, duplicate or blank extra fields are rejected",()=>{
  assert.throws(()=>c.recordPack("inbound",{...d,extraFields:[{label:"A",value:"ok"},{label:"A",value:"dup"}]},"extra3"),/重複/);
  assert.throws(()=>c.recordPack("inbound",{...d,extraFields:[{label:"",value:"empty"}]},"extra4"),/無效/);
 });
+
+test("candidate transfer appears as ghost modules and planned routes, never live",()=>{
+ const transfer={schema:"tcvl.candidate-map-transfer.v0.1",project:{id:"P1",title:"研究平台",goal:"架構擴張"},
+ nodes:[{id:"future1",title:"未來品質模組",purpose:"觀察錯誤率與修正",fromNode:"governance",stage:"candidate"}],
+ links:[{id:"L1",from:"governance",to:"future1",kind:"branch",stage:"planned"}]};
+ const result=c.normalizeCandidateTransfer(transfer,ids);
+ assert.equal(result.nodes[0].status,"候選規劃／未接線");
+ assert.equal(result.edges[0].status,"planned");
+ assert.equal(c.routePlan("governance","future1",result.edges).hasUnbuilt,true);
+});
+test("candidate transfer rejects duplicate official node IDs and broken links",()=>{
+ const transfer={schema:"tcvl.candidate-map-transfer.v0.1",project:{id:"P1",title:"研究平台",goal:"架構擴張"},
+ nodes:[{id:"future1",title:"未來品質模組",purpose:"持續追查",fromNode:"governance",stage:"candidate"}],
+ links:[{id:"L1",from:"governance",to:"missing",kind:"branch",stage:"planned"}]};
+ assert.throws(()=>c.normalizeCandidateTransfer(transfer,ids),/連線不存在/);
+ transfer.links=[];transfer.nodes[0].id="launcher";
+ assert.throws(()=>c.normalizeCandidateTransfer(transfer,ids),/衝突/);
+});
+test("complete architecture memory export preserves planned routes and candidate states",()=>{
+ const transfer={schema:"tcvl.candidate-map-transfer.v0.1",project:{id:"P1",title:"研究平台",goal:"架構擴張"},
+ nodes:[{id:"future1",title:"未來品質模組",purpose:"追查錯誤",fromNode:"governance",stage:"candidate"}],
+ links:[]};
+ const addition=c.normalizeCandidateTransfer(transfer,ids);
+ const d=clone(draft),mod=addition.nodes[0];
+ d.steps.push({order:d.steps.length+1,id:mod.id,title:mod.title,status:mod.status,input:mod.input,action:mod.work,output:mod.output,next:"待審批"});
+ const pack=c.architecturePack(d,"transfer1",c.INTERFACES,[...c.ROUTES,...addition.edges]);
+ assert.equal(memory.validatePack(pack).length,1);
+ assert.match(pack.items[0].content,/future1/);
+ assert.match(pack.items[0].content,/未接線/);
+ assert.match(pack.items[0].content,/governance → future1/);
+});
