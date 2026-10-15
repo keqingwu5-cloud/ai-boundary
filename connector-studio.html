@@ -1,0 +1,83 @@
+<!doctype html><html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Launcher Hub｜雙向接口訂製中心</title>
+<style>
+:root{color-scheme:dark;--bg:#080f1f;--panel:#17243d;--line:#405776;--ink:#edf3fe;--muted:#b4c8e6;--accent:#bed5fd}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -10%,#2a456a,transparent 60%),var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"PingFang TC",sans-serif}
+main{max-width:1130px;margin:0 auto;padding:18px 16px 80px}h1{font-size:clamp(27px,4vw,39px);line-height:1.2;margin:20px 0 10px}h2{font-size:19px;margin:0 0 7px}h3{font-size:15px;margin:0 0 7px}
+p{color:var(--muted);margin:5px 0 12px}a{color:#ccdcff}nav{display:flex;flex-wrap:wrap;gap:12px}header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}header a{text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+.tag{border:1px solid var(--line);border-radius:24px;padding:3px 11px;font-size:12px;color:#c9ddfc}.notice{border:1px solid #82744c;background:#332b20;padding:12px 15px;border-radius:12px;color:#f1dfb4;font-size:13px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:17px;padding:19px;margin:16px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+label{display:block;color:#d0dffd;font-size:13px;margin:11px 0 5px}select,input,textarea{width:100%;background:#0d192c;border:1px solid #61799b;border-radius:9px;padding:10px;color:var(--ink);font:inherit}
+input[type=checkbox]{width:18px;height:18px;accent-color:#b3ceff}input[type=checkbox]:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #b9d0ff;outline-offset:2px}
+button{background:#36537d;color:white;border:1px solid #6e92bb;border-radius:10px;padding:10px 13px;cursor:pointer;font:inherit}button:hover{background:#426897}button:disabled{opacity:.55;cursor:default}button.secondary{background:#202d44}
+.card{border:1px solid #526887;border-radius:13px;padding:13px;background:#0f1d33}.card h3{margin:0 0 5px}.card p{font-size:12px;margin:4px 0}.mini{font-size:12px;color:#b6c8e4}.inline{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.inline label{margin:0;display:flex;gap:8px;align-items:center}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:center}
+.steps>div{text-align:center;border:1px solid #536b91;border-radius:13px;padding:15px 8px;background:#101e35}.steps b{display:block}.steps span{font-size:12px;color:#bed0ea}.arrow{font-size:16px;color:#bfd4f5}
+.state{border-radius:20px;padding:4px 10px;border:1px solid #708bb5;font-size:12px;display:inline-block}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1527;border:1px solid #3d5577;border-radius:12px;padding:14px;max-height:340px;overflow:auto;font-size:12px;line-height:1.6}
+table{border-collapse:collapse;width:100%;font-size:12px}td,th{border-bottom:1px solid #435674;padding:8px;text-align:left;vertical-align:top}.mapItem{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 0}.mapItem small{overflow-wrap:anywhere}
+.statusMessage{min-height:23px;font-size:13px;color:#d2e7ff;margin-top:10px}hr{border:0;border-top:1px solid var(--line);margin:16px 0}.detail{border-left:3px solid #6f96bb;padding-left:12px;margin:12px 0}
+@media(max-width:760px){.grid,.fields{grid-template-columns:1fr}.steps{grid-template-columns:1fr}.panel{padding:15px}}
+</style></head><body><main>
+<header><span class="tag">TCVL · CONNECTOR STUDIO V0.1</span><nav><a href="./launcher.html">發射器</a><a href="./architecture-hub.html">架構圖與路徑</a><a href="./memory.html">加密記憶</a></nav></header>
+<h1>雙向接口訂製中心</h1>
+<p>每個接口的進站與送出都能獨立定義欄位、驗證、交接、重試及失敗處理。只公開<strong>用途與連線狀態</strong>，必要的憑證與商業規則應留在受控後端。</p>
+<div class="notice"><b>開發設計模式：</b>這裡只建立、預覽及下載接口規格。即使顯示「已啟用人工流程」，也不代表外部 AI 已連線、收件或執行。這個頁面不接受 API 金鑰，不送出網路請求，不會修改正式記憶。</div>
+<section class="panel">
+<h2>接口身分與用途</h2><div class="fields">
+<div><label for="profile">快速套用接口範本</label><select id="profile">
+<option value="gpt-1">GPT①｜研究與整理</option><option value="gpt-2">GPT②｜反證與挑戰</option><option value="bot-3">BOT③｜測試與執行</option><option value="custom">其他外部接口（可自行命名）</option>
+</select></div>
+<div><label for="connectorId">接口代碼</label><input id="connectorId" maxlength="75" autocomplete="off"></div>
+<div><label for="connectorName">接口名稱</label><input id="connectorName" maxlength="150" autocomplete="off"></div>
+<div><label for="provider">供應商或來源類型</label><input id="provider" maxlength="100" autocomplete="off"></div>
+</div>
+<p class="mini">「GPT①／GPT②／BOT③」是平台內部角色名稱；選擇它們不代表已有供應商授權或任何真實 API 呼叫。</p>
+</section>
+<div class="steps" aria-label="雙向通路示意">
+ <div><b>外部 AI／工具</b><span>來源和回報待驗證</span></div>
+ <div><b>⇄ 雙向 TCVL 網關</b><span>欄位核對 · 來源查證 · 人工審核</span></div>
+ <div><b>Launcher Hub／專案</b><span>任務、版本、拒絕、修正與回溯</span></div>
+</div>
+<div class="grid">
+<section class="panel" id="inboundPanel" aria-label="進站規格">
+<h2>← 接收（Inbound）</h2><p>外部回報 → 主腦；先隔離檢查來源、任務對應與欄位，才能交給 TCVL 審查。</p>
+<div class="inline"><label><input type="checkbox" id="inboundEnabled">允許人工接收預覽</label><span class="state" id="inboundStatus">草稿</span></div>
+<div class="fields"><div><label for="inboundMode">傳輸方式</label><select id="inboundMode"><option value="manual">人工匯入</option><option value="https">HTTPS（待後端）</option><option value="webhook">Webhook（待後端）</option></select></div>
+<div><label for="inboundSchema">接收資料格式</label><select id="inboundSchema"><option value="tcvl.result.v1">研究／執行結果</option><option value="tcvl.evidence.v1">證據回報</option><option value="tcvl.event.v1">事件／狀態</option><option value="tcvl.task.v1">任務格式</option></select></div>
+<div><label for="inboundEvent">允許的事件類型（可多選）</label><select id="inboundEvent" multiple size="4"><option value="result" selected>研究結果</option><option value="rejection" selected>拒絕回報</option><option value="correction">修正記錄</option><option value="status">狀態回報</option><option value="evidence">證據</option><option value="task">任務</option></select></div>
+<div><label for="inboundFailure">接收失敗如何處理</label><select id="inboundFailure"><option value="quarantine">隔離待查核</option><option value="hold">暫停保留</option><option value="notify">提出提醒（後端待接）</option></select>
+<label for="inboundMax">單筆上限（位元組）</label><select id="inboundMax"><option value="16384">16 KB</option><option value="65536" selected>64 KB</option><option value="131072">128 KB</option></select></div>
+</div><div class="inline"><label><input type="checkbox" id="inboundVerify" checked>要求來源驗證</label><label><input type="checkbox" id="inboundApproval" checked>需要人工核准</label><label><input type="checkbox" id="inboundReceipt" checked>要求回執</label></div>
+<h3 style="margin-top:20px">欄位對應（接收 → 主腦）</h3>
+<div class="fields"><div><label for="inboundSource">外部來源欄位</label><input id="inboundSource" placeholder="response_id" maxlength="80"></div><div><label for="inboundTarget">主腦欄位</label><input id="inboundTarget" placeholder="task_id" maxlength="80"></div></div>
+<div class="actions"><button type="button" id="inboundAdd">＋ 新增欄位對應</button></div><div id="inboundMapping"></div>
+</section>
+<section class="panel" id="outboundPanel" aria-label="送出規格">
+<h2>送出（Outbound）→</h2><p>主腦任務 → 外部服務；先檢查允許範圍與人員核准，並等待送達及回報證據。</p>
+<div class="inline"><label><input type="checkbox" id="outboundEnabled">允許人工送出預覽</label><span class="state" id="outboundStatus">草稿</span></div>
+<div class="fields"><div><label for="outboundMode">傳輸方式</label><select id="outboundMode"><option value="manual">人工分享／複製</option><option value="https">HTTPS（待後端）</option><option value="webhook">Webhook（待後端）</option></select></div>
+<div><label for="outboundSchema">送出資料格式</label><select id="outboundSchema"><option value="tcvl.task.v1">任務指令</option><option value="tcvl.result.v1">結果</option><option value="tcvl.evidence.v1">證據</option><option value="tcvl.event.v1">事件／狀態</option></select></div>
+<div><label for="outboundEvent">允許的事件類型（可多選）</label><select id="outboundEvent" multiple size="4"><option value="task" selected>任務</option><option value="result">研究結果</option><option value="rejection">拒絕回報</option><option value="correction">修正記錄</option><option value="status">狀態</option><option value="evidence">證據</option></select></div>
+<div><label for="outboundFailure">送出失敗如何處理</label><select id="outboundFailure"><option value="quarantine">隔離待查核</option><option value="hold">暫停保留</option><option value="notify">提出提醒（後端待接）</option></select>
+<label for="outboundMax">單筆上限（位元組）</label><select id="outboundMax"><option value="16384">16 KB</option><option value="65536" selected>64 KB</option><option value="131072">128 KB</option></select></div>
+</div><div class="inline"><label><input type="checkbox" id="outboundVerify" checked>驗證收件來源</label><label><input type="checkbox" id="outboundApproval" checked>送出前人工核准</label><label><input type="checkbox" id="outboundReceipt" checked>要求送達回執</label></div>
+<h3 style="margin-top:20px">欄位對應（主腦 → 外部）</h3>
+<div class="fields"><div><label for="outboundSource">主腦欄位</label><input id="outboundSource" placeholder="task_id" maxlength="80"></div><div><label for="outboundTarget">外部接收欄位</label><input id="outboundTarget" placeholder="request_id" maxlength="80"></div></div>
+<div class="actions"><button type="button" id="outboundAdd">＋ 新增欄位對應</button></div><div id="outboundMapping"></div>
+</section></div>
+<section class="panel"><h2>雙向傳輸應留下什麼紀錄？</h2>
+<table><thead><tr><th>階段</th><th>需要保存的內容</th><th>不能混淆的事</th></tr></thead><tbody>
+<tr><td>提出</td><td>訊息 ID、原任務 ID、來源、版本及發出原因</td><td>建立訊息 ≠ 已發送</td></tr>
+<tr><td>送達回執</td><td>接收對象、回執來源、簽章／身分驗證結果、時間</td><td>送達 ≠ 已完成</td></tr>
+<tr><td>驗證與拒絕</td><td>證據、拒絕理由、影響範圍、修正建議</td><td>三方一致 ≠ 已核准</td></tr>
+<tr><td>修正／退回</td><td>原始 correlation ID、修正版、責任角色、下一步</td><td>補件 ≠ 舊資料可被刪除</td></tr>
+</tbody></table>
+</section>
+<section class="panel"><div class="inline" style="justify-content:space-between"><h2>預覽、驗證與匯出</h2><span class="tag">沒有實際發送</span></div>
+<div class="actions"><button id="validate" type="button">檢查雙向規格</button><button id="simulate" type="button">模擬進站與送出</button><button id="export" type="button">匯出規格 JSON</button><button id="reset" type="button" class="secondary">還原範本</button></div>
+<div class="statusMessage" id="status" role="status" aria-live="polite"></div>
+<pre id="preview" aria-label="介面規格預覽"></pre>
+<p class="mini">輸出檔只包含接口設計，不包含個人密碼、API Key 或自動化執行權限。上線後仍需後端授權、實際回執驗證、來源簽章與沙盒測試。</p>
+</section>
+</main><script type="module" src="./tcvl-connector-studio.js"></script></body></html>
