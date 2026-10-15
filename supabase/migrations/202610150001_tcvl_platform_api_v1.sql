@@ -154,13 +154,18 @@ create trigger tcvl_after_task_insert after insert on public.tcvl_tasks
 revoke all on public.tcvl_events from anon, authenticated;
 grant select on public.tcvl_events to authenticated;
 revoke all on public.tcvl_connectors from anon, authenticated;
-grant select, insert on public.tcvl_connectors to authenticated;
+grant select on public.tcvl_connectors to authenticated;
+grant insert(owner_id,connector_id,display_name,provider,capabilities) on public.tcvl_connectors to authenticated;
 revoke all on public.tcvl_tasks from anon, authenticated;
-grant select, insert on public.tcvl_tasks to authenticated;
+grant select on public.tcvl_tasks to authenticated;
+grant insert(owner_id,project_id,conversation_id,title,description) on public.tcvl_tasks to authenticated;
 revoke all on public.tcvl_conversations from anon, authenticated;
-grant select, insert on public.tcvl_conversations to authenticated;
+grant select on public.tcvl_conversations to authenticated;
+grant insert(owner_id,project_id,title,goal) on public.tcvl_conversations to authenticated;
 revoke all on public.tcvl_projects from anon, authenticated;
-grant select, insert, update on public.tcvl_projects to authenticated;
+grant select on public.tcvl_projects to authenticated;
+grant insert(owner_id,name) on public.tcvl_projects to authenticated;
+grant update(name,settings,updated_at) on public.tcvl_projects to authenticated;
 
 revoke all on function public.tcvl_request_stop(uuid) from public, anon;
 revoke all on function public.tcvl_refuse_task(uuid,text,text,text) from public, anon;
