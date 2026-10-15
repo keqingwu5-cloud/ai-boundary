@@ -101,8 +101,8 @@
       content,reason,evidence,evidenceLevel:"hypothesis",eventType:"new_question"
     }]};
   }
-  function architecturePack(draft,uid) {
-    return memoryPack(draft.name,fullArchitectureText(draft),"從架構導覽匯出完整流程草稿，等待使用者審查，非正式核准。","來源：架構導覽／人工設計。接口狀態是靜態盤點；各模組需獨立驗收。",uid);
+  function architecturePack(draft,uid,interfaces=INTERFACES,edges=ROUTES) {
+    return memoryPack(draft.name,fullArchitectureText(draft,interfaces,edges),"從架構導覽匯出完整流程草稿，等待使用者審查，非正式核准。","來源：架構導覽／人工設計。接口狀態是靜態盤點；各模組需獨立驗收。",uid);
   }
   function recordPack(templateId,fields,uid) {
     const t=FIELD_TEMPLATES[templateId];
