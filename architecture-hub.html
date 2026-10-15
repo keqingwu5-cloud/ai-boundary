@@ -237,7 +237,7 @@ function allModulesById(id){return modules.find(m=>m.id===id)}
 function appendModule(m){
  if(map.children.length)map.append(textNode("div","flowarrow","↓"));
  const b=textNode("button","node"+(m.status==="候選規劃／未接線"?" candidate":""));b.type="button";b.dataset.module=m.id;
- if(moduleCore&&!m.completion)m.completion=moduleCore.initialModuleCompletion();
+ if(moduleCore&&!m.completion)m.completion=moduleCore.initialModuleCompletion(["部分已實作","展示原型"].includes(m.status)?"building":"planned");
  b.append(textNode("span","num",m.n));const desc=textNode("span");desc.append(textNode("strong","",m.title),textNode("small","",m.short));b.append(desc);b.append(textNode("span","chip",m.status));
  b.addEventListener("click",()=>selectModule(m.id));map.append(b);
  const option=document.createElement("option");option.value=m.id;option.textContent=m.title;by("extraModule").append(option);
