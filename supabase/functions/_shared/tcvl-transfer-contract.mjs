@@ -28,6 +28,7 @@ export function directionDefaults(direction){
    require_receipt:true,
    allowed_event_types:direction==="outbound"?["task"] : ["result","rejection"],
    max_bytes:65536,
+   field_map:[],
    retry:{max_attempts:0,backoff_seconds:60},
    on_failure:"quarantine"
  };
@@ -38,7 +39,7 @@ export function validateDirectionConfig(config,direction){
  const errors=[];
  if(!DIRECTION.includes(direction)||!isObj(config))return ["invalid_direction_config"];
  const valid=["enabled","mode","payload_schema","require_source_verification","require_human_approval",
-  "require_receipt","allowed_event_types","max_bytes","retry","on_failure"];
+  "require_receipt","allowed_event_types","max_bytes","field_map","retry","on_failure"];
  if(!hasOnly(config,valid))errors.push("unknown_direction_field");
  if(typeof config.enabled!=="boolean"||!TRANSPORTS.includes(config.mode))errors.push("direction_enabled_or_mode_invalid");
  if(!PAYLOAD_SCHEMAS.includes(config.payload_schema))errors.push("payload_schema_invalid");
@@ -49,6 +50,17 @@ export function validateDirectionConfig(config,direction){
    new Set(config.allowed_event_types).size!==config.allowed_event_types.length||
    config.allowed_event_types.some(x=>!EVENT_TYPES.includes(x)))errors.push("allowed_event_types_invalid");
  if(!Number.isInteger(config.max_bytes)||config.max_bytes<1024||config.max_bytes>262144)errors.push("max_bytes_invalid");
+ if(!Array.isArray(config.field_map)||config.field_map.length>12)errors.push("field_map_invalid");
+ else {
+  const sources=new Set(),targets=new Set();
+  for(const item of config.field_map){
+   if(!isObj(item)||!hasOnly(item,["source","target"])||
+    !nonempty(item.source,80)||!nonempty(item.target,80)||
+    !/^[a-zA-Z][\w.-]*$/.test(item.source)||!/^[a-zA-Z][\w.-]*$/.test(item.target)||
+    sources.has(item.source)||targets.has(item.target))errors.push("field_map_invalid");
+   if(isObj(item)){sources.add(item.source);targets.add(item.target)}
+  }
+ }
  if(!isObj(config.retry)||!hasOnly(config.retry,["max_attempts","backoff_seconds"])||
    !Number.isInteger(config.retry.max_attempts)||config.retry.max_attempts<0||config.retry.max_attempts>4||
    !Number.isInteger(config.retry.backoff_seconds)||config.retry.backoff_seconds<1||config.retry.backoff_seconds>3600)
