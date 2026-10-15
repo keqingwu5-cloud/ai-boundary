@@ -17,6 +17,7 @@ const id=x=>nonempty(x,100)&&/^[a-zA-Z0-9][a-zA-Z0-9_:.\-]{0,99}$/.test(x);
 const guid=x=>typeof x==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(x);
 const iso=x=>typeof x==="string"&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(x)&&Number.isFinite(Date.parse(x));
 const hasOnly=(obj,allowed)=>Object.keys(obj).every(k=>allowed.includes(k));
+const utf8Size=value=>encodeURIComponent(JSON.stringify(value)).replace(/%[0-9A-F]{2}/gi,"_").length;
 export function directionDefaults(direction){
  if(!DIRECTION.includes(direction))throw Error("invalid_direction");
  return {
@@ -149,7 +150,7 @@ export function resolveOutbound(config,envelope){
  if(!config.enabled)return {decision:"blocked",errors:["outbound_disabled"]};
  if(!config.allowed_event_types.includes(envelope.event_type))return {decision:"blocked",errors:["event_not_allowed"]};
  if(config.payload_schema!==envelope.payload_schema)return {decision:"blocked",errors:["outbound_payload_schema_mismatch"]};
- if(new TextEncoder().encode(JSON.stringify(envelope.payload)).byteLength>config.max_bytes)
+ if(utf8Size(envelope.payload)>config.max_bytes)
    return {decision:"blocked",errors:["payload_size_exceeded"]};
  if(config.require_source_verification&&!envelope.provenance.verified_source)
    return {decision:"awaiting_source_verification",errors:["source_unverified"]};
@@ -162,7 +163,7 @@ export function resolveInbound(config,envelope){
  if(!config.enabled)return {decision:"blocked",errors:["inbound_disabled"]};
  if(!config.allowed_event_types.includes(envelope.event_type))return {decision:"quarantine",errors:["event_not_allowed"]};
  if(config.payload_schema!==envelope.payload_schema)return {decision:"quarantine",errors:["inbound_payload_schema_mismatch"]};
- if(new TextEncoder().encode(JSON.stringify(envelope.payload)).byteLength>config.max_bytes)
+ if(utf8Size(envelope.payload)>config.max_bytes)
    return {decision:"quarantine",errors:["payload_size_exceeded"]};
  if(config.require_source_verification&&!envelope.provenance.verified_source)
    return {decision:"quarantine",errors:["source_unverified"]};
