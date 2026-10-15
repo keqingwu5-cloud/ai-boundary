@@ -146,7 +146,7 @@ function runGatedChange(w,{id,at,action,projectId="",expectedRevision,source="us
    next:"檢查阻塞原因及上一版紀錄後，再提交修正。"};
   const workspace=update(w,n=>{
    makeEvent(n,gateEvent({id,at,action,projectId,phase:"failure",...failureDecision,checks,source,
-     revisionBefore:w.revision,revisionAfter:w.revision}));
+     revisionBefore:w.revision,revisionAfter:w.revision+1}));
    const validProject=n.projects.some(x=>x.id===projectId)?projectId:null;
    alert(n,{id:"alert:gate:"+id,at,category:"gate_rejected",reason,impact:failureDecision.impact,
      next:failureDecision.next,ref:id,projectId:validProject});
@@ -178,7 +178,7 @@ function runGatedChange(w,{id,at,action,projectId="",expectedRevision,source="us
     revisionBefore:w.revision,revisionAfter:candidate.revision}));
   makeEvent(n,gateEvent({id,at,action,projectId,phase:"after",decision:success.decision,checks:afterChecks,
     reason:success.reason,impact:success.impact,next:success.next,source,
-    revisionBefore:w.revision,revisionAfter:candidate.revision}));
+    revisionBefore:w.revision,revisionAfter:candidate.revision+1}));
  });
  return {workspace,applied:true,decision:"pass",reason:success.reason,impact:success.impact,
    next:success.next,checks:[...conditions,...afterChecks]};
@@ -379,6 +379,9 @@ function continuationSnapshot(w,{projectId,threadId=""}){
    tasks:tasks.filter(t=>t.status!=="done").slice(-8).map(t=>({
      id:t.id,title:t.title,status:t.status,progress:t.progress,owner:t.owner,reason:t.reason})),
    alerts:alerts.slice(0,8).map(a=>({id:a.id,reason:a.reason,impact:a.impact,next:a.next,ref:a.ref})),
+   gateChecks:gateHistory(w,{projectId}).filter(x=>x.gate.phase!=="before").slice(0,8).map(x=>({
+     id:x.gate.id,phase:x.gate.phase,decision:x.gate.decision,action:x.gate.action,
+     reason:x.gate.reason,impact:x.gate.impact,next:x.gate.next,revisionAfter:x.gate.revisionAfter})),
    candidateNodes:proposals.slice(-6).map(p=>({id:p.id,title:p.title,stage:p.stage})),
    note:"人工生成的續接索引（僅包含各類最近部分紀錄）。完整歷史仍在原工作空間 JSON，不等於遠端 AI 已收到或新對話自動取得完整記憶。"
  };
@@ -396,6 +399,7 @@ function continuationText(snapshot){
    "【近期待辦】",...snapshot.todos.map(x=>"- "+x.text),
    "【待完成／暫停任務】",...snapshot.tasks.map(x=>"- "+x.title+"｜"+(LABELS[x.status]?.label||x.status)+"｜進度："+x.progress),
    "【尚未處理的拒絕／阻塞】",...snapshot.alerts.map(x=>"- 原因："+x.reason+"；影響："+x.impact+"；下一步："+x.next),
+   "【條件式門檻紀錄】",...(snapshot.gateChecks||[]).map(x=>"- "+x.action+"｜"+x.phase+"｜"+x.decision+"｜"+x.reason+"｜下一步："+x.next),
    "【候選版圖】",...snapshot.candidateNodes.map(x=>"- "+x.title+"｜"+x.stage),
    "注意：以上僅是人類可讀的近期索引，尚未同步給其他 AI，請勿視為任務已執行。"
  ];
