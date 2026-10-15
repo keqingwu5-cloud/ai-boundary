@@ -86,11 +86,11 @@ footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font
 <section id="p-relay" role="tabpanel" aria-labelledby="t-relay" hidden>
 <div class="block">
 <h2>中樞交接節點｜三條獨立任務通路</h2>
-<p>從這個工作頁建立一個任務，分別給 GPT①、GPT②、BOT③；回覆須符合原指令 ID。拒絕要附原因、影響及下一步；停止只停止本機追蹤，不會取消遠端 AI。</p>
-<div class="notice">目前尚未連接三個 AI 的正式 API。下方是<strong>人工交接與路徑測試工具</strong>，不會向 AI 真的發送訊息。請在離開前匯出批次 JSON。</div>
+<p>在獨立的三方中樞分支建立任務，分別準備 GPT①、GPT②、BOT③ 的人工交接包；回覆須符合原指令 ID。拒絕須附原因、影響及下一步；停止只停止該工作分支的本機追蹤。</p>
+<div class="notice">三方中樞維持獨立分支，不再內嵌於主腦。尚未連上三個 AI 的正式 API；離開分支前請先匯出批次 JSON。</div>
 <p><a href="./relay-hub.html">單獨開啟中樞交接節點</a>　<a href="./governance-board.html">在專案治理匯入回報</a></p>
-<iframe title="三方 AI 中樞人工交接節點" src="./relay-hub.html" loading="lazy" style="width:100%;min-height:1080px;border:1px solid #526487;border-radius:14px;background:#0a1323;" referrerpolicy="no-referrer"></iframe>
-<p class="small">主腦內嵌頁面與單獨開啟的頁面不會自動同步；匯入、匯出需經使用者確認。本頁的獨立對話不等於 ChatGPT 已自動接線。</p>
+<div class="card"><h3><a href="./relay-hub.html">進入獨立三方中樞 →</a></h3><p>此處只顯示入口；三方中樞的工作狀態與人工回報不會被主腦頁面隱性複製。</p></div>
+<p class="small">需跨分支交接時，請使用來源分支的正式匯出功能，再到目標分支由你明確匯入；主腦不會自動合併資料。</p>
 </div></section>
 <section id="p-tasks" role="tabpanel" aria-labelledby="t-tasks" hidden>
 <h2>三方協作與任務管理</h2><div class="grid">
