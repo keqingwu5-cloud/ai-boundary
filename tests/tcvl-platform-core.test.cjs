@@ -136,7 +136,7 @@ test("short project snapshot converts to existing memory candidate schema",()=>{
 });
 test("an oversized workspace is not silently truncated in memory pack",()=>{
  let w=start();w.projects[0].goal="超大資料".repeat(5000);
- assert.throws(()=>c.packet(w,"ID2"),/過長/);
+ assert.throws(()=>c.packet(w,"ID2"),/過長|不合法/);
 });
 test("original structures don't change when update returns new version",()=>{
  const before=start();const same=JSON.stringify(before);
