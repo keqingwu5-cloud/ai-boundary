@@ -431,6 +431,43 @@ function startContinuation(w,{id,projectId,fromThreadId,title,at,seq}){
  });
 }
 
+/* Condition-aware GPT handoff candidate. User must export, inspect, then import
+   into authorized memory-review flow. It never edits ChatGPT or model memory. */
+function conditionMemoryCandidate(workspace,{projectId,uid,at}){
+ assertWorkspace(workspace);
+ if(!idOk(uid)||!val(at,40))throw Error("記憶候選必須有 ID 及時間");
+ const p=workspace.projects.find(x=>x.id===projectId);
+ if(!p)throw Error("專案不存在，不能產生記憶候選");
+ const gates=gateHistory(workspace,{projectId}).filter(x=>x.gate.phase!=="before");
+ if(!gates.length)throw Error("尚無修改後／失敗的門檻紀錄，請先完成一項有紀錄的治理操作");
+ const snap=continuationSnapshot(workspace,{projectId});
+ const text=[
+  "【TCVL 專案條件式記憶候選｜人工審批前不得成為正式知識】",
+  "專案："+p.title+"；專案 ID："+projectId,
+  "目標："+p.goal,
+  "輸出時間："+at+"；工作空間版次："+workspace.revision,
+  "來源：本機手動治理／既有未驗證來源。不代表 GPT①／GPT②／BOT③ 已收到任何資料。",
+  "【最近門檻與拒絕結果】",
+  ...snap.gateChecks.map(x=>x.action+"｜"+x.phase+"｜"+x.decision+"｜原因："+x.reason+"｜影響："+x.impact+"｜下一步："+x.next),
+  "【仍未完成的工作】",
+  ...snap.tasks.map(x=>x.id+"｜"+x.title+"｜"+x.status+"｜進度："+x.progress),
+  "【近期人工決策】",...snap.decisions.map(x=>x.text),
+  "【近期待辦】",...snap.todos.map(x=>x.text),
+  "【仍須處理的拒絕／阻塞】",
+  ...snap.alerts.map(x=>x.ref+"｜原因："+x.reason+"｜影響："+x.impact+"｜下一步："+x.next),
+  "此摘要只覆蓋近期索引；完整證據、舊版及事件在另行保存的工作空間 JSON 中。",
+  "此候選不得自動寫入 GPT 長期記憶或已核准的加密記憶庫。"
+ ].join("\n");
+ if(text.length>12000)throw Error("條件記憶候選超過 12000 字元；請匯出完整工作空間並分批審核，不可偷偷截斷歷史");
+ return {schema:"ai-boundary.memory-pack.v1",items:[{
+  id:"GATE-"+uid,question:"【主腦專案】條件式治理續接｜"+p.title,
+  purpose:"保存此專案的門檻通過、拒絕、修正、停止任務及續接條件，待人工審核。",
+  content:text,reason:"依最近一批有版次與原因的門檻紀錄形成候選，必須人工核准，不代表已完成外部驗證。",
+  evidence:"來源：此裝置手動治理工作空間；版次 "+workspace.revision+"；外部 AI 身分未驗證。",
+  eventType:"new_question",evidenceLevel:"hypothesis"
+ }]};
+}
+
 function packet(workspace,uid){
  assertWorkspace(workspace);
  const content=JSON.stringify(workspace,null,2);
@@ -444,5 +481,5 @@ return {SCHEMA,STATUS_SCHEMA,DEFAULT_STATUSES,registry,statusOf,addCustomStatus,
  gateConditions,gateDecision,runGatedChange,gateHistory,
  createWorkspace,validate,safeImport,addProject,addThread,addMessage,projectMemo,
  addTask,transition,pauseTask,resumeTask,setProgress,setTaskDisplay,addProposal,proposalDecision,addLink,dismissAlert,transferCandidateMap,acceptRelayTransfer,
- projectAlerts,continuationSnapshot,continuationText,startContinuation,packet};
+ projectAlerts,continuationSnapshot,continuationText,startContinuation,conditionMemoryCandidate,packet};
 });
