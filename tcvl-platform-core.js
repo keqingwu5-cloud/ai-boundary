@@ -118,11 +118,15 @@ function retained(oldArr,newArr,comparator){
  const newer=new Map(newArr.map(x=>[x.id,x]));
  return oldArr.every(item=>newer.has(item.id)&&(!comparator||comparator(item,newer.get(item.id))));
 }
+function retainedSequence(oldArr,newArr){
+ return Array.isArray(oldArr)&&Array.isArray(newArr)&&newArr.length>=oldArr.length&&
+  oldArr.every((x,i)=>JSON.stringify(x)===JSON.stringify(newArr[i]));
+}
 function retainedHistory(oldW,newW){
  return retained(oldW.projects,newW.projects,(a,b)=>retained(a.decisions,b.decisions,(x,y)=>JSON.stringify(x)===JSON.stringify(y))
      &&retained(a.todos,b.todos,(x,y)=>JSON.stringify(x)===JSON.stringify(y)))
    &&retained(oldW.threads,newW.threads,(a,b)=>retained(a.messages,b.messages,(x,y)=>JSON.stringify(x)===JSON.stringify(y)))
-   &&retained(oldW.tasks,newW.tasks,(a,b)=>retained(a.history,b.history,(x,y)=>JSON.stringify(x)===JSON.stringify(y)))
+   &&retained(oldW.tasks,newW.tasks,(a,b)=>retainedSequence(a.history,b.history))
    &&retained(oldW.proposals,newW.proposals)
    &&retained(oldW.links,newW.links,(a,b)=>JSON.stringify(a)===JSON.stringify(b))
    &&retained(oldW.events,newW.events,(a,b)=>JSON.stringify(a)===JSON.stringify(b))
@@ -138,13 +142,14 @@ function gateEvent({id,at,action,projectId,phase,decision,checks,reason,impact,n
 function runGatedChange(w,{id,at,action,projectId="",expectedRevision,source="user_manual"}={},changer){
  assertWorkspace(w);
  if(!idOk(id)||!val(at,40)||typeof changer!=="function")throw Error("門檻序號、時間或更新處理缺失");
+ const pristine=copy(w);
  const conditions=gateConditions(w,{action,projectId,expectedRevision,source});
  const before=gateDecision(conditions);
  function failure(reason,decision="reject",additional=[]){
   const checks=[...conditions,...additional];
   const failureDecision={...before,decision,reason,impact:"這次操作沒有生效；原本工作、版本和對話保留。",
    next:"檢查阻塞原因及上一版紀錄後，再提交修正。"};
-  const workspace=update(w,n=>{
+  const workspace=update(pristine,n=>{
    makeEvent(n,gateEvent({id,at,action,projectId,phase:"failure",...failureDecision,checks,source,
      revisionBefore:w.revision,revisionAfter:w.revision+1}));
    const validProject=n.projects.some(x=>x.id===projectId)?projectId:null;
