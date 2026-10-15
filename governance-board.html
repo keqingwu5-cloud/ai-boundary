@@ -86,7 +86,7 @@ button{font:inherit;border:1px solid #6e8aae;background:#2d496d;color:#f9fbff;bo
    <option value="all">全部</option><option value="before">修改前</option><option value="after">修改後</option><option value="failure">失敗／拒絕</option>
   </select></div>
  </div>
- <div class="actions"><button type="button" id="gatePreviewButton">先檢查目前門檻（只預覽）</button><a href="./architecture-hub.html">架構與路徑規劃 →</a></div>
+ <div class="actions"><button type="button" id="gatePreviewButton">先檢查目前門檻（只預覽）</button><button type="button" id="exportGateMemory">匯出條件式記憶候選（人工審核）</button><a href="./architecture-hub.html">架構與路徑規劃 →</a></div>
  <div class="muted" id="gateSummary" role="status">尚未執行預先檢查。</div>
  <div class="muted" id="gateCount"></div>
  <div id="gateList" aria-live="polite"></div>
@@ -309,6 +309,17 @@ by("gatePreviewButton").addEventListener("click",()=>{
   "（這是預覽，不建立門檻事件；真正操作會自動記錄前後或拒絕原因）";
 });
 by("gateFilter").addEventListener("change",renderGateHistory);
+
+by("exportGateMemory").addEventListener("click",()=>{
+ try{
+  assertProject();
+  const pack=core.conditionMemoryCandidate(w,{projectId:activeProject,uid:uid(),at:clock()});
+  if(!confirm("這份 JSON 含目前專案、門檻拒絕理由、進度及待辦，且尚未加密。下載後應由你檢查，再決定是否匯入本機加密記憶審核流程；它不能自動更新 ChatGPT 的長期記憶。確定下載？"))return;
+  download(pack,"tcvl-conditional-memory-candidate.json");
+  report("已觸發條件式記憶候選下載。請確認檔案存在後，至加密記憶頁人工匯入審查；目前 GPT 長期記憶未被自動修改。","gateSummary");
+ }catch(e){report("無法匯出條件式候選："+e.message,"gateSummary")}
+});
+
 by("previewContinuation").addEventListener("click",()=>{
  renderContinuation();
  by("continuationDetails").open=true;
