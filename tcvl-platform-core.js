@@ -176,6 +176,54 @@ function transferCandidateMap(workspace,projectId){
  return {schema:"tcvl.candidate-map-transfer.v0.1",project:{id:p.id,title:p.title,goal:p.goal},nodes,links,
   note:"候選版塊／規劃交接；均未啟用接口。須人工審核後才可能納入正式架構。"};
 }
+/* Import an unverified relay report into one existing project thread, without changing approved memory. */
+function acceptRelayTransfer(workspace,transfer,{projectId,threadId,at,seq}){
+ assertWorkspace(workspace);
+ if(!transfer||transfer.schema!=="tcvl.relay-transfer.v0.1"||!idOk(transfer.id)||!idOk(transfer.projectId)||transfer.projectId!==projectId
+    ||!val(transfer.projectTitle,140)||!Array.isArray(transfer.roles)||transfer.roles.length!==3||!val(transfer.note,300)||!transfer.note.includes("未驗證")||!val(at,40)||!idOk(seq))
+    throw Error("交接封包不完整或專案 ID 不符合；請在相同專案匯入");
+ if(!workspace.projects.some(p=>p.id===projectId))throw Error("此專案不存在");
+ const thread=workspace.threads.find(t=>t.id===threadId&&t.projectId===projectId);
+ if(!thread)throw Error("所選對話不屬於這個專案");
+ if(workspace.events.some(e=>e.kind==="relay.transfer"&&e.ref===transfer.id))throw Error("這份交接封包已匯入過，不重複新增");
+ const ordered=["GPT1","GPT2","BOT3"],seen=new Set();
+ const pieces=[{role:"summary",text:"【TCVL 中樞交接回報｜人工匯入，非 AI 身分驗證】\n批次："+transfer.id+"\n原專案："+transfer.projectTitle+"\n結果："+String(transfer.result||"待查核").slice(0,200)+"\n提醒：下列內容只證明使用者匯入了 JSON，不能證明三個 AI 已接收或回覆。"}];
+ let rejected=[];
+ for(const r of transfer.roles){
+  if(!r||!ordered.includes(r.id)||seen.has(r.id)||!["prepared","manual_handoff","reported_unverified","rejected","paused"].includes(r.state)||r.commandId!==transfer.id+":"+r.id||!Array.isArray(r.responses)||r.responses.length>20||r.responseCount!==r.responses.length)throw Error("三方角色、回報數量或指令關聯錯誤");
+  seen.add(r.id);
+  const label={GPT1:"GPT①",GPT2:"GPT②",BOT3:"BOT③"}[r.id];
+  pieces.push({role:r.id,text:label+"｜狀態："+r.state+"｜指令："+r.commandId+"｜回報數："+r.responses.length+"\n身分驗證：未驗證"});
+  for(const response of r.responses){
+   if(!response||!idOk(response.id)||!val(response.text,8000)||!val(response.source,150)||response.identityVerified!==false)throw Error("來源／身分／回報內容不可信或不完整");
+   const head="【"+label+" 手動回報｜身分未驗證｜"+response.id+"】\n來源聲稱："+response.source+"\n";
+   const chars=1900;let offset=0,part=1;
+   while(offset<response.text.length){
+    pieces.push({role:r.id,text:head+"區段："+part+"\n"+response.text.slice(offset,offset+chars)});
+    offset+=chars;part++;
+   }
+  }
+  if(r.rejection){
+   const x=r.rejection;
+   if(!val(x.reason,1200)||!val(x.impact,1200)||!val(x.next,1200))throw Error("拒絕紀錄缺少原因、影響或下一步");
+   rejected.push({role:r.id,reason:x.reason,impact:x.impact,next:x.next});
+  }
+ }
+ if(seen.size!==3||pieces.length>100||JSON.stringify(transfer).length>120000)throw Error("交接過大或三方資料不完整，請先封存完整 JSON，分批人工處理");
+ if(rejected.length>3)throw Error("拒絕通知過多");
+ return update(workspace,n=>{
+  const t=n.threads.find(x=>x.id===threadId);
+  if(t.messages.length+pieces.length>500)throw Error("本對話接近容量上限，請先另建新對話");
+  for(const [i,piece] of pieces.entries()){
+   if(!val(piece.text,2400))throw Error("回報內容超出單段限制");
+   t.messages.push({id:"relay:"+seq+":"+i,author:"中樞人工匯入／未驗證",text:piece.text,at});
+  }
+  makeEvent(n,{id:"event:relay:"+seq,kind:"relay.transfer",message:"三方人工交接回報："+transfer.id+"；等待後續驗證",at,ref:transfer.id});
+  for(const rej of rejected){
+   alert(n,{id:"alert:relay:"+seq+":"+rej.role,at,category:"relay_rejected",reason:rej.reason,impact:rej.impact,next:rej.next,ref:transfer.id+":"+rej.role});
+  }
+ });
+}
 function packet(workspace,uid){
  assertWorkspace(workspace);
  const content=JSON.stringify(workspace,null,2);
@@ -187,5 +235,5 @@ function packet(workspace,uid){
 }
 return {SCHEMA,STATUS_SCHEMA,DEFAULT_STATUSES,registry,statusOf,addCustomStatus,
  createWorkspace,validate,safeImport,addProject,addThread,addMessage,projectMemo,
- addTask,transition,pauseTask,resumeTask,setProgress,setTaskDisplay,addProposal,proposalDecision,addLink,dismissAlert,transferCandidateMap,packet};
+ addTask,transition,pauseTask,resumeTask,setProgress,setTaskDisplay,addProposal,proposalDecision,addLink,dismissAlert,transferCandidateMap,acceptRelayTransfer,packet};
 });
