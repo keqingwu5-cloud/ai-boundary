@@ -67,8 +67,8 @@ function update(w,fn){
 }
 function unique(w,key,id){if(!idOk(id)||w[key].some(x=>x.id===id))throw Error("ID 不合法或已存在："+id)}
 function makeEvent(w,e){unique(w,"events",e.id);w.events.unshift(e)}
-function alert(w,{id,at,category,reason,impact,next,ref}){
- unique(w,"alerts",id);w.alerts.unshift({id,at,category,reason,impact,next,ref:ref||"",seen:false});
+function alert(w,{id,at,category,reason,impact,next,ref,projectId}){
+ unique(w,"alerts",id);w.alerts.unshift({id,at,category,reason,impact,next,ref:ref||"",projectId:projectId||null,seen:false});
 }
 function addProject(w,{id,title,goal,at}){
  if(!val(title,140)||!val(goal,1000)||!val(at,40))throw Error("專案需要名稱、目的與時間");
@@ -108,7 +108,7 @@ function transition(w,{taskId,status,reason,impact,next,at,seq}){
   if(t.status==="paused"&&status==="done")throw Error("已暫停的任務不能直接跳到完成");
   const old=t.status;t.status=status;t.reason=reason;delete t.displayStatus;t.history.push({at,status,reason,previous:old});
   makeEvent(n,{id:"event:"+seq,kind:"task."+status,message:t.title+"："+reason,at,ref:taskId});
-  if(requiresAttention)alert(n,{id:"alert:"+seq,at,category:status,reason,impact,next,ref:taskId});
+  if(requiresAttention)alert(n,{id:"alert:"+seq,at,category:status,reason,impact,next,ref:taskId,projectId:t.projectId});
  });
 }
 function pauseTask(w,args){
@@ -140,7 +140,7 @@ function proposalDecision(w,{proposalId,decision,reason,impact,next,at,seq}){
  if(decision==="rejected"&&(!val(impact,1000)||!val(next,1000)))throw Error("拒絕須說明影響與下一步");
  return update(w,n=>{const p=n.proposals.find(x=>x.id===proposalId);if(!p)throw Error("候選版塊不存在");
  p.stage=decision;p.review={reason,at};makeEvent(n,{id:"event:"+seq,kind:"proposal."+decision,message:p.title+"："+reason,at,ref:proposalId});
- if(decision==="rejected")alert(n,{id:"alert:"+seq,at,category:"proposal_rejected",reason,impact,next,ref:proposalId});
+ if(decision==="rejected")alert(n,{id:"alert:"+seq,at,category:"proposal_rejected",reason,impact,next,ref:proposalId,projectId:p.projectId});
  });
 }
 function addLink(w,{id,from,to,kind,at}){
@@ -220,10 +220,88 @@ function acceptRelayTransfer(workspace,transfer,{projectId,threadId,at,seq}){
   }
   makeEvent(n,{id:"event:relay:"+seq,kind:"relay.transfer",message:"三方人工交接回報："+transfer.id+"；等待後續驗證",at,ref:transfer.id});
   for(const rej of rejected){
-   alert(n,{id:"alert:relay:"+seq+":"+rej.role,at,category:"relay_rejected",reason:rej.reason,impact:rej.impact,next:rej.next,ref:transfer.id+":"+rej.role});
+   alert(n,{id:"alert:relay:"+seq+":"+rej.role,at,category:"relay_rejected",reason:rej.reason,impact:rej.impact,next:rej.next,ref:transfer.id+":"+rej.role,projectId});
   }
  });
 }
+
+/* A continuation is an explicitly generated index; never automatic remote context sync. */
+function projectAlerts(w,projectId,{unreadOnly=false}={}){
+ assertWorkspace(w);
+ if(!w.projects.some(p=>p.id===projectId))throw Error("專案不存在");
+ const refs=new Set([...w.tasks.filter(t=>t.projectId===projectId).map(t=>t.id),
+                      ...w.proposals.filter(p=>p.projectId===projectId).map(p=>p.id)]);
+ return w.alerts.filter(a=>{
+   if(a.projectId)return a.projectId===projectId && (!unreadOnly||!a.seen);
+   const isLegacy=refs.has(a.ref)||[...refs].some(ref=>a.ref.startsWith(ref+":"));
+   return isLegacy && (!unreadOnly||!a.seen);
+ });
+}
+function continuationSnapshot(w,{projectId,threadId=""}){
+ assertWorkspace(w);
+ const project=w.projects.find(p=>p.id===projectId);
+ if(!project)throw Error("專案不存在");
+ const source=threadId?w.threads.find(t=>t.id===threadId&&t.projectId===projectId):null;
+ if(threadId&&!source)throw Error("來源對話不屬於這個專案");
+ const tasks=w.tasks.filter(t=>t.projectId===projectId);
+ const proposals=w.proposals.filter(p=>p.projectId===projectId);
+ const alerts=projectAlerts(w,projectId,{unreadOnly:true});
+ return {
+   schema:"tcvl.project-continuation.v0.1",
+   projectId,title:project.title,goal:project.goal,fromThreadId:source?.id||"",
+   sourceThreadTitle:source?.title||"",
+   revision:w.revision,
+   totals:{tasks:tasks.length,unresolved:tasks.filter(t=>t.status!=="done").length,
+     decisions:project.decisions.length,todos:project.todos.length,
+     unreadAlerts:alerts.length,proposalNodes:proposals.length},
+   decisions:project.decisions.slice(-6).map(x=>({id:x.id,text:x.text})),
+   todos:project.todos.slice(-8).map(x=>({id:x.id,text:x.text})),
+   tasks:tasks.filter(t=>t.status!=="done").slice(-8).map(t=>({
+     id:t.id,title:t.title,status:t.status,progress:t.progress,owner:t.owner,reason:t.reason})),
+   alerts:alerts.slice(0,8).map(a=>({id:a.id,reason:a.reason,impact:a.impact,next:a.next,ref:a.ref})),
+   candidateNodes:proposals.slice(-6).map(p=>({id:p.id,title:p.title,stage:p.stage})),
+   note:"人工生成的續接索引（僅包含各類最近部分紀錄）。完整歷史仍在原工作空間 JSON，不等於遠端 AI 已收到或新對話自動取得完整記憶。"
+ };
+}
+function continuationText(snapshot){
+ if(!snapshot||snapshot.schema!=="tcvl.project-continuation.v0.1")throw Error("續接快照格式錯誤");
+ const sections=[
+   "【主腦專案續接卡｜人工匯出／來源未經 AI 身分驗證】",
+   "專案："+snapshot.title+"（"+snapshot.projectId+"）",
+   "目標："+snapshot.goal,
+   "前一對話："+(snapshot.sourceThreadTitle||"未指定")+"（"+(snapshot.fromThreadId||"—")+"）",
+   "版次："+snapshot.revision+"；任務 "+snapshot.totals.tasks+"，未結 "+snapshot.totals.unresolved+
+     "，待處理提醒 "+snapshot.totals.unreadAlerts,
+   "【近期決策】",...snapshot.decisions.map(x=>"- "+x.text),
+   "【近期待辦】",...snapshot.todos.map(x=>"- "+x.text),
+   "【待完成／暫停任務】",...snapshot.tasks.map(x=>"- "+x.title+"｜"+(LABELS[x.status]?.label||x.status)+"｜進度："+x.progress),
+   "【尚未處理的拒絕／阻塞】",...snapshot.alerts.map(x=>"- 原因："+x.reason+"；影響："+x.impact+"；下一步："+x.next),
+   "【候選版圖】",...snapshot.candidateNodes.map(x=>"- "+x.title+"｜"+x.stage),
+   "注意：以上僅是人類可讀的近期索引，尚未同步給其他 AI，請勿視為任務已執行。"
+ ];
+ return sections.join("\n");
+}
+function startContinuation(w,{id,projectId,fromThreadId,title,at,seq}){
+ if(!idOk(id)||!idOk(seq)||!val(title,160)||!val(at,40))throw Error("新對話資訊缺失");
+ const snap=continuationSnapshot(w,{projectId,threadId:fromThreadId||""});
+ return update(w,n=>{
+   unique(n,"threads",id);
+   const index=[
+     "【人工建立的續接對話索引】",
+     "專案："+snap.title+"｜專案 ID："+projectId,
+     "原對話："+(snap.sourceThreadTitle||"未指定")+"｜來源 ID："+(snap.fromThreadId||"無"),
+     "當前未結任務："+snap.totals.unresolved+"；未讀拒絕／阻塞："+snap.totals.unreadAlerts,
+     "決策："+snap.totals.decisions+"；待辦："+snap.totals.todos+"；候選模組："+snap.totals.proposalNodes,
+     "本對話仍屬同一專案，請查看右側專案上下文／任務／提醒以讀取完整紀錄。",
+     "這不是 AI 回覆，也不會啟動或繼續任何已暫停任務。"
+   ].join("\n");
+   n.threads.push({id,projectId,title,parentThreadId:snap.fromThreadId||null,
+     messages:[{id:"continue:"+seq,author:"系統索引（人工發起）",text:index,at}],createdAt:at});
+   makeEvent(n,{id:"event:"+seq,kind:"thread.continuation",
+      message:"建立專案續接對話："+title+"，不影響已暫停工作",at,ref:projectId});
+ });
+}
+
 function packet(workspace,uid){
  assertWorkspace(workspace);
  const content=JSON.stringify(workspace,null,2);
@@ -235,5 +313,6 @@ function packet(workspace,uid){
 }
 return {SCHEMA,STATUS_SCHEMA,DEFAULT_STATUSES,registry,statusOf,addCustomStatus,
  createWorkspace,validate,safeImport,addProject,addThread,addMessage,projectMemo,
- addTask,transition,pauseTask,resumeTask,setProgress,setTaskDisplay,addProposal,proposalDecision,addLink,dismissAlert,transferCandidateMap,acceptRelayTransfer,packet};
+ addTask,transition,pauseTask,resumeTask,setProgress,setTaskDisplay,addProposal,proposalDecision,addLink,dismissAlert,transferCandidateMap,acceptRelayTransfer,
+ projectAlerts,continuationSnapshot,continuationText,startContinuation,packet};
 });
