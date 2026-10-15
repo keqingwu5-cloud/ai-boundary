@@ -214,7 +214,8 @@ by("createProject").addEventListener("click",()=>{
  if(w.projects.some(x=>x.id===id)){selectProject(id);by("projectTitle").value="";by("projectGoal").value=""}
 });
 by("createTask").addEventListener("click",()=>{
- assertProject();const id=uid(),at=clock();
+ if(!currentProject()){report("請先建立專案。","taskActionStatus");return}
+ const id=uid(),at=clock();
  commit(()=>core.addTask(w,{id,projectId:activeProject,title:clean(by("taskTitle").value,160),owner:by("taskOwner").value,reason:clean(by("taskReason").value,1000),at}),"已建立任務（本頁手動治理）","taskActionStatus");
  if(w.tasks.some(t=>t.id===id)){by("taskList").value=id;by("taskTitle").value=""}
  renderTasks();
