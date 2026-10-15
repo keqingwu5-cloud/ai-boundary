@@ -42,7 +42,7 @@ footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font
 </head>
 <body>
 <header><div class="header-in"><div class="brand">🧠 AI 認知邊界 · 主腦</div><span class="status">本機記憶可用／雲端未連線</span>
-<nav class="links" aria-label="網站導覽"><a href="./governance-board.html">📁 專案治理</a><a href="./architecture-hub.html">🧩 架構圖</a><a href="./traceback-visual.html">↩ 回溯驗證</a><a href="./memory.html">🗂️ 記憶管理</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 認知大腦</a><a href="./feed.html">短影音</a></nav></div></header>
+<nav class="links" aria-label="網站導覽"><a href="./governance-board.html">📁 專案治理</a><a href="./relay-hub.html">🔗 三方中樞交接</a><a href="./architecture-hub.html">🧩 架構圖</a><a href="./traceback-visual.html">↩ 回溯驗證</a><a href="./memory.html">🗂️ 記憶管理</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 認知大腦</a><a href="./feed.html">短影音</a></nav></div></header>
 <main class="shell">
 <section class="intro"><div class="eyebrow">MAIN BRAIN / REVIEW DRAFT V0.3</div><h1>一個網站、三個 AI、一份共同記憶</h1>
 <p class="lead">GPT① 連續設計問題、GPT② 衍生與模擬、BOT③ 理解目的後執行。三方都能獨立質疑、反證、建立模型；主腦管理候選記憶、分歧與版本。</p>
@@ -50,6 +50,7 @@ footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font
 <div class="tabbar" role="tablist" aria-label="主腦功能">
 <button type="button" role="tab" id="t-overview" data-tab="overview" aria-controls="p-overview" aria-selected="true">系統總覽</button>
 <button type="button" role="tab" id="t-workspace" data-tab="workspace" aria-controls="p-workspace" aria-selected="false">專案工作台</button>
+<button type="button" role="tab" id="t-relay" data-tab="relay" aria-controls="p-relay" aria-selected="false">三方交接節點</button>
 <button type="button" role="tab" id="t-tasks" data-tab="tasks" aria-controls="p-tasks" aria-selected="false">三方協作</button>
 <button type="button" role="tab" id="t-memory" data-tab="memory" aria-controls="p-memory" aria-selected="false">記憶管理</button>
 <button type="button" role="tab" id="t-diff" data-tab="diff" aria-controls="p-diff" aria-selected="false">每日差異</button>
@@ -78,6 +79,15 @@ footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font
 <div class="step"><strong>按需回饋</strong><span>三方檢索與手機差異</span></div>
 </div><p class="small">中央記憶的「權威」是版本與治理權威，不代表其中所有內容都是真理。</p></div>
 </section>
+<section id="p-relay" role="tabpanel" aria-labelledby="t-relay" hidden>
+<div class="block">
+<h2>中樞交接節點｜三條獨立任務通路</h2>
+<p>從這個工作頁建立一個任務，分別給 GPT①、GPT②、BOT③；回覆須符合原指令 ID。拒絕要附原因、影響及下一步；停止只停止本機追蹤，不會取消遠端 AI。</p>
+<div class="notice">目前尚未連接三個 AI 的正式 API。下方是<strong>人工交接與路徑測試工具</strong>，不會向 AI 真的發送訊息。請在離開前匯出批次 JSON。</div>
+<p><a href="./relay-hub.html">單獨開啟中樞交接節點</a>　<a href="./governance-board.html">在專案治理匯入回報</a></p>
+<iframe title="三方 AI 中樞人工交接節點" src="./relay-hub.html" loading="lazy" style="width:100%;min-height:1080px;border:1px solid #526487;border-radius:14px;background:#0a1323;" referrerpolicy="no-referrer"></iframe>
+<p class="small">主腦內嵌頁面與單獨開啟的頁面不會自動同步；匯入、匯出需經使用者確認。本頁的獨立對話不等於 ChatGPT 已自動接線。</p>
+</div></section>
 <section id="p-tasks" role="tabpanel" aria-labelledby="t-tasks" hidden>
 <h2>三方協作與任務管理</h2><div class="grid">
 <div class="card"><h3>目的優先</h3><p>任務開始前確認 Why、Goal、Context、Action、Limits 與 Feedback。避免為做而做。</p></div>
