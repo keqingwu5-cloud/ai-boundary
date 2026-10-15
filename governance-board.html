@@ -77,7 +77,7 @@ button{font:inherit;border:1px solid #6e8aae;background:#2d496d;color:#f9fbff;bo
  <label for="proposalTitle">候選版塊名稱</label><input id="proposalTitle" maxlength="140" placeholder="例如：獨立資料比對中心">
  <label for="proposalPurpose">用途與完成條件</label><textarea id="proposalPurpose" maxlength="1000" placeholder="要解決哪個問題？如何確認有效？"></textarea>
  <label for="proposalOrigin">從哪個現有節點延伸？</label><select id="proposalOrigin"></select>
- <div class="actions"><button id="addProposal" type="button">新增候選版塊</button></div>
+ <div class="actions"><button id="addProposal" type="button">新增候選版塊</button><button id="exportCandidateMap" type="button">匯出候選版圖供架構導覽套用</button></div>
  <div class="node-map" id="projectMap"></div>
  <div class="cols"><div><label for="linkFrom">新增關聯起點</label><select id="linkFrom"></select></div><div><label for="linkTo">終點</label><select id="linkTo"></select></div></div>
  <label for="linkKind">新增關係類型</label><select id="linkKind"><option value="handoff">交接路徑</option><option value="branch">分支規劃</option><option value="depends_on">依賴關係（非因果證明）</option></select>
@@ -262,6 +262,14 @@ by("saveMemo").addEventListener("click",()=>{
 by("addProposal").addEventListener("click",()=>{
  const id=uid();commit(()=>core.addProposal(w,{id,projectId:activeProject,title:clean(by("proposalTitle").value,140),purpose:clean(by("proposalPurpose").value,1000),fromNode:by("proposalOrigin").value,at:clock()}),"已加入候選版塊。視覺淡化，尚未接線。","proposalStatus");
  if(w.proposals.some(x=>x.id===id)){by("proposalTitle").value="";by("proposalPurpose").value=""}
+});
+by("exportCandidateMap").addEventListener("click",()=>{
+ try{
+  assertProject();const payload=core.transferCandidateMap(w,activeProject);
+  if(!payload.nodes.length)throw Error("目前沒有候選版塊可交接");
+  download(payload,"tcvl-future-candidate-map.json");
+  report("已觸發候選版圖下載；到「架構圖」按匯入候選版圖。節點仍然是虛化、未接線。","proposalStatus");
+ }catch(e){report("無法匯出："+e.message,"proposalStatus")}
 });
 by("addLink").addEventListener("click",()=>{
  commit(()=>core.addLink(w,{id:uid(),from:by("linkFrom").value,to:by("linkTo").value,kind:by("linkKind").value,at:clock()}),"已增加候選關聯，不覆蓋原有路徑。","proposalStatus");
