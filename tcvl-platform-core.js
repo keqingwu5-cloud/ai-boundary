@@ -57,7 +57,7 @@ function validate(w){
  for(const n of w.proposals)if(!projectIds.has(n.projectId)||!val(n.title,140)||!val(n.purpose,1000)||!val(n.fromNode,120)||!["candidate","review","rejected","approved_plan"].includes(n.stage))errs.push("proposal_invalid");
  for(const l of w.links)if(!val(l.from,120)||!val(l.to,120)||!["handoff","depends_on","branch"].includes(l.kind)||!["candidate","planned"].includes(l.stage))errs.push("link_invalid");
  for(const e of w.events)if(!val(e.kind,100)||!val(e.message,1000)||!val(e.at,40))errs.push("event_invalid");
- for(const a of w.alerts)if(!val(a.reason,1000)||!val(a.impact,1000)||!val(a.next,1000)||!val(a.at,40)||!val(a.category,60))errs.push("alert_invalid");
+ for(const a of w.alerts)if(!val(a.reason,1000)||!val(a.impact,1000)||!val(a.next,1000)||!val(a.at,40)||!val(a.category,60)||(a.projectId!=null&&!projectIds.has(a.projectId)))errs.push("alert_invalid");
  return [...new Set(errs)];
 }
 function assertWorkspace(w){const errors=validate(w);if(errors.length)throw Error("工作空間內容不合法："+errors.join(", "));}
@@ -233,7 +233,8 @@ function projectAlerts(w,projectId,{unreadOnly=false}={}){
                       ...w.proposals.filter(p=>p.projectId===projectId).map(p=>p.id)]);
  return w.alerts.filter(a=>{
    if(a.projectId)return a.projectId===projectId && (!unreadOnly||!a.seen);
-   const isLegacy=refs.has(a.ref)||[...refs].some(ref=>a.ref.startsWith(ref+":"));
+   const ref=typeof a.ref==="string"?a.ref:"";
+   const isLegacy=refs.has(ref)||[...refs].some(id=>ref.startsWith(id+":"));
    return isLegacy && (!unreadOnly||!a.seen);
  });
 }
