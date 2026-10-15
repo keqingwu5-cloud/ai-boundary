@@ -42,7 +42,7 @@ $("unlockButton").addEventListener("click",async()=>{
 });
 $("lockButton").addEventListener("click",async()=>{await writeChain.catch(()=>{});showLocked();feedback("已鎖定記憶庫。");});
 function evt(kind,ref,summary){state.audit.unshift({id:uid(),kind,ref,summary,at:utc()});}
-function queueChange(action){writeChain=writeChain.catch(()=>{}).then(async()=>{if(!state)return;const backup=JSON.stringify(state);try{const msg=await action();await persist();feedback(msg||"變更已加密儲存。");renderAll();}catch(e){state=JSON.parse(backup);feedback("操作未儲存："+(e.message==="vault_too_large"?"記憶庫容量已滿；下載備份不會釋放空間。請暫停新增並等待封存／清理功能。":(e.message||"未知錯誤")));}});}
+function queueChange(action,onSuccess){writeChain=writeChain.catch(()=>{}).then(async()=>{if(!state)return;const backup=JSON.stringify(state);try{const msg=await action();await persist();feedback(msg||"變更已加密儲存。");renderAll();if(typeof onSuccess==="function")onSuccess();}catch(e){state=JSON.parse(backup);feedback("操作未儲存："+(e.message==="vault_too_large"?"記憶庫容量已滿；下載備份不會釋放空間。請暫停新增並等待封存／清理功能。":(e.message||"未知錯誤")));}});}
 const node=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 function appendText(parent,tag,cls,text){const e=node(tag,cls,text);parent.append(e);return e;}
 function action(parent,title,callback,cls){const b=node("button",cls||"",title);b.type="button";b.addEventListener("click",callback);parent.append(b);return b;}
@@ -141,7 +141,7 @@ function reviewApproval(c){
  });
 }
 function reviewRejection(c){const reason=prompt("請輸入拒絕理由，以及原提出者需要修正的方向：");if(reason===null)return;if(!reason.trim()){feedback("拒絕必須說明理由。");return;}if(reason.length>4000){feedback("拒絕理由過長。");return;}
- queueChange(()=>{if(c.status!=="pending")throw Error("已審核");c.status="rejected";c.review={action:"rejected",reason:reason.trim(),at:utc(),verifiedBy:"user_local_manual"};evt("candidate.rejected",c.id,"已拒絕："+reason.slice(0,70));return "拒絕原因已加密儲存；可再修正後重新提交。";});
+ queueChange(()=>{if(c.status!=="pending")throw Error("已審核");c.status="rejected";c.review={action:"rejected",reason:reason.trim(),at:utc(),verifiedBy:"user_local_manual"};evt("candidate.rejected",c.id,"已拒絕："+reason.slice(0,70));return "拒絕原因已加密儲存；可再修正後重新提交。";},()=>document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason:reason.trim(),impact:"可能影響與候選 "+c.id+" 有關的研究與任務，尚需逐一審查。",next:"查看這筆拒絕記錄，按「修正後重新提交」，補充來源與新證據，再核對是否通過。"}})));
 }
 function repair(c){revising=c.id;selectTab("propose");$("eventType").value=c.eventType;renderSelectors();$("parentMemory").value=c.parentId||"";updateFormHint();$("question").value=c.question;$("purpose").value=c.purpose;$("content").value=c.content;$("evidence").value=c.evidence;$("reason").value=c.reason;$("proposer").value=c.proposer;$("evidenceLevel").value=c.evidenceLevel;$("typeHint").textContent="正在修復候選 "+c.id.slice(0,8)+"。請修改內容或理由；新提案會保留與原拒絕版本的關聯。";window.scrollTo({top:0,behavior:"smooth"});}
 function exportJSON(obj,filename){const blob=new Blob([JSON.stringify(obj,null,2)],{type:"application/json;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -259,29 +259,45 @@ function workflowRender(){
  const box=$("workflowList");box.replaceChildren();
  if(!state)return;
  const all=workflowCore.processLatest(state.audit);
- const statuses={queued:"待交接",received:"已接收",in_progress:"進行中",blocked:"阻塞／未完成",refused:"被拒絕",review:"待驗收",done:"已完成"};
+ const statuses={queued:"待交接",received:"已接收",in_progress:"進行中",paused:"已暫停",blocked:"阻塞／未完成",refused:"被拒絕",review:"待驗收",done:"已完成"};
  const summary=appendText(box,"p","small","已記錄任務："+all.length+"；未完成／阻塞："+all.filter(x=>x.status!=="done").length+"；拒絕："+all.filter(x=>x.status==="refused").length);
  for(const x of all.slice(0,30)){
   const row=node("div","card");appendText(row,"b","",x.taskTitle+" · "+x.ref);
-  appendText(row,"p","small",x.actor+"｜"+(statuses[x.status]||x.status)+"｜"+fmtDate(x.at));
+  appendText(row,"p","small",x.actor+"｜"+(x.displayStatus||statuses[x.status]||x.status)+"｜"+fmtDate(x.at));
   if(x.reason)appendText(row,"p","small","證據／原因："+x.reason);
   if(x.nextAction)appendText(row,"p","small","下一步："+x.nextAction);
   box.append(row);
  }
  if(!all.length)appendText(box,"p","small","尚無人工交接的三方任務紀錄。");
 }
+function populateSharedWorkflowStatus(){
+ const selector=$("workflowStatus"),current=selector.value;
+ for(const option of [...selector.querySelectorAll('option[data-tcvl-custom]')])option.remove();
+ const statuses=window.TcvlPlatformShell?.getStatuses()||[];
+ for(const item of statuses.filter(x=>!x.builtIn)){
+  const option=new Option(item.label+"（自訂）","custom:"+item.id);
+  option.dataset.tcvlCustom="true";
+  selector.add(option);
+ }
+ if([...selector.options].some(x=>x.value===current))selector.value=current;
+}
+document.addEventListener("tcvl:statuses-updated",populateSharedWorkflowStatus);
+document.addEventListener("DOMContentLoaded",populateSharedWorkflowStatus);
 $("workflowSave").addEventListener("click",()=>{
  if(!state)return;
  const ref=$("workflowId").value.trim(),taskTitle=$("workflowTitle").value.trim();
- const actor=$("workflowActor").value,status=$("workflowStatus").value;
+ const actor=$("workflowActor").value,chosenStatus=$("workflowStatus").value;
+ const extraStatus=window.TcvlPlatformShell?.getStatuses().find(s=>chosenStatus==="custom:"+s.id);
+ const status=extraStatus?extraStatus.base:chosenStatus;
+ const displayStatus=extraStatus?extraStatus.label:"";
  const reason=$("workflowReason").value.trim(),nextAction=$("workflowNext").value.trim();
  if(!ref||!taskTitle||!reason||!nextAction){feedback("請完整填寫任務ID、標題、證據／原因、下一步。");return;}
  if(!confirm("將這筆任務進度加密保存至本機記憶庫。此操作不代表其他AI已實際接收或完成任務。確定？"))return;
  queueChange(()=>{
-  state.audit.unshift({id:uid(),kind:"workflow.recorded",ref,taskTitle,actor,status,reason,nextAction,at:utc(),summary:taskTitle+"｜"+status});
+  state.audit.unshift({id:uid(),kind:"workflow.recorded",ref,taskTitle,actor,status,displayStatus,reason,nextAction,at:utc(),summary:taskTitle+"｜"+(displayStatus||status)});
   workflowRender();
   return "任務進度已加密保存，舊版本仍保留在事件歷史。";
- });
+ },()=>{if(status==="refused"||status==="blocked")document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason,impact:"任務 "+ref+" 的交付或下游判斷可能受影響，需個別追查。",next:nextAction}}));});
 });
 $("workflowCopy").addEventListener("click",async()=>{
  if(!state)return;
