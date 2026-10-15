@@ -141,3 +141,11 @@ test("relay report to memory candidate remains manual and validates against offi
  const packet={schema:"ai-boundary.memory-pack.v1",items:[{id:"RELAY1",question:"【主腦交接】測試",purpose:"記錄人工交接",content,reason:"未核准",evidence:"人工",evidenceLevel:"hypothesis",eventType:"new_question"}]};
  assert.equal(memory.validatePack(packet).length,1);
 });
+
+test("same response ID reused by different roles cannot pass import validation",()=>{
+ let b=base();
+ b=relay.addResponse(b,{roleId:"GPT1",commandId:"BATCH1:GPT1",text:"甲",source:"人工",id:"R1",at});
+ b=relay.addResponse(b,{roleId:"GPT2",commandId:"BATCH1:GPT2",text:"乙",source:"人工",id:"R2",at});
+ const transfer=relay.transfer(b);transfer.roles[1].responses[0].id="R1";
+ assert.throws(()=>relay.checkTransfer(transfer),/重複 ID/);
+});
