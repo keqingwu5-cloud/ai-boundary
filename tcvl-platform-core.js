@@ -159,6 +159,17 @@ function safeImport(source){
  const w=copy(source),errors=validate(w);if(errors.length)throw Error("工作空間格式錯誤："+errors.join(", "));
  return w;
 }
+function transferCandidateMap(workspace,projectId){
+ assertWorkspace(workspace);
+ const p=workspace.projects.find(x=>x.id===projectId);if(!p)throw Error("選定專案不存在");
+ const proposals=workspace.proposals.filter(x=>x.projectId===projectId);
+ if(proposals.length>30)throw Error("候選版塊過多，請分批匯出");
+ const nodes=proposals.map(x=>({id:x.id,title:x.title,purpose:x.purpose,fromNode:x.fromNode,stage:x.stage}));
+ const proposalIds=new Set(nodes.map(x=>x.id));
+ const links=workspace.links.filter(x=>proposalIds.has(x.from)||proposalIds.has(x.to)).map(x=>({id:x.id,from:x.from,to:x.to,kind:x.kind,stage:"planned"}));
+ return {schema:"tcvl.candidate-map-transfer.v0.1",project:{id:p.id,title:p.title,goal:p.goal},nodes,links,
+  note:"候選版塊／規劃交接；均未啟用接口。須人工審核後才可能納入正式架構。"};
+}
 function packet(workspace,uid){
  assertWorkspace(workspace);
  const content=JSON.stringify(workspace,null,2);
@@ -170,5 +181,5 @@ function packet(workspace,uid){
 }
 return {SCHEMA,STATUS_SCHEMA,DEFAULT_STATUSES,registry,statusOf,addCustomStatus,
  createWorkspace,validate,safeImport,addProject,addThread,addMessage,projectMemo,
- addTask,transition,pauseTask,resumeTask,setProgress,setTaskDisplay,addProposal,proposalDecision,addLink,dismissAlert,packet};
+ addTask,transition,pauseTask,resumeTask,setProgress,setTaskDisplay,addProposal,proposalDecision,addLink,dismissAlert,transferCandidateMap,packet};
 });
