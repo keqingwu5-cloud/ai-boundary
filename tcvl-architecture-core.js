@@ -125,11 +125,40 @@
     const title="紀錄｜"+t.name+"｜"+fields.recordId;
     return memoryPack(title,content,"將紀錄模板作為記憶候選；具體身分及來源仍須人工驗證。","人工提交，來源聲稱未自動認證；待審核、未送達其他 AI。",uid);
   }
+  function normalizeCandidateTransfer(input,existingIds=[]){
+    if(!input||input.schema!=="tcvl.candidate-map-transfer.v0.1"||!input.project||!str(input.project.title,140)||!Array.isArray(input.nodes)||!Array.isArray(input.links)||input.nodes.length>30||input.links.length>100)
+      throw Error("不是有效的候選版圖，或數量過多");
+    const existing=new Set(existingIds),local=new Set(),nodes=[],edges=[];
+    for(const n of input.nodes){
+      if(!n||!validModuleId(n.id)||existing.has(n.id)||local.has(n.id)||!str(n.title,140)||!str(n.purpose,1000)||!validModuleId(n.fromNode)||!["candidate","review","rejected","approved_plan"].includes(n.stage))
+        throw Error("候選節點不完整、重複或與正式節點 ID 衝突");
+      local.add(n.id);
+      nodes.push({id:n.id,n:"NEW",title:n.title,short:n.purpose.slice(0,60),status:"候選規劃／未接線",
+        desc:"規劃所屬專案："+input.project.title+"。原始階段："+n.stage+"。目前沒有已驗收的接口連線。",
+        input:"未來資料來源待設計",work:n.purpose,output:"待驗證的規劃產出",
+        check:"待定義來源與完成標準，不可宣稱已驗證",forward:"依候選版圖關聯進行交接規劃",
+        reverse:"失敗時返回方案提出者並保留版本",links:[]});
+    }
+    const known=new Set([...existing,...local]);
+    const linkKeys=new Set();
+    for(const e of input.links){
+      if(!e||!validModuleId(e.from)||!validModuleId(e.to)||!known.has(e.from)||!known.has(e.to)||e.from===e.to||!["handoff","branch","depends_on"].includes(e.kind))
+        throw Error("候選連線不存在或關聯類型不合法");
+      const key=e.from+"->"+e.to+"#"+e.kind;
+      if(linkKeys.has(key))continue;linkKeys.add(key);
+      edges.push({from:e.from,to:e.to,status:"planned",action:"匯入的"+({"handoff":"交接","branch":"分支","depends_on":"依賴"}[e.kind])+"規劃，尚未接線；不能視為因果或實際傳輸"});
+    }
+    for(const n of input.nodes)if(known.has(n.fromNode)&&n.fromNode!==n.id){
+      const key=n.fromNode+"->"+n.id+"#branch";
+      if(!linkKeys.has(key)){linkKeys.add(key);edges.push({from:n.fromNode,to:n.id,status:"planned",action:"候選版塊原始延伸來源，尚未接線"});}
+    }
+    return {nodes,edges};
+  }
   function filterHistory(history,{showInbound=true,showOutbound=true,kinds=[]}={}) {
     if(!Array.isArray(history))return [];
     return history.filter(x=>x&&typeof x==="object"&&(x.direction==="inbound"?showInbound:x.direction==="outbound"?showOutbound:false)
       &&(!kinds.length||kinds.includes(x.kind)));
   }
   return {SCHEMA,MEMORY_PACK,ARCH_PREFIX,STATUSES,ROUTES,INTERFACES,FIELD_TEMPLATES,
-    validateBlueprint,routePlan,fullArchitectureText,architecturePack,recordPack,filterHistory};
+    validateBlueprint,routePlan,fullArchitectureText,architecturePack,recordPack,filterHistory,normalizeCandidateTransfer};
 });
