@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'self' 'unsafe-inline';style-src 'unsafe-inline';connect-src 'none';img-src 'none';base-uri 'none';form-action 'none'">
+<title>主腦｜獨立功能分支版圖</title>
+<style>
+:root{color-scheme:dark;--bg:#09111f;--panel:#14243c;--panel2:#1b304d;--line:#4d6687;--ink:#f3f7ff;--sub:#c1d2eb;--muted:#b3c5e2}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse 950px 420px at 50% -120px,#24436a,transparent 70%),var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"PingFang TC",sans-serif}
+main{max-width:1120px;margin:0 auto;padding:22px 16px 80px}a{color:#d5e5ff}h1{font-size:clamp(28px,4.8vw,44px);line-height:1.2;margin:12px 0}h2{font-size:20px;margin:0 0 13px}h3{font-size:16px;margin:0}p{color:var(--sub);margin:6px 0 14px}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between}.top a{font-size:13px}.tag{padding:4px 9px;border-radius:999px;border:1px solid #667e9f;font-size:12px;display:inline-block;color:#e3edfc}
+.notice{background:#322b25;border:1px solid #a08a65;border-radius:12px;padding:13px;color:#f5dfba;font-size:13px;margin:20px 0}
+.panel{background:linear-gradient(145deg,#162840,#0e1b2e);border:1px solid var(--line);padding:19px;border-radius:18px;margin:18px 0}
+.brain{text-align:center;border:2px solid #b7cafa;background:#20385a;padding:21px 16px;border-radius:17px;max-width:550px;margin:4px auto 0}
+.brain b{display:block;font-size:21px}.brain small{color:var(--sub)}
+.trunk{height:31px;width:2px;margin:auto;background:#a4b9d8}.crossline{border-top:2px dashed #829abd;max-width:870px;margin:0 auto}
+.branch-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin-top:0}
+.branch-slot{min-width:0;display:flex;flex-direction:column;gap:0}.stem{width:2px;height:25px;background:#8ca8cd;margin:0 auto}
+.branch{background:#14243d;border:1px solid #6b83a5;border-radius:15px;padding:15px;flex:1;transition:border-color .18s,background .18s}
+.branch.active{border:2px solid #c1d5ff;background:#203857}.branch.planned{opacity:.64;filter:saturate(.56);border-style:dashed}.branch.planned.active{opacity:1;filter:none}
+.branch-title{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:5px}
+.branch button{background:#2c4669;border:1px solid #839bbd;border-radius:9px;color:#f4f7ff;padding:7px 10px;cursor:pointer;font:inherit;font-size:13px}
+.branch button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #e1eaff;outline-offset:3px}
+.small{font-size:12px;color:#b6cbe7}.status{font-size:11px;color:#dbebff;border:1px solid #6984a8;border-radius:8px;padding:3px 7px;white-space:normal;max-width:135px;text-align:center}
+.detail{margin-top:10px;border-top:1px solid #516e94;padding-top:11px}.detail dl{display:grid;grid-template-columns:98px 1fr;gap:6px;margin:0}.detail dt{font-size:12px;color:#adc7e9}.detail dd{font-size:13px;margin:0;color:#e6f0ff;overflow-wrap:anywhere}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}.actions a{font-size:13px;padding:7px 11px;background:#29476d;border:1px solid #6f8bb3;border-radius:9px;text-decoration:none}
+.controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.controls label{display:flex;align-items:center;gap:6px;color:#deebff;font-size:13px}
+.controls input{width:18px;height:18px;accent-color:#aac7ff}
+.controls select{font:inherit;background:#102139;color:#eaf4ff;border:1px solid #7790b3;border-radius:8px;padding:6px}
+.link-list{display:grid;gap:9px}.link-row{border-left:3px solid #a5bddb;background:#102138;padding:12px;border-radius:4px 10px 10px 4px}.link-row b{display:block}.link-row p{margin:3px 0}.link-row.planned{border-left-style:dashed;opacity:.74}
+.help{color:#adbfda;font-size:12px}.summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.summary{border:1px solid #647f9e;border-radius:12px;padding:12px;background:#12223a}.summary b{display:block;font-size:23px}.summary small{color:#bfd0e8}
+footer{border-top:1px solid #536987;padding-top:18px;font-size:12px;color:#adc2e0;margin-top:28px}
+@media(max-width:850px){.branch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.crossline{display:none}.stem{height:14px}.summary-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.branch-grid{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr}.panel{padding:15px}main{padding:16px 12px 60px}.detail dl{grid-template-columns:1fr}.detail dd{margin-bottom:8px}}
+@media(prefers-reduced-motion:reduce){.branch{transition:none}}
+</style></head><body>
+<main><header class="top"><span class="tag">MAIN BRAIN · 分支架構 V0.1</span><nav><a href="./mainbrain.html">返回主腦</a>　<a href="./architecture-hub.html">TCVL 詳細架構</a>　<a href="./governance-board.html#projectMap">未來候選版圖</a></nav></header>
+<h1>一個主腦，多條獨立分支。</h1>
+<p>先把每條系統的目的、資料邊界和發展狀態看清楚。主腦只提供<strong>共同入口和關聯導覽</strong>，不強迫各系統共用工作記憶，也不在尚未接線時把它們合併。</p>
+<div class="notice"><strong>這是功能分支的靜態盤點，不是即時 API 健康監測。</strong> 部分分支已提供網頁原型，但 GPT①、GPT②、BOT③ 尚未自動互通；本頁不讀取私人記憶、專案內容或模型訊息。</div>
+<section class="panel" aria-label="主腦功能分支地圖">
+<div class="brain"><b>🧠 主腦｜統一指揮入口</b><small>看狀態、選分支、規劃交接、保留人工核准權限<br>不直接合併各分支資料庫</small></div>
+<div class="trunk"></div><div class="crossline"></div>
+<div class="controls">
+<label><input type="checkbox" id="showPlanned" checked>顯示未接線版塊（淡化）</label>
+<label><input type="checkbox" id="showDetails">展開全部作用</label>
+<label for="branchCategory">檢視範圍</label>
+<select id="branchCategory"><option value="all">全部分支</option><option value="operation">任務／交接</option><option value="verification">驗證／記憶</option><option value="research">研究／候選</option><option value="media">視覺／內容</option></select>
+</div>
+<div id="branchGrid" class="branch-grid"></div>
+</section>
+<section class="panel" aria-label="跨分支路徑與交接狀態">
+<h2>哪些分支可以互相作用？</h2>
+<p>「看得到彼此」不等於「已經串接」。下方只列現階段有明確定義的交接，區分<strong>人工交接</strong>和<strong>規劃中的接口</strong>。</p>
+<div id="relationshipList" class="link-list"></div>
+</section>
+<section class="panel" aria-label="功能邊界摘要">
+<h2>獨立分支的治理規則</h2>
+<div class="summary-grid">
+<div class="summary"><b>01</b><strong>資料獨立</strong><p class="small">架構草稿、專案工作區和加密記憶各留在自己的儲存邊界；透過人工匯出與確認後才交接。</p></div>
+<div class="summary"><b>02</b><strong>任務獨立</strong><p class="small">停止某項工作不會停止對話，也不會停止其他分支；目前不能遠端取消模型 API。</p></div>
+<div class="summary"><b>03</b><strong>接線驗收</strong><p class="small">規劃節點、已核准的規劃和真正接通是三種不同狀態。完成驗證及授權才考慮升級。</p></div>
+</div>
+<div class="actions"><a href="./governance-board.html#projectMap">規劃一條新分支 →</a><a href="./architecture-hub.html">查看 TCVL 的節點與依賴 →</a><a href="./traceback-visual.html">開啟回溯測試 →</a></div>
+</section>
+<footer>主腦分支版圖是未合併的產品設計草稿。各頁可獨立存取；頁面上顯示的流程不是三方 AI 真實收發證明。外部接口、權限、同步與來源驗證尚須另外驗收。</footer>
+</main>
+<script>
+"use strict";
+(function(){
+const branches=[
+{id:"launcher",name:"發射器 Launcher",group:"operation",status:"人工交接",stage:"active",url:"./launcher.html",purpose:"把目標寫成可交付的任務包，人工分享給指定角色。",input:"你的指令、目標、限制、完成條件",output:"指令草稿、人工輸出與回報包",boundary:"未有遠端 AI 接收確認；本頁資料不自動進入加密記憶",next:"後續和三方中樞建立可驗證的收發契約"},
+{id:"relay",name:"三方 AI 中樞",group:"operation",status:"人工交接",stage:"active",url:"./relay-hub.html",purpose:"保留 GPT①、GPT②、BOT③ 各自任務與回報，追蹤來源 ID。",input:"人工建立的三方指令與貼回結果",output:"帶命令 ID 的人工交接封包",boundary:"三方角色是人工聲稱，不是三組 API 已連線",next:"逐步測試身分驗證及真正送達"},
+{id:"projects",name:"專案治理與新對話",group:"operation",status:"本頁暫存",stage:"active",url:"./governance-board.html",purpose:"為專案保留目標、決策、待辦、人工對話與指定工作狀態。",input:"使用者專案與人工輸入",output:"工作空間 JSON、候選版圖、拒絕提醒",boundary:"不同頁面實例不自動同步；離開前必須下載 JSON",next:"為專案建立授權後的持久化與匯入檢查"},
+{id:"tcvl",name:"TCVL 架構與治理",group:"verification",status:"功能原型",stage:"active",url:"./architecture-hub.html",purpose:"理解雙向驗證、交接、反證、修正，以及快速架構和路徑規劃。",input:"人工選擇的架構範本、候選版圖檔",output:"架構圖、設計規格、待審記憶包",boundary:"這裡的規劃關聯不代表真正打通了接口",next:"將每個節點與真實測試事件、接口證據連接"},
+{id:"traceback",name:"TCVL-04 回溯測試",group:"verification",status:"虛構示範",stage:"active",url:"./traceback-visual.html",purpose:"展示原始證據、反證、影響追查及修正前後驗證。",input:"虛構案例與測試條件",output:"可視化時間軸、處置與退回提示",boundary:"目前不讀取實際加密記憶庫，也不是實際 AI 測試結果",next:"先建立經授權的唯讀資料交換，不直接覆寫記憶"},
+{id:"memory",name:"本機加密記憶",group:"verification",status:"本機審核",stage:"active",url:"./memory.html",purpose:"保存候選、拒絕、修正和核准版本，以及加密備份。",input:"使用者明確匯入的候選包與人工核准",output:"本機受控版本、審查歷史、加密備份",boundary:"僅限本機且需解鎖；非雲端跨裝置共同記憶",next:"資料遷移、安全與備份完整回歸驗收"},
+{id:"world",name:"世界模型研究",group:"research",status:"候選規劃／未接線",stage:"planned",url:"./governance-board.html#projectMap",purpose:"研究多組織、多時間尺度的情況、條件與可能因果鏈。",input:"未來由使用者審批的研究任務與外部證據",output:"暫定為研究主張、比較假設、反例與情境模型",boundary:"目前不是已完成並接上 TCVL 的世界模型引擎",next:"先放候選專案，獨立完成資料、機制和誤差驗證"},
+{id:"external",name:"外部 AI／API 接口",group:"research",status:"規劃中／未接線",stage:"planned",url:"./governance-board.html#projectMap",purpose:"未來連接其他模型、工具、資料庫與事件訊息。",input:"預定的授權規則及資料契約",output:"未來的可驗證收發事件",boundary:"尚無已核實的通用跨服務 API 接通或身份驗證",next:"建立安全後端、最小權限、授權、收發回執"},
+{id:"visual",name:"3D 認知大腦",group:"media",status:"獨立視覺頁面",stage:"active",url:"./index.html",purpose:"作為目前認知研究的視覺入口，和 TCVL 的資料處理維持分離。",input:"既有頁面內容與使用者操作",output:"視覺化呈現",boundary:"不等於已接上三方正式共同記憶",next:"未來確認資料來源與權限後才設計交換接口"},
+{id:"feed",name:"短影音／展示",group:"media",status:"獨立展示頁",stage:"active",url:"./feed.html",purpose:"用人類看得懂的內容解釋研究或視覺故事。",input:"已授權公開的素材及示意內容",output:"可見的展示頁面",boundary:"不讀取並公開加密的私人研究及正式工作記錄",next:"若整合架構演示，應以虛構或脫敏且取得授權的資料呈現"}
+];
+const edges=[
+{from:"launcher",to:"relay",mode:"manual",reason:"人工複製指令、用任務 ID 對照回報"},
+{from:"relay",to:"projects",mode:"manual",reason:"人工匯出交接 JSON，再於所屬專案明確匯入"},
+{from:"projects",to:"tcvl",mode:"manual",reason:"候選版圖先匯出／匯入，不會改變原始節點"},
+{from:"tcvl",to:"memory",mode:"manual",reason:"先建立待審記憶包，解鎖後由人審批"},
+{from:"memory",to:"traceback",mode:"planned",reason:"尚無真正授權的唯讀事件連線；回溯頁只有虛構示例"},
+{from:"world",to:"tcvl",mode:"planned",reason:"世界模型先獨立研究，驗證條件後再考慮接上 TCVL"},
+{from:"external",to:"relay",mode:"planned",reason:"API／身份／權限／收發回執尚未接通"}
+];
+const $=id=>document.getElementById(id);
+const make=(tag,cls,txt)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(txt!==undefined)el.textContent=txt;return el};
+const labels={operation:"任務／交接",verification:"驗證／記憶",research:"研究／候選",media:"視覺／內容"};
+function view(){
+ const showPlanned=$("showPlanned").checked,showDetails=$("showDetails").checked,group=$("branchCategory").value;
+ const visible=branches.filter(x=>(showPlanned||x.stage!=="planned")&&(group==="all"||x.group===group));
+ const box=$("branchGrid");box.replaceChildren();
+ if(!visible.length)box.append(make("p","small","目前此篩選沒有分支。"));
+ for(const b of visible){
+  const slot=make("div","branch-slot");
+  slot.append(make("div","stem"));
+  const card=make("article","branch"+(b.stage==="planned"?" planned":""));
+  const heading=make("div","branch-title");heading.append(make("h3","",b.name),make("span","status",b.status));card.append(heading);
+  card.append(make("p","small",b.purpose));
+  const action=make("button","","查看作用及資料邊界");action.type="button";action.setAttribute("aria-expanded",String(showDetails));
+  const details=make("div","detail");details.hidden=!showDetails;
+  const dl=make("dl");for(const [name,value] of [["分類",labels[b.group]],["輸入",b.input],["輸出",b.output],["不可跨越的界線",b.boundary],["下一階段",b.next]]){dl.append(make("dt","",name),make("dd","",value))}
+  details.append(dl);
+  const links=make("div","actions");const a=make("a","",b.stage==="planned"?"前往候選版圖 →":"開啟獨立分支 →");a.href=b.url;links.append(a);details.append(links);
+  action.addEventListener("click",()=>{details.hidden=!details.hidden;action.setAttribute("aria-expanded",String(!details.hidden));card.classList.toggle("active",!details.hidden)});
+  card.append(action,details);slot.append(card);box.append(slot);
+ }
+ const links=$("relationshipList");links.replaceChildren();
+ for(const x of edges.filter(x=>visible.some(b=>b.id===x.from)&&visible.some(b=>b.id===x.to))){
+  const el=make("div","link-row"+(x.mode==="planned"?" planned":""));
+  const n=id=>branches.find(b=>b.id===id).name;
+  el.append(make("b","",n(x.from)+" → "+n(x.to)),make("span","tag",x.mode==="manual"?"人工交接，不自動同步":"尚未接線的規劃"),make("p","small",x.reason));links.append(el);
+ }
+ if(!links.children.length)links.append(make("p","help","此篩選沒有要展示的跨分支交接。分支仍可各自開啟使用。"));
+}
+for(const id of ["showPlanned","showDetails","branchCategory"])$(id).addEventListener("change",view);
+view();
+})();
+</script>
+<script src="./tcvl-platform-core.js"></script><script src="./tcvl-platform-shell.js"></script>
+</body></html>
