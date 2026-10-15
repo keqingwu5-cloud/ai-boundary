@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'self' 'unsafe-inline';style-src 'unsafe-inline';connect-src 'none';img-src 'none';base-uri 'none';form-action 'none'">
+<title>TCVL｜三方 AI 中樞交接節點</title>
+<style>
+:root{color-scheme:dark;--bg:#08111f;--panel:#162740;--line:#466183;--soft:#bcd0e9;--ink:#f2f7ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse 960px 350px at 50% -90px,#26446b,transparent 78%),var(--bg);font:14px/1.65 system-ui,-apple-system,"PingFang TC",sans-serif;color:var(--ink)}
+main{max-width:1080px;margin:auto;padding:22px 16px 65px}a{color:#e2ecff}h1{font-size:clamp(27px,4vw,42px);line-height:1.3;margin:12px 0}h2{font-size:19px;margin:0 0 8px}h3{font-size:16px;margin:0 0 6px}
+p,.small{color:var(--soft)}.small{font-size:12px}.pill{display:inline-block;border:1px solid #667da4;padding:4px 9px;border-radius:99px;font-size:12px;color:#d6e5ff}
+.notice{border:1px solid #9d815e;border-radius:12px;background:#352c20;color:#ffeac7;padding:13px;margin:15px 0}
+.panel{border:1px solid var(--line);background:linear-gradient(150deg,#172a44,#111e30);border-radius:17px;padding:18px;margin:15px 0;min-width:0}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:13px}.roles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.role{padding:15px;border-radius:14px;border:1px solid #607c9e;background:#112039;min-width:0}.role.paused{opacity:.65}.role.rejected{border:2px solid #c99c7c}.role.reported_unverified{border:2px solid #85bda8}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.btns{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+label{display:block;font-size:13px;margin:9px 0 4px;color:#dce8ff;font-weight:600}
+input,textarea,select{width:100%;font:inherit;background:#091727;color:white;border:1px solid #6780a5;border-radius:10px;padding:10px;min-width:0}
+textarea{min-height:75px;resize:vertical;line-height:1.6}textarea.long{min-height:110px}
+button{font:inherit;border-radius:9px;padding:8px 13px;background:#2a476e;border:1px solid #718fb4;color:#f3f8ff;cursor:pointer}
+button.primary{background:#4f6d9f}button:disabled{opacity:.5;cursor:default}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #c2d5fa;outline-offset:3px}
+pre{background:#0a1729;border:1px solid #3d5476;padding:13px;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;font-size:12px;line-height:1.7}
+.statusline{font-size:12px;color:#bdcfe7}.log{display:grid;gap:8px}.event{border-left:3px solid #849fc6;background:#12243a;padding:9px 12px;border-radius:5px 10px 10px 5px;font-size:12px}
+.rejection{border-color:#d8a880;background:#30251f;color:#ffe8ce}.help{background:#0e1b2d;border-radius:9px;padding:9px;font-size:12px;color:#cadcf5}
+.hidden{display:none!important}
+@media(max-width:800px){.roles,.cols{grid-template-columns:1fr}.panel{padding:14px}}
+</style></head>
+<body><main>
+<div class="row"><span class="pill">TCVL｜中樞交接節點 V0.1</span><a href="./mainbrain.html#workspace">主腦工作台</a><a href="./governance-board.html">專案治理</a><a href="./launcher.html">原發射器</a><a href="./architecture-hub.html">架構圖</a></div>
+<h1>一次建立三份獨立指令，逐條回收結果</h1>
+<p>GPT① 負責問題與整合、GPT② 負責反證、BOT③ 負責測試。同一個中樞節點統一記錄原指令識別碼、人工交接、回覆、拒絕、停止與修正。</p>
+<div class="notice" role="note"><strong>目前只能人工交接，沒有遠端 AI 自動發送或自動收訊。</strong> 點「發射」會複製指令供你手動貼給指定 AI；即使複製成功，仍不能標成「AI 已收到」。回報的作者身分也未經驗證。此頁不會讀寫加密記憶庫，也不會儲存專案到 localStorage；關閉前請匯出 JSON。勿貼入密碼、私人資料或機密 API 金鑰。</div>
+<section class="panel" aria-label="建立中樞任務">
+<h2>一、建立與專案關聯的三方任務</h2>
+<div class="cols">
+ <div><label for="projectId">現有專案 ID（必填，需與專案治理一致）</label><input id="projectId" placeholder="例：P1" maxlength="100"></div>
+ <div><label for="projectTitle">任務／專案名稱</label><input id="projectTitle" maxlength="140" placeholder="例：主腦架構可靠性測試"></div>
+</div>
+<label for="objective">共同研究目標</label><textarea id="objective" maxlength="2500" placeholder="要研究什麼？什麼是已知與未知？"></textarea>
+<label for="context">必要背景（只複製你選擇提供的內容）</label><textarea id="context" maxlength="2800" placeholder="只填此任務需要的公開或已授權摘要；請勿加入秘密"></textarea>
+<div class="cols">
+ <div><label for="completion">完成條件</label><textarea id="completion" maxlength="1200" placeholder="每方須提供的交付內容及證據標準"></textarea></div>
+ <div><label for="stop">停止或退回條件</label><textarea id="stop" maxlength="1200" placeholder="無新證據、權限不足、工作不可重現時如何停下並回報"></textarea></div>
+</div>
+<div class="btns"><button type="button" id="make" class="primary">建立三方交接節點</button><button type="button" id="exportBatch">匯出完整進度 JSON</button><button type="button" id="importBatch">載入以前的交接批次</button></div>
+<input id="batchFile" type="file" accept=".json,application/json" hidden>
+<div id="createStatus" class="small" role="status">尚未建立交接批次。</div>
+</section>
+<section class="panel" aria-label="三個 AI 的獨立路徑">
+<h2>二、三方發射與接收通路</h2><p>以下各方都有自己的原指令、工作狀態與回報。停止其中一個角色，不影響其他角色，也不會中斷專案對話。</p>
+<div id="roleCards" class="roles"></div>
+<div id="roleStatus" class="small" role="status"></div>
+</section>
+<section class="panel" aria-label="回報與拒絕登記">
+<h2>三、回報確認、拒絕與停止</h2>
+<div class="cols">
+<div><label for="roleSelect">指定哪個角色？</label><select id="roleSelect"></select></div>
+<div><label for="commandId">原指令 ID（必須符合選定角色）</label><input id="commandId" maxlength="125" readonly></div>
+</div>
+<label for="reply">手動貼回的 AI 回應（身分仍未驗證）</label><textarea id="reply" class="long" maxlength="8000" placeholder="只貼已獲授權分享的回覆；未提交前不會存到工作區"></textarea>
+<label for="source">回報來源聲稱</label><input id="source" maxlength="150" value="使用者手動貼回；AI 身分未驗證">
+<div class="btns"><button id="recordReply" type="button" class="primary">記錄對應回報</button><button type="button" id="loadLauncher">匯入舊發射器回報 JSON</button></div>
+<input id="launcherFile" type="file" accept=".json,application/json" hidden>
+<div class="cols">
+ <div><label for="rejectReason">拒絕／出錯原因</label><input id="rejectReason" maxlength="1200" placeholder="例如：證據來源不完整"></div>
+ <div><label for="rejectImpact">影響範圍</label><input id="rejectImpact" maxlength="1200" placeholder="哪些任務、結論需要重新審查"></div>
+</div>
+<label for="rejectNext">可行下一步</label><input id="rejectNext" maxlength="1200" placeholder="補證、退回 GPT②、BOT③ 重測或人工決策">
+<div class="btns"><button type="button" id="reject" class="primary">拒絕並立即提醒</button><button type="button" id="pause">停止指定工作（僅本機）</button><button type="button" id="resume">恢復本機工作追蹤</button></div>
+<div id="roleNotice" class="notice hidden" role="alert"></div>
+</section>
+<section class="panel" aria-label="回中樞工作報告">
+<h2>四、回主腦中樞的驗證與交接</h2>
+<div class="cols"><div><h3>目前三方結果</h3><pre id="summary">尚未建立批次。</pre></div>
+<div><h3>回溯事件紀錄</h3><div id="events" class="log"><p>尚無事件。</p></div></div></div>
+<div class="btns"><button type="button" id="exportTransfer" class="primary">匯出三方回報至專案治理</button><button type="button" id="exportMemory">匯出待審記憶候選</button><a href="./governance-board.html">到專案治理匯入並審核 →</a><a href="./memory.html">記憶審核 →</a></div>
+<p id="handoffStatus" class="small" role="status"></p>
+<p class="help">通路狀態：平台內封包與識別碼核對可以測試；三個 AI 的實際收訊、遠端取消、服務端身分驗證尚未接通。只有真正取得服務端回執後，未來才能將「待交接」升格為「已收到」。</p>
+</section>
+</main>
+<script src="./tcvl-relay-core.js"></script><script src="./tcvl-platform-core.js"></script><script src="./tcvl-platform-shell.js"></script>
+<script>
+(function(){"use strict";
+const core=globalThis.TcvlRelayCore,projectCore=globalThis.TcvlPlatformCore;
+const $=id=>document.getElementById(id);
+let batch=null,sequence=0;
+const date=()=>new Date().toISOString(),newId=p=>(p+"-"+Date.now().toString(36)+"-"+(++sequence));
+const node=(tag,text,css)=>{const a=document.createElement(tag);if(text!==undefined)a.textContent=text;if(css)a.className=css;return a};
+function info(text,id="roleStatus"){$(id).textContent=text}
+function saveAs(data,name){
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json;charset=utf-8"});
+ const link=document.createElement("a"),url=URL.createObjectURL(blob);link.href=url;link.download=name;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function copyText(text){
+ if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);return}
+ const field=document.createElement("textarea");field.value=text;field.style.cssText="position:fixed;left:-10000px";document.body.append(field);field.select();
+ const ok=document.execCommand("copy");field.remove();if(!ok)throw Error("無法複製。請下載指令 JSON 再人工交接");
+}
+function roleText(r){
+ const c=r.command;
+ return ["【TCVL 中樞人工交接】","原指令 ID："+c.command_id,"接收角色："+c.recipient,"狀態：待交接，未證實 AI 收到","任務："+c.title,c.instructions,"完成條件："+c.completion_criteria,"停止或退回："+c.stop_and_escalation,c.response_requirements].join("\n\n");
+}
+function updateRoleSelect(){
+ const previous=$("roleSelect").value,select=$("roleSelect");select.replaceChildren();
+ for(const role of core.ROLES){const option=node("option",role.label+"｜"+role.duty);option.value=role.id;select.append(option)}
+ select.value=core.ROLES.some(r=>r.id===previous)?previous:"GPT1";
+ const match=batch?.roles.find(r=>r.id===select.value);$("commandId").value=match?.command.command_id||"";
+}
+function render(){
+ $("roleCards").replaceChildren();
+ if(!batch){info("請先建立三方任務。");$("summary").textContent="尚未建立批次。";$("events").replaceChildren();$("events").append(node("p","尚無事件"));updateRoleSelect();return}
+ for(const role of core.ROLES){
+  const r=batch.roles.find(x=>x.id===role.id),card=node("div",undefined,"role "+r.state);
+  card.append(node("h3",role.label+"｜"+role.duty));
+  card.append(node("p","狀態："+({prepared:"待交接",manual_handoff:"已複製／分享，未證實收到",reported_unverified:"已記錄回報，待查核",rejected:"已拒絕",paused:"本機已暫停"}[r.state]),"statusline"));
+  card.append(node("p","原指令："+r.command.command_id,"small"));
+  const actions=node("div",undefined,"btns"),select=node("button","選擇角色"),send=node("button","發射＝複製指令","primary"),download=node("button","下載指令");
+  select.type=send.type=download.type="button";
+  select.addEventListener("click",()=>{$("roleSelect").value=role.id;updateRoleSelect();$("reply").focus()});
+  send.disabled=r.state==="paused"||r.state==="rejected"||r.state==="reported_unverified";
+  send.addEventListener("click",async()=>{
+   try{await copyText(roleText(r));batch=core.recordHandoff(batch,{roleId:role.id,at:date()});render();info(role.label+" 指令已複製，請貼至相應 AI。沒有送達或身分回執。")}
+   catch(e){info("發射未完成："+e.message)}
+  });
+  download.addEventListener("click",()=>{saveAs(r.command,"tcvl-command-"+role.id+".json");info("已觸發指令下載。仍未證實送達 "+role.label)});
+  actions.append(select,send,download);card.append(actions);
+  if(r.rejection){const e=node("p","拒絕原因："+r.rejection.reason+"｜影響："+r.rejection.impact+"｜下一步："+r.rejection.next,"small");e.className="rejection";card.append(e)}
+  if(r.responses.length)card.append(node("p","已記錄 "+r.responses.length+" 份人工回報，作者身分未經驗證。","small"));
+  $("roleCards").append(card);
+ }
+ updateRoleSelect();
+ const sum=core.summary(batch),lines=["專案："+batch.projectTitle+" ("+batch.projectId+")","批次："+batch.id,"總結："+sum.decision,"人工已記錄回報："+sum.count.reported_unverified+"/3","實際 AI 收到的已驗證回執：0/3","已驗證 AI 作者身分：0/3","正式核准：否",...batch.roles.map(r=>core.ROLES.find(x=>x.id===r.id).label+"："+r.state)];
+ $("summary").textContent=lines.join("\n");
+ const box=$("events");box.replaceChildren();
+ if(!batch.events.length){box.append(node("p","尚無人工交接事件"));return}
+ for(const event of [...batch.events].reverse().slice(0,30)){const item=node("div",undefined,"event"+(event.kind==="rejected"?" rejection":""));item.append(node("b",event.kind+"｜"+event.role),node("div",event.detail),node("small",event.at));box.append(item)}
+}
+$("make").addEventListener("click",()=>{
+ try{
+  if(batch&&!confirm("這會取代本頁尚未匯出的三方批次，確定已備份？"))return;
+  batch=core.createBatch({id:newId("relay"),projectId:$("projectId").value.trim(),projectTitle:$("projectTitle").value.trim(),objective:$("objective").value.trim(),context:$("context").value.trim(),completion:$("completion").value.trim(),stop:$("stop").value.trim(),createdAt:date()});
+  render();info("已建立 3 個獨立角色的原始指令。尚未送出。","createStatus");$("roleNotice").classList.add("hidden");
+ }catch(e){info("無法建立："+e.message,"createStatus")}
+});
+$("roleSelect").addEventListener("change",updateRoleSelect);
+$("recordReply").addEventListener("click",()=>{
+ if(!batch){info("請先建立批次");return}
+ try{batch=core.addResponse(batch,{roleId:$("roleSelect").value,commandId:$("commandId").value,at:date(),text:$("reply").value.trim(),source:$("source").value.trim(),id:newId("reply")});$("reply").value="";render();info("已綁定原指令並記錄回報；仍待身分與內容查核。");}
+ catch(e){info("回報被拒絕："+e.message)}
+});
+$("reject").addEventListener("click",()=>{
+ if(!batch){info("尚未建立批次");return}
+ try{
+  const reason=$("rejectReason").value.trim(),impact=$("rejectImpact").value.trim(),next=$("rejectNext").value.trim(),roleId=$("roleSelect").value;
+  batch=core.reject(batch,{roleId,at:date(),reason,impact,next});render();
+  const notice=$("roleNotice");notice.classList.remove("hidden");notice.textContent="已拒絕 "+core.ROLES.find(x=>x.id===roleId).label+"｜原因："+reason+"｜影響："+impact+"｜下一步："+next;
+  notice.focus();info("已保留拒絕與修正要求。");
+ }catch(e){info("拒絕登記未完成："+e.message)}
+});
+$("pause").addEventListener("click",()=>{
+ if(!batch){info("尚未建立批次");return}
+ try{batch=core.pause(batch,{roleId:$("roleSelect").value,at:date(),reason:"使用者指定停止交接追蹤"});render();info("已停止本機工作追蹤。對話仍可繼續；不能遠端取消已送指令。")}
+ catch(e){info("停止未完成："+e.message)}
+});
+$("resume").addEventListener("click",()=>{if(!batch){info("尚未建立批次");return}try{batch=core.resume(batch,{roleId:$("roleSelect").value,at:date()});render();info("已恢復本機追蹤，不會自動重新向 AI 發射。")}catch(e){info("恢復失敗："+e.message)}});
+$("exportBatch").addEventListener("click",()=>{if(!batch){info("沒有可以匯出的批次","createStatus");return}saveAs(batch,"tcvl-relay-batch-"+batch.id+".json");info("已觸發批次 JSON 下載，請確認裝置已保存。","createStatus")});
+$("importBatch").addEventListener("click",()=> $("batchFile").click());
+$("batchFile").addEventListener("change",async()=>{
+ const file=$("batchFile").files?.[0];if(!file)return;
+ try{if(file.size>120000)throw Error("批次檔超過 120KB");
+  const value=JSON.parse(await file.text());core.assertBatch(value);
+  if(batch&&!confirm("將覆蓋本頁尚未匯出的三方資料，確定？"))return;
+  batch=value;render();info("已載入三方交接批次；仍無 AI 自動收訊。","createStatus")
+ }catch(e){info("匯入失敗："+e.message,"createStatus")}finally{$("batchFile").value=""}
+});
+$("loadLauncher").addEventListener("click",()=> $("launcherFile").click());
+$("launcherFile").addEventListener("change",async()=>{
+ const file=$("launcherFile").files?.[0];if(!file)return;
+ try{if(!batch)throw Error("先建立批次");if(file.size>25000)throw Error("回報檔超過 25KB");
+  const packet=JSON.parse(await file.text());batch=core.ingestLauncherResponse(batch,packet,{roleId:$("roleSelect").value,at:date(),id:newId("reply")});
+  render();info("已按指令 ID 匯入 Launcher 回報，仍是未驗證身分的人工資料。");
+ }catch(e){info("沒有匯入："+e.message)}finally{$("launcherFile").value=""}
+});
+$("exportTransfer").addEventListener("click",()=>{
+ if(!batch){info("請先建立三方批次","handoffStatus");return}
+ const data=core.transfer(batch);saveAs(data,"tcvl-relay-to-governance-"+data.id+".json");
+ info("已觸發三方交接回報下載。到專案治理選相同專案 ID，人工匯入、檢查後再核准。","handoffStatus");
+});
+$("exportMemory").addEventListener("click",()=>{
+ if(!batch){info("請先建立批次","handoffStatus");return}
+ try{
+  const data=core.transfer(batch),report=JSON.stringify(data,null,2);
+  if(report.length>12000)throw Error("報告超出記憶候選單筆上限；請改用完整批次 JSON 存檔");
+  const packet={schema:"ai-boundary.memory-pack.v1",items:[{id:"RELAY-"+newId("record"),question:"【主腦交接】"+batch.projectTitle,purpose:"三方人工交接與回報追溯，不表示遠端 AI 已接收或通過驗證。",content:report,reason:"由使用者在交接節點匯出供人工審核；來源與身分仍未驗證。",evidence:"人工交接紀錄；非自動模型 API 收件回執。",eventType:"new_question",evidenceLevel:"hypothesis"}]};
+  saveAs(packet,"tcvl-relay-memory-candidate.json");info("已觸發待審記憶包下載，沒有直接修改正式記憶。","handoffStatus");
+ }catch(e){info("記憶包匯出失敗："+e.message,"handoffStatus")}
+});
+updateRoleSelect();render();
+})();
+</script>
+</body></html>
