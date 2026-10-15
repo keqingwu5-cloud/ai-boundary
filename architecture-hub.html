@@ -48,6 +48,7 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
 .historywrap[hidden]{display:none}.pathlabel{font-size:12px;color:#c3d5f2}
 #historyFilters{border:1px solid #536787;border-radius:13px;padding:12px;margin:10px 0}
 
+.module-complete{border-color:#7fba9d!important;background:#17392f!important}.completion-panel{border-top:1px solid var(--edge);padding-top:16px;margin-top:16px}.completion-list{display:grid;gap:6px;margin:12px 0}.completion-row{display:flex;justify-content:space-between;gap:10px;align-items:start;background:#0d2034;border:1px solid #526789;border-radius:10px;padding:8px 10px;font-size:13px}.completion-row small{color:var(--dim)}.donebar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:10px 0}.donebar button{font-size:12px;padding:7px 10px}.completion-label{color:#b0e7c6;font-weight:700}
 #builderStatus{min-height:20px}.ghost{background:#1c2e49}
 @media(max-width:800px){.layout{grid-template-columns:1fr}.fields{grid-template-columns:1fr}main{padding:14px 13px 65px}.panel{padding:16px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.node{transition:none}}
@@ -64,6 +65,10 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
   <div class="side-title"><h2>系統如何互相作用</h2><span class="chip">點選節點看細節</span></div>
   <p class="helper">由上而下是一般工作方向；發現問題會反向退回，並把紀錄送回資料治理。</p>
   <div class="stack" id="moduleMap" aria-label="架構模組圖"></div>
+  <div class="panel" style="padding:14px;margin-top:14px" aria-label="已完成模組清單">
+    <h3>✅ 已完成模組</h3><p class="helper">必須六個節點都記錄驗證依據，並經人工核准，才會列在這裡。單一「節點已驗證」不代表模組完成。</p>
+    <div id="completedModules" aria-live="polite"></div>
+  </div>
   <p class="helper">TCVL-04 是跨流程的歷史與影響回溯工具，可從所有階段接收經授權的事件紀錄。</p>
  </div>
  <div class="panel" id="moduleDetail" aria-live="polite" aria-atomic="true">
@@ -71,6 +76,25 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
    <h2 id="detailTitle" style="margin-top:10px">選擇模組</h2>
    <p id="detailPurpose"></p>
    <div class="detailgrid" id="detailGrid"></div>
+   <div class="completion-panel" aria-label="模組完成度管理">
+    <h3>節點驗證與整體完成判定</h3>
+    <p class="helper">節點可標記「待驗證、驗證中、節點已驗證、驗證不成立」。✅ 代表整個模組六個必要節點都有證據且經人工確認；不代表遠端接口自動接通。</p>
+    <div class="donebar"><span class="chip" id="moduleLifecycle">規劃中</span><span id="moduleNodeCount" class="helper">0／6 節點已驗證</span></div>
+    <div class="completion-list" id="moduleCompletionNodes" aria-label="節點驗證記錄"></div>
+    <div class="fields">
+      <div><label for="verifyNode">要記錄的節點</label><select id="verifyNode"></select></div>
+      <div><label for="verifyState">節點驗證狀態</label><select id="verifyState"></select></div>
+    </div>
+    <label for="verifyEvidence">驗證證據／結果引用</label>
+    <textarea id="verifyEvidence" maxlength="1000" placeholder="實際結果、測試案例或證據 ID"></textarea>
+    <div class="miniactions"><button id="saveNodeVerification" type="button">更新節點驗證</button></div>
+    <div class="fields" style="margin-top:12px">
+      <div><label for="completionReviewer">人工驗收人</label><input id="completionReviewer" maxlength="80" placeholder="人工確認者（自填，身分未驗證）"></div>
+      <div><label for="completionReference">整體驗收紀錄／測試報告 ID</label><input id="completionReference" maxlength="250" placeholder="例如：TCVL-TEST-001"></div>
+    </div>
+    <div class="miniactions"><button id="markModuleCompleted" type="button">✅ 確認整個模組已完成</button><button id="reopenCompletedModule" type="button" class="ghost">退回模組重審</button></div>
+    <p class="helper" id="moduleCompletionMessage" role="status">尚未核准任何模組。</p>
+   </div>
    <div class="miniactions">
     <button type="button" id="traceFromModule">用這個節點回溯</button>
     <button type="button" id="useInBuilder">放入快速架構</button>
@@ -191,6 +215,7 @@ footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:v
 <script>
 "use strict";
 (function(){
+const moduleCore=globalThis.TcvlArchitectureCore;
 const modules=[
 {id:"launcher",n:"00",title:"Launcher Hub｜發射器協作入口",short:"接收問題、建立任務、指派角色",status:"部分已實作",desc:"你從同一個平台交辦工作、追蹤任務，未來在此整合多 AI 聊天與接口。現階段仍需人工交接，不能把『複製指令』當成『已送達』。 ",input:"你的問題、目標、限制、期望成果",work:"建立任務 ID 與完成條件；指向適合的 AI 或模組；區分待交接、收到回報和待驗收。",output:"任務指令包、回報草稿、待處理狀態",check:"回報必須綁定原指令；遠端接收身分仍未自動驗證。",forward:"資料治理（TCVL-01）",reverse:"若任務定義模糊，由下游帶問題與證據退回發射器。",links:["governance","collaboration"]},
 {id:"governance",n:"01",title:"TCVL-01｜雙向資料治理",short:"篩選資料、驗證進出、保存來源",status:"部分已實作",desc:"所有入口與出口都經過資料檢查；拒絕的資料可以留存和補證，但不得當成已驗證事實。",input:"原始資料、AI 回報、任務 ID、來源、版本、進出目的",work:"檢查格式、權限、來源聲稱、重複、版本與否決歷史；標記待驗證／衝突／可審查。",output:"分類候選、可信狀態、進出事件與問題清單",check:"現有系統只具備部分格式與本機審核能力；來源真偽及完整雙向事件鏈尚未完成。",forward:"三方協作（TCVL-02）及共同記憶",reverse:"缺來源、權限或必要欄位就退回來源端，留下原因與原始 ID。",links:["launcher","collaboration","vault"]},
@@ -212,11 +237,13 @@ function allModulesById(id){return modules.find(m=>m.id===id)}
 function appendModule(m){
  if(map.children.length)map.append(textNode("div","flowarrow","↓"));
  const b=textNode("button","node"+(m.status==="候選規劃／未接線"?" candidate":""));b.type="button";b.dataset.module=m.id;
+ if(moduleCore&&!m.completion)m.completion=moduleCore.initialModuleCompletion();
  b.append(textNode("span","num",m.n));const desc=textNode("span");desc.append(textNode("strong","",m.title),textNode("small","",m.short));b.append(desc);b.append(textNode("span","chip",m.status));
  b.addEventListener("click",()=>selectModule(m.id));map.append(b);
  const option=document.createElement("option");option.value=m.id;option.textContent=m.title;by("extraModule").append(option);
 }
 modules.forEach(appendModule);
+const completionById=id=>allModulesById(id)?.completion;
 function selectModule(id){
  const m=allModulesById(id);if(!m)return;
  active=id;by("detailNumber").textContent="MODULE "+m.n;by("detailTitle").textContent=m.title;
@@ -226,6 +253,78 @@ function selectModule(id){
  for(const [key,val] of [["這個模組接收什麼？",m.input],["它具體做什麼？",m.work],["做完交出什麼？",m.output],["如何確認沒有誤判？",m.check],["往下一個環節交給誰？",m.forward],["發現錯誤如何退回？",m.reverse]]){
   const row=textNode("div","detailrow");row.append(textNode("span","",key),textNode("p","",val));grid.append(row);
  }
+ renderModuleCompletion();
+}
+
+function renderCompletedList(){
+ const box=by("completedModules");box.replaceChildren();
+ const done=modules.filter(x=>x.completion&&moduleCore?.moduleCompletionSummary(x.completion).completed);
+ if(!done.length){box.append(textNode("p","helper","目前尚無符合整體驗收條件的模組。"));return}
+ for(const m of done){const row=textNode("button","ghost","✅ "+m.title);row.type="button";row.addEventListener("click",()=>selectModule(m.id));box.append(row)}
+}
+function renderModuleCompletion(){
+ if(!moduleCore)return;
+ const m=allModulesById(active);if(!m||!m.completion)return;
+ const record=m.completion,summary=moduleCore.moduleCompletionSummary(record);
+ by("moduleLifecycle").textContent=summary.label;
+ by("moduleLifecycle").className="chip "+(summary.completed?"live":"idea");
+ by("moduleNodeCount").textContent=summary.verified+"／"+summary.total+" 節點已驗證";
+ const wrap=by("moduleCompletionNodes");wrap.replaceChildren();
+ for(const def of moduleCore.NODE_CHECKS){
+  const item=record.nodes.find(x=>x.id===def.id);
+  const row=textNode("div","completion-row");
+  row.append(textNode("span","",def.label),textNode("small","",moduleCore.NODE_STATES[item.state]+(item.evidence?"｜"+item.evidence.slice(0,100):"")));
+  wrap.append(row);
+ }
+ const selected=record.nodes.find(x=>x.id===by("verifyNode").value)||record.nodes[0];
+ by("verifyNode").value=selected.id;
+ by("verifyState").value=selected.state;
+ by("verifyEvidence").value=selected.evidence;
+ by("completionReviewer").value=record.reviewer||"";
+ by("completionReference").value=record.acceptanceRef||"";
+ by("markModuleCompleted").disabled=summary.verified!==summary.total||summary.completed;
+ by("reopenCompletedModule").disabled=!summary.completed;
+ for(const btn of map.querySelectorAll("button.node")){
+  const mod=allModulesById(btn.dataset.module),checked=mod?.completion&&moduleCore.moduleCompletionSummary(mod.completion).completed;
+  btn.classList.toggle("module-complete",!!checked);
+  const badge=btn.children[2];if(badge)badge.textContent=checked?"✅ 已完成（人工確認）":mod.status;
+ }
+ renderCompletedList();
+}
+function setupCompletionControls(){
+ if(!moduleCore){by("moduleCompletionMessage").textContent="驗收規則尚未載入，不能標記整體完成。";return}
+ for(const x of moduleCore.NODE_CHECKS){const o=document.createElement("option");o.value=x.id;o.textContent=x.label;by("verifyNode").append(o)}
+ for(const [id,label] of Object.entries(moduleCore.NODE_STATES)){const o=document.createElement("option");o.value=id;o.textContent=label;by("verifyState").append(o)}
+ by("verifyNode").addEventListener("change",()=>{
+  const n=completionById(active)?.nodes.find(x=>x.id===by("verifyNode").value);
+  if(n){by("verifyState").value=n.state;by("verifyEvidence").value=n.evidence}
+ });
+ by("saveNodeVerification").addEventListener("click",()=>{
+  const m=allModulesById(active);
+  try{
+   m.completion=moduleCore.updateNodeVerification(m.completion,{nodeId:by("verifyNode").value,state:by("verifyState").value,evidence:by("verifyEvidence").value,at:new Date().toISOString()});
+   by("moduleCompletionMessage").textContent="已記錄節點狀態，但不代表整個模組已完成。修改只在本次草稿；要保存請匯出記憶候選包。";
+   renderModuleCompletion();refreshBlueprint();
+  }catch(e){by("moduleCompletionMessage").textContent="無法登錄："+e.message}
+ });
+ by("markModuleCompleted").addEventListener("click",()=>{
+  const m=allModulesById(active);
+  try{
+   m.completion=moduleCore.approveModuleCompletion(m.completion,{reviewer:by("completionReviewer").value,acceptanceRef:by("completionReference").value,at:new Date().toISOString()});
+   by("moduleCompletionMessage").textContent="✅ 已標記為「整體模組完成（人工確認）」。不代表 API 自動接通，請匯出候選記憶包保存。";
+   renderModuleCompletion();refreshBlueprint();
+  }catch(e){by("moduleCompletionMessage").textContent="不能標為已完成："+e.message}
+ });
+ by("reopenCompletedModule").addEventListener("click",()=>{
+  const m=allModulesById(active);
+  try{
+   const reason=prompt("請說明退回重審的原因（會保留歷史）：");
+   if(reason===null)return;
+   m.completion=moduleCore.reopenModuleCompletion(m.completion,{reason,at:new Date().toISOString()});
+   by("moduleCompletionMessage").textContent="已退回重審並取消 ✅ 標示，原先的驗收歷史仍然保留。";
+   renderModuleCompletion();refreshBlueprint();
+  }catch(e){by("moduleCompletionMessage").textContent="退回失敗："+e.message}
+ });
 }
 by("traceFromModule").addEventListener("click",()=>{window.location.href="./traceback-visual.html#"+encodeURIComponent(active)});
 by("useInBuilder").addEventListener("click",()=>{if(!draftIds)draftIds=[...templates[by("blueprintType").value].ids];if(!draftIds.includes(active))draftIds.push(active);refreshBlueprint();by("builderStatus").textContent="已將「"+allModulesById(active).title+"」加入架構預覽。";by("quickBuilder").scrollIntoView({behavior:"smooth",block:"start"})});
@@ -236,7 +335,7 @@ function buildDraft(){
  if(!name)throw Error("請先填寫要完成的目標");
  const ids=draftIds?[...draftIds]:[...t.ids];
  if(!ids.length)throw Error("至少保留一個模組；可用還原範本重新開始");
- const steps=ids.map((id,i)=>({order:i+1,id,title:allModulesById(id).title,status:allModulesById(id).status,input:allModulesById(id).input,action:allModulesById(id).work,output:allModulesById(id).output,check:allModulesById(id).check,forward:allModulesById(id).forward,reverse:allModulesById(id).reverse,next:ids[i+1]||"人工審批／下一輪"}));
+ const steps=ids.map((id,i)=>({order:i+1,id,title:allModulesById(id).title,status:allModulesById(id).status,completion:allModulesById(id).completion?JSON.parse(JSON.stringify(allModulesById(id).completion)):null,input:allModulesById(id).input,action:allModulesById(id).work,output:allModulesById(id).output,check:allModulesById(id).check,forward:allModulesById(id).forward,reverse:allModulesById(id).reverse,next:ids[i+1]||"人工審批／下一輪"}));
  return {schema:"tcvl.quick-blueprint.v0.1",name,template:by("blueprintType").value,stage:"concept_only_not_deployed",steps,reverseRule:t.reverse,verificationGates:t.gates};
 }
 function refreshBlueprint(){
@@ -425,7 +524,7 @@ by("downloadRecordPack").addEventListener("click",()=>{
 function allArchitectureDraft(){
  const list=[...modules];
  return {schema:"tcvl.quick-blueprint.v0.1",name:"主腦完整架構｜Launcher Hub × TCVL",template:"research",stage:"concept_only_not_deployed",
-  steps:list.map((m,i)=>({order:i+1,id:m.id,title:m.title,status:m.status,input:m.input,action:m.work,output:m.output,check:m.check,forward:m.forward,reverse:m.reverse,next:list[i+1]?.id||"人工審批／後續研究"})),
+  steps:list.map((m,i)=>({order:i+1,id:m.id,title:m.title,status:m.status,completion:m.completion?JSON.parse(JSON.stringify(m.completion)):null,input:m.input,action:m.work,output:m.output,check:m.check,forward:m.forward,reverse:m.reverse,next:list[i+1]?.id||"人工審批／後續研究"})),
   reverseRule:"任何進站、送出、反證、否決及修正應保留原始 ID、時間、版本與退回目標；不能將接口示範視為實際送達。",
   verificationGates:"雙向來源與身分查核、拒絕與修正歷史、時間隔離、獨立三方驗證、修正後重測、人工核准、加密保存及備份驗收。"};
 }
@@ -472,7 +571,7 @@ if(architectureCore){
  by("recordMessage").textContent="缺少架構核心程式，暫停建立紀錄";
  by("memoryMessage").textContent="缺少架構核心程式，不能匯出候選記憶包";
 }
-selectModule("launcher");refreshBlueprint();if(architectureCore)renderRoute();
+setupCompletionControls();selectModule("launcher");refreshBlueprint();if(architectureCore)renderRoute();
 })();
 </script>
 <script src="./tcvl-platform-core.js"></script>
