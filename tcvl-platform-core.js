@@ -7,6 +7,8 @@
 "use strict";
 const SCHEMA="tcvl.project-workspace.v0.1";
 const STATUS_SCHEMA="tcvl.status-registry.v0.1";
+const GATE_PHASES=new Set(["before","after","failure"]);
+const GATE_DECISIONS=new Set(["pass","hold","reject"]);
 const LABELS={
  queued:{label:"待交接",group:"pending"},
  received:{label:"已確認接收",group:"active"},
@@ -56,7 +58,19 @@ function validate(w){
  for(const t of w.tasks)if(!projectIds.has(t.projectId)||!val(t.title,160)||!val(t.reason,1000)||!Object.prototype.hasOwnProperty.call(LABELS,t.status)||!val(t.owner,80))errs.push("task_invalid");
  for(const n of w.proposals)if(!projectIds.has(n.projectId)||!val(n.title,140)||!val(n.purpose,1000)||!val(n.fromNode,120)||!["candidate","review","rejected","approved_plan"].includes(n.stage))errs.push("proposal_invalid");
  for(const l of w.links)if(!val(l.from,120)||!val(l.to,120)||!["handoff","depends_on","branch"].includes(l.kind)||!["candidate","planned"].includes(l.stage))errs.push("link_invalid");
- for(const e of w.events)if(!val(e.kind,100)||!val(e.message,1000)||!val(e.at,40))errs.push("event_invalid");
+ for(const e of w.events){
+  if(!val(e.kind,100)||!val(e.message,1000)||!val(e.at,40))errs.push("event_invalid");
+  if(e.kind?.startsWith("gate.")){
+   const g=e.gate;
+   if(!g||!idOk(g.id)||!GATE_PHASES.has(g.phase)||!GATE_DECISIONS.has(g.decision)||
+      !Array.isArray(g.conditions)||g.conditions.length>16||
+      !val(g.action,80)||!val(g.reason,1000)||!val(g.impact,1000)||!val(g.next,1000)||
+      !val(g.source,60)||!Number.isInteger(g.revisionBefore)||!Number.isInteger(g.revisionAfter)||
+      g.conditions.some(x=>!idOk(x.id)||typeof x.required!=="boolean"||typeof x.passed!=="boolean"||
+        typeof x.actual!=="boolean"||typeof x.expected!=="boolean"||
+        x.passed!==(x.actual===x.expected)||!val(x.description,200)))errs.push("gate_event_invalid");
+  }
+ }
  for(const a of w.alerts)if(!val(a.reason,1000)||!val(a.impact,1000)||!val(a.next,1000)||!val(a.at,40)||!val(a.category,60)||(a.projectId!=null&&!projectIds.has(a.projectId)))errs.push("alert_invalid");
  return [...new Set(errs)];
 }
@@ -90,7 +104,6 @@ function gateConditions(w,{action,projectId,expectedRevision,source}={}){
  ];
 }
 function gateDecision(checks){
- const failed=checks.filter(c=>c.required&&!c.actual===c.expected); // replaced by explicit comparison below
  const missed=checks.filter(c=>c.required&&c.actual!==c.expected);
  return missed.length?{decision:missed.some(c=>c.id==="scope_authorized"||c.id==="version_fresh")?"reject":"hold",
    reason:missed.map(c=>c.description).join("；"),
@@ -117,7 +130,7 @@ function retainedHistory(oldW,newW){
 }
 function gateEvent({id,at,action,projectId,phase,decision,checks,reason,impact,next,source,revisionBefore,revisionAfter}){
  return {id:"gate:"+phase+":"+id,kind:"gate."+phase,
-  message:"門檻 "+(decision==="pass"?"通過":decision==="hold"?"保留待補證":"拒絕")+"｜"+action+"｜"+reason,
+  message:("門檻 "+(decision==="pass"?"通過":decision==="hold"?"保留待補證":"拒絕")+"｜"+action+"｜"+reason).slice(0,1000),
   at,ref:projectId||"workspace",gate:{id,action,projectId:projectId||null,at,phase,decision,
    conditions:checks.map(c=>({...c,passed:c.actual===c.expected})),
    reason,impact,next,source,revisionBefore,revisionAfter}};
@@ -151,7 +164,7 @@ function runGatedChange(w,{id,at,action,projectId="",expectedRevision,source="us
   if(candidate.revision<=w.revision)throw Error("更新未增加版次");
   if(!retainedHistory(w,candidate))throw Error("發現舊對話、歷史、事件、關聯或版本被覆蓋");
  }catch(e){
-  return failure("執行／變更後門檻未通過："+String(e?.message||e));
+  return failure(("執行／變更後門檻未通過："+String(e?.message||e)).slice(0,980));
  }
  const afterChecks=[
   {id:"schema_valid",description:"更新後整個工作空間資料格式有效",expected:true,actual:true,required:true},
