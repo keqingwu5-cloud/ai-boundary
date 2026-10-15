@@ -143,3 +143,60 @@ test("original structures don't change when update returns new version",()=>{
  c.addThread(before,{id:"T",projectId:"P1",title:"新對話",at:t});
  assert.equal(JSON.stringify(before),same);
 });
+
+test("continuation overview preserves project goal, decisions, todos and paused progress",()=>{
+ let w=addTask(start());
+ w=c.addThread(w,{id:"TH1",projectId:"P1",title:"第一輪",at:t});
+ w=c.setProgress(w,{taskId:"T1",progress:"已完成 2/3 項審核"});
+ w=c.pauseTask(w,{taskId:"T1",seq:id(),at:t});
+ w=c.projectMemo(w,{id:"D1",projectId:"P1",kind:"decision",text:"保留兩個競爭假設",at:t});
+ w=c.projectMemo(w,{id:"TD1",projectId:"P1",kind:"todo",text:"補充來源",at:t});
+ const brief=c.continuationSnapshot(w,{projectId:"P1",threadId:"TH1"});
+ assert.equal(brief.fromThreadId,"TH1");
+ assert.equal(brief.tasks[0].status,"paused");
+ assert.equal(brief.tasks[0].progress,"已完成 2/3 項審核");
+ assert.equal(brief.decisions[0].text,"保留兩個競爭假設");
+ assert.match(c.continuationText(brief),/補充來源/);
+});
+test("new continuation chat keeps previous chat and does not resume a paused task",()=>{
+ let w=addTask(start());
+ w=c.addThread(w,{id:"TH1",projectId:"P1",title:"原對話",at:t});
+ w=c.pauseTask(w,{taskId:"T1",seq:id(),at:t});
+ const before=w.revision;
+ const next=c.startContinuation(w,{id:"TH2",projectId:"P1",fromThreadId:"TH1",title:"第二輪續接",at:t,seq:id()});
+ assert.equal(w.revision,before);
+ assert.equal(next.tasks[0].status,"paused");
+ assert.equal(next.threads.length,2);
+ assert.equal(next.threads[1].parentThreadId,"TH1");
+ assert.match(next.threads[1].messages[0].text,/不是 AI 回覆/);
+ assert.match(next.events.at(-1)?.kind||next.events[0].kind,/thread.continuation|project.created/);
+});
+test("continuation cannot borrow a thread belonging to another project",()=>{
+ let w=start();
+ w=c.addProject(w,{id:"P2",title:"第二專案",goal:"隔離資料",at:t});
+ w=c.addThread(w,{id:"OTHER",projectId:"P2",title:"不屬於本專案的對話",at:t});
+ assert.throws(()=>c.continuationSnapshot(w,{projectId:"P1",threadId:"OTHER"}),/不屬於/);
+ assert.throws(()=>c.startContinuation(w,{id:"TH2",projectId:"P1",fromThreadId:"OTHER",title:"跨專案錯誤",at:t,seq:id()}),/不屬於/);
+});
+test("refusals belong to one project and appear in that project's continuation summary",()=>{
+ let w=addTask(start());
+ w=c.addProject(w,{id:"P2",title:"第二專案",goal:"另一個工作",at:t});
+ w=c.addTask(w,{id:"T2",projectId:"P2",title:"獨立測試",owner:"GPT②",reason:"不同案例",at:t});
+ w=c.transition(w,{taskId:"T1",status:"refused",reason:"來源不可靠",impact:"T1 受阻",next:"補原始數據",at:t,seq:id()});
+ w=c.transition(w,{taskId:"T2",status:"blocked",reason:"測試工具失效",impact:"T2 無法交接",next:"修復工具",at:t,seq:id()});
+ assert.equal(c.projectAlerts(w,"P1").length,1);
+ assert.equal(c.projectAlerts(w,"P2").length,1);
+ const a=c.continuationSnapshot(w,{projectId:"P1"}).alerts;
+ assert.equal(a.length,1);
+ assert.equal(a[0].reason,"來源不可靠");
+ assert.match(c.continuationText(c.continuationSnapshot(w,{projectId:"P1"})),/補原始數據/);
+});
+test("marking an alert seen preserves history while removing unread indicator",()=>{
+ let w=addTask(start());
+ w=c.transition(w,{taskId:"T1",status:"blocked",reason:"需補證",impact:"未能驗收",next:"補來源",at:t,seq:id()});
+ const aid=w.alerts[0].id;
+ const next=c.dismissAlert(w,{alertId:aid});
+ assert.equal(c.projectAlerts(next,"P1").length,1);
+ assert.equal(c.projectAlerts(next,"P1",{unreadOnly:true}).length,0);
+ assert.ok(next.events.some(x=>x.kind==="task.blocked"));
+});
