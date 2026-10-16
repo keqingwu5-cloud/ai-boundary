@@ -230,7 +230,7 @@ function transition(w,{taskId,status,reason,impact,next,at,seq}){
   const t=n.tasks.find(x=>x.id===taskId);if(!t)throw Error("找不到指定任務");
   if(t.status==="done"&&status!=="review")throw Error("已結案任務須重新審查，不能直接改寫完成狀態");
   if(t.status==="paused"&&status==="done")throw Error("已暫停的任務不能直接跳到完成");
-  const old=t.status;t.status=status;t.reason=reason;delete t.displayStatus;t.history.push({at,status,reason,previous:old});
+  const old=t.status;t.status=status;t.reason=reason;delete t.displayStatus;delete t.displayStatusId;t.history.push({at,status,reason,previous:old});
   makeEvent(n,{id:"event:"+seq,kind:"task."+status,message:t.title+"："+reason,at,ref:taskId});
   if(requiresAttention)alert(n,{id:"alert:"+seq,at,category:status,reason,impact,next,ref:taskId,projectId:t.projectId});
  });
@@ -249,9 +249,14 @@ function setProgress(w,{taskId,progress}){
  if(!val(progress,1000))throw Error("進度描述不可為空");
  return update(w,n=>{const t=n.tasks.find(x=>x.id===taskId);if(!t)throw Error("任務不存在");t.progress=progress});
 }
-function setTaskDisplay(w,{taskId,label}){
- if(!val(label,48))throw Error("自訂狀態顯示名稱無效");
- return update(w,n=>{const t=n.tasks.find(x=>x.id===taskId);if(!t)throw Error("任務不存在");t.displayStatus=label;});
+function setTaskDisplay(w,{taskId,label,statusId=""}){
+ if(!val(label,48)||(statusId&&!idOk(statusId)))throw Error("自訂狀態名稱或 ID 無效");
+ return update(w,n=>{
+  const t=n.tasks.find(x=>x.id===taskId);if(!t)throw Error("任務不存在");
+  t.displayStatus=label;
+  if(statusId)t.displayStatusId=statusId;
+  else delete t.displayStatusId;
+ });
 }
 function addProposal(w,{id,projectId,title,purpose,fromNode,at}){
  if(!val(title,140)||!val(purpose,1000)||!val(fromNode,120)||!val(at,40))throw Error("候選版塊缺少用途與來源");
