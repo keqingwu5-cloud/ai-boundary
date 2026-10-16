@@ -412,9 +412,11 @@ function routeName(id){
 }
 function refreshRouteSelectors(){
  const start=by("routeStart"),end=by("routeEnd"),oldStart=start.value||"launcher",oldEnd=end.value||"vault";
- for(const el of [start,end]){el.replaceChildren();for(const m of modules){const opt=document.createElement("option");opt.value=m.id;opt.textContent=m.title;el.append(opt)}}
- start.value=modules.some(x=>x.id===oldStart)?oldStart:"launcher";
- end.value=modules.some(x=>x.id===oldEnd)?oldEnd:"vault";
+ for(const el of [start,end]){el.replaceChildren();for(const m of modules){const opt=document.createElement("option");opt.value=m.id;opt.textContent=m.title;el.append(opt)}
+  const dataRoom=document.createElement("option");dataRoom.value="data_room";dataRoom.textContent="跨模組｜資料室治理索引（非原檔保管）";el.append(dataRoom);
+ }
+ start.value=modules.some(x=>x.id===oldStart)||oldStart==="data_room"?oldStart:"launcher";
+ end.value=modules.some(x=>x.id===oldEnd)||oldEnd==="data_room"?oldEnd:"vault";
 }
 function renderInterfaceCards(){
  const core=assertCore(),box=by("interfaceCards");box.replaceChildren();
