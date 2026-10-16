@@ -137,7 +137,8 @@ pre{background:#0a1729;border:1px solid #3d5476;padding:13px;border-radius:12px;
 (function(){"use strict";
 const core=globalThis.TcvlRelayCore,projectCore=globalThis.TcvlPlatformCore,dataCore=globalThis.TcvlDataRoomCore;
 const $=id=>document.getElementById(id);
-let batch=null,room=null,sequence=0;
+let batch=null,room=null,sequence=0,lastExportedBatch=null,lastExportedRoom=null;
+function hasPendingLocalChanges(){return (batch!==null&&JSON.stringify(batch)!==lastExportedBatch)||(room!==null&&JSON.stringify(room)!==lastExportedRoom)}
 const date=()=>new Date().toISOString(),newId=p=>(p+"-"+Date.now().toString(36)+"-"+(++sequence));
 const node=(tag,text,css)=>{const a=document.createElement(tag);if(text!==undefined)a.textContent=text;if(css)a.className=css;return a};
 function info(text,id="roleStatus"){$(id).textContent=text}
@@ -225,14 +226,14 @@ $("pause").addEventListener("click",()=>{
  catch(e){info("停止未完成："+e.message)}
 });
 $("resume").addEventListener("click",()=>{if(!batch){info("尚未建立批次");return}try{batch=core.resume(batch,{roleId:$("roleSelect").value,at:date()});render();info("已恢復本機追蹤，不會自動重新向 AI 發射。")}catch(e){info("恢復失敗："+e.message)}});
-$("exportBatch").addEventListener("click",()=>{if(!batch){info("沒有可以匯出的批次","createStatus");return}saveAs(batch,"tcvl-relay-batch-"+batch.id+".json");info("已觸發批次 JSON 下載，請確認裝置已保存。","createStatus")});
+$("exportBatch").addEventListener("click",()=>{if(!batch){info("沒有可以匯出的批次","createStatus");return}saveAs(batch,"tcvl-relay-batch-"+batch.id+".json");lastExportedBatch=JSON.stringify(batch);info("已觸發批次 JSON 下載，請確認裝置已保存。治理索引若另有變更，仍須分別匯出。","createStatus")});
 $("importBatch").addEventListener("click",()=> $("batchFile").click());
 $("batchFile").addEventListener("change",async()=>{
  const file=$("batchFile").files?.[0];if(!file)return;
  try{if(file.size>120000)throw Error("批次檔超過 120KB");
   const value=JSON.parse(await file.text());core.assertBatch(value);
   if(batch&&!confirm("將覆蓋本頁尚未匯出的三方資料，確定？"))return;
-  batch=value;room=dataCore.createRoom({projectId:batch.projectId,batchId:batch.id,title:batch.projectTitle,at:date()});render();info("已載入三方交接批次。若有資料室治理紀錄，請再匯入同一批次的索引 JSON。","createStatus")
+  batch=value;room=dataCore.createRoom({projectId:batch.projectId,batchId:batch.id,title:batch.projectTitle,at:date()});lastExportedBatch=JSON.stringify(batch);lastExportedRoom=JSON.stringify(room);render();info("已載入三方交接批次。若有資料室治理紀錄，請再匯入同一批次的索引 JSON。","createStatus")
  }catch(e){info("匯入失敗："+e.message,"createStatus")}finally{$("batchFile").value=""}
 });
 $("loadLauncher").addEventListener("click",()=> $("launcherFile").click());
@@ -369,7 +370,7 @@ $("reviewRoomSubmission").addEventListener("click",()=>{
  }catch(e){roomStatus("審核未完成："+e.message)}
 });
 $("exportRoom").addEventListener("click",()=>{
- try{ensureRoom();saveAs(room,"tcvl-data-room-index-"+room.batchId+".json");
+ try{ensureRoom();saveAs(room,"tcvl-data-room-index-"+room.batchId+".json");lastExportedRoom=JSON.stringify(room);
   roomStatus("已觸發下載資料室索引 JSON。裡面只有原檔引用與人工紀錄，不含原檔本體。請與三方批次 JSON 一同安全保存。");
  }catch(e){roomStatus(e.message)}
 });
@@ -383,7 +384,7 @@ $("roomFile").addEventListener("change",async()=>{
   if(parsed.projectId!==batch.projectId||parsed.batchId!==batch.id)throw Error("索引與目前三方任務的專案或批次 ID 不符，禁止混用");
   if(room&&(room.originals.length||room.submissions.length||room.assignments.length)&&
     !confirm("將取代本頁尚未匯出的治理索引。請確認已先備份原始 JSON，是否繼續？"))return;
-  room=parsed;renderDataRoom();render();roomStatus("已載入相同批次的治理索引。來源及 AI 身分仍未經自動驗證。");
+  room=parsed;lastExportedRoom=JSON.stringify(room);renderDataRoom();render();roomStatus("已載入相同批次的治理索引。來源及 AI 身分仍未經自動驗證。");
  }catch(e){roomStatus("匯入未完成："+e.message)}finally{$("roomFile").value=""}
 });
 $("exportRoomCandidate").addEventListener("click",()=>{
@@ -393,6 +394,10 @@ $("exportRoomCandidate").addEventListener("click",()=>{
   saveAs(packet,"tcvl-data-room-memory-candidate.json");
   roomStatus("已觸發待審記憶包下載。請到加密記憶庫人工匯入，並進行審核；原始檔本體未轉入記憶。");
  }catch(e){roomStatus("無法匯出候選："+e.message)}
+});
+window.addEventListener("beforeunload",event=>{
+ if(!hasPendingLocalChanges())return;
+ event.preventDefault();event.returnValue="";
 });
 updateRoleSelect();render();
 })();
