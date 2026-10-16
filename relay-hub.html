@@ -44,7 +44,7 @@ pre{background:#0a1729;border:1px solid #3d5476;padding:13px;border-radius:12px;
 <section class="panel" aria-label="建立中樞任務">
 <h2>一、建立與專案關聯的三方任務</h2>
 <div class="cols">
- <div><label for="projectId">現有專案 ID（必填，需與專案治理一致）</label><input id="projectId" placeholder="例：P1" maxlength="100"></div>
+ <div><label for="projectId">專案 ID（可留空，由發射器建立）</label><input id="projectId" placeholder="留空自動建立；或輸入既有專案 ID" maxlength="100"><p class="small">不必先開專案治理頁。若將來要把三方結果匯入既有專案，請使用同一個專案 ID。</p></div>
  <div><label for="projectTitle">任務／專案名稱</label><input id="projectTitle" maxlength="140" placeholder="例：主腦架構可靠性測試"></div>
 </div>
 <label for="objective">共同研究目標</label><textarea id="objective" maxlength="2500" placeholder="要研究什麼？什麼是已知與未知？"></textarea>
@@ -149,7 +149,9 @@ function render(){
 $("make").addEventListener("click",()=>{
  try{
   if(batch&&!confirm("這會取代本頁尚未匯出的三方批次，確定已備份？"))return;
-  batch=core.createBatch({id:newId("relay"),projectId:$("projectId").value.trim(),projectTitle:$("projectTitle").value.trim(),objective:$("objective").value.trim(),context:$("context").value.trim(),completion:$("completion").value.trim(),stop:$("stop").value.trim(),createdAt:date()});
+  const projectId=$("projectId").value.trim()||newId("project");
+  batch=core.createBatch({id:newId("relay"),projectId,projectTitle:$("projectTitle").value.trim(),objective:$("objective").value.trim(),context:$("context").value.trim(),completion:$("completion").value.trim(),stop:$("stop").value.trim(),createdAt:date()});
+  $("projectId").value=projectId;
   render();info("已建立 3 個獨立角色的原始指令。尚未送出。","createStatus");$("roleNotice").classList.add("hidden");
  }catch(e){info("無法建立："+e.message,"createStatus")}
 });
