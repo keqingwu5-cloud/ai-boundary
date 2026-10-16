@@ -135,9 +135,9 @@ pre{background:#0a1729;border:1px solid #3d5476;padding:13px;border-radius:12px;
 <script src="./tcvl-data-room-core.js"></script><script src="./tcvl-relay-core.js"></script><script src="./tcvl-platform-core.js"></script><script src="./tcvl-platform-shell.js"></script>
 <script>
 (function(){"use strict";
-const core=globalThis.TcvlRelayCore,projectCore=globalThis.TcvlPlatformCore;
+const core=globalThis.TcvlRelayCore,projectCore=globalThis.TcvlPlatformCore,dataCore=globalThis.TcvlDataRoomCore;
 const $=id=>document.getElementById(id);
-let batch=null,sequence=0;
+let batch=null,room=null,sequence=0;
 const date=()=>new Date().toISOString(),newId=p=>(p+"-"+Date.now().toString(36)+"-"+(++sequence));
 const node=(tag,text,css)=>{const a=document.createElement(tag);if(text!==undefined)a.textContent=text;if(css)a.className=css;return a};
 function info(text,id="roleStatus"){$(id).textContent=text}
@@ -151,8 +151,8 @@ async function copyText(text){
  const ok=document.execCommand("copy");field.remove();if(!ok)throw Error("無法複製。請下載指令 JSON 再人工交接");
 }
 function roleText(r){
- const c=r.command;
- return ["【TCVL 中樞人工交接】","原指令 ID："+c.command_id,"接收角色："+c.recipient,"狀態：待交接，未證實 AI 收到","任務："+c.title,c.instructions,"完成條件："+c.completion_criteria,"停止或退回："+c.stop_and_escalation,c.response_requirements].join("\n\n");
+ const c=r.command,assignment=room?.assignments?.find(x=>x.roleId===r.id);
+ return ["【TCVL 中樞人工交接】","對應責任人："+(assignment?.owner||"尚未指派（待治理）"),"資料整理責任："+(assignment?.duty||"待填"),"人工審核者："+(assignment?.reviewer||"待指派"),"原指令 ID："+c.command_id,"接收角色："+c.recipient,"狀態：待交接，未證實 AI 收到","任務："+c.title,c.instructions,"完成條件："+c.completion_criteria,"停止或退回："+c.stop_and_escalation,c.response_requirements].join("\n\n");
 }
 function updateRoleSelect(){
  const previous=$("roleSelect").value,select=$("roleSelect");select.replaceChildren();
@@ -162,12 +162,15 @@ function updateRoleSelect(){
 }
 function render(){
  $("roleCards").replaceChildren();
- if(!batch){info("請先建立三方任務。");$("summary").textContent="尚未建立批次。";$("events").replaceChildren();$("events").append(node("p","尚無事件"));updateRoleSelect();return}
+ if(!batch){info("請先建立三方任務。");$("summary").textContent="尚未建立批次。";$("events").replaceChildren();$("events").append(node("p","尚無事件"));updateRoleSelect();renderDataRoom();return}
  for(const role of core.ROLES){
   const r=batch.roles.find(x=>x.id===role.id),card=node("div",undefined,"role "+r.state);
   card.append(node("h3",role.label+"｜"+role.duty));
   card.append(node("p","狀態："+({prepared:"待交接",manual_handoff:"已複製／分享，未證實收到",reported_unverified:"已記錄回報，待查核",rejected:"已拒絕",paused:"本機已暫停"}[r.state]),"statusline"));
   card.append(node("p","原指令："+r.command.command_id,"small"));
+  const assigned=room?.assignments.find(a=>a.roleId===role.id),reports=room?.submissions.filter(x=>x.roleId===role.id)||[];
+  card.append(node("p","對應負責人："+(assigned?.owner||"尚未指派")+"｜治理審核："+(assigned?.reviewer||"待指派"),"statusline"));
+  card.append(node("p","資料室上交："+reports.length+" 份，作者身分皆待查核；原檔索引不等於已保存原檔。","small"));
   const actions=node("div",undefined,"btns"),select=node("button","選擇角色"),send=node("button","發射＝複製指令","primary"),download=node("button","下載指令");
   select.type=send.type=download.type="button";
   select.addEventListener("click",()=>{$("roleSelect").value=role.id;updateRoleSelect();$("reply").focus()});
@@ -177,12 +180,14 @@ function render(){
    catch(e){info("發射未完成："+e.message)}
   });
   download.addEventListener("click",()=>{saveAs(r.command,"tcvl-command-"+role.id+".json");info("已觸發指令下載。仍未證實送達 "+role.label)});
-  actions.append(select,send,download);card.append(actions);
+  const assignButton=node("button","查看責任／上交");assignButton.type="button";
+  assignButton.addEventListener("click",()=>{$("roomRoleSelect").value=role.id;$("dataRoomCenter").scrollIntoView({behavior:"smooth",block:"start"});});
+  actions.append(select,send,download,assignButton);card.append(actions);
   if(r.rejection){const e=node("p","拒絕原因："+r.rejection.reason+"｜影響："+r.rejection.impact+"｜下一步："+r.rejection.next,"small");e.className="rejection";card.append(e)}
   if(r.responses.length)card.append(node("p","已記錄 "+r.responses.length+" 份人工回報，作者身分未經驗證。","small"));
   $("roleCards").append(card);
  }
- updateRoleSelect();
+ updateRoleSelect();renderDataRoom();
  const sum=core.summary(batch),lines=["專案："+batch.projectTitle+" ("+batch.projectId+")","批次："+batch.id,"總結："+sum.decision,"人工已記錄回報："+sum.count.reported_unverified+"/3","實際 AI 收到的已驗證回執：0/3","已驗證 AI 作者身分：0/3","正式核准：否",...batch.roles.map(r=>core.ROLES.find(x=>x.id===r.id).label+"："+r.state)];
  $("summary").textContent=lines.join("\n");
  const box=$("events");box.replaceChildren();
@@ -195,6 +200,7 @@ $("make").addEventListener("click",()=>{
   const projectId=$("projectId").value.trim()||newId("project");
   batch=core.createBatch({id:newId("relay"),projectId,projectTitle:$("projectTitle").value.trim(),objective:$("objective").value.trim(),context:$("context").value.trim(),completion:$("completion").value.trim(),stop:$("stop").value.trim(),createdAt:date()});
   $("projectId").value=projectId;
+  room=dataCore.createRoom({projectId:batch.projectId,batchId:batch.id,title:batch.projectTitle,at:date()});
   render();info("已建立 3 個獨立角色的原始指令。尚未送出。","createStatus");$("roleNotice").classList.add("hidden");
  }catch(e){info("無法建立："+e.message,"createStatus")}
 });
@@ -226,7 +232,7 @@ $("batchFile").addEventListener("change",async()=>{
  try{if(file.size>120000)throw Error("批次檔超過 120KB");
   const value=JSON.parse(await file.text());core.assertBatch(value);
   if(batch&&!confirm("將覆蓋本頁尚未匯出的三方資料，確定？"))return;
-  batch=value;render();info("已載入三方交接批次；仍無 AI 自動收訊。","createStatus")
+  batch=value;room=dataCore.createRoom({projectId:batch.projectId,batchId:batch.id,title:batch.projectTitle,at:date()});render();info("已載入三方交接批次。若有資料室治理紀錄，請再匯入同一批次的索引 JSON。","createStatus")
  }catch(e){info("匯入失敗："+e.message,"createStatus")}finally{$("batchFile").value=""}
 });
 $("loadLauncher").addEventListener("click",()=> $("launcherFile").click());
