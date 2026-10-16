@@ -21,6 +21,7 @@ button{font:inherit;border-radius:9px;padding:8px 13px;background:#2a476e;border
 button.primary{background:#4f6d9f}button:disabled{opacity:.5;cursor:default}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #c2d5fa;outline-offset:3px}
 pre{background:#0a1729;border:1px solid #3d5476;padding:13px;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;font-size:12px;line-height:1.7}
 .statusline{font-size:12px;color:#bdcfe7}.log{display:grid;gap:8px}.event{border-left:3px solid #849fc6;background:#12243a;padding:9px 12px;border-radius:5px 10px 10px 5px;font-size:12px}
+.roomcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.roomrole{border:1px solid #6085a3;border-radius:12px;padding:13px;background:#11233a}.roomrole h3{font-size:15px}.roomrole p{font-size:12px}.room-record{padding:12px;border:1px solid #577794;background:#102238;border-radius:11px;margin:8px 0}.room-record small{color:#bed3eb}.room-record[aria-disabled=true]{opacity:.7}.room-entry{border-left:3px solid #87b9c9;padding:9px 13px;margin:8px 0;background:#132a3c}.room-entry.reject{border-left-color:#deb38c}.room-role-status{font-size:12px;color:#c9deef;margin:8px 0}.room-warning{font-size:12px;padding:11px;border-radius:9px;border:1px solid #a68c68;background:#302920;color:#ffe7bf}@media(max-width:800px){.roomcards{grid-template-columns:1fr}}
 .rejection{border-color:#d8a880;background:#30251f;color:#ffe8ce}.help{background:#0e1b2d;border-radius:9px;padding:9px;font-size:12px;color:#cadcf5}
 .hidden{display:none!important}
 @media(max-width:800px){.roles,.cols{grid-template-columns:1fr}.panel{padding:14px}}
@@ -62,8 +63,50 @@ pre{background:#0a1729;border:1px solid #3d5476;padding:13px;border-radius:12px;
 <div id="roleCards" class="roles"></div>
 <div id="roleStatus" class="small" role="status"></div>
 </section>
+<section class="panel" id="dataRoomCenter" aria-label="三方 AI 負責人與資料室治理">
+<h2>三、AI 對應人員與資料室治理</h2>
+<p>每位 AI 都有自己的<strong>對應人員、整理責任、人工審核者與上交清單</strong>。原檔與整理稿分離；修正、拒絕、重測不覆寫原始資料。</p>
+<div class="room-warning" role="note">目前是<strong>原檔治理索引（僅元資料）</strong>：這個公開展示網站不會上傳、儲存或託管原始檔。請將原檔保留在你控制的私人資料室或加密儲存位置。這裡只記錄資料 ID、版本、保管人及人工聲稱的參照位置；不能把「已登記」說成「已安全保存」。工作紀錄需另行匯出 JSON。</div>
+<div id="roomRoles" class="roomcards" aria-label="每個 AI 的對應負責人卡片"></div>
+<h3>原始檔案索引｜保留來源，不覆蓋原檔</h3>
+<div class="cols">
+<div><label for="originalId">原檔 ID</label><input id="originalId" maxlength="120" placeholder="例如：SOURCE-001"></div>
+<div><label for="originalTitle">原檔名稱／內容概要</label><input id="originalTitle" maxlength="200" placeholder="例如：原始研究記錄"></div>
+<div><label for="originalLocator">私人資料室中的識別碼／索引位置</label><input id="originalLocator" maxlength="350" placeholder="僅填代號；勿填私人網址、密碼或 API 金鑰"></div>
+<div><label for="originalCustodian">原檔保管人</label><input id="originalCustodian" maxlength="120" placeholder="人工填寫，身分尚未核實"></div>
+<div><label for="originalVersion">不可覆蓋的原始版本</label><input id="originalVersion" maxlength="90" placeholder="v1 / 2026-10-16"></div>
+<div><label for="originalHash">SHA-256（選填，必須為已核對的 64 字元十六進位值）</label><input id="originalHash" maxlength="64" placeholder="選填；此處不替你驗證檔案內容"></div>
+</div>
+<div class="btns"><button id="registerOriginal" type="button">新增原檔治理索引</button></div>
+<div id="roomOriginalList"></div>
+<h3>各 AI 整理結果上交</h3>
+<div class="cols">
+<div><label for="roomRoleSelect">上交角色</label><select id="roomRoleSelect"><option value="GPT1">GPT① 統籌</option><option value="GPT2">GPT② 反證</option><option value="BOT3">BOT③ 測試</option></select></div>
+<div><label for="roomOriginalSelect">對應原始檔（每次至少一份）</label><select id="roomOriginalSelect"></select></div>
+<div><label for="roomSource">整理稿來源聲稱</label><input id="roomSource" maxlength="220" value="使用者人工整理／貼回，AI 身分尚未驗證"></div>
+<div><label for="roomSummary">整理結論／做了什麼</label><textarea id="roomSummary" maxlength="4000" placeholder="整理內容與已完成的工作"></textarea></div>
+<div><label for="roomEvidence">證據與檢驗方式</label><textarea id="roomEvidence" maxlength="2000" placeholder="原始資料、對照、測試及可信程度"></textarea></div>
+<div><label for="roomGaps">拒絕、異議、錯誤與未知</label><textarea id="roomGaps" maxlength="1500" placeholder="沒有問題也請說明依據；不可默默刪除反證"></textarea></div>
+</div>
+<label for="roomNext">下一步與退回對象</label><textarea id="roomNext" maxlength="1500" placeholder="需要誰補資料或核准？再驗證什麼？"></textarea>
+<div class="btns"><button id="submitRoleRoom" type="button" class="primary">整理並登記上交（待人工審核）</button></div>
+<h3>上交審核與修正歷史</h3>
+<div class="cols">
+<div><label for="roomSubmissionSelect">待審或已記錄的上交 ID</label><select id="roomSubmissionSelect"></select></div>
+<div><label for="roomDecision">審核處置</label><select id="roomDecision"><option value="under_review">正在審查</option><option value="rejected">拒絕（保留原紀錄）</option><option value="revision_requested">退回修正</option><option value="approved_for_archive">人工同意歸檔（不等於事實成立）</option></select></div>
+<div><label for="roomReviewer">人工審核人</label><input id="roomReviewer" maxlength="120" placeholder="不得把 AI 自稱當作已驗證人員"></div>
+<div><label for="roomReviewReason">理由</label><input id="roomReviewReason" maxlength="1500" placeholder="支持與反證"></div>
+<div><label for="roomReviewImpact">影響範圍</label><input id="roomReviewImpact" maxlength="1500" placeholder="可能需要重審的任務／記憶"></div>
+<div><label for="roomReviewNext">可行下一步</label><input id="roomReviewNext" maxlength="1500" placeholder="退回誰、補什麼證據"></div>
+</div>
+<div class="btns"><button id="reviewRoomSubmission" type="button">記錄本次審核／退回</button><button id="exportRoom" type="button">匯出資料室治理索引 JSON</button><button id="importRoom" type="button">匯入已保存的治理索引</button><button id="exportRoomCandidate" type="button">匯出選定上交的待審記憶候選</button></div>
+<input type="file" id="roomFile" accept=".json,application/json" hidden>
+<div id="roomSubmissionList" class="log"></div>
+<div id="roomMessage" class="statusline" role="status">先建立三方任務，再指派每個 AI 的對應人員及原檔索引。</div>
+<p class="help">資料流：原檔留在私人資料室 → 人工在此建立原檔索引 → 對應 AI 工作摘要由負責人登記 → 人工審查 → 以記憶候選包交給加密記憶庫。此處不提供遠端 AI 自動上交，也不包含真正的原始檔備份。</p>
+</section>
 <section class="panel" aria-label="回報與拒絕登記">
-<h2>三、回報確認、拒絕與停止</h2>
+<h2>四、回報確認、拒絕與停止</h2>
 <div class="cols">
 <div><label for="roleSelect">指定哪個角色？</label><select id="roleSelect"></select></div>
 <div><label for="commandId">原指令 ID（必須符合選定角色）</label><input id="commandId" maxlength="125" readonly></div>
@@ -81,7 +124,7 @@ pre{background:#0a1729;border:1px solid #3d5476;padding:13px;border-radius:12px;
 <div id="roleNotice" class="notice hidden" role="alert"></div>
 </section>
 <section class="panel" aria-label="回中樞工作報告">
-<h2>四、回主腦中樞的驗證與交接</h2>
+<h2>五、回主腦中樞的驗證與交接</h2>
 <div class="cols"><div><h3>目前三方結果</h3><pre id="summary">尚未建立批次。</pre></div>
 <div><h3>回溯事件紀錄</h3><div id="events" class="log"><p>尚無事件。</p></div></div></div>
 <div class="btns"><button type="button" id="exportTransfer" class="primary">匯出三方回報至專案治理</button><button type="button" id="exportMemory">匯出待審記憶候選</button><a href="./governance-board.html">到專案治理匯入並審核 →</a><a href="./memory.html">記憶審核 →</a></div>
@@ -89,7 +132,7 @@ pre{background:#0a1729;border:1px solid #3d5476;padding:13px;border-radius:12px;
 <p class="help">通路狀態：平台內封包與識別碼核對可以測試；三個 AI 的實際收訊、遠端取消、服務端身分驗證尚未接通。只有真正取得服務端回執後，未來才能將「待交接」升格為「已收到」。</p>
 </section>
 </main>
-<script src="./tcvl-relay-core.js"></script><script src="./tcvl-platform-core.js"></script><script src="./tcvl-platform-shell.js"></script>
+<script src="./tcvl-data-room-core.js"></script><script src="./tcvl-relay-core.js"></script><script src="./tcvl-platform-core.js"></script><script src="./tcvl-platform-shell.js"></script>
 <script>
 (function(){"use strict";
 const core=globalThis.TcvlRelayCore,projectCore=globalThis.TcvlPlatformCore;
