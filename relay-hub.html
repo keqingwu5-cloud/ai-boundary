@@ -30,6 +30,17 @@ pre{background:#0a1729;border:1px solid #3d5476;padding:13px;border-radius:12px;
 <h1>一次建立三份獨立指令，逐條回收結果</h1>
 <p>GPT① 負責問題與整合、GPT② 負責反證、BOT③ 負責測試。同一個中樞節點統一記錄原指令識別碼、人工交接、回覆、拒絕、停止與修正。</p>
 <div class="notice" role="note"><strong>目前只能人工交接，沒有遠端 AI 自動發送或自動收訊。</strong> 點「發射」會複製指令供你手動貼給指定 AI；即使複製成功，仍不能標成「AI 已收到」。回報的作者身分也未經驗證。此頁不會讀寫加密記憶庫，也不會儲存專案到 localStorage；關閉前請匯出 JSON。勿貼入密碼、私人資料或機密 API 金鑰。</div>
+<details class="panel" id="dispatchRules" aria-label="三方分工發射規章">
+<summary style="cursor:pointer;font-weight:700">查看 V1 三方分工規章與本輪完成條件</summary>
+<p>本階段只做「建立共同目標、產生三份獨立指令、人工交接、手動貼回回報」，不要求遠端自動 AI 聊天。</p>
+<div class="roles">
+ <div class="role"><strong>GPT①｜統籌</strong><p class="small">定義目標、假設、驗收條件；不能代替其他 AI 核准。</p></div>
+ <div class="role"><strong>GPT②｜反證</strong><p class="small">獨立提出反例與證據缺口；保留不同意見。</p></div>
+ <div class="role"><strong>BOT③｜測試</strong><p class="small">設計或在授權下進行可重現、條件變化測試；無權限時不得聲稱已實測。</p></div>
+</div>
+<p class="small">交接狀態必須區分：待交接 → 已複製／分享（非收件證明）→ 已人工回報（來源未驗證）；拒絕時即時顯示原因、影響、下一步；暫停指定角色不得清除進度或阻止其他對話。</p>
+<p class="small">完整草稿：<a href="https://github.com/keqingwu5-cloud/ai-boundary/blob/feat/tcvl-traceback-visual-v1/docs/tcvl-launcher-dispatch-rules-v1.md" target="_blank" rel="noopener noreferrer">Launcher Hub V1｜三方發射與分工執行規章</a>。目前待使用者核准，非正式部署規章。</p>
+</details>
 <section class="panel" aria-label="建立中樞任務">
 <h2>一、建立與專案關聯的三方任務</h2>
 <div class="cols">
