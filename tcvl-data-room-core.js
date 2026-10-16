@@ -67,9 +67,9 @@ function validate(room){
 function assertRoom(room){const x=validate(room);if(x.length)throw Error("資料室索引無效："+x.join(","));return room}
 function update(room,make){assertRoom(room);const next=copy(room);make(next);next.revision++;
  assertRoom(next);return next;}
-function event(room,{id,at,kind,message}){
+function event(room,{id,at,kind,message,details}){
  if(room.events.some(e=>e.id===id))throw Error("事件 ID 重複");
- room.events.push({id,at,kind,message});
+ room.events.push({id,at,kind,message,...(details?{details:copy(details)}:{})});
 }
 function registerOriginal(room,{id,title,locator,custodian,version,sha256,at,eventId}){
  if(!idOk(id)||!valid(title,200)||!valid(locator,350)||!valid(custodian,120)||
@@ -92,7 +92,8 @@ function assign(room,{roleId,owner,duty,reviewer,at,eventId}){
   event(w,{id:eventId,at,kind:"personnel.assigned",
    message:roleId+" 負責人代號："+(previous?.owner||"未指派")+" → "+owner+
     "；審核者代號："+(previous?.reviewer||"未指派")+" → "+reviewer+
-    "；整理職責："+(previous?.duty||"未指派")+" → "+duty+"；全為人工聲稱，非身分認證"});
+    "；原／新整理職責完整保留於 details，非身分認證",
+   details:{roleId,previous:previous?copy(previous):null,current:{roleId,owner,duty,reviewer,at}}});
  });
 }
 function submit(room,{id,roleId,originalIds,source,summary,evidence,gaps,next,at,eventId}){
