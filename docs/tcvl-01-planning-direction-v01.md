@@ -5,7 +5,7 @@
 - 狀態：**候選規劃，待使用者審查**。
 - 適用對象：Launcher Hub、TCVL 模組、治理工作室、記憶管理、專案對話與未來擴充接口。
 - 修改原則：新規劃建立提案版次與理由，不直接更改已核准正式架構。
-- 相關文件：`tcvl-memory-governance-rules-v01.md`、`tcvl-rejection-correction-observer-v01.md`。
+- 相關文件：`tcvl-02-memory-governance-rules-v01.md`、`tcvl-03-rejection-correction-observer-v01.md`。
 
 ## 1. 發展目的
 
