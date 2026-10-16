@@ -257,6 +257,143 @@ $("exportMemory").addEventListener("click",()=>{
   saveAs(packet,"tcvl-relay-memory-candidate.json");info("已觸發待審記憶包下載，沒有直接修改正式記憶。","handoffStatus");
  }catch(e){info("記憶包匯出失敗："+e.message,"handoffStatus")}
 });
+
+/* Three AI accountable personnel and data room provenance: this is metadata only. */
+function roomStatus(message){$("roomMessage").textContent=message}
+function ensureRoom(){if(!batch||!room||!dataCore)throw Error("先建立三方交接批次，並確認資料室治理核心已載入");dataCore.assertRoom(room)}
+function roomRoleCard(role){
+ const assignment=room?.assignments.find(x=>x.roleId===role.id)||null;
+ const card=node("div",undefined,"roomrole");
+ card.append(node("h3",role.label+"｜對應人員"),node("p","AI 工作職責："+role.duty));
+ const fields=[
+  {id:"owner",label:"人類對應負責人",value:assignment?.owner||"",hint:"請填真實負責者（人工標示）"},
+  {id:"duty",label:"資料整理／上交責任",value:assignment?.duty||role.duty+"；提交原始來源、證據、異議與下一步",hint:"這位 AI 應負責整理什麼？"},
+  {id:"reviewer",label:"人工審核者",value:assignment?.reviewer||"",hint:"負責檢查上交內容的人"}
+ ];
+ const inputs={};
+ for(const f of fields){
+  const label=node("label",f.label),input=node("input");input.type="text";input.value=f.value;input.placeholder=f.hint;input.maxLength=f.id==="duty"?450:120;
+  inputs[f.id]=input;card.append(label,input);
+ }
+ const btn=node("button","儲存人員與職責");btn.type="button";
+ btn.addEventListener("click",()=>{
+  try{
+   ensureRoom();
+   room=dataCore.assign(room,{roleId:role.id,owner:inputs.owner.value.trim(),duty:inputs.duty.value.trim(),
+    reviewer:inputs.reviewer.value.trim(),at:date(),eventId:newId("person")});
+   renderDataRoom();render();roomStatus(role.label+" 已設定人工負責人／整理責任／審核者。此指派不會自動送達任何 AI。");
+  }catch(e){roomStatus("未指派："+e.message)}
+ });
+ card.append(btn);
+ const assigned=room?.submissions.filter(x=>x.roleId===role.id)||[];
+ card.append(node("p","上交紀錄："+assigned.length+"｜人工登記；原檔未在本站託管","room-role-status"));
+ return card;
+}
+function renderDataRoom(){
+ const cards=$("roomRoles"),originalBox=$("roomOriginalList"),reportBox=$("roomSubmissionList");
+ cards.replaceChildren();originalBox.replaceChildren();reportBox.replaceChildren();
+ const originalSelect=$("roomOriginalSelect"),reportSelect=$("roomSubmissionSelect");
+ const previousOriginal=originalSelect.value,previousReport=reportSelect.value;
+ originalSelect.replaceChildren();reportSelect.replaceChildren();
+ for(const role of core.ROLES)cards.append(roomRoleCard(role));
+ if(!room){
+  originalBox.append(node("p","尚無原始檔案索引。先建立三方任務。","small"));
+  reportBox.append(node("p","尚無上交報告。","small"));
+  return;
+ }
+ for(const original of room.originals){
+  const article=node("article",undefined,"room-record");
+  article.append(node("strong",original.title+"｜"+original.id));
+  article.append(node("p","版本："+original.version+"｜保管人："+original.custodian+"｜索引位置："+original.locator,"small"));
+  article.append(node("p","保存狀態：只有引用，尚未在本平台儲存或驗證原檔。"+(original.sha256?"｜人工提供的 SHA-256："+original.sha256:""),"small"));
+  originalBox.append(article);
+  const option=node("option",original.id+"｜"+original.title);option.value=original.id;originalSelect.append(option);
+ }
+ if(!room.originals.length)originalBox.append(node("p","請先登記原始檔案 ID 與版本，不要上傳私人原檔到公開 GitHub。","small"));
+ if(room.originals.some(o=>o.id===previousOriginal))originalSelect.value=previousOriginal;
+ for(const submission of [...room.submissions].reverse()){
+  const row=node("div",undefined,"room-entry"+(submission.reviewState==="rejected"?" reject":""));
+  row.append(node("b",dataCore.ROLE_NAMES[submission.roleId]+"｜"+submission.id+"｜"+submission.reviewState));
+  row.append(node("p","對應負責人："+submission.owner+"｜來源聲稱："+submission.source+"｜原檔："+submission.originalIds.join("、"),"small"));
+  row.append(node("p","整理摘要："+submission.summary,"small"));
+  if(submission.gaps)row.append(node("p","異議／未知："+submission.gaps,"small"));
+  for(const review of submission.reviews){
+   row.append(node("p","審核："+review.decision+"｜原因："+review.reason+"｜影響："+review.impact+"｜下一步："+review.next,"rejection"));
+  }
+  reportBox.append(row);
+  const opt=node("option",dataCore.ROLE_NAMES[submission.roleId]+"｜"+submission.id+"｜"+submission.reviewState);
+  opt.value=submission.id;reportSelect.append(opt);
+ }
+ if(room.submissions.some(x=>x.id===previousReport))reportSelect.value=previousReport;
+ if(!room.submissions.length)reportBox.append(node("p","尚未有人工上交。先設定責任人與原檔索引，再填寫整理內容。","small"));
+}
+$("registerOriginal").addEventListener("click",()=>{
+ try{
+  ensureRoom();
+  room=dataCore.registerOriginal(room,{
+   id:$("originalId").value.trim(),title:$("originalTitle").value.trim(),
+   locator:$("originalLocator").value.trim(),custodian:$("originalCustodian").value.trim(),
+   version:$("originalVersion").value.trim(),sha256:$("originalHash").value.trim().toLowerCase()||null,
+   at:date(),eventId:newId("source")});
+  renderDataRoom();roomStatus("原始資料索引已登記。請另外確認私人資料室確實保存了原檔；本站不保留檔案內容。");
+ }catch(e){roomStatus("無法登記："+e.message)}
+});
+$("submitRoleRoom").addEventListener("click",()=>{
+ try{
+  ensureRoom();
+  const roleId=$("roomRoleSelect").value,selected=batch.roles.find(x=>x.id===roleId);
+  if(selected?.state==="paused")throw Error("該角色已暫停，需先恢復追蹤再上交新整理報告");
+  room=dataCore.submit(room,{id:newId("report"),roleId,
+   originalIds:[$("roomOriginalSelect").value],source:$("roomSource").value.trim(),
+   summary:$("roomSummary").value.trim(),evidence:$("roomEvidence").value.trim(),
+   gaps:$("roomGaps").value.trim(),next:$("roomNext").value.trim(),
+   at:date(),eventId:newId("submit")});
+  renderDataRoom();render();roomStatus("已登記 "+dataCore.ROLE_NAMES[roleId]+" 整理上交，等待人工審核。原始檔案索引保持不變。");
+ }catch(e){roomStatus("上交未成立："+e.message)}
+});
+$("reviewRoomSubmission").addEventListener("click",()=>{
+ try{
+  ensureRoom();
+  const decision=$("roomDecision").value,reason=$("roomReviewReason").value.trim(),
+    impact=$("roomReviewImpact").value.trim(),next=$("roomReviewNext").value.trim();
+  room=dataCore.review(room,{submissionId:$("roomSubmissionSelect").value,decision,
+   reviewer:$("roomReviewer").value.trim(),reason,impact,next,
+   at:date(),eventId:newId("review")});
+  renderDataRoom();render();
+  if(["rejected","revision_requested"].includes(decision)){
+   const notice=$("roleNotice");notice.classList.remove("hidden");
+   notice.textContent="資料室審核："+decision+"｜原因："+reason+"｜影響："+impact+"｜下一步："+next;
+   document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason,impact,next}}));
+  }
+  roomStatus("審核紀錄已追加，原始上交不會覆蓋；若需整理新版，請重新上交並引用同一原檔 ID。");
+ }catch(e){roomStatus("審核未完成："+e.message)}
+});
+$("exportRoom").addEventListener("click",()=>{
+ try{ensureRoom();saveAs(room,"tcvl-data-room-index-"+room.batchId+".json");
+  roomStatus("已觸發下載資料室索引 JSON。裡面只有原檔引用與人工紀錄，不含原檔本體。請與三方批次 JSON 一同安全保存。");
+ }catch(e){roomStatus(e.message)}
+});
+$("importRoom").addEventListener("click",()=>$("roomFile").click());
+$("roomFile").addEventListener("change",async()=>{
+ const f=$("roomFile").files?.[0];if(!f)return;
+ try{
+  if(!batch)throw Error("請先匯入同一批次的三方原始指令");
+  if(f.size>250000)throw Error("治理索引檔過大");
+  const parsed=JSON.parse(await f.text());dataCore.assertRoom(parsed);
+  if(parsed.projectId!==batch.projectId||parsed.batchId!==batch.id)throw Error("索引與目前三方任務的專案或批次 ID 不符，禁止混用");
+  if(room&&(room.originals.length||room.submissions.length||room.assignments.length)&&
+    !confirm("將取代本頁尚未匯出的治理索引。請確認已先備份原始 JSON，是否繼續？"))return;
+  room=parsed;renderDataRoom();render();roomStatus("已載入相同批次的治理索引。來源及 AI 身分仍未經自動驗證。");
+ }catch(e){roomStatus("匯入未完成："+e.message)}finally{$("roomFile").value=""}
+});
+$("exportRoomCandidate").addEventListener("click",()=>{
+ try{
+  ensureRoom();
+  const packet=dataCore.buildCandidate(room,$("roomSubmissionSelect").value,newId("candidate"));
+  saveAs(packet,"tcvl-data-room-memory-candidate.json");
+  roomStatus("已觸發待審記憶包下載。請到加密記憶庫人工匯入，並進行審核；原始檔本體未轉入記憶。");
+ }catch(e){roomStatus("無法匯出候選："+e.message)}
+});
 updateRoleSelect();render();
 })();
 </script>
