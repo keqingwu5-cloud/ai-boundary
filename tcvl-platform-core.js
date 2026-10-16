@@ -55,7 +55,10 @@ function validate(w){
  const projectIds=new Set(w.projects.map(x=>x.id)),threadIds=new Set(w.threads.map(x=>x.id)),taskIds=new Set(w.tasks.map(x=>x.id));
  for(const p of w.projects)if(!val(p.title,140)||!val(p.goal,1000)||!Array.isArray(p.decisions)||!Array.isArray(p.todos))errs.push("project_content_invalid");
  for(const t of w.threads)if(!projectIds.has(t.projectId)||!val(t.title,160)||!Array.isArray(t.messages)||t.messages.length>500)errs.push("thread_invalid");
- for(const t of w.tasks)if(!projectIds.has(t.projectId)||!val(t.title,160)||!val(t.reason,1000)||!Object.prototype.hasOwnProperty.call(LABELS,t.status)||!val(t.owner,80))errs.push("task_invalid");
+ for(const t of w.tasks)if(!projectIds.has(t.projectId)||!val(t.title,160)||!val(t.reason,1000)||!Object.prototype.hasOwnProperty.call(LABELS,t.status)||!val(t.owner,80)||
+  (t.displayStatus!==undefined&&!val(t.displayStatus,48))||
+  (t.displayStatusId!==undefined&&!idOk(t.displayStatusId))||
+  (t.displayStatusId!==undefined&&t.displayStatus===undefined))errs.push("task_invalid");
  for(const n of w.proposals)if(!projectIds.has(n.projectId)||!val(n.title,140)||!val(n.purpose,1000)||!val(n.fromNode,120)||!["candidate","review","rejected","approved_plan"].includes(n.stage))errs.push("proposal_invalid");
  for(const l of w.links)if(!val(l.from,120)||!val(l.to,120)||!["handoff","depends_on","branch"].includes(l.kind)||!["candidate","planned"].includes(l.stage))errs.push("link_invalid");
  for(const e of w.events){
