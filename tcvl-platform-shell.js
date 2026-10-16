@@ -100,6 +100,15 @@ function render(){
   attention.append(summary,detail,dismiss);
   attention.tabIndex=-1;attention.focus();
  });
+ // Only non-sensitive UI preferences cross tabs. No workspace data or conversations are broadcast.
+ window.addEventListener("storage",event=>{
+  if(event.key!==KEY&&event.key!==null)return;
+  const before=JSON.stringify(prefs.customStatuses);
+  prefs=read();imageSelect.value=prefs.images;fitSelect.value=prefs.fit;
+  apply();listStatuses();
+  if(before!==JSON.stringify(prefs.customStatuses))document.dispatchEvent(new Event("tcvl:statuses-updated"));
+  feedback.textContent="已同步其他同源分頁的共用顯示設定（不包含專案、對話或任務資料）。";
+ });
  apply();listStatuses();
  globalThis.TcvlPlatformShell={getStatuses:()=>core?core.registry(prefs.customStatuses):[],getSettings:()=>JSON.parse(JSON.stringify(prefs)),showSettings:()=>{panel.hidden=false;toggle.setAttribute("aria-expanded","true")}};
  document.dispatchEvent(new Event("tcvl:statuses-updated"));
