@@ -15,6 +15,9 @@
     planned:{label:"規劃中／尚未接通",note:"是未來資料流設計，並無自動發送及回報能力",weight:5}
   };
   const ROUTES=[
+    {from:"relay",to:"data_room",status:"local_manual",action:"人工對三方整理稿標註負責人與原始檔索引，送到本頁資料室治理檢視"},
+    {from:"data_room",to:"relay",status:"local_manual",action:"將拒絕原因、影響和下一步人工退回對應 AI 的新整理任務"},
+    {from:"data_room",to:"vault",status:"local_manual",action:"匯出資料室上交候選包，再由使用者手動導入加密記憶庫審核；原檔本體不在此平台保存"},
     {from:"launcher",to:"relay",status:"local_manual",action:"建立三個角色的獨立指令，手動複製／分享，尚無實際 AI 收件回執"},
     {from:"relay",to:"governance",status:"local_manual",action:"核對專案 ID 及原指令 ID，下載三方交接報告，再由使用者在專案治理人工匯入"},
     {from:"governance",to:"relay",status:"local_manual",action:"從專案目標整理具體指令，在交接節點重新建立待審三方任務"},
@@ -33,6 +36,7 @@
   const INTERFACES=[
     {id:"launcher",title:"發射器／人工指令",status:"local_manual",detail:"本機草稿及人工分享；收件 AI 是否收到仍需人工確認"},
     {id:"relay",title:"三方 AI 中樞交接",status:"local_manual",detail:"已可為 GPT①、GPT②、BOT③ 建立各自原指令並核對人工回報；沒有真實遠端 API 自動收發"},
+    {id:"data_room",title:"資料室原檔索引與 AI 負責人治理",status:"local_manual",detail:"可記錄原檔版本及每個 AI 的整理與人工審核；原檔本體未託管、JSON 未加密、沒有遠端 AI 自動上交"},
     {id:"vault",title:"本機加密共同記憶",status:"local_review",detail:"人工提交、拒絕、修正與審批；不支援雲端同步"},
     {id:"traceback",title:"回溯視覺原型",status:"demo",detail:"虛構案例可播放及跑測試邏輯，不讀取真實記憶"},
     {id:"ai_api",title:"GPT①／GPT②／BOT③ 自動接口",status:"planned",detail:"目前沒有三方身分認證、實際 API 自動互傳"},
