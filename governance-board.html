@@ -186,16 +186,25 @@ function fillStatuses(){
  const statuses=globalThis.TcvlPlatformShell?.getStatuses()||core.DEFAULT_STATUSES;
  options(by("taskStatus"),statuses.map(s=>[s.id,s.label]),selected);
 }
+function taskStatusLabel(task){
+ const base=core.statusOf(task.status)?.label||"狀態未核對";
+ if(task.displayStatusId){
+  const registered=(globalThis.TcvlPlatformShell?.getStatuses()||core.DEFAULT_STATUSES).find(s=>s.id===task.displayStatusId);
+  if(registered&&registered.base===task.status)return registered.label+"（"+base+"）";
+  return base+"｜過去自訂「"+String(task.displayStatus||"未命名").slice(0,48)+"」已停用";
+ }
+ return task.displayStatus?task.displayStatus+"（"+base+"）":base;
+}
 function renderTasks(){
  const tasks=w.tasks.filter(x=>x.projectId===activeProject),choice=by("taskList").value;
- options(by("taskList"),tasks.map(x=>[x.id,x.title+"｜"+core.statusOf(x.status)?.label]),choice);
+ options(by("taskList"),tasks.map(x=>[x.id,x.title+"｜"+taskStatusLabel(x)]),choice);
  const t=tasks.find(x=>x.id===by("taskList").value);
  by("pauseTask").disabled=!t||t.status==="paused"||t.status==="done";
  by("resumeTask").disabled=!t||t.status!=="paused";
  const box=by("taskCards");box.replaceChildren();
  for(const x of tasks){
   const card=txt("div","", "record"+(t?.id===x.id?" selected":""));
-  card.append(txt("b",x.title+"｜"+(x.displayStatus||core.statusOf(x.status)?.label)));
+  card.append(txt("b",x.title+"｜"+taskStatusLabel(x)));
   card.append(txt("p","負責："+x.owner+"｜進度："+x.progress+"｜原因："+x.reason));
   card.append(txt("p","歷史狀態變更："+x.history.length+" 次。暫停工作不影響專案對話。"));
   box.append(card);
@@ -374,7 +383,7 @@ by("createTask").addEventListener("click",()=>{
  renderTasks();
 });
 by("openStatuses").addEventListener("click",()=>globalThis.TcvlPlatformShell?.showSettings());
-document.addEventListener("tcvl:statuses-updated",fillStatuses);
+document.addEventListener("tcvl:statuses-updated",()=>{fillStatuses();renderTasks();});
 by("taskList").addEventListener("change",renderTasks);
 by("applyStatus").addEventListener("click",()=>{
  const taskId=by("taskList").value,choice=by("taskStatus").value,option=(globalThis.TcvlPlatformShell?.getStatuses()||core.DEFAULT_STATUSES).find(x=>x.id===choice);
@@ -383,7 +392,7 @@ by("applyStatus").addEventListener("click",()=>{
  const payload={taskId,status,reason:clean(by("transitionReason").value)||"人工記錄狀態："+option.label,impact:clean(by("transitionImpact").value),next:clean(by("transitionNext").value),at,seq};
  commit(()=>{
   let updated=core.transition(w,payload);
-  if(!option.builtIn)updated=core.setTaskDisplay(updated,{taskId,label:option.label});
+  if(!option.builtIn)updated=core.setTaskDisplay(updated,{taskId,label:option.label,statusId:option.id});
   return updated;
  },"已記錄為「"+option.label+"」；只代表人工填寫，非 AI 回報證明。","taskActionStatus","task.transition");
  attentionIfNew(before);
