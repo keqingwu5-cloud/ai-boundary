@@ -152,7 +152,7 @@ async function copyText(text){
 }
 function roleText(r){
  const c=r.command,assignment=room?.assignments?.find(x=>x.roleId===r.id);
- return ["【TCVL 中樞人工交接】","對應責任人："+(assignment?.owner||"尚未指派（待治理）"),"資料整理責任："+(assignment?.duty||"待填"),"人工審核者："+(assignment?.reviewer||"待指派"),"原指令 ID："+c.command_id,"接收角色："+c.recipient,"狀態：待交接，未證實 AI 收到","任務："+c.title,c.instructions,"完成條件："+c.completion_criteria,"停止或退回："+c.stop_and_escalation,c.response_requirements].join("\n\n");
+ return ["【TCVL 中樞人工交接】","對應責任人："+(assignment?.owner||"尚未指派（待治理）"),"資料整理責任："+(assignment?.duty||"待填"),"人工審核者："+(assignment?.reviewer||"待指派"),"原始檔不得直接改寫；整理上交須包含原檔 ID／版本、來源、證據、反證、拒絕及下一步，供人類審核。","原指令 ID："+c.command_id,"接收角色："+c.recipient,"狀態：待交接，未證實 AI 收到","任務："+c.title,c.instructions,"完成條件："+c.completion_criteria,"停止或退回："+c.stop_and_escalation,c.response_requirements].join("\n\n");
 }
 function updateRoleSelect(){
  const previous=$("roleSelect").value,select=$("roleSelect");select.replaceChildren();
