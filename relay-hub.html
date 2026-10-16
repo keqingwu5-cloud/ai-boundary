@@ -66,7 +66,7 @@ pre{background:#0a1729;border:1px solid #3d5476;padding:13px;border-radius:12px;
 <section class="panel" id="dataRoomCenter" aria-label="三方 AI 負責人與資料室治理">
 <h2>三、AI 對應人員與資料室治理</h2>
 <p>每位 AI 都有自己的<strong>對應人員、整理責任、人工審核者與上交清單</strong>。原檔與整理稿分離；修正、拒絕、重測不覆寫原始資料。</p>
-<div class="room-warning" role="note">目前是<strong>原檔治理索引（僅元資料）</strong>：這個公開展示網站不會上傳、儲存或託管原始檔。請將原檔保留在你控制的私人資料室或加密儲存位置。這裡只記錄資料 ID、版本、保管人及人工聲稱的參照位置；不能把「已登記」說成「已安全保存」。工作紀錄需另行匯出 JSON。</div>
+<div class="room-warning" role="note">目前是<strong>原檔治理索引（僅元資料）</strong>：這個公開展示網站不會上傳、儲存或託管原始檔。請將原檔保留在你控制的私人資料室或加密儲存位置。下載的治理索引 JSON **沒有加密**，請勿放入公開儲存庫或填入私人姓名、秘密路徑。這裡只記錄資料 ID、版本、保管人及人工聲稱的參照位置；不能把「已登記」說成「已安全保存」。工作紀錄需另行匯出 JSON。</div>
 <div id="roomRoles" class="roomcards" aria-label="每個 AI 的對應負責人卡片"></div>
 <h3>原始檔案索引｜保留來源，不覆蓋原檔</h3>
 <div class="cols">
@@ -266,9 +266,9 @@ function roomRoleCard(role){
  const card=node("div",undefined,"roomrole");
  card.append(node("h3",role.label+"｜對應人員"),node("p","AI 工作職責："+role.duty));
  const fields=[
-  {id:"owner",label:"人類對應負責人",value:assignment?.owner||"",hint:"請填真實負責者（人工標示）"},
+  {id:"owner",label:"人類負責人（建議用代號）",value:assignment?.owner||"",hint:"請填真實負責者（人工標示）"},
   {id:"duty",label:"資料整理／上交責任",value:assignment?.duty||role.duty+"；提交原始來源、證據、異議與下一步",hint:"這位 AI 應負責整理什麼？"},
-  {id:"reviewer",label:"人工審核者",value:assignment?.reviewer||"",hint:"負責檢查上交內容的人"}
+  {id:"reviewer",label:"人工審核者代號",value:assignment?.reviewer||"",hint:"負責檢查上交內容的人"}
  ];
  const inputs={};
  for(const f of fields){
