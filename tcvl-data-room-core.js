@@ -86,9 +86,13 @@ function assign(room,{roleId,owner,duty,reviewer,at,eventId}){
  throw Error("AI 角色責任、人員或審核者資料不完整");
  return update(room,w=>{
   const index=w.assignments.findIndex(x=>x.roleId===roleId);
+  const previous=index<0?null:w.assignments[index];
   if(index<0)w.assignments.push({roleId,owner,duty,reviewer,at});
   else w.assignments[index]={roleId,owner,duty,reviewer,at};
-  event(w,{id:eventId,at,kind:"personnel.assigned",message:roleId+" 負責人／整理責任已由人工更新；非身份認證"});
+  event(w,{id:eventId,at,kind:"personnel.assigned",
+   message:roleId+" 負責人代號："+(previous?.owner||"未指派")+" → "+owner+
+    "；審核者代號："+(previous?.reviewer||"未指派")+" → "+reviewer+
+    "；整理職責："+(previous?.duty||"未指派")+" → "+duty+"；全為人工聲稱，非身分認證"});
  });
 }
 function submit(room,{id,roleId,originalIds,source,summary,evidence,gaps,next,at,eventId}){
