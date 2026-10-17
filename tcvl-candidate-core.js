@@ -11,6 +11,9 @@
  const clean=(x,n=1500)=>typeof x==="string"?x.trim().slice(0,n):"";
  const copy=x=>JSON.parse(JSON.stringify(x));
  const own=(obj,key)=>Object.prototype.hasOwnProperty.call(obj,key);
+ const validRef=x=>typeof x==="string"&&x.trim().length>0&&x.trim().length<=160;
+ const validRefs=x=>Array.isArray(x)&&x.length<=12&&x.every(validRef);
+ const textField=(x,max)=>typeof x==="string"&&x.length<=max;
  const list=x=>Array.isArray(x)?x.map(s=>clean(s,160)).filter(Boolean).slice(0,12):[];
  function candidate(raw={}){
   const links=raw.links&&typeof raw.links==="object"?raw.links:{};
@@ -40,12 +43,13 @@
   for(const raw of ledger.items){
    if(!raw||typeof raw!=="object"||!own(raw,"id")||!clean(raw.id,81)||raw.id.length>80||ids.has(raw.id)){errors.push("invalid_or_duplicate_id");continue}
    ids.add(raw.id);
-   const fields=["title","summary","highlight","comparison","context","uncertainties","origin_status","entered_at"];
+   const fields={title:160,summary:1200,highlight:500,comparison:500,context:500,uncertainties:500,origin_status:70,entered_at:40};
    if(!KINDS.includes(raw.kind)||raw.version!==1||raw.stage!=="candidate"||raw.submitted_as!=="manual_unverified"||
-    fields.some(k=>typeof raw[k]!=="string")||fields.some(k=>raw[k].length>1500)||
-    !Array.isArray(raw.sources)||raw.sources.length>12||!Array.isArray(raw.evidence_refs)||raw.evidence_refs.length>12)errors.push("invalid_item");
-   if(!raw.links||["context","memory","causal"].some(k=>{
-    const q=raw.links?.[k];return !q||!STATUS.includes(q.state)||!Array.isArray(q.refs)||q.refs.length>12||typeof q.reason!=="string"||q.reason.length>250;
+    Object.entries(fields).some(([k,max])=>!textField(raw[k],max))||
+    !validRefs(raw.sources)||!validRefs(raw.evidence_refs)||
+    !raw.entered_at||Number.isNaN(Date.parse(raw.entered_at)))errors.push("invalid_item");
+   if(!raw.links||typeof raw.links!=="object"||["context","memory","causal"].some(k=>{
+    const q=raw.links?.[k];return !q||!STATUS.includes(q.state)||!validRefs(q.refs)||!textField(q.reason,250);
    }))errors.push("invalid_links");
   }
   for(const e of ledger.events){
@@ -74,6 +78,11 @@
   return {ok,status:ok?"linked":"missing",reason:ok?"已有引用 ID（仍待授權與證據驗證）":key+" 標記已連結卻缺引用 ID"};
  }
  function evaluate(item,others=[]){
+  // Imported JSON is untrusted. Never treat malformed references as adequate evidence.
+  const invalid=check({schema:SCHEMA,revision:0,items:[item],events:[]});
+  if(invalid.length)return {route:"hold",checks:[],reasons:["候選資料格式不合法："+invalid.join("、")],
+   warnings:[],possible_duplicates:[],core_memory:"human_approval_required",
+   formal_rule:"not_approved",remote_ack:"not_connected"};
   const reasons=[],weak=[],checks=[];
   function req(id,ok,reason){checks.push({id,pass:!!ok,reason});if(!ok)reasons.push(reason);}
   req("origin",item.sources.length>0,"缺少來源索引");
