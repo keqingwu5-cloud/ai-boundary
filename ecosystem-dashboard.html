@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<title>AI 生態總覽｜候選篩選・資料治理・研發・雙向回報</title>
+<style>
+:root{color-scheme:dark;--bg:#091220;--panel:#15263b;--panel2:#101e30;--border:#45617c;--fg:#edf5ff;--muted:#b9cde3;--accent:#98d3c5}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse 900px 360px at 50% -120px,#1b5564,transparent 80%),var(--bg);color:var(--fg);font:14px/1.65 system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif}
+main{max-width:1140px;margin:auto;padding:24px 17px 70px}a{color:#bce6fa}h1{font-size:clamp(26px,5vw,40px);line-height:1.24;margin:10px 0}h2{font-size:21px;margin:0 0 10px}h3{font-size:16px;margin:0 0 6px}p{margin:6px 0 12px;color:var(--muted)}
+.panel{border:1px solid var(--border);border-radius:17px;background:linear-gradient(145deg,#182e45,#101d30);padding:18px;margin:14px 0}
+.lead{font-size:16px;max-width:870px}.muted{color:var(--muted);font-size:12px}.pill{display:inline-block;border:1px solid #719d9d;border-radius:99px;padding:3px 9px;color:#d3f8ef;font-size:12px}
+.warning{border:1px solid #96815a;color:#ffe5b5;background:#2d281f;border-radius:12px;padding:12px 14px;margin:13px 0}
+.flow{display:grid;grid-template-columns:1fr;gap:9px;max-width:900px;margin:0 auto}.node{border:1px solid #50788b;border-radius:13px;background:#11283c;padding:14px}
+.node strong{display:block;font-size:16px}.node small{color:#bdd3e9}.node.primary{border-color:#93cabb;background:#173644}
+.path{text-align:center;color:#a7d9ca;letter-spacing:.06em;font-size:13px}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}.duo .node{min-height:116px}
+.columns{display:grid;grid-template-columns:1fr 1fr;gap:14px}.status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stat{border:1px solid #4d6883;border-radius:12px;padding:12px;background:#122439}.stat strong{display:block;font-size:24px;color:#edfbff}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid #40536c;padding:10px 8px;vertical-align:top}th{color:#cbdef0;font-size:12px}td{overflow-wrap:anywhere}.scroll{overflow:auto}
+label{display:block;color:#d8ebf7;font-size:13px;font-weight:600;margin:9px 0 4px}input,select,textarea{width:100%;min-width:0;border-radius:9px;border:1px solid #6989a4;background:#0d1c2c;color:#eff8ff;padding:10px;font:inherit}textarea{min-height:85px;resize:vertical}button{border:1px solid #78a8ae;border-radius:10px;color:#effffb;background:#31596b;padding:9px 13px;font:inherit;cursor:pointer}button:hover{background:#416c7e}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #d2fff2;outline-offset:2px}
+.actions{display:flex;flex-wrap:wrap;gap:9px;margin:13px 0}.button-link{display:inline-block;border:1px solid #718fa6;border-radius:9px;padding:7px 11px;text-decoration:none}
+.report-row{padding:11px;margin:8px 0;border:1px solid #46617b;border-radius:12px;background:#102237}.report-row strong{color:#fff}.report-row p{overflow-wrap:anywhere}.report-row button{font-size:12px;padding:5px 9px}
+footer{border-top:1px solid var(--border);padding-top:15px;margin-top:28px;color:var(--muted);font-size:12px}
+@media(max-width:760px){.columns,.duo,.status-grid{grid-template-columns:1fr}.panel{padding:14px}th,td{font-size:12px;padding:8px 6px}.flow{max-width:none}}
+</style>
+<script defer src="./tcvl-platform-core.js"></script>
+<script defer src="./tcvl-platform-shell.js"></script>
+<script defer src="./tcvl-reporting-core.js"></script>
+</head>
+<body>
+<main>
+<section>
+<span class="pill">第一大腦生態｜可操作的本機治理草案</span>
+<h1>你規劃方向，管理員整理與研發，事件雙向回報</h1>
+<p class="lead">這個面板讓你掌握候選資料、知識管理、第一大腦研發、核心記憶與交接工作。日常事件要能追溯，但不代表你必須親自處理每一筆。</p>
+<div class="warning"><strong>真實狀態：</strong>此頁尚未連接 Supabase、三個 AI 或遠端驅動。下方事件全由本頁人工填入，永遠標示「身份／接收未驗證」；不會自動授權正式規章、修改核心記憶或遠端停止 AI。請勿輸入秘密或私人原文。</div>
+</section>
+<section class="panel" aria-label="生態與雙向連結草圖">
+<h2>系統角色與雙向流動</h2>
+<div class="flow">
+<div class="node primary"><strong>你｜架構規劃者</strong><small>設定方向、重大權限與核心核准；不負責每天人工轉交任務</small></div>
+<div class="path">⇅ 決策、例外與風險回報</div>
+<div class="node"><strong>候選區｜資訊面試與篩選</strong><small>提出亮點與增量、檢查重複、來源和反證；低品質資料可待補或拒絕，但保留來源</small></div>
+<div class="path">⇅ 收錄、拒絕、要求補證及退件原因</div>
+<div class="node"><strong>資料庫管理員｜知識分類與歷史</strong><small>分類上下文、記憶關聯、因果假設、重複與過期資料；原始資料和修正歷史不覆寫</small></div>
+<div class="path">⇅ 授權資料請求、證據、研究成果與不同意見</div>
+<div class="duo">
+ <div class="node primary"><strong>第一大腦｜研發中心</strong><small>推演新假設、尋找未知變數 X、跨領域研發與反證；不以固定流程限制探索</small></div>
+ <div class="node"><strong>記憶體核心｜精選長期知識</strong><small>僅在你批准後保存重要內容；重複來源可歸納為一份主張並保留獨立來源</small></div>
+</div>
+<div class="path">⇅ 任務、報告、拒絕與真正 ACK（未接線）</div>
+<div class="node"><strong>任務傳輸管理員｜後續驅動</strong><small>未來自動下發、領取、回報、重試與停止；現在只保留人工資料及待核驗事件</small></div>
+</div>
+</section>
+<section class="panel" aria-label="模組狀態表">
+<h2>模組狀態表</h2>
+<p>這裡呈現目前已核對的能力邊界，不把「設計中」標成「實際運作」。</p>
+<div class="scroll"><table><thead><tr><th>角色</th><th>已知基礎</th><th>尚缺的連結</th></tr></thead><tbody>
+<tr><td>候選區</td><td>有候選規章與人工篩選歷史</td><td>自動面試／比較、三類鏈整合</td></tr>
+<tr><td>資料庫管理員</td><td>私有資料庫已存候選與修正紀錄</td><td>正式的自動分類管理員及跨模組資料契約</td></tr>
+<tr><td>第一大腦研發</td><td>認知與研發方向已有架構草案</td><td>有權限的雙向資料查詢、獨立反證回報</td></tr>
+<tr><td>核心記憶</td><td>本機加密記憶人工審核原型</td><td>安全的正式資料鏈與跨裝置同步</td></tr>
+<tr><td>任務傳輸</td><td>人工交接與本機門檻程式</td><td>可驗證的遠端 ACK、實際停止和自動調度</td></tr>
+</tbody></table></div>
+<p class="muted">23 條舊候選規章仍在私有資料庫；此頁未擷取原文，不把 GitHub 已收起的條文重新啟用。</p>
+</section>
+<section class="panel" aria-label="本機雙向回報紀錄">
+<h2>雙向事件與回報簿</h2>
+<p>每項重要行為可建立事件，接收方有回覆時用原事件 ID 反向連結。你能看出哪些還沒有回報；這裡的所有紀錄都只是人工登錄，並非獨立 AI 收件證明。</p>
+<div class="status-grid">
+<div class="stat"><span class="muted">本頁人工事件</span><strong id="countEvents">0</strong></div>
+<div class="stat"><span class="muted">待反向回覆</span><strong id="countAwaiting">0</strong></div>
+<div class="stat"><span class="muted">反證與拒絕事件</span><strong id="countDisputes">0</strong></div>
+</div>
+<div class="columns">
+<form id="eventForm">
+<h3>登記行為或反向回覆</h3>
+<label for="replyTo">回覆哪個事件？</label><select id="replyTo"><option value="">新事件（不是回覆）</option></select>
+<label for="eventFrom">發起方</label><select id="eventFrom" required></select>
+<label for="eventTo">接收方</label><select id="eventTo" required></select>
+<label for="eventAction">行為類型</label><select id="eventAction" required></select>
+<label for="eventSubject">議題／資料 ID 或標題</label><input id="eventSubject" maxlength="160" required placeholder="例如：研究主張需要反證">
+<label for="eventReason">理由、內容或處理結果</label><textarea id="eventReason" maxlength="1600" required placeholder="請說明需要對方知道什麼、下一步是什麼"></textarea>
+<label for="eventEvidence">非敏感證據或索引（可選）</label><textarea id="eventEvidence" maxlength="1200" placeholder="僅填 ID／公開參照，不放私人資料"></textarea>
+<div class="actions"><button type="submit">記錄人工事件</button><button id="clearForm" type="button">清除表單</button></div>
+<p id="eventFeedback" role="status" class="muted">未建立任何事件。</p>
+</form>
+<div>
+<h3>先看到例外，再看每筆原始事件</h3>
+<p>當事件尚無反向回覆，表示本頁「未登錄回覆」，並不必然代表遠端沒有回應。來源驗證與是否真正處理，之後還要靠授權接口和證據。</p>
+<div class="actions"><button id="exportLedger" type="button">匯出本頁事件 JSON</button><label for="importLedger" class="button-link">人工匯入事件 JSON</label><input id="importLedger" type="file" accept=".json,application/json" hidden></div>
+<p class="muted">本頁不自動儲存：重新整理前需先匯出。JSON 未加密，不適合放入私人記憶或憑證；匯入不會同步到正式資料庫。</p>
+<div id="eventLog" aria-live="polite"><p>還沒有事件。可以先建立一筆非敏感測試紀錄。</p></div>
+</div>
+</div>
+</section>
+<footer><a href="./mainbrain.html">主腦入口</a> · <a href="./governance-board.html">原專案治理</a> · <a href="./architecture-hub.html">架構圖</a> · <a href="./memory.html">記憶管理</a><p>草案不等於正式規章或已部署後端；不同立場可以並存，須保存原始紀錄、修正與拒絕原因。</p></footer>
+</main>
+<script>
+(function(){
+"use strict";
+function start(){
+ const core=globalThis.TcvlReportingCore;
+ const by=id=>document.getElementById(id);
+ const el=(tag,txt)=>{const node=document.createElement(tag);if(txt!==undefined)node.textContent=txt;return node};
+ let ledger=core.createLedger(),seq=0;
+ const reply=by("replyTo"),from=by("eventFrom"),to=by("eventTo"),action=by("eventAction");
+ for(const role of core.ROLES){for(const select of [from,to]){const opt=el("option",role);opt.value=role;select.append(opt)}}
+ to.selectedIndex=1;
+ for(const name of core.ACTIONS){const opt=el("option",name);opt.value=name;action.append(opt)}
+ function alertText(value){by("eventFeedback").textContent=value}
+ function reset(){by("eventForm").reset();to.selectedIndex=1;alertText("表單已清除。")}
+ function routeFromReply(){
+  const parent=ledger.events.find(e=>e.id===reply.value);
+  if(parent){from.value=parent.to;to.value=parent.from;action.value="回覆／確認";by("eventSubject").value=parent.subject}
+ }
+ reply.addEventListener("change",routeFromReply);
+ by("clearForm").addEventListener("click",reset);
+ function render(){
+  const s=core.summary(ledger);
+  by("countEvents").textContent=String(s.events);
+  by("countAwaiting").textContent=String(s.awaiting);
+  by("countDisputes").textContent=String(s.disputes);
+  const current=reply.value;
+  reply.replaceChildren(el("option","新事件（不是回覆）"));reply.firstElementChild.value="";
+  for(const ev of ledger.events){const option=el("option",ev.id+"｜"+ev.subject);option.value=ev.id;reply.append(option)}
+  reply.value=ledger.events.some(x=>x.id===current)?current:"";
+  const list=by("eventLog");list.replaceChildren();
+  if(!ledger.events.length){list.append(el("p","還沒有事件。可以先建立一筆非敏感測試紀錄。"));return}
+  const answered=new Set(ledger.events.filter(x=>x.reply_to).map(x=>x.reply_to));
+  for(const ev of [...ledger.events].reverse()){
+   const box=el("div");box.className="report-row";
+   box.append(el("strong",ev.action+"｜"+ev.subject));
+   box.append(el("p",ev.from+" ⇄ "+ev.to+"｜"+(ev.reply_to?"回覆："+ev.reply_to:"新事件") ));
+   box.append(el("p","內容："+ev.reason));
+   if(ev.evidence)box.append(el("p","證據索引："+ev.evidence));
+   box.append(el("p","ID："+ev.id+"｜"+ev.at+"｜人工未驗證｜"+(answered.has(ev.id)?"已有人工反向回覆":"尚未登錄反向回覆")));
+   const btn=el("button","對此事件回覆");btn.type="button";
+   btn.addEventListener("click",()=>{reply.value=ev.id;routeFromReply();by("eventReason").focus();by("eventForm").scrollIntoView({block:"start",behavior:"smooth"})});
+   box.append(btn);list.append(box);
+  }
+ }
+ by("eventForm").addEventListener("submit",event=>{
+  event.preventDefault();
+  try{
+   const id="evt-"+Date.now().toString(36)+"-"+(++seq);
+   ledger=core.record(ledger,{id,from:from.value,to:to.value,action:action.value,
+    subject:by("eventSubject").value,reason:by("eventReason").value,evidence:by("eventEvidence").value,
+    reply_to:reply.value,at:new Date().toISOString()});
+   render();reset();alertText("已加入本機人工事件："+id+"；不表示遠端 AI 已收到。");
+  }catch(e){alertText("無法登記："+e.message)}
+ });
+ by("exportLedger").addEventListener("click",()=>{
+  try{
+   const blob=new Blob([JSON.stringify(ledger,null,2)],{type:"application/json"});
+   const url=URL.createObjectURL(blob),a=el("a");a.href=url;a.download="tcvl-bidirectional-ledger.json";document.body.append(a);a.click();a.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),1000);alertText("已請瀏覽器下載，請自行核對檔案；未同步到正式資料庫。");
+  }catch(e){alertText("匯出失敗："+e.message)}
+ });
+ by("importLedger").addEventListener("change",async event=>{
+  const file=event.target.files?.[0];if(!file)return;
+  try{
+   if(file.size>300000)throw Error("檔案太大");
+   const parsed=JSON.parse(await file.text()),errors=core.validateLedger(parsed);
+   if(errors.length)throw Error(errors.join(", "));
+   ledger=parsed;render();reset();alertText("已人工匯入本頁事件；身份與實際接收仍未驗證。");
+  }catch(e){alertText("匯入失敗："+e.message)}
+  event.target.value="";
+ });
+ render();
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start,{once:true});else start();
+})();
+</script>
+</body>
+</html>
