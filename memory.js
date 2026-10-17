@@ -25,7 +25,7 @@ async function persist(){
  try{const value=await encryptCurrent();localStorage.setItem(STORE,value);observedEnvelope=value;}
  catch(e){state.revision=r;state.updatedAt=t;throw e;}
 }
-function showLocked(){key=null;salt=null;state=null;revising=null;observedEnvelope=null;lastBackupEnvelope=null;$("workspace").hidden=true;$("lockedState").hidden=false;const exists=!!stored();$("lockTitle").textContent=exists?"解鎖本機加密記憶庫":"首次建立本機加密記憶庫";$("lockHint").textContent=exists?"輸入原密碼以讀取此瀏覽器中加密的記憶。密碼不會儲存在網站。":"設定至少 12 字元的密碼；忘記密碼便無法復原內容。請妥善保管加密備份。";$("confirmArea").hidden=exists;$("unlockButton").textContent=exists?"解鎖記憶庫":"建立記憶庫";$("passphrase").value="";$("confirmPassphrase").value="";}
+function showLocked(){key=null;salt=null;state=null;revising=null;observedEnvelope=null;lastBackupEnvelope=null;$("architectureHistoryList").replaceChildren();$("architectureHistoryCount").textContent="";$("workspace").hidden=true;$("lockedState").hidden=false;const exists=!!stored();$("lockTitle").textContent=exists?"解鎖本機加密記憶庫":"首次建立本機加密記憶庫";$("lockHint").textContent=exists?"輸入原密碼以讀取此瀏覽器中加密的記憶。密碼不會儲存在網站。":"設定至少 12 字元的密碼；忘記密碼便無法復原內容。請妥善保管加密備份。";$("confirmArea").hidden=exists;$("unlockButton").textContent=exists?"解鎖記憶庫":"建立記憶庫";$("passphrase").value="";$("confirmPassphrase").value="";}
 function showOpen(){ $("lockedState").hidden=true;$("workspace").hidden=false;$("passphrase").value="";$("confirmPassphrase").value="";renderAll();}
 $("unlockButton").addEventListener("click",async()=>{
  const pass=$("passphrase").value;
@@ -42,7 +42,7 @@ $("unlockButton").addEventListener("click",async()=>{
 });
 $("lockButton").addEventListener("click",async()=>{await writeChain.catch(()=>{});showLocked();feedback("已鎖定記憶庫。");});
 function evt(kind,ref,summary){state.audit.unshift({id:uid(),kind,ref,summary,at:utc()});}
-function queueChange(action){writeChain=writeChain.catch(()=>{}).then(async()=>{if(!state)return;const backup=JSON.stringify(state);try{const msg=await action();await persist();feedback(msg||"變更已加密儲存。");renderAll();}catch(e){state=JSON.parse(backup);feedback("操作未儲存："+(e.message==="vault_too_large"?"記憶庫容量已滿；下載備份不會釋放空間。請暫停新增並等待封存／清理功能。":(e.message||"未知錯誤")));}});}
+function queueChange(action,onSuccess){writeChain=writeChain.catch(()=>{}).then(async()=>{if(!state)return;const backup=JSON.stringify(state);try{const msg=await action();await persist();feedback(msg||"變更已加密儲存。");renderAll();if(typeof onSuccess==="function"){try{onSuccess()}catch(notificationError){feedback("紀錄已加密保存，但提醒顯示失敗；請在拒絕／工作歷史中查看。")}}}catch(e){state=JSON.parse(backup);feedback("操作未儲存："+(e.message==="vault_too_large"?"記憶庫容量已滿；下載備份不會釋放空間。請暫停新增並等待封存／清理功能。":(e.message||"未知錯誤")));}});}
 const node=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 function appendText(parent,tag,cls,text){const e=node(tag,cls,text);parent.append(e);return e;}
 function action(parent,title,callback,cls){const b=node("button",cls||"",title);b.type="button";b.addEventListener("click",callback);parent.append(b);return b;}
@@ -141,7 +141,7 @@ function reviewApproval(c){
  });
 }
 function reviewRejection(c){const reason=prompt("請輸入拒絕理由，以及原提出者需要修正的方向：");if(reason===null)return;if(!reason.trim()){feedback("拒絕必須說明理由。");return;}if(reason.length>4000){feedback("拒絕理由過長。");return;}
- queueChange(()=>{if(c.status!=="pending")throw Error("已審核");c.status="rejected";c.review={action:"rejected",reason:reason.trim(),at:utc(),verifiedBy:"user_local_manual"};evt("candidate.rejected",c.id,"已拒絕："+reason.slice(0,70));return "拒絕原因已加密儲存；可再修正後重新提交。";});
+ queueChange(()=>{if(c.status!=="pending")throw Error("已審核");c.status="rejected";c.review={action:"rejected",reason:reason.trim(),at:utc(),verifiedBy:"user_local_manual"};evt("candidate.rejected",c.id,"已拒絕："+reason.slice(0,70));return "拒絕原因已加密儲存；可再修正後重新提交。";},()=>document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason:reason.trim(),impact:"可能影響與候選 "+c.id+" 有關的研究與任務，尚需逐一審查。",next:"查看這筆拒絕記錄，按「修正後重新提交」，補充來源與新證據，再核對是否通過。"}})));
 }
 function repair(c){revising=c.id;selectTab("propose");$("eventType").value=c.eventType;renderSelectors();$("parentMemory").value=c.parentId||"";updateFormHint();$("question").value=c.question;$("purpose").value=c.purpose;$("content").value=c.content;$("evidence").value=c.evidence;$("reason").value=c.reason;$("proposer").value=c.proposer;$("evidenceLevel").value=c.evidenceLevel;$("typeHint").textContent="正在修復候選 "+c.id.slice(0,8)+"。請修改內容或理由；新提案會保留與原拒絕版本的關聯。";window.scrollTo({top:0,behavior:"smooth"});}
 function exportJSON(obj,filename){const blob=new Blob([JSON.stringify(obj,null,2)],{type:"application/json;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -239,13 +239,15 @@ $("memoryPackInput").addEventListener("change",async e=>{
    const next=workflowCore.planImport(pack,state);
    if(next.accepted.length!==plan.accepted.length)throw Error("資料已變動，請重新選檔檢查");
    for(const {item,possibleConflictWith} of next.accepted){
+    const architectureCandidate=typeof item.question==="string" && item.question.startsWith("【主腦架構】");
+    const context=architectureCandidate?"；架構候選來自人工匯入檔案，來源身分尚未驗證":"";
     const c={id:uid(),originId:item.id,eventType:"new_question",parentId:null,
       question:item.question,purpose:item.purpose,content:item.content,
-      evidence:item.evidence,reason:item.reason+(possibleConflictWith.length?"；同題不同版本需人工比較："+possibleConflictWith.join(","):""),
-      proposer:"GPT1",evidenceLevel:item.evidenceLevel||"hypothesis",
+      evidence:item.evidence,reason:item.reason+context+(possibleConflictWith.length?"；同題不同版本需人工比較："+possibleConflictWith.join(","):""),
+      proposer:architectureCandidate?"other":"GPT1",evidenceLevel:item.evidenceLevel||"hypothesis",
       createdAt:utc(),status:"pending",repairOf:null,review:null};
     const problem=validateCandidate(c);if(problem)throw Error(problem);
-    state.candidates.unshift(c);evt("candidate.created",c.id,"GPT①記憶包 "+item.id+"・"+c.question.slice(0,50));
+    state.candidates.unshift(c);evt("candidate.created",c.id,(architectureCandidate?"架構候選包（來源未驗證） ":"GPT①記憶包 ")+item.id+"・"+c.question.slice(0,50));
    }
    evt("memory.pack_imported",pack.schema,"新增 "+next.accepted.length+" 筆，跳過 "+next.duplicated.length+" 筆，待人工比較 "+next.conflicts.length+" 筆");
    selectTab("review");
@@ -257,29 +259,45 @@ function workflowRender(){
  const box=$("workflowList");box.replaceChildren();
  if(!state)return;
  const all=workflowCore.processLatest(state.audit);
- const statuses={queued:"待交接",received:"已接收",in_progress:"進行中",blocked:"阻塞／未完成",refused:"被拒絕",review:"待驗收",done:"已完成"};
+ const statuses={queued:"待交接",received:"已接收",in_progress:"進行中",paused:"已暫停",blocked:"阻塞／未完成",refused:"被拒絕",review:"待驗收",done:"已完成"};
  const summary=appendText(box,"p","small","已記錄任務："+all.length+"；未完成／阻塞："+all.filter(x=>x.status!=="done").length+"；拒絕："+all.filter(x=>x.status==="refused").length);
  for(const x of all.slice(0,30)){
   const row=node("div","card");appendText(row,"b","",x.taskTitle+" · "+x.ref);
-  appendText(row,"p","small",x.actor+"｜"+(statuses[x.status]||x.status)+"｜"+fmtDate(x.at));
+  appendText(row,"p","small",x.actor+"｜"+(x.displayStatus||statuses[x.status]||x.status)+"｜"+fmtDate(x.at));
   if(x.reason)appendText(row,"p","small","證據／原因："+x.reason);
   if(x.nextAction)appendText(row,"p","small","下一步："+x.nextAction);
   box.append(row);
  }
  if(!all.length)appendText(box,"p","small","尚無人工交接的三方任務紀錄。");
 }
+function populateSharedWorkflowStatus(){
+ const selector=$("workflowStatus"),current=selector.value;
+ for(const option of [...selector.querySelectorAll('option[data-tcvl-custom]')])option.remove();
+ const statuses=window.TcvlPlatformShell?.getStatuses()||[];
+ for(const item of statuses.filter(x=>!x.builtIn)){
+  const option=new Option(item.label+"（自訂）","custom:"+item.id);
+  option.dataset.tcvlCustom="true";
+  selector.add(option);
+ }
+ if([...selector.options].some(x=>x.value===current))selector.value=current;
+}
+document.addEventListener("tcvl:statuses-updated",populateSharedWorkflowStatus);
+document.addEventListener("DOMContentLoaded",populateSharedWorkflowStatus);
 $("workflowSave").addEventListener("click",()=>{
  if(!state)return;
  const ref=$("workflowId").value.trim(),taskTitle=$("workflowTitle").value.trim();
- const actor=$("workflowActor").value,status=$("workflowStatus").value;
+ const actor=$("workflowActor").value,chosenStatus=$("workflowStatus").value;
+ const extraStatus=window.TcvlPlatformShell?.getStatuses().find(s=>chosenStatus==="custom:"+s.id);
+ const status=extraStatus?extraStatus.base:chosenStatus;
+ const displayStatus=extraStatus?extraStatus.label:"";
  const reason=$("workflowReason").value.trim(),nextAction=$("workflowNext").value.trim();
  if(!ref||!taskTitle||!reason||!nextAction){feedback("請完整填寫任務ID、標題、證據／原因、下一步。");return;}
  if(!confirm("將這筆任務進度加密保存至本機記憶庫。此操作不代表其他AI已實際接收或完成任務。確定？"))return;
  queueChange(()=>{
-  state.audit.unshift({id:uid(),kind:"workflow.recorded",ref,taskTitle,actor,status,reason,nextAction,at:utc(),summary:taskTitle+"｜"+status});
+  state.audit.unshift({id:uid(),kind:"workflow.recorded",ref,taskTitle,actor,status,displayStatus,reason,nextAction,at:utc(),summary:taskTitle+"｜"+(displayStatus||status)});
   workflowRender();
   return "任務進度已加密保存，舊版本仍保留在事件歷史。";
- });
+ },()=>{if(status==="refused"||status==="blocked")document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason,impact:"任務 "+ref+" 的交付或下游判斷可能受影響，需個別追查。",next:nextAction}}));});
 });
 $("workflowCopy").addEventListener("click",async()=>{
  if(!state)return;
@@ -324,8 +342,84 @@ $("recallCopy").addEventListener("click",async()=>{
  const txt=latestRecall.map(x=>"【"+x.type+"】"+x.title+"\n"+x.content+"\n來源："+x.id+"\n證據："+x.evidence).join("\n\n");
  try{await navigator.clipboard.writeText(txt);feedback("已複製回溯摘要，未自動發送。");}catch(err){feedback("無法複製，請檢查剪貼簿權限。");}
 });
+/* Architecture governance lens: read-only views of already decrypted, locally approved/rejected records. */
+const ARCH_PREFIX="【主腦架構】";
+let architecturePageSize=60;
+function isArchitecture(item,seen=new Set()){
+ if(!item||typeof item!=="object")return false;
+ if(typeof item.question==="string"&&item.question.startsWith(ARCH_PREFIX))return true;
+ if(item.id&&seen.has(item.id))return false;
+ if(item.id)seen.add(item.id);
+ if(item.parentId){const parent=state.memories.find(m=>m.id===item.parentId);if(parent&&isArchitecture(parent,seen))return true}
+ if(item.repairOf){const old=state.candidates.find(c=>c.id===item.repairOf);if(old&&isArchitecture(old,seen))return true}
+ return false;
+}
+function architectureHistoryRender(){
+ const box=$("architectureHistoryList");box.replaceChildren();
+ if(!state || $("architectureHistoryWrap").hidden)return;
+ const mode=$("architectureFilter").value;
+ const candidates=(state.candidates||[]).filter(item=>isArchitecture(item));
+ const memories=(state.memories||[]).filter(item=>isArchitecture(item));
+ const rows=[];
+ for(const c of candidates){
+  const revised=c.eventType==="revise_answer"||c.eventType==="revise_question"||!!c.repairOf||!!c.resolvedBy;
+  if(mode==="rejected" && c.status!=="rejected" && !c.repairOf && !c.resolvedBy)continue;
+  if(mode==="corrected"&&!revised)continue;
+  if(mode==="pending"&&c.status!=="pending")continue;
+  if(mode==="approved"&&c.status!=="approved")continue;
+  rows.push({type:"candidate",at:c.createdAt||"",ref:c.id,entry:c});
+ }
+ for(const m of memories){
+  if(mode==="rejected"||mode==="pending")continue;
+  const revised=m.relation==="question_revision"||(Array.isArray(m.versions)&&m.versions.length>1);
+  if(mode==="corrected"&&!revised)continue;
+  rows.push({type:"memory",at:m.createdAt||"",ref:m.id,entry:m});
+ }
+ rows.sort((a,b)=>b.at.localeCompare(a.at)||a.ref.localeCompare(b.ref));
+ $("architectureHistoryCount").textContent="共找到 "+rows.length+" 項（架構候選 "+candidates.length+" 筆、已核准架構主題 "+memories.length+" 筆）。目前僅顯示前 "+Math.min(rows.length,architecturePageSize)+" 項；所有核准與否決仍依原庫版本保存。";
+ if(!rows.length){box.append(node("div","empty","沒有符合條件的架構紀錄。可先在架構導覽匯出待審記憶包，再於提交候選頁人工匯入；未匯入的草稿不會出現在這裡。"));return;}
+ for(const x of rows.slice(0,architecturePageSize)){
+  const item=x.entry,card=node("article","card");
+  if(x.type==="candidate"){
+   const stateLabel=item.status==="pending"?"待審":item.status==="rejected"?"被拒絕":item.status==="approved"?"已核准":"未知";
+   appendText(card,"b","",item.question);
+   appendText(card,"p","small","候選 "+item.id+"｜"+stateLabel+"｜"+fmtDate(item.createdAt));
+   appendText(card,"p","small","提出者："+(sources[item.proposer]||item.proposer||"未知")+"（人工標示）｜事件："+(names[item.eventType]||item.eventType));
+   if(item.review)appendText(card,"p","small","人工審核："+(item.review.action||"未知")+"；理由："+(item.review.reason||"未提供")+"；時間："+fmtDate(item.review.at));
+   if(item.repairOf)appendText(card,"p","small","修復原拒絕 ID："+item.repairOf);
+   if(item.resolvedBy)appendText(card,"p","small","後續修復候選 ID："+item.resolvedBy);
+   if(item.parentId)appendText(card,"p","small","來源架構記憶 ID："+item.parentId);
+   const d=node("details");appendText(d,"summary","","展開完整候選內容、證據與修正理由");
+   appendText(d,"p","",item.content||"");appendText(d,"p","small","來源／證據："+(item.evidence||"無"));
+   appendText(d,"p","small","提出／修正理由："+(item.reason||"無"));
+   card.append(d);
+  } else {
+   appendText(card,"b","",item.question);
+   appendText(card,"p","small","核准架構 "+item.id+"｜"+(Array.isArray(item.versions)?item.versions.length:0)+" 個版本｜"+fmtDate(item.createdAt));
+   if(item.parentId)appendText(card,"p","small","父記憶 ID："+item.parentId+"｜分支："+item.relation);
+   for(const v of [...(item.versions||[])].reverse()){
+    const d=node("details");appendText(d,"summary","","版本 "+v.number+"｜"+fmtDate(v.approvedAt)+"｜來源候選 "+(v.candidateId||"未知"));
+    appendText(d,"p","",v.content||"");appendText(d,"p","small","來源："+(sources[v.source]||v.source||"未知")+"（來源聲稱）");
+    appendText(d,"p","small","依據："+(v.evidence||"無")+"｜修正原因："+(v.reason||"無"));card.append(d);
+   }
+  }
+  box.append(card);
+ }
+ if(rows.length>architecturePageSize){
+  const more=node("button","", "再顯示 "+Math.min(60,rows.length-architecturePageSize)+" 項");more.type="button";
+  more.addEventListener("click",()=>{architecturePageSize+=60;architectureHistoryRender();});box.append(more);
+ }
+}
+$("architectureFilter").addEventListener("change",()=>{architecturePageSize=60;architectureHistoryRender();});
+$("toggleArchitectureHistory").addEventListener("click",()=>{
+ const wrap=$("architectureHistoryWrap");wrap.hidden=!wrap.hidden;
+ $("toggleArchitectureHistory").setAttribute("aria-expanded",String(!wrap.hidden));
+ $("toggleArchitectureHistory").textContent=wrap.hidden?"顯示架構歷史":"隱藏架構歷史";
+ if(!wrap.hidden)architectureHistoryRender();
+});
+$("jumpArchitectureReview").addEventListener("click",()=>{selectTab("review");});
 const originalRenderAll=renderAll;
-renderAll=function(){originalRenderAll();workflowRender();};
+renderAll=function(){originalRenderAll();workflowRender();architectureHistoryRender();};
 
 $("dateFilter").value=localDay(utc());
 showLocked();selectTab("overview");

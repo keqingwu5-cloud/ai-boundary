@@ -42,19 +42,35 @@ footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font
 </head>
 <body>
 <header><div class="header-in"><div class="brand">🧠 AI 認知邊界 · 主腦</div><span class="status">本機記憶可用／雲端未連線</span>
-<nav class="links" aria-label="網站導覽"><a href="./memory.html">🗂️ 記憶管理</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 認知大腦</a><a href="./feed.html">短影音</a></nav></div></header>
+<nav class="links" aria-label="網站導覽"><a href="./ecosystem-dashboard.html">🧭 AI 生態總覽</a><a href="./candidate-center.html">📥 候選選拔與門檻</a><a href="./brain-branches.html">🌿 分支版圖</a><a href="./governance-board.html">📁 專案治理</a><a href="./relay-hub.html">🔗 三方中樞交接</a><a href="./architecture-hub.html">🧩 架構圖</a><a href="./traceback-visual.html">↩ 回溯驗證</a><a href="./memory.html">🗂️ 記憶管理</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 認知大腦</a><a href="./feed.html">短影音</a></nav></div></header>
 <main class="shell">
-<section class="intro"><div class="eyebrow">MAIN BRAIN / REVIEW DRAFT V0.3</div><h1>一個網站、三個 AI、一份共同記憶</h1>
-<p class="lead">GPT① 連續設計問題、GPT② 衍生與模擬、BOT③ 理解目的後執行。三方都能獨立質疑、反證、建立模型；主腦管理候選記憶、分歧與版本。</p>
+<section class="intro"><div class="eyebrow">MAIN BRAIN / REVIEW DRAFT V0.3</div><h1>主腦統一入口，各個系統先獨立分支</h1>
+<p class="lead">主腦負責總覽與協作入口；三方中樞、發射器、專案治理、回溯與加密記憶先各自運行。GPT① 負責問題與整合、GPT② 負責反證、BOT③ 負責測試，未完成的接口不會假裝已接通。</p>
 <div class="notice" role="status"><strong>記憶管理 V1</strong> 已提供可操作的本機加密庫與人工審核，<strong>尚未連接真正的雲端中央共同記憶或 AI 自動調度</strong>。不同裝置不會自動同步。請勿在公開 GitHub 檔案、留言或問題節點中貼入私人記憶。</div></section>
 <div class="tabbar" role="tablist" aria-label="主腦功能">
 <button type="button" role="tab" id="t-overview" data-tab="overview" aria-controls="p-overview" aria-selected="true">系統總覽</button>
+<button type="button" role="tab" id="t-workspace" data-tab="workspace" aria-controls="p-workspace" aria-selected="false">專案工作台</button>
+<button type="button" role="tab" id="t-relay" data-tab="relay" aria-controls="p-relay" aria-selected="false">三方交接節點</button>
 <button type="button" role="tab" id="t-tasks" data-tab="tasks" aria-controls="p-tasks" aria-selected="false">三方協作</button>
 <button type="button" role="tab" id="t-memory" data-tab="memory" aria-controls="p-memory" aria-selected="false">記憶管理</button>
 <button type="button" role="tab" id="t-diff" data-tab="diff" aria-controls="p-diff" aria-selected="false">每日差異</button>
 <button type="button" role="tab" id="t-security" data-tab="security" aria-controls="p-security" aria-selected="false">安全與部署</button>
 </div>
+<section id="p-workspace" role="tabpanel" aria-labelledby="t-workspace" hidden>
+<div class="block"><h2>主腦是入口，工作空間先分支獨立</h2>
+<p>主腦只負責顯示各條分支、現有狀態與需要人工交接的關聯；各分支的資料、任務與驗證規則不會因為打開主腦頁面就合併。</p>
+<div class="notice">原本內嵌的專案治理頁已改成獨立入口，避免兩個頁面執行個體造成資料不同步。下方連結只是導航，不等於三個 AI 互通或資料庫已共享。</div>
+<div class="grid two">
+<div class="card"><span class="tag">總分支圖</span><h3><a href="./brain-branches.html">查看主腦分支版圖 →</a></h3><p>展開系統用途、目前接口狀態、候選分支與驗證後才能接線的條件。</p></div>
+<div class="card"><span class="tag">獨立專案</span><h3><a href="./governance-board.html">開啟專案治理 →</a></h3><p>單一專案中可暫停指定工作、延續人工對話、處理拒絕提醒。重整前請自行匯出工作空間 JSON。</p></div>
+<div class="card"><span class="tag">獨立交接</span><h3><a href="./relay-hub.html">開啟三方中樞 →</a></h3><p>三條角色通路的任務與回報仍需要人工轉交，不能視為自動連線。</p></div>
+<div class="card"><span class="tag">獨立治理</span><h3><a href="./architecture-hub.html">開啟 TCVL 架構與回溯 →</a></h3><p>設計和驗證流程可先看見與規劃，不直接讀取私人記憶。</p></div>
+</div>
+<p class="small">跨分支資料只在你明確匯出／匯入後交接；未驗證的候選路徑不會取代舊版本。</p>
+</div>
+</section>
 <section id="p-overview" role="tabpanel" aria-labelledby="t-overview">
+<div class="block box"><h2>第一大腦＝研發中心；你負責規劃方向</h2><p>資訊先到候選區比較亮點和獨立證據，再交由資料管理員分類、留存錯誤及修正；第一大腦研發中心可雙向索取資料與提出反證，重要長期記憶須你核准。任務傳輸及遠端回執尚未接通。</p><p><a href="./ecosystem-dashboard.html">查看候選區、資料庫、研發中心與雙向回報事件面板 →</a></p></div>
 <div class="block"><h2>三方 AI 的工作主軸</h2><div class="grid">
 <div class="card"><span class="tag">GPT ①</span><h3>連續問題設計</h3><p>釐清需求與目的，追蹤原問題及模型演化，整合認知。分工不限制其他思考能力。</p></div>
 <div class="card"><span class="tag">GPT ②</span><h3>衍生與模擬</h3><p>跨域連結、替代解釋、模型攻擊、情境測試與反證。</p></div>
@@ -68,6 +84,15 @@ footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font
 <div class="step"><strong>按需回饋</strong><span>三方檢索與手機差異</span></div>
 </div><p class="small">中央記憶的「權威」是版本與治理權威，不代表其中所有內容都是真理。</p></div>
 </section>
+<section id="p-relay" role="tabpanel" aria-labelledby="t-relay" hidden>
+<div class="block">
+<h2>中樞交接節點｜三條獨立任務通路</h2>
+<p>在獨立的三方中樞分支建立任務，分別準備 GPT①、GPT②、BOT③ 的人工交接包；回覆須符合原指令 ID。拒絕須附原因、影響及下一步；停止只停止該工作分支的本機追蹤。</p>
+<div class="notice">三方中樞維持獨立分支，不再內嵌於主腦。尚未連上三個 AI 的正式 API；離開分支前請先匯出批次 JSON。</div>
+<p><a href="./relay-hub.html">單獨開啟中樞交接節點</a>　<a href="./governance-board.html">在專案治理匯入回報</a></p>
+<div class="card"><h3><a href="./relay-hub.html">進入獨立三方中樞 →</a></h3><p>此處只顯示入口；三方中樞的工作狀態與人工回報不會被主腦頁面隱性複製。</p></div>
+<p class="small">需跨分支交接時，請使用來源分支的正式匯出功能，再到目標分支由你明確匯入；主腦不會自動合併資料。</p>
+</div></section>
 <section id="p-tasks" role="tabpanel" aria-labelledby="t-tasks" hidden>
 <h2>三方協作與任務管理</h2><div class="grid">
 <div class="card"><h3>目的優先</h3><p>任務開始前確認 Why、Goal、Context、Action、Limits 與 Feedback。避免為做而做。</p></div>
@@ -125,4 +150,6 @@ addEventListener('hashchange',()=>select(location.hash.slice(1),false));
 select(location.hash.slice(1),false);
 })();
 </script>
+<script src="./tcvl-platform-core.js"></script>
+<script src="./tcvl-platform-shell.js"></script>
 </body></html>

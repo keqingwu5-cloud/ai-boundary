@@ -97,7 +97,7 @@
     for (const x of audit) {
       if (x.kind !== "workflow.recorded" || !x.ref || seen.has(x.ref)) continue;
       seen.add(x.ref);
-      rows.push({ref:x.ref,taskTitle:x.taskTitle || x.summary || "",actor:x.actor || "",status:x.status || "unknown",reason:x.reason || "",nextAction:x.nextAction || "",at:x.at || ""});
+      rows.push({ref:x.ref,taskTitle:x.taskTitle || x.summary || "",actor:x.actor || "",status:x.status || "unknown",displayStatus:x.displayStatus || "",reason:x.reason || "",nextAction:x.nextAction || "",at:x.at || ""});
     }
     return rows;
   }

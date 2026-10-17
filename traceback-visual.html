@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'self' 'unsafe-inline';style-src 'unsafe-inline';connect-src 'none';img-src 'none';base-uri 'none';form-action 'none'">
+<title>TCVL｜回溯驗證可視化實驗室</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"PingFang TC",sans-serif;background:#09101d;color:#f1f6ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -10%,#233758 0%,#09101d 58%);min-height:100vh}
+main{max-width:1060px;margin:auto;padding:22px 16px 72px}header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+a{color:#bad1ff}h1{font-size:clamp(26px,5vw,43px);line-height:1.2;margin:20px 0 8px}h2{font-size:18px;margin:0 0 12px}
+p{color:#b7c9e4;line-height:1.7}.muted{color:#adbed7}.small{font-size:12px}.tag{display:inline-block;border:1px solid #4a6390;border-radius:40px;padding:5px 10px;color:#cbdafa;font-size:12px}
+.grid{display:grid;grid-template-columns:1.35fr 1fr;gap:16px}.panel{background:#142035;border:1px solid #3b5072;border-radius:18px;padding:20px;min-width:0}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin:22px 0}.step{border:1px solid #425b80;border-radius:14px;padding:13px 10px;min-height:112px;background:#101b2e;color:#cad8ef;cursor:pointer;text-align:left;font:inherit}
+.step.active{border:2px solid #b5c9ff;background:#263959;color:white}.step b{display:block;font-size:13px;margin-bottom:9px}.step span{font-size:12px}
+button{cursor:pointer;border-radius:11px;padding:11px 15px;font:inherit;background:#30476c;border:1px solid #718fb7;color:white}
+button:focus-visible,.step:focus-visible,a:focus-visible{outline:3px solid #c5d6ff;outline-offset:3px}
+button:disabled{opacity:.5;cursor:default}.controls{display:flex;flex-wrap:wrap;gap:9px;margin:15px 0}
+.graph{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.node{border:1px solid #60779b;background:#101d30;border-radius:13px;padding:14px;min-height:106px}
+.node strong{display:block;margin:5px 0}.node small{color:#b5c6e3;line-height:1.6}.node.focus{border:2px solid #b9cbff;background:#253c5d}
+.node.affected{border:2px solid #e2bd82}.node.clear{border:1px solid #73b9a4}
+.full{grid-column:1/-1}.arrow{text-align:center;color:#adc5e9;grid-column:1/-1}.list{margin:12px 0;padding-left:20px;line-height:1.8;color:#d3e0f8}
+dl{display:grid;grid-template-columns:128px 1fr;gap:9px;margin:0}dt{color:#9bb6da}dd{margin:0;overflow-wrap:anywhere}
+label{display:block;margin-bottom:7px;color:#c7d9f5;font-size:13px}select,input{width:100%;border:1px solid #5c7599;background:#0c1729;color:#f1f6ff;border-radius:10px;padding:11px;font:inherit}select:focus-visible,input:focus-visible{outline:3px solid #c5d6ff;outline-offset:2px}
+.notice{border:1px solid #90794d;background:#332b1d;border-radius:12px;padding:12px;margin:15px 0;color:#f7e6c1}
+.output{background:#0c1729;border:1px solid #394f70;border-radius:12px;padding:14px;white-space:pre-wrap;line-height:1.7;overflow-wrap:anywhere}
+@media(max-width:720px){.grid{grid-template-columns:1fr}.steps{grid-template-columns:repeat(2,1fr)}.panel{padding:15px}dl{grid-template-columns:1fr}dd{margin-bottom:10px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
+</head>
+<body><main>
+<header><span class="tag">TCVL-04 · 視覺原型 V0.1</span><nav aria-label="平台導覽"><a href="./architecture-hub.html">架構導覽／快速設計</a>　<a href="./launcher.html">發射器</a>　<a href="./memory.html">記憶管理</a></nav></header><p id="fromModule" class="muted small" role="status"></p>
+<h1>回溯驗證可視化實驗室</h1>
+<p>從原始主張、反證、條件變化測試，一路追蹤到受影響的判斷與修正方案。可用於展示影片的分鏡。這是一個<strong>獨立示範頁</strong>，不會讀取、修改、傳送任何正式記憶。</p>
+<div class="notice" role="status">展示資料為虛構案例，並非 GPT①、GPT②、BOT③ 已實際執行的結果。本頁不提供真正的 AI 自動連線或事實查證。</div>
+<section aria-label="回溯階段">
+<div class="steps" id="steps"></div>
+<div class="controls"><button type="button" id="previous">◀ 上一階段</button><button type="button" id="next">下一階段 ▶</button><button type="button" id="play">▶ 自動播放</button><button type="button" id="reset">↺ 重播</button></div>
+</section>
+<div class="grid">
+<section class="panel" aria-label="依賴關係示意"><h2>證據 → 主張 → 影響範圍</h2>
+<div class="graph" id="graph">
+<div class="node full" data-stage="0"><small>來源與資料</small><strong>E-001｜虛構觀測紀錄</strong><small>狀態：來源未經外部驗證</small></div>
+<div class="arrow">↓ 引用依據（不是已證實因果）</div>
+<div class="node" data-stage="1"><small>主張 C-001</small><strong>特定條件下的假設</strong><small>GPT① 提出，待審</small></div>
+<div class="node" data-stage="2"><small>反證 E-002</small><strong>替代解釋</strong><small>GPT② 提出，待比較</small></div>
+<div class="arrow">↓ 測試回報與影響掃描</div>
+<div class="node" data-stage="3"><small>記憶 M-001</small><strong>重新審查</strong><small>可能引用受影響主張</small></div>
+<div class="node" data-stage="3"><small>任務 T-002</small><strong>評估是否暫停</strong><small>需先查核依賴程度</small></div>
+<div class="arrow">↓ 修正方案與再驗證</div>
+<div class="node full" data-stage="4"><small>修正候選 R-001</small><strong>保留原版，建立條件化新主張</strong><small>待 GPT② 審查、BOT③ 重測、人工審批</small></div>
+</div>
+</section>
+<section class="panel" aria-live="polite" aria-atomic="true"><h2>當前階段</h2><div id="detail"></div><h2 style="margin-top:25px">雙向回溯</h2>
+<p class="small">向後查來源與版本；向前查依賴與可能影響。不能因為存在依賴，就直接宣稱因果成立。</p>
+<ul class="list"><li>舊資料與否決保留原 ID</li><li>新發現標記可信狀態及未解決問題</li><li>修正方案與原版分支連結</li><li>未來測試不得冒充已完成紀錄</li></ul>
+</section>
+</div>
+<section class="panel" style="margin-top:16px"><h2>修正前後對照（示意）</h2><div class="grid">
+<div><span class="tag">舊版 C-001</span><p>「所有測試條件下均成立。」</p><p class="small">問題：主張範圍過大，且尚未完成跨條件檢查。</p></div>
+<div><span class="tag">候選修正版 R-001</span><p>「目前僅在已取得支持的條件下有證據；其他條件待驗證。」</p><p class="small">狀態：修正建議，尚未核准為正式記憶。</p></div>
+</div></section>
+<section class="panel" style="margin-top:16px" aria-label="三方驗證測試器"><h2>三項測試決策｜互動演練</h2>
+<p class="small">選擇 GPT① 方向、GPT② 證據、BOT③ 條件變化的測試狀態。按下執行後，由獨立測試核心計算應採用的處置。全部通過也僅代表「可以送人工審批」，不是自動驗證為真。</p>
+<div class="grid">
+<div><label for="checkDirection">GPT①｜方向符合</label><select id="checkDirection"><option value="pass">通過</option><option value="fail">不成立</option><option value="unknown">無法判定</option><option value="invalid">測試無效</option></select><label for="reasonDirection">方向判斷依據</label><input id="reasonDirection" maxlength="240" value="虛構：研究目的及完成條件已明確"></div>
+<div><label for="checkEvidence">GPT②｜證據支持</label><select id="checkEvidence"><option value="pass">通過</option><option value="fail">不成立</option><option value="unknown">無法判定</option><option value="invalid">測試無效</option></select><label for="reasonEvidence">證據與反證說明</label><input id="reasonEvidence" maxlength="240" value="虛構：已列出可比較的支持與反對證據"></div>
+<div><label for="checkVariations">BOT③｜條件變化</label><select id="checkVariations"><option value="pass">通過</option><option value="fail" selected>不成立</option><option value="unknown">無法判定</option><option value="invalid">測試無效</option></select><label for="reasonVariations">變化測試發現</label><input id="reasonVariations" maxlength="240" value="虛構：條件改變後未重現，需要重設適用範圍"></div>
+</div>
+<div class="controls"><button type="button" id="runTripleCheck">計算處置與退回</button><button type="button" id="runImpact">示範依賴影響追蹤</button></div>
+<div class="output" id="testDecision" role="status" aria-live="polite">尚未執行測試模擬。</div>
+<p class="small">判斷規則只檢查提供的測試結果與必填原因；不代表已自動查證外部世界，也不會寫入正式記憶。</p>
+</section>
+<section class="panel" style="margin-top:16px"><h2>示範資料與影片安全規則</h2>
+<p>此頁只展示資料結構的效果，不揭露私人記憶或內部操作憑證。錄影時保留「虛構示範」標示。正式資料未來應經脫敏、人工授權和驗證後才能公開。</p>
+<div class="controls"><button type="button" id="copySummary">複製示範摘要</button></div>
+<div id="copyStatus" class="small" role="status"></div>
+</section>
+</main>
+<script src="./tcvl-traceback-core.js"></script>
+<script>
+"use strict";
+const data=[
+{title:"建立原始主張",who:"GPT①（示範）",status:"待驗證",desc:"提出 C-001，附 E-001 來源聲稱。先確認任務目的與完成標準。",next:"提交至獨立反證審查"},
+{title:"尋找反例",who:"GPT②（示範）",status:"存在分歧",desc:"提出 E-002 替代解釋，不覆蓋 C-001。反證仍需查核。",next:"轉換為可以測試的條件"},
+{title:"條件變化測試",who:"BOT③（示範）",status:"部分支持",desc:"示意情境：條件 A 得到支持，條件 B 未重現。未重現不必然等於原主張已否證。",next:"保留輸入、條件、結果與測試限制"},
+{title:"影響範圍掃描",who:"TCVL（示範）",status:"待重審",desc:"識別可能引用 C-001 的 M-001 與 T-002。這是依賴提示，不是自動認定兩者錯誤。",next:"分別判斷重新審查、繼續或暫停"},
+{title:"方案與再驗證",who:"GPT①＋GPT②＋BOT③（示範）",status:"待核准",desc:"提出條件化修正 R-001，保留舊版、反證及責任紀錄。由使用者核准後才可升格正式記憶。",next:"安排新的獨立樣本測試"}
+];
+const byId=id=>document.getElementById(id);let pos=0,timer=null;
+const steps=byId("steps");
+data.forEach((d,i)=>{const b=document.createElement("button");b.type="button";b.className="step";b.addEventListener("click",()=>{stop();show(i);});b.innerHTML="<b>"+(i+1)+"｜"+d.title+"</b><span>"+d.status+"</span>";steps.append(b)});
+function show(i){pos=Math.max(0,Math.min(i,data.length-1));const d=data[pos];[...steps.children].forEach((b,j)=>{b.classList.toggle("active",pos===j);b.setAttribute("aria-current",pos===j?"step":"false")});document.querySelectorAll("[data-stage]").forEach(n=>{n.classList.toggle("focus",Number(n.dataset.stage)===pos);n.classList.toggle("affected",pos>=3&&Number(n.dataset.stage)===3)});const t=byId("detail");t.replaceChildren();const dl=document.createElement("dl");for(const [key,val] of [["負責",d.who],["狀態",d.status],["發現",d.desc],["下一步",d.next]]){const dt=document.createElement("dt");dt.textContent=key;const dd=document.createElement("dd");dd.textContent=val;dl.append(dt,dd)}t.append(dl);byId("previous").disabled=pos===0;byId("next").disabled=pos===data.length-1}
+function stop(){if(timer!==null){clearInterval(timer);timer=null}byId("play").textContent="▶ 自動播放"}
+byId("previous").addEventListener("click",()=>{stop();show(pos-1)});
+byId("next").addEventListener("click",()=>{stop();show(pos+1)});
+byId("reset").addEventListener("click",()=>{stop();show(0)});
+byId("play").addEventListener("click",()=>{if(timer!==null){stop();return}if(pos>=data.length-1)show(0);byId("play").textContent="⏸ 暫停";timer=setInterval(()=>{if(pos>=data.length-1){stop();return}show(pos+1)},1900)});
+byId("copySummary").addEventListener("click",async()=>{const report="TCVL-04 虛構示範：原始主張 → 獨立反證 → 條件變化測試 → 依賴影響掃描 → 提案修正與再驗證。此摘要不代表任何真實 AI 已完成測試。";try{await navigator.clipboard.writeText(report);byId("copyStatus").textContent="已複製示範摘要。"}catch(e){byId("copyStatus").textContent="無法存取剪貼簿，請檢查瀏覽器權限。"}});
+const statusLabel={eligible_for_human_review:"可提交人工審批",return_for_revision:"退回修正",hold_for_evidence:"保留待驗證",test_invalid:"測試無效，需要重設測試"};
+const roleLabel={GPT1:"GPT①｜研究目標",GPT2:"GPT②｜證據與反證",BOT3:"BOT③｜條件測試"};
+const resultLabel={pass:"通過",fail:"不成立",unknown:"無法判定",invalid:"測試無效"};
+byId("runTripleCheck").addEventListener("click",()=>{
+ if(!globalThis.TcvlTracebackCore){byId("testDecision").textContent="測試核心尚未載入，請確認檔案是否存在。";return}
+ const values={direction:byId("checkDirection").value,evidence:byId("checkEvidence").value,variations:byId("checkVariations").value};
+ const reasons={direction:byId("reasonDirection").value.trim(),evidence:byId("reasonEvidence").value.trim(),variations:byId("reasonVariations").value.trim()};
+ try{
+  const result=globalThis.TcvlTracebackCore.tripleCheck(Object.fromEntries(Object.entries(values).map(([k,outcome])=>[k,{outcome,reason:reasons[k]}])));
+  const report=["三方測試結果｜虛構演練","① 方向："+resultLabel[values.direction]+"｜依據："+reasons.direction,"② 證據："+resultLabel[values.evidence]+"｜依據："+reasons.evidence,"③ 條件變化："+resultLabel[values.variations]+"｜發現："+reasons.variations,"處置："+statusLabel[result.decision],"反向退回："+(result.returnTargets.length?result.returnTargets.map(k=>roleLabel[k]).join("、"):"不需退回，等待人工審批"),"三項結果和原因各自保留，不會自動核准或更新正式記憶。"];
+  byId("testDecision").textContent=report.join("\n");
+ }catch(err){byId("testDecision").textContent="未執行：請補上具體原因。"+err.message}
+});
+byId("runImpact").addEventListener("click",()=>{
+ const core=globalThis.TcvlTracebackCore;
+ if(!core){byId("testDecision").textContent="測試核心尚未載入。";return}
+ const now="2026-10-15T00:00:00.000Z";
+ const records=[{id:"E-001",type:"evidence",createdAt:now,recordedAt:now},{id:"C-001",type:"claim",createdAt:now,recordedAt:now},{id:"M-001",type:"memory",createdAt:now,recordedAt:now},{id:"T-002",type:"task",createdAt:now,recordedAt:now},{id:"U-001",type:"task",createdAt:now,recordedAt:now}];
+ const edges=[{from:"C-001",to:"E-001",type:"depends_on",recordedAt:now},{from:"M-001",to:"C-001",type:"depends_on",recordedAt:now},{from:"T-002",to:"M-001",type:"depends_on",recordedAt:now}];
+ const result=core.impactOf({schema:core.SCHEMA,records,events:[],edges},"E-001","2026-10-15T01:00:00.000Z");
+ byId("testDecision").textContent=["虛構依賴關係測試","來源：E-001","需評估的依賴紀錄："+result.affected.map(x=>x.id+"（第"+x.depth+"層）").join(" → "),"無直接依賴證據： "+result.unaffected.join("、"),"注意：依賴 ≠ 已證實因果；所有項目仍需個別審查。"].join("\n");
+});
+const moduleEntry={
+ launcher:{name:"Launcher Hub",stage:0,desc:"回溯任務是從哪個指令建立、誰交辦，以及是否真正送達。"},
+ relay:{name:"三方 AI 中樞交接",stage:1,desc:"回溯三個角色各自的原始指令、人工回報和是否存在來源無法驗證的問題。"},
+ governance:{name:"TCVL-01 資料治理",stage:0,desc:"回溯資料的來源、版本、審核及匯入匯出紀錄。"},
+ collaboration:{name:"TCVL-02 三方協作",stage:1,desc:"回溯 GPT① 方向、GPT② 反例與 BOT③ 不同條件測試。"},
+ correction:{name:"TCVL-03 反向修正",stage:3,desc:"回溯錯誤如何影響已有結論，以及修正應退回哪一個節點。"},
+ vault:{name:"共同記憶",stage:4,desc:"回溯正式版本與否決、修正候選之間的關係。"},
+ traceback:{name:"TCVL-04 時序回溯",stage:0,desc:"依時間重建原始主張、反證、測試與修正歷史。"}
+};
+const entry=moduleEntry[decodeURIComponent(location.hash.slice(1))];
+if(entry){byId("fromModule").textContent="從「"+entry.name+"」進入｜"+entry.desc+"（目前全為示範資料）";show(entry.stage)}
+else show(0);
+</script><script src="./tcvl-platform-core.js"></script>
+<script src="./tcvl-platform-shell.js"></script>
+</body></html>

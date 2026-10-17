@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'self' 'unsafe-inline';style-src 'unsafe-inline';img-src 'none';connect-src 'none';object-src 'none';base-uri 'none';form-action 'none'">
+<title>主腦系統地圖｜模組用途・交接・快速架構</title>
+<style>
+:root{color-scheme:dark;--bg:#080e19;--panel:#142039;--panel2:#1b2b45;--ink:#edf4ff;--sub:#bed0e9;--dim:#9eb4d1;--edge:#425a7c;--blue:#b2cafa;--mint:#a6e5d0;--amber:#f0d19b;--rose:#f5b4b4}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{background:radial-gradient(ellipse 1050px 480px at 50% -110px,#243d66 0,transparent 68%),var(--bg);margin:0;font:15px/1.65 system-ui,-apple-system,"PingFang TC","Noto Sans TC",sans-serif;color:var(--ink)}
+a{color:#c4d8ff}button,input,select,textarea{font:inherit}button{cursor:pointer;color:var(--ink);border:1px solid #7189ad;background:#293e5e;border-radius:11px;padding:10px 14px}button:hover{background:#34517a}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #c7d8ff;outline-offset:3px}
+[hidden]{display:none!important}main{max-width:1140px;margin:auto;padding:18px 18px 80px}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+nav{display:flex;gap:9px;flex-wrap:wrap;font-size:13px}nav a{text-decoration:none;border:1px solid var(--edge);border-radius:10px;padding:7px 12px}
+.kicker{display:block;font-size:12px;letter-spacing:.18em;color:var(--blue);margin-top:34px}
+h1{font-size:clamp(30px,5vw,48px);line-height:1.25;margin:7px 0 12px}h2{font-size:22px;margin:0 0 8px}h3{font-size:17px;margin:0}
+p{color:var(--sub);margin:5px 0 12px}.lead{font-size:16px;max-width:850px}
+.chip{display:inline-block;padding:4px 9px;border:1px solid var(--edge);border-radius:30px;font-size:11px;color:#d6e3fb}
+.chip.live{border-color:#609581;color:var(--mint)}.chip.idea{border-color:#9b8256;color:var(--amber)}
+.note{padding:13px 15px;border:1px solid #7e6e51;border-radius:13px;background:#2d2a28;color:#f7dfb1;font-size:13px;margin:18px 0}
+.layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(310px,.88fr);gap:17px;margin-top:22px;align-items:start}
+.panel{background:linear-gradient(145deg,#172640,#101c30);border:1px solid var(--edge);border-radius:18px;padding:20px;min-width:0}
+.stack{display:grid;gap:9px;margin:15px 0}.node{width:100%;text-align:left;display:flex;align-items:center;gap:12px;background:#111d32;border:1px solid #51698e;border-radius:15px;padding:12px 13px;min-height:76px;transition:background .14s,border-color .14s}
+.node.active{border:2px solid #bdd1ff;background:#253c5e}.node.candidate{opacity:.55;filter:grayscale(.7);border-style:dashed}.node.candidate.active{opacity:.9;filter:none}.node.onpath{box-shadow:inset 0 0 0 2px #86cbb9}.node.unbuilt{border-style:dashed;border-color:#d9b981}.patharrow{display:flex;justify-content:center;align-items:center;font-size:20px;color:#b0c7e9;margin:3px auto}.node .chip{margin-left:auto;max-width:110px;text-align:center}.node.related{border-color:#79ac9c}.node strong{display:block;font-size:15px}.node small{display:block;font-size:12px;color:var(--dim)}.num{border-radius:12px;background:#273954;width:43px;min-width:43px;height:43px;display:flex;justify-content:center;align-items:center;font-size:13px;font-weight:750;color:#d9e7ff}
+.flowarrow{text-align:center;color:#a5bddc;font-size:20px;line-height:1}.rolelines{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.role{border:1px solid #51698e;background:#101e34;border-radius:12px;padding:12px 9px;text-align:center}.role strong{display:block}.role span{font-size:12px;color:var(--sub)}
+.side-title{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.overline{font-size:12px;color:#9ab8e3;letter-spacing:.12em}.detailgrid{display:grid;gap:10px;margin:14px 0}
+.detailrow{padding:11px 12px;background:#102037;border-left:3px solid #7199c5;border-radius:4px 10px 10px 4px}.detailrow span{display:block;color:#a2b9da;font-size:12px}.detailrow p{margin:2px 0 0;white-space:pre-line;color:#e4edfc}
+.miniactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.miniactions a,.miniactions button{display:inline-block;font-size:13px;border-radius:10px;padding:9px 12px}
+.section-head{margin-top:35px;margin-bottom:16px}
+.route{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:15px;background:#0c192c;border:1px solid var(--edge);border-radius:13px;margin:12px 0}
+.route-item{background:#223856;border:1px solid #58779d;border-radius:10px;padding:8px 10px;font-size:13px}
+.route-arrow{color:#aec8e8}
+form{display:grid;gap:12px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block;font-size:13px;font-weight:650;color:#d3e3ff;margin-bottom:6px}
+input,select,textarea{width:100%;background:#0c182b;border:1px solid #5e7497;border-radius:11px;color:var(--ink);padding:11px 12px}
+textarea{min-height:75px;resize:vertical}.helper{font-size:12px;color:var(--dim)}
+#draftSteps{display:grid;gap:8px;margin:10px 0}.draftstep .stepactions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.draftstep .stepactions button{font-size:12px;padding:5px 9px}.draftstep p{font-size:12px;margin:6px 0;color:#bcd0e9} .draftstep{border:1px solid #506b90;border-radius:12px;padding:12px;background:#102039}.draftstep b{display:block}.draftstep span{font-size:12px;color:var(--sub)}
+footer{margin-top:32px;border-top:1px solid var(--edge);padding-top:17px;color:var(--dim);font-size:12px}
+.switchline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}.switchline label{font-size:13px;font-weight:450;display:flex;align-items:center;gap:6px;margin:0 7px 0 0}.switchline input[type=checkbox]{width:18px;height:18px;accent-color:#b4ceff}
+.states{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:10px}.statecard{border:1px solid var(--edge);border-radius:13px;background:#102037;padding:13px;min-width:0}.statecard h3{font-size:14px;margin:4px 0}.statecard p{font-size:12px;margin:4px 0}
+.track{border:1px solid #5b7297;border-radius:12px;padding:13px;margin:9px 0;background:#12243b}.track .meta{font-size:12px;color:#b9cbeb}.track strong{display:block;font-size:14px}
+#routeResult .pathstep{padding:13px;margin:8px 0;border-left:3px solid #aec7f4;background:#10233b;border-radius:5px 11px 11px 5px}
+#routeResult .pathstep b{display:block}#routeResult .pathstep p{font-size:13px;margin:4px 0}
+[data-kind=rejection]{border-left:4px solid #edc79b}[data-kind=correction]{border-left:4px solid #9ed8c9}
+.section-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:12px 0}.helpnote{color:#b4c8e9;font-size:12px}
+.historywrap[hidden]{display:none}.pathlabel{font-size:12px;color:#c3d5f2}
+#historyFilters{border:1px solid #536787;border-radius:13px;padding:12px;margin:10px 0}
+
+.module-complete{border-color:#7fba9d!important;background:#17392f!important}.completion-panel{border-top:1px solid var(--edge);padding-top:16px;margin-top:16px}.completion-list{display:grid;gap:6px;margin:12px 0}.completion-row{display:flex;justify-content:space-between;gap:10px;align-items:start;background:#0d2034;border:1px solid #526789;border-radius:10px;padding:8px 10px;font-size:13px}.completion-row small{color:var(--dim)}.donebar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:10px 0}.donebar button{font-size:12px;padding:7px 10px}.completion-label{color:#b0e7c6;font-weight:700}
+#builderStatus{min-height:20px}.ghost{background:#1c2e49}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.fields{grid-template-columns:1fr}main{padding:14px 13px 65px}.panel{padding:16px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.node{transition:none}}
+</style>
+</head>
+<body><main>
+<header><span class="chip">TCVL · 獨立分支的詳細架構</span><nav aria-label="平台導覽"><a href="./brain-branches.html">返回主腦分支版圖</a><a href="./launcher.html">發射器</a><a href="./governance-board.html#gateCenter">條件式門檻</a><a href="./traceback-visual.html">回溯測試</a><a href="./memory.html">記憶管理</a></nav></header>
+<span class="kicker">LAUNCHER HUB × TCVL · VISUAL SYSTEM GUIDE</span>
+<h1>讓每個模組的作用，一眼看懂。</h1>
+<p class="lead">這是<strong>TCVL 治理分支內部</strong>的詳細流程，不會把其他主腦分支合併。先看誰接收資料、做什麼、交給誰，再看出錯時如何反向退回。</p>
+<div class="note">目前是<strong>設計導覽＋快速架構草稿工具</strong>。圖中的連接線代表預定流程，不代表三個 AI 已自動連線或每個模組都已完成。所有操作都不讀取加密記憶庫。</div>
+<section class="panel" aria-label="修改前後門檻" style="margin-top:18px">
+  <div class="side-title"><h2>開發與記憶的條件門檻</h2><span class="chip idea">規則已建立｜仍在開發分支</span></div>
+  <p>先檢查<strong>專案／來源／版次／授權範圍</strong>，符合才修改；修改後重新確認<strong>資料格式、歷史保留、修正版本</strong>。拒絕時立即記下原因、影響及可行下一步。正式記憶仍需人工核准。</p>
+  <div class="route" aria-label="門檻流程"><span class="route-item">檢查前提</span><span class="route-arrow">→</span><span class="route-item">允許／拒絕</span><span class="route-arrow">→</span><span class="route-item">變更後審查</span><span class="route-arrow">→</span><span class="route-item">保留門檻紀錄</span></div>
+  <p class="helper">門檻「通過」只代表符合操作條件，不代表三個 AI 已回覆或結論正確。<a href="./governance-board.html#gateCenter">查看專案門檻紀錄與停止工作控制 →</a></p>
+ </section>
+<section class="layout" aria-label="系統架構導覽">
+ <div class="panel">
+  <div class="side-title"><h2>系統如何互相作用</h2><span class="chip">點選節點看細節</span></div>
+  <p class="helper">由上而下是一般工作方向；發現問題會反向退回，並把紀錄送回資料治理。</p>
+  <div class="stack" id="moduleMap" aria-label="架構模組圖"></div>
+  <div class="panel" style="padding:14px;margin-top:14px" aria-label="已完成模組清單">
+    <h3>✅ 已完成模組</h3><p class="helper">必須六個節點都記錄驗證依據，並經人工核准，才會列在這裡。單一「節點已驗證」不代表模組完成。</p>
+    <div id="completedModules" aria-live="polite"></div>
+  </div>
+  <p class="helper">TCVL-04 是跨流程的歷史與影響回溯工具，可從所有階段接收經授權的事件紀錄。</p>
+ </div>
+ <div class="panel" id="moduleDetail" aria-live="polite" aria-atomic="true">
+   <div class="side-title"><span class="overline" id="detailNumber">MODULE 00</span><span class="chip" id="detailStatus">狀態</span></div>
+   <h2 id="detailTitle" style="margin-top:10px">選擇模組</h2>
+   <p id="detailPurpose"></p>
+   <div class="detailgrid" id="detailGrid"></div>
+   <div class="completion-panel" aria-label="模組完成度管理">
+    <h3>節點驗證與整體完成判定</h3>
+    <p class="helper">節點可標記「待驗證、驗證中、節點已驗證、驗證不成立」。✅ 代表整個模組六個必要節點都有證據且經人工確認；不代表遠端接口自動接通。</p>
+    <div class="donebar"><span class="chip" id="moduleLifecycle">規劃中</span><span id="moduleNodeCount" class="helper">0／6 節點已驗證</span></div>
+    <div class="completion-list" id="moduleCompletionNodes" aria-label="節點驗證記錄"></div>
+    <div class="fields">
+      <div><label for="verifyNode">要記錄的節點</label><select id="verifyNode"></select></div>
+      <div><label for="verifyState">節點驗證狀態</label><select id="verifyState"></select></div>
+    </div>
+    <label for="verifyEvidence">驗證證據／結果引用</label>
+    <textarea id="verifyEvidence" maxlength="1000" placeholder="實際結果、測試案例或證據 ID"></textarea>
+    <div class="miniactions"><button id="saveNodeVerification" type="button">更新節點驗證</button></div>
+    <div class="fields" style="margin-top:12px">
+      <div><label for="completionReviewer">人工驗收人</label><input id="completionReviewer" maxlength="80" placeholder="人工確認者（自填，身分未驗證）"></div>
+      <div><label for="completionReference">整體驗收紀錄／測試報告 ID</label><input id="completionReference" maxlength="250" placeholder="例如：TCVL-TEST-001"></div>
+    </div>
+    <div class="miniactions"><button id="markModuleCompleted" type="button">✅ 確認整個模組已完成</button><button id="reopenCompletedModule" type="button" class="ghost">退回模組重審</button></div>
+    <p class="helper" id="moduleCompletionMessage" role="status">尚未核准任何模組。</p>
+   </div>
+   <div class="miniactions">
+    <button type="button" id="traceFromModule">用這個節點回溯</button>
+    <button type="button" id="useInBuilder">放入快速架構</button>
+   </div>
+ </div>
+</section>
+<section class="panel" style="margin-top:20px" aria-label="快速理解工作鏈">
+ <div class="side-title"><h2>一個任務如何完成</h2><span class="chip">工作流程解說</span></div>
+ <div class="route" aria-label="任務流程">
+ <span class="route-item">你提出問題</span><span class="route-arrow">→</span>
+ <span class="route-item">發射器建任務</span><span class="route-arrow">→</span>
+ <span class="route-item">資料進出驗證</span><span class="route-arrow">→</span>
+ <span class="route-item">三方分工回報</span><span class="route-arrow">→</span>
+ <span class="route-item">反向退回／修正</span><span class="route-arrow">→</span>
+ <span class="route-item">人工審批及歷史</span></div>
+ <div class="rolelines">
+ <div class="role"><strong>GPT①</strong><span>定方向、整合解法</span></div>
+ <div class="role"><strong>GPT②</strong><span>找反例、比較支持</span></div>
+ <div class="role"><strong>BOT③</strong><span>測不同條件能否成立</span></div>
+ </div>
+ <p class="helper" style="margin-top:12px">三個 AI 的回報，都先成為有來源與狀態的「候選事件」。錯誤和分歧應保留；只有經過審批的資料才能進入正式記憶。</p>
+ <div class="detailrow" id="dataRoomLane" style="margin-top:12px">
+  <span>跨三方資料室治理｜原始檔與整理結果分離</span>
+  <p>原始資料不因 GPT①、GPT②、BOT③ 的整理或反證而被覆寫；每位 AI 都連結一名人工負責人及審核者。上交時要指出原檔 ID、摘要、證據、拒絕／未知及下一步。治理索引目前僅為本機人工參照，正式私人原檔儲存尚未接通。</p>
+  <p><a href="./relay-hub.html#dataRoomCenter">查看三個 AI 的責任歸屬、原檔索引與上交審核 →</a></p>
+ </div>
+</section>
+<section class="layout" id="quickBuilder" aria-label="快速架構設計">
+ <div class="panel">
+  <span class="overline">QUICK BLUEPRINT</span>
+  <h2>快速架構｜先畫流程再開發</h2>
+  <p>選一種任務，系統會產生對應節點與交接說明。你可以修改任務名稱、新增或刪除模組、調整步驟順序，先看每個環節做什麼，再檢查交接與缺漏。</p>
+  <form id="builderForm">
+   <div><label for="blueprintName">這個架構要完成什麼？</label><input id="blueprintName" maxlength="140" value="驗證一個研究主張並保留修正歷史" required></div>
+   <div><label for="blueprintType">快速範本</label><select id="blueprintType">
+     <option value="research">一般研究驗證</option><option value="repair">被否決資料重新驗證</option><option value="interface">新接口與匯入匯出</option><option value="trace">歷史回溯與影響追查</option>
+   </select></div>
+   <div><label for="extraModule">加入模組（選取後立即加入預覽）</label><select id="extraModule"><option value="">選擇要增加的模組</option></select></div>
+ <div class="miniactions"><button id="importCandidateMap" type="button">匯入專案的未來候選版圖</button><input id="candidateMapFile" type="file" accept=".json,application/json" hidden></div>
+ <p id="candidateMapStatus" class="helper" role="status">候選版圖匯入後會顯示成淡化節點與未接線路徑，不覆寫既有架構。</p>
+   <details id="newModulePanel"><summary>＋ 建立新的模組節點（選填）</summary>
+   <div class="fields" style="margin-top:12px"><div><label for="customTitle">新模組名稱</label><input id="customTitle" maxlength="80" placeholder="例如：品質評估中心"></div><div><label for="customInput">接收什麼？</label><input id="customInput" maxlength="250" placeholder="證據、測試結果、任務版本"></div></div>
+   <div class="fields"><div><label for="customWork">具體做什麼？</label><textarea id="customWork" maxlength="500" placeholder="說明處理與檢查動作"></textarea></div><div><label for="customOutput">交出什麼？</label><textarea id="customOutput" maxlength="400" placeholder="評估報告、修正建議等"></textarea></div></div>
+   <div><label for="customReverse">失敗時退回哪裡？</label><input id="customReverse" maxlength="300" placeholder="例如：退回測試設計並要求補充證據"></div>
+   <div class="miniactions"><button type="button" id="addCustomModule">建立節點並加入預覽</button></div><p class="helper" id="customStatus" role="status">僅建立可說明的設計節點；不產生程式碼或自動連線。</p>
+  </details>
+  <div class="miniactions"><button type="submit">產生架構說明</button><button type="button" id="clearBuilder" class="ghost">還原範本</button></div>
+   <p class="helper" id="builderStatus" role="status"></p>
+  </form>
+  <div class="note">這裡產生的是<strong>尚未部署的架構草稿</strong>。不會自動連接其他 AI、建立正式任務或修改任何資料庫。</div>
+ </div>
+ <div class="panel" aria-live="polite">
+  <div class="side-title"><h2>你的架構預覽</h2><span class="chip" id="blueprintTag">設計草稿</span></div>
+  <p id="draftGoal" style="font-weight:650;color:#eaf2ff"></p><p class="helper">每個步驟都能移動或移除；這只是流程草圖，不代表模組已經實際連線。</p>
+  <div id="draftSteps" aria-label="架構步驟"></div>
+  <div class="detailrow"><span>資料如何反向退回？</span><p id="draftReverse"></p></div>
+  <div class="detailrow" style="margin-top:10px"><span>哪些事情仍需驗證？</span><p id="draftGates"></p></div>
+  <div class="miniactions">
+    <button type="button" id="copyBlueprint">複製文字規格</button>
+    <button type="button" id="exportBlueprint">匯出架構 JSON</button>
+    <a href="./relay-hub.html">進入三方中樞交接 →</a> <a href="./traceback-visual.html">開啟回溯測試 →</a>
+  </div>
+  <p class="helper" id="exportStatus" role="status"></p>
+ </div>
+</section>
+
+<section class="panel" style="margin-top:20px" id="routePlanner" aria-label="接口與路徑規劃">
+ <div class="side-title"><h2>接口狀態與路徑規劃</h2><p class="helper">三方中樞交接節點已加入可操作的人工任務路徑；未來 AI API 仍顯示規劃中。</p><span class="chip idea">靜態狀態，不是即時連線</span></div>
+ <p>先看接口目前能不能實際送達，再選擇起點及終點，逐站理解資料如何交接、哪些步驟需要人工、哪裡尚未接通。</p>
+ <div class="states" id="interfaceCards" aria-label="目前接口狀態"></div>
+ <div class="fields" style="margin-top:16px">
+   <div><label for="routeStart">資料／任務從哪個模組開始？</label><select id="routeStart"></select></div>
+   <div><label for="routeEnd">要到哪個模組？</label><select id="routeEnd"></select></div>
+ </div>
+ <div class="section-actions"><button type="button" id="planRoute">查看路徑及接口狀態</button><button type="button" id="reverseRoute">交換起點／終點</button><span class="helpnote">反向路徑必須有明確交接規則，不代表反向一定能直通。</span></div>
+ <div id="routeResult" aria-live="polite" aria-atomic="true"></div>
+</section>
+<section class="layout" id="recordStudio" aria-label="雙向紀錄與欄位模板">
+ <div class="panel">
+  <div class="side-title"><h2>雙向紀錄檢視</h2><span class="chip">進站／送出可獨立隱藏</span></div>
+  <p>可依方向與事件類型檢視。拒絕、修正紀錄都要留下原始編號和理由。此頁只顯示虛構示例及本次尚未保存的手動草稿，正式歷史請到加密記憶庫查看。</p>
+  <button id="toggleHistory" type="button" aria-expanded="true" aria-controls="historyWrap">隱藏雙向紀錄</button>
+  <div id="historyWrap" class="historywrap">
+   <fieldset id="historyFilters"><legend class="helper">篩選紀錄</legend>
+    <div class="switchline"><label><input id="showInbound" type="checkbox" checked> 顯示進站</label><label><input id="showOutbound" type="checkbox" checked> 顯示送出</label></div>
+    <div class="switchline"><label><input id="showReject" type="checkbox" checked> 拒絕／退回</label><label><input id="showCorrections" type="checkbox" checked> 修正／重測</label><label><input id="showGeneral" type="checkbox" checked> 一般紀錄</label></div>
+   </fieldset>
+   <div id="historyCount" class="helper" role="status"></div>
+   <div id="historyList"></div>
+  </div>
+  <div class="section-actions"><a href="./memory.html">進入加密記憶庫，查看真正的拒絕與修正歷史 →</a></div>
+ </div>
+ <div class="panel">
+  <span class="overline">RECORD TEMPLATES</span><h2>套用欄位｜建立一筆紀錄</h2>
+  <p>選擇模板，產生需要填寫的欄位；可先在目前頁面檢查，再匯出「待審記憶包」。尚未送出、尚未核准、重整後未匯出的草稿會消失。</p>
+  <div><label for="recordTemplate">選擇紀錄模板</label><select id="recordTemplate"></select></div>
+  <form id="recordForm"><div id="recordFields" class="detailgrid"></div>
+  <details><summary>＋ 自訂額外欄位（最多 8 欄）</summary>
+  <div class="fields" style="margin-top:10px"><div><label for="customRecordLabel">欄位名稱</label><input id="customRecordLabel" maxlength="80" placeholder="例如：補證截止條件"></div><div><label for="customRecordValue">欄位內容</label><input id="customRecordValue" maxlength="1200" placeholder="說明欄位作用及內容"></div></div>
+  <button type="button" id="addRecordField">加入這個欄位</button><div id="customRecordFields" class="detailgrid"></div></details>
+  <div class="miniactions">
+   <button type="submit">加入本次紀錄預覽</button>
+   <button type="button" id="downloadRecordPack">匯出本筆記憶候選包</button>
+  </div></form>
+  <p class="helper" id="recordMessage" role="status"></p>
+ </div>
+</section>
+<section class="panel" style="margin-top:20px" id="memoryBridge" aria-label="完整架構與記憶審核">
+ <div class="side-title"><h2>將完整架構保存為可審核記憶</h2><span class="chip">需人工核准</span></div>
+ <p>架構並不直接寫入公開網站或其他 AI。先產生符合現有記憶庫格式的候選包；你到加密記憶頁解鎖、匯入、查看衝突與拒絕歷史，再決定核准、否決或另建修正版。</p>
+ <div class="section-actions">
+  <button id="downloadFullMemory" type="button">匯出完整主腦架構記憶包</button>
+  <button id="downloadDraftMemory" type="button">匯出目前快速架構記憶包</button>
+  <a href="./memory.html">前往記憶審核 →</a>
+ </div>
+ <div class="detailrow"><span>為什麼不是按一下就寫進記憶？</span><p>因為完整架構仍可能包含未實作的接口與未驗證的設計。核准前必須讓你檢查來源、版本、修正依據與內容差異；正式記憶保留舊版或分支，不默默覆寫。</p></div>
+ <div id="memoryMessage" class="helper" role="status"></div>
+ <p class="helpnote">本頁產生的架構記憶包採「新問題候選」格式。同名舊架構如需追加版本，請在記憶管理頁人工比對後使用「修正答案」；此處不會自動覆寫。</p>
+</section>
+<footer>TCVL × Launcher Hub · 介面草稿。資料流是設計方向而非已完成的自動化。任何真實記憶或企業資料進出，都必須另經來源、權限與證據驗證。</footer>
+</main>
+<script src="./tcvl-architecture-core.js"></script>
+<script>
+"use strict";
+(function(){
+const moduleCore=globalThis.TcvlArchitectureCore;
+const modules=[
+{id:"launcher",n:"00",title:"Launcher Hub｜發射器協作入口",short:"接收問題、建立任務、指派角色",status:"部分已實作",desc:"你從同一個平台交辦工作、追蹤任務，未來在此整合多 AI 聊天與接口。現階段仍需人工交接，不能把『複製指令』當成『已送達』。 ",input:"你的問題、目標、限制、期望成果",work:"建立任務 ID 與完成條件；指向適合的 AI 或模組；區分待交接、收到回報和待驗收。",output:"任務指令包、回報草稿、待處理狀態",check:"回報必須綁定原指令；遠端接收身分仍未自動驗證。",forward:"資料治理（TCVL-01）",reverse:"若任務定義模糊，由下游帶問題與證據退回發射器。",links:["governance","collaboration"]},
+{id:"relay",n:"HUB",title:"三方 AI 中樞交接節點",short:"三方獨立指令、來源核對、回報回收",status:"人工交接可用／API 未接通",desc:"同一專案分別建立 GPT①、GPT②、BOT③ 的指令識別碼。平台能複製指令、記錄人工貼回的回報、停止追蹤、保存拒絕與修正，不表示其他 AI 已實際收到。",input:"專案 ID、目標、經許可的背景、完成和停止條件",work:"為三個 AI 產生相互獨立的指令；人工發送；核對原指令 ID；記錄身分未驗證的回覆及失敗原因；可匯出交接報告供專案治理人工匯入。",output:"三份指令 JSON、人工回報檔、拒絕與修正事件、對應專案的待驗證交接結果",check:"每條通路可檢查任務／回覆關聯，但遠端收件、作者身分、AI 取消與跨裝置同步尚未接通。",forward:"專案治理、TCVL-01 資料來源審查與候選記憶",reverse:"原指令 ID 不符即拒絕匯入；資料不足保留原因、影響及下一步，退回指定角色重做。",links:["launcher","governance","collaboration"]},
+{id:"governance",n:"01",title:"TCVL-01｜雙向資料治理",short:"篩選資料、驗證進出、保存來源",status:"部分已實作",desc:"所有入口與出口都經過資料檢查；拒絕的資料可以留存和補證，但不得當成已驗證事實。",input:"原始資料、AI 回報、任務 ID、來源、版本、進出目的",work:"檢查格式、權限、來源聲稱、重複、版本與否決歷史；標記待驗證／衝突／可審查。",output:"分類候選、可信狀態、進出事件與問題清單",check:"現有系統只具備部分格式與本機審核能力；來源真偽及完整雙向事件鏈尚未完成。",forward:"三方協作（TCVL-02）及共同記憶",reverse:"缺來源、權限或必要欄位就退回來源端，留下原因與原始 ID。",links:["launcher","collaboration","vault"]},
+{id:"collaboration",n:"02",title:"TCVL-02｜三方協作與交叉驗證",short:"方向、反證、條件變化測試",status:"規劃中",desc:"三個 AI 圍繞同一個目的，分開承擔不同的審查責任。不同結論可以並存，不依多數票決定真實性。",input:"任務目的、候選資料、既有反證與待測條件",work:"GPT① 定義與整合；GPT② 找反例及替代主張；BOT③ 變動條件並記錄可重現性。",output:"三方獨立報告、支持程度、測試紀錄及替代方案",check:"每方必須說明完成什麼、依據何在、在哪些條件不成立；目前無真正的三方自動對話。",forward:"異常與修正（TCVL-03）",reverse:"若證據不足，向資料治理索取或重新查證；方向偏離時退回 GPT①。",links:["governance","correction"]},
+{id:"correction",n:"03",title:"TCVL-03｜反向退回與解決方案",short:"問題歸因、影響追查、修正後重測",status:"規劃中",desc:"發現錯誤不是任務結束，而是判斷影響了什麼、是否該暫停、應該怎麼修正。",input:"三方異常回報、反例、失效條件、依賴記錄",work:"判定需重審／暫停／可繼續；標記受影響資料；提出具條件的修正方案與退回對象。",output:"修正候選、影響清單、再驗證任務、責任歸因",check:"應保留舊版、否決理由與未被推翻的反證；避免原作者單獨核准自身修正。",forward:"人工審批與共同記憶",reverse:"退回正確節點，依失敗類型交給 GPT①、GPT②、BOT③ 或資料入口。",links:["collaboration","vault","traceback"]},
+{id:"vault",n:"MEM",title:"共同記憶與事件歷史",short:"保留核准記憶、否決、版本與備份",status:"部分已實作",desc:"一份受控的記憶歷史保留原始資料與修正分支。現有版本是本機加密庫，並非跨裝置中央資料庫。",input:"待審候選、審核決定、修正版本與工作事件",work:"由你核准或拒絕；追加版本而非默默覆蓋；保留審核歷史與加密備份。",output:"本機已核准版本、否決與修正歷史、可回溯事件",check:"人工核准不等於事實成立；備份深層檢查與相容性仍待驗收。",forward:"TCVL-04 回溯視覺；後續新任務",reverse:"歷史發現舊資料問題，可建立新修正候選但不得無痕覆蓋。",links:["governance","correction","traceback"]},
+{id:"traceback",n:"04",title:"TCVL-04｜時序回溯與可視化",short:"過去 → 現在 → 修正後測試",status:"展示原型",desc:"讓人看懂每一步發現什麼、使用什麼證據、影響什麼判斷，以及修正後應如何再次測試。",input:"時間戳、事件 ID、來源、版本、關聯、測試結果",work:"重建當時已知資訊；沿『依賴』關聯找受影響記錄；比對修正前後結果。",output:"時間軸、受影響節點、重測任務及可展示的歷程",check:"目前是虛構資料展示及隔離測試邏輯；未直接讀正式加密庫，不能假裝因果或自動驗證。",forward:"把新證據作為候選返回資料治理",reverse:"發現受影響的記憶或任務，就建立重審需求並退回適當模組。",links:["vault","correction","governance"]}
+];
+const templates={
+research:{label:"一般研究驗證",ids:["launcher","governance","collaboration","correction","vault","traceback"],reverse:"當 GPT② 發現反證、BOT③ 測試不成立時，先留下證據與理由，再退回資料驗證、研究方向或測試設計。",gates:"來源真實性、條件變化可重現、不同結論保存、人工審批。"},
+repair:{label:"被否決資料重新驗證",ids:["governance","collaboration","correction","vault","traceback"],reverse:"以原拒絕 ID 連回舊版，要求新證據、仍成立反證、修正目的；無法說明則保留待驗證。",gates:"必須取得原拒絕理由與相關 ID；新證據需查核；禁止直接覆蓋舊版。"},
+interface:{label:"新接口與匯入匯出",ids:["launcher","governance","vault","traceback"],reverse:"來源或目的地不明、權限不足、收發版本不一致時拒絕操作並留下進出紀錄。",gates:"身份驗證、權限、資料完整性及真正收到的確認狀態；此原型不提供 API 連接。"},
+trace:{label:"歷史回溯與影響追查",ids:["vault","traceback","correction","governance"],reverse:"若發現過去的證據失效，標記需重審的後續主張與記憶；不自動視為全部錯誤。",gates:"歷史時間隔離、事件與記錄時間、引用依賴、修正前後可比性。"}
+};
+const by=id=>document.getElementById(id);
+const map=by("moduleMap");let active="launcher",currentDraft=null,draftIds=null,importedRoutes=[];
+function textNode(tag,cls,value){const el=document.createElement(tag);if(cls)el.className=cls;if(value!==undefined)el.textContent=value;return el}
+function allModulesById(id){return modules.find(m=>m.id===id)}
+function appendModule(m){
+ if(map.children.length)map.append(textNode("div","flowarrow","↓"));
+ const b=textNode("button","node"+(m.status==="候選規劃／未接線"?" candidate":""));b.type="button";b.dataset.module=m.id;
+ if(moduleCore&&!m.completion)m.completion=moduleCore.initialModuleCompletion(["部分已實作","展示原型"].includes(m.status)?"building":"planned");
+ b.append(textNode("span","num",m.n));const desc=textNode("span");desc.append(textNode("strong","",m.title),textNode("small","",m.short));b.append(desc);b.append(textNode("span","chip",m.status));
+ b.addEventListener("click",()=>selectModule(m.id));map.append(b);
+ const option=document.createElement("option");option.value=m.id;option.textContent=m.title;by("extraModule").append(option);
+}
+modules.forEach(appendModule);
+const completionById=id=>allModulesById(id)?.completion;
+function selectModule(id){
+ const m=allModulesById(id);if(!m)return;
+ active=id;by("detailNumber").textContent="MODULE "+m.n;by("detailTitle").textContent=m.title;
+ by("detailPurpose").textContent=m.desc;by("detailStatus").textContent=m.status;by("detailStatus").className="chip "+(m.status==="部分已實作"?"live":"idea");
+ [...map.querySelectorAll("button.node")].forEach(b=>{b.classList.toggle("active",b.dataset.module===id);b.classList.toggle("related",m.links.includes(b.dataset.module));b.setAttribute("aria-pressed",b.dataset.module===id?"true":"false")});
+ const grid=by("detailGrid");grid.replaceChildren();
+ for(const [key,val] of [["這個模組接收什麼？",m.input],["它具體做什麼？",m.work],["做完交出什麼？",m.output],["如何確認沒有誤判？",m.check],["往下一個環節交給誰？",m.forward],["發現錯誤如何退回？",m.reverse]]){
+  const row=textNode("div","detailrow");row.append(textNode("span","",key),textNode("p","",val));grid.append(row);
+ }
+ renderModuleCompletion();
+}
+
+function renderCompletedList(){
+ const box=by("completedModules");box.replaceChildren();
+ const done=modules.filter(x=>x.completion&&moduleCore?.moduleCompletionSummary(x.completion).completed);
+ if(!done.length){box.append(textNode("p","helper","目前尚無符合整體驗收條件的模組。"));return}
+ for(const m of done){const row=textNode("button","ghost","✅ "+m.title);row.type="button";row.addEventListener("click",()=>selectModule(m.id));box.append(row)}
+}
+function renderModuleCompletion(){
+ if(!moduleCore)return;
+ const m=allModulesById(active);if(!m||!m.completion)return;
+ const record=m.completion,summary=moduleCore.moduleCompletionSummary(record);
+ by("moduleLifecycle").textContent=summary.label;
+ by("moduleLifecycle").className="chip "+(summary.completed?"live":"idea");
+ by("moduleNodeCount").textContent=summary.verified+"／"+summary.total+" 節點已驗證";
+ const wrap=by("moduleCompletionNodes");wrap.replaceChildren();
+ for(const def of moduleCore.NODE_CHECKS){
+  const item=record.nodes.find(x=>x.id===def.id);
+  const row=textNode("div","completion-row");
+  row.append(textNode("span","",def.label),textNode("small","",moduleCore.NODE_STATES[item.state]+(item.evidence?"｜"+item.evidence.slice(0,100):"")));
+  wrap.append(row);
+ }
+ const selected=record.nodes.find(x=>x.id===by("verifyNode").value)||record.nodes[0];
+ by("verifyNode").value=selected.id;
+ by("verifyState").value=selected.state;
+ by("verifyEvidence").value=selected.evidence;
+ by("completionReviewer").value=record.reviewer||"";
+ by("completionReference").value=record.acceptanceRef||"";
+ by("markModuleCompleted").disabled=summary.verified!==summary.total||summary.completed;
+ by("reopenCompletedModule").disabled=!summary.completed;
+ for(const btn of map.querySelectorAll("button.node")){
+  const mod=allModulesById(btn.dataset.module),checked=mod?.completion&&moduleCore.moduleCompletionSummary(mod.completion).completed;
+  btn.classList.toggle("module-complete",!!checked);
+  const badge=btn.children[2];if(badge)badge.textContent=checked?"✅ 已完成（人工確認）":mod.status;
+ }
+ renderCompletedList();
+}
+function setupCompletionControls(){
+ if(!moduleCore){by("moduleCompletionMessage").textContent="驗收規則尚未載入，不能標記整體完成。";return}
+ for(const x of moduleCore.NODE_CHECKS){const o=document.createElement("option");o.value=x.id;o.textContent=x.label;by("verifyNode").append(o)}
+ for(const [id,label] of Object.entries(moduleCore.NODE_STATES)){const o=document.createElement("option");o.value=id;o.textContent=label;by("verifyState").append(o)}
+ by("verifyNode").addEventListener("change",()=>{
+  const n=completionById(active)?.nodes.find(x=>x.id===by("verifyNode").value);
+  if(n){by("verifyState").value=n.state;by("verifyEvidence").value=n.evidence}
+ });
+ by("saveNodeVerification").addEventListener("click",()=>{
+  const m=allModulesById(active);
+  try{
+   m.completion=moduleCore.updateNodeVerification(m.completion,{nodeId:by("verifyNode").value,state:by("verifyState").value,evidence:by("verifyEvidence").value,at:new Date().toISOString()});
+   by("moduleCompletionMessage").textContent="已記錄節點狀態，但不代表整個模組已完成。修改只在本次草稿；要保存請匯出記憶候選包。";
+   renderModuleCompletion();refreshBlueprint();
+  }catch(e){by("moduleCompletionMessage").textContent="無法登錄："+e.message}
+ });
+ by("markModuleCompleted").addEventListener("click",()=>{
+  const m=allModulesById(active);
+  try{
+   m.completion=moduleCore.approveModuleCompletion(m.completion,{reviewer:by("completionReviewer").value,acceptanceRef:by("completionReference").value,at:new Date().toISOString()});
+   by("moduleCompletionMessage").textContent="✅ 已標記為「整體模組完成（人工確認）」。不代表 API 自動接通，請匯出候選記憶包保存。";
+   renderModuleCompletion();refreshBlueprint();
+  }catch(e){by("moduleCompletionMessage").textContent="不能標為已完成："+e.message}
+ });
+ by("reopenCompletedModule").addEventListener("click",()=>{
+  const m=allModulesById(active);
+  try{
+   const reason=prompt("請說明退回重審的原因（會保留歷史）：");
+   if(reason===null)return;
+   m.completion=moduleCore.reopenModuleCompletion(m.completion,{reason,at:new Date().toISOString()});
+   by("moduleCompletionMessage").textContent="已退回重審並取消 ✅ 標示，原先的驗收歷史仍然保留。";
+   renderModuleCompletion();refreshBlueprint();
+  }catch(e){by("moduleCompletionMessage").textContent="退回失敗："+e.message}
+ });
+}
+by("traceFromModule").addEventListener("click",()=>{window.location.href="./traceback-visual.html#"+encodeURIComponent(active)});
+by("useInBuilder").addEventListener("click",()=>{if(!draftIds)draftIds=[...templates[by("blueprintType").value].ids];if(!draftIds.includes(active))draftIds.push(active);refreshBlueprint();by("builderStatus").textContent="已將「"+allModulesById(active).title+"」加入架構預覽。";by("quickBuilder").scrollIntoView({behavior:"smooth",block:"start"})});
+function safeName(s){return String(s||"").trim().slice(0,140)}
+function buildDraft(){
+ const t=templates[by("blueprintType").value];if(!t)throw Error("未知架構範本");
+ const name=safeName(by("blueprintName").value);
+ if(!name)throw Error("請先填寫要完成的目標");
+ const ids=draftIds?[...draftIds]:[...t.ids];
+ if(!ids.length)throw Error("至少保留一個模組；可用還原範本重新開始");
+ const steps=ids.map((id,i)=>({order:i+1,id,title:allModulesById(id).title,status:allModulesById(id).status,completion:allModulesById(id).completion?JSON.parse(JSON.stringify(allModulesById(id).completion)):null,input:allModulesById(id).input,action:allModulesById(id).work,output:allModulesById(id).output,check:allModulesById(id).check,forward:allModulesById(id).forward,reverse:allModulesById(id).reverse,next:ids[i+1]||"人工審批／下一輪"}));
+ return {schema:"tcvl.quick-blueprint.v0.1",name,template:by("blueprintType").value,stage:"concept_only_not_deployed",steps,reverseRule:t.reverse,verificationGates:t.gates};
+}
+function refreshBlueprint(){
+ try{
+ currentDraft=buildDraft();const d=currentDraft;
+ by("draftGoal").textContent=d.name;
+ const box=by("draftSteps");box.replaceChildren();
+ for(const step of d.steps){const el=textNode("div","draftstep");el.append(textNode("b","",step.order+". "+step.title),textNode("p","", "接收："+step.input),textNode("p","", "作用："+step.action),textNode("p","", "產出："+step.output));const controls=textNode("div","stepactions");for(const [caption,diff] of [["↑ 上移",-1],["↓ 下移",1]]){const b=textNode("button","",caption);b.type="button";const target=step.order-1+diff;b.disabled=target<0||target>=d.steps.length;b.addEventListener("click",()=>{if(!draftIds)draftIds=[...d.steps.map(x=>x.id)];[draftIds[step.order-1],draftIds[target]]=[draftIds[target],draftIds[step.order-1]];refreshBlueprint()});controls.append(b)}const remove=textNode("button","ghost","移除");remove.type="button";remove.addEventListener("click",()=>{draftIds=(draftIds||d.steps.map(x=>x.id)).filter(x=>x!==step.id);refreshBlueprint()});controls.append(remove);el.append(controls);box.append(el)}
+ by("draftReverse").textContent=d.reverseRule;const missing=["governance","vault"].filter(id=>!d.steps.some(x=>x.id===id));by("draftGates").textContent=d.verificationGates+(missing.length?"\n提醒：目前已略過 "+missing.map(id=>allModulesById(id).title).join("、")+"，真實導入前需重新檢查資料與審批安全。":"");
+ by("blueprintTag").textContent=templates[d.template].label;by("builderStatus").textContent="已產生可說明的流程草稿（未部署）。";by("exportStatus").textContent="";
+ }catch(err){currentDraft=null;by("builderStatus").textContent=err.message}
+}
+by("builderForm").addEventListener("submit",e=>{e.preventDefault();refreshBlueprint()});
+by("blueprintType").addEventListener("change",()=>{draftIds=[...templates[by("blueprintType").value].ids];refreshBlueprint()});
+by("extraModule").addEventListener("change",()=>{const id=by("extraModule").value;if(id){if(!draftIds)draftIds=[...templates[by("blueprintType").value].ids];if(!draftIds.includes(id))draftIds.push(id);by("extraModule").value="";}refreshBlueprint()});
+by("blueprintName").addEventListener("input",refreshBlueprint);
+by("clearBuilder").addEventListener("click",()=>{by("blueprintName").value="驗證一個研究主張並保留修正歷史";by("blueprintType").value="research";by("extraModule").value="";draftIds=null;refreshBlueprint()});
+let customCount=0;
+by("addCustomModule").addEventListener("click",()=>{
+ const title=by("customTitle").value.trim(),input=by("customInput").value.trim(),work=by("customWork").value.trim(),output=by("customOutput").value.trim(),reverse=by("customReverse").value.trim();
+ if(!title||!input||!work||!output||!reverse){by("customStatus").textContent="請填寫模組用途、輸入、處理、輸出及退回方向。";return}
+ if(customCount>=9){by("customStatus").textContent="本次草稿最多新增 9 個自訂節點，避免圖面難以閱讀。";return}
+ const id="custom-"+(++customCount);
+ const m={id,n:"NEW",title,short:work.slice(0,45),status:"設計草稿",desc:"自訂設計節點。未實作，也沒有自動資料連線。",input,work,output,check:"尚未驗證：需先定義資料真實性、操作權限與驗收方法。",forward:"下一個架構節點（順序可調整）",reverse,links:[]};
+ modules.push(m);appendModule(m);
+ if(!draftIds)draftIds=[...templates[by("blueprintType").value].ids];
+ draftIds.push(id);
+ for(const inputId of ["customTitle","customInput","customWork","customOutput","customReverse"])by(inputId).value="";
+ by("customStatus").textContent="已新增模組：「"+title+"」，可點架構圖查看作用，也能在預覽區調整順序。";
+ selectModule(id);refreshBlueprint();if(globalThis.TcvlArchitectureCore){refreshRouteSelectors();renderInterfaceCards();renderRoute();}
+});
+function describe(d){
+ return ["【主腦 TCVL｜架構草稿（未部署）】","目標："+d.name,"範本："+templates[d.template].label,"",
+ ...d.steps.flatMap(s=>[s.order+"｜"+s.title,"接收："+s.input,"執行："+s.action,"產出："+s.output,"交接："+s.next,""]),
+ "反向退回："+d.reverseRule,"驗證條件："+d.verificationGates,"注意：此為規劃草稿，不是自動化測試報告。"].join("\n");
+}
+by("copyBlueprint").addEventListener("click",async()=>{if(!currentDraft){by("exportStatus").textContent="請先建立有效架構";return}try{await navigator.clipboard.writeText(describe(currentDraft));by("exportStatus").textContent="已複製架構說明，不代表已送達 AI。"}catch(e){by("exportStatus").textContent="複製失敗，請確認剪貼簿權限。"}});
+by("exportBlueprint").addEventListener("click",()=>{
+ if(!currentDraft){by("exportStatus").textContent="請先建立有效架構";return}
+ const content=JSON.stringify({...currentDraft,exportedAt:new Date().toISOString(),delivery:"manual_not_sent"},null,2);
+ const blob=new Blob([content],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="tcvl-blueprint-"+Date.now()+".json";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);by("exportStatus").textContent="已觸發架構草稿下載；請確認檔案已保存。";
+});
+
+/* Connector status, bidirectional history and memory candidate exports: no private vault access. */
+const architectureCore=globalThis.TcvlArchitectureCore;
+let recentRecords=[],extraRecordFields=[];
+const sampleRecords=[
+ {id:"EXAMPLE-01",direction:"inbound",kind:"general",title:"虛構：研究資料進站",summary:"GPT①（自填來源）→ 資料治理；等待來源核對，未寫入正式記憶",at:"示範時間 10/01",origin:"虛構"},
+ {id:"EXAMPLE-02",direction:"outbound",kind:"rejection",title:"虛構：拒絕缺乏來源的資料",summary:"TCVL-01 → 提出者；保留原提案 ID、拒絕原因及補證要求",at:"示範時間 10/02",origin:"虛構"},
+ {id:"EXAMPLE-03",direction:"inbound",kind:"correction",title:"虛構：提交修正後的候選",summary:"提出者 → TCVL-01；新增證據與舊拒絕 ID 連結，尚未核准",at:"示範時間 10/03",origin:"虛構"},
+ {id:"EXAMPLE-04",direction:"outbound",kind:"general",title:"虛構：人工交接重新測試",summary:"發射器 → BOT③；只是指令草稿，沒有自動送達證明",at:"示範時間 10/04",origin:"虛構"}
+];
+function downloadLocalJSON(payload,filename){
+ const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json;charset=utf-8"});
+ const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download=filename;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);
+}
+function nonce(){return (typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID().replace(/-/g,""):(Date.now().toString(36)+Math.random().toString(36).slice(2))).slice(0,60)}
+function assertCore(){if(!architectureCore)throw Error("架構檢查模組未載入，請確認相同分支的核心檔案是否存在");return architectureCore}
+function routeName(id){
+ const module=allModulesById(id);if(module)return module.title;
+ return architectureCore.INTERFACES.find(x=>x.id===id)?.title||id;
+}
+function refreshRouteSelectors(){
+ const start=by("routeStart"),end=by("routeEnd"),oldStart=start.value||"launcher",oldEnd=end.value||"vault";
+ for(const el of [start,end]){el.replaceChildren();for(const m of modules){const opt=document.createElement("option");opt.value=m.id;opt.textContent=m.title;el.append(opt)}
+  const dataRoom=document.createElement("option");dataRoom.value="data_room";dataRoom.textContent="跨模組｜資料室治理索引（非原檔保管）";el.append(dataRoom);
+ }
+ start.value=modules.some(x=>x.id===oldStart)||oldStart==="data_room"?oldStart:"launcher";
+ end.value=modules.some(x=>x.id===oldEnd)||oldEnd==="data_room"?oldEnd:"vault";
+}
+function renderInterfaceCards(){
+ const core=assertCore(),box=by("interfaceCards");box.replaceChildren();
+ for(const item of core.INTERFACES){
+  const status=core.STATUSES[item.status];
+  const card=textNode("div","statecard");card.append(textNode("span","chip",status.label),textNode("h3","",item.title),textNode("p","",item.detail),textNode("p","helper",status.note));box.append(card);
+ }
+ if(customCount){const card=textNode("div","statecard");card.append(textNode("span","chip","設計草稿"),textNode("h3","","新增 "+customCount+" 個自訂節點"),textNode("p","","只包含設計說明，沒有已建立的遠端接口、憑證或實際傳輸。"));box.append(card)}
+}
+function effectiveRoutes(){
+ const base=[...architectureCore.ROUTES,...importedRoutes].map(x=>({...x})),used=new Set(base.map(x=>x.from+"->"+x.to));
+ const d=currentDraft;
+ if(d){for(let i=0;i<d.steps.length-1;i++){const from=d.steps[i].id,to=d.steps[i+1].id,key=from+"->"+to;if(!used.has(key)){base.push({from,to,status:"planned",action:"快速架構中定義的先後順序，尚未實作資料交換／交接驗證"});used.add(key)}}}
+ return base;
+}
+function renderRoute(){
+ const box=by("routeResult");box.replaceChildren();
+ try{
+  const core=assertCore(),start=by("routeStart").value,end=by("routeEnd").value,plan=core.routePlan(start,end,effectiveRoutes());
+  const lead=textNode("div","detailrow");lead.append(textNode("span","","路徑摘要（依靜態規格，非實際連線測試）"),textNode("p","",routeName(start)+" → "+routeName(end)+"： "+plan.summary));box.append(lead);
+  if(plan.unreachable){for(const button of map.querySelectorAll("button.node")){button.classList.toggle("onpath",false);button.classList.toggle("unbuilt",false)}box.append(textNode("p","note","目前沒有已定義的交接邊。可在快速架構中建立這兩個模組的先後順序，再查看規劃中的路徑。"));return}
+  for(const [i,step] of plan.steps.entries()){
+    if(i>0)box.append(textNode("div","patharrow","↓"));
+    const block=textNode("div","pathstep");const status=core.STATUSES[step.status];
+    block.append(textNode("b","",String(i+1)+"｜"+routeName(step.from)+" → "+routeName(step.to)),
+       textNode("span","chip",status.label),
+       textNode("p","", "這段做什麼："+step.action),
+       textNode("p","helpnote","接口限制："+status.note));box.append(block);
+  }
+  const pathNodes=new Set([start,...plan.steps.map(x=>x.to)]);
+  for(const button of map.querySelectorAll("button.node")){
+    button.classList.toggle("onpath",pathNodes.has(button.dataset.module));
+    button.classList.toggle("unbuilt",plan.steps.some(e=>e.status==="planned"&&e.to===button.dataset.module));
+  }
+  if(plan.steps.length===0)box.append(textNode("p","helper","沒有跨模組移動，仍需檢查此節點本身的權限與驗收。"));
+ }catch(e){box.append(textNode("p","note","無法規劃："+e.message))}
+}
+function recordCategory(x){return x.kind==="rejection"?"拒絕／退回":x.kind==="correction"?"修正／重測":"一般事件"}
+function renderHistory(){
+ const wrap=by("historyWrap");if(wrap.hidden)return;
+ const flags={showInbound:by("showInbound").checked,showOutbound:by("showOutbound").checked,showReject:by("showReject").checked,showCorrections:by("showCorrections").checked,showGeneral:by("showGeneral").checked};
+ const rows=architectureCore.filterHistory([...recentRecords,...sampleRecords],{showInbound:flags.showInbound,showOutbound:flags.showOutbound});
+ const filtered=rows.filter(x=>x.kind==="rejection"?flags.showReject:x.kind==="correction"?flags.showCorrections:flags.showGeneral);
+ by("historyCount").textContent="可見 "+filtered.length+" 筆｜虛構示例 "+sampleRecords.length+" 筆；本次新增 "+recentRecords.length+" 筆未保存草稿。";
+ const box=by("historyList");box.replaceChildren();
+ if(!filtered.length){box.append(textNode("p","helper","目前篩選條件下沒有紀錄。"));return}
+ for(const x of filtered){
+  const card=textNode("div","track");card.dataset.kind=x.kind;
+  card.append(textNode("strong","",x.title),
+    textNode("span","meta",(x.direction==="inbound"?"進站":"送出")+"｜"+recordCategory(x)+"｜"+x.id+"｜"+x.at),
+    textNode("p","",x.summary),textNode("p","helpnote",x.origin==="虛構"?"虛構展示資料；不是已發生事件":"本次暫存，尚未匯出至加密記憶庫"));
+  box.append(card);
+ }
+}
+by("toggleHistory").addEventListener("click",()=>{
+ const wrap=by("historyWrap");wrap.hidden=!wrap.hidden;
+ by("toggleHistory").textContent=wrap.hidden?"顯示雙向紀錄":"隱藏雙向紀錄";
+ by("toggleHistory").setAttribute("aria-expanded",String(!wrap.hidden));
+ if(!wrap.hidden)renderHistory();
+});
+for(const id of ["showInbound","showOutbound","showReject","showCorrections","showGeneral"])by(id).addEventListener("change",renderHistory);
+function rebuildRecordFields(){
+ extraRecordFields=[];renderExtraRecordFields();
+ const core=assertCore(),type=by("recordTemplate").value,t=core.FIELD_TEMPLATES[type],box=by("recordFields");box.replaceChildren();
+ for(const [key,label] of t.fields){
+  const group=textNode("div","detailrow");const elementId="recordField_"+key;
+  const lbl=textNode("label","",label);lbl.htmlFor=elementId;const inp=document.createElement("input");
+  inp.type="text";inp.id=elementId;inp.maxLength=1200;inp.required=true;
+  inp.placeholder=key==="recordId"?"請填原始任務／候選 ID，方便回溯":"填寫這一環節的實際內容或標註待驗證";
+  group.append(lbl,inp);box.append(group);
+ }
+ by("recordMessage").textContent="已套用「"+t.name+"」欄位，請填入實際資料與原因；不會自動核准。";
+}
+function renderExtraRecordFields(){
+ const box=by("customRecordFields");box.replaceChildren();
+ for(const [i,extra] of extraRecordFields.entries()){
+  const row=textNode("div","detailrow");
+  row.append(textNode("span","",extra.label),textNode("p","",extra.value));
+  const btn=textNode("button","ghost","移除欄位");btn.type="button";
+  btn.addEventListener("click",()=>{extraRecordFields.splice(i,1);renderExtraRecordFields()});
+  row.append(btn);box.append(row);
+ }
+}
+by("addRecordField").addEventListener("click",()=>{
+ const label=by("customRecordLabel").value.trim(),value=by("customRecordValue").value.trim();
+ if(!label||!value){by("recordMessage").textContent="請輸入自訂欄位名稱及內容。";return}
+ if(extraRecordFields.length>=8){by("recordMessage").textContent="自訂欄位最多 8 欄。";return}
+ if(extraRecordFields.some(x=>x.label===label)){by("recordMessage").textContent="欄位名稱不能重複。";return}
+ extraRecordFields.push({label,value});by("customRecordLabel").value="";by("customRecordValue").value="";
+ by("recordMessage").textContent="已加入自訂欄位「"+label+"」，匯出時會保留完整內容。";
+ renderExtraRecordFields();
+});
+function readRecord(){
+ const core=assertCore(),type=by("recordTemplate").value,t=core.FIELD_TEMPLATES[type];
+ const fields={};for(const [key] of t.fields)fields[key]=by("recordField_"+key).value.trim();
+ fields.extraFields=extraRecordFields.map(x=>({...x}));
+ const uid=nonce();const pack=core.recordPack(type,fields,uid);
+ const direction=["outbound","rejection"].includes(type)?"outbound":"inbound";
+ const kind=type==="rejection"?"rejection":type==="correction"?"correction":"general";
+ return {type,t,fields,pack,direction,kind,uid};
+}
+function recordPreview(e){
+ if(e)e.preventDefault();
+ try{
+  const x=readRecord();recentRecords.unshift({id:x.fields.recordId,direction:x.direction,kind:x.kind,title:x.t.name+"｜"+x.fields.recordId,summary:x.pack.items[0].content.slice(0,1700),at:"本次未保存",origin:"暫存"});
+  if(recentRecords.length>40)recentRecords.length=40;
+  by("recordMessage").textContent="已加入本次紀錄預覽。只存在目前頁面記憶體，尚未存入加密記憶；請匯出候選包。";
+  renderHistory();
+ }catch(err){by("recordMessage").textContent="無法加入："+err.message}
+}
+by("recordForm").addEventListener("submit",recordPreview);
+by("downloadRecordPack").addEventListener("click",()=>{
+ try{
+  const x=readRecord();
+  downloadLocalJSON(x.pack,"tcvl-record-candidate-"+x.uid+".json");
+  by("recordMessage").textContent="已觸發下載待審記憶包。請確認檔案存在，再到加密記憶管理匯入審核；未自動存入。";
+ }catch(e){by("recordMessage").textContent="匯出失敗："+e.message}
+});
+function allArchitectureDraft(){
+ const list=[...modules];
+ return {schema:"tcvl.quick-blueprint.v0.1",name:"主腦完整架構｜Launcher Hub × TCVL",template:"research",stage:"concept_only_not_deployed",
+  steps:list.map((m,i)=>({order:i+1,id:m.id,title:m.title,status:m.status,completion:m.completion?JSON.parse(JSON.stringify(m.completion)):null,input:m.input,action:m.work,output:m.output,check:m.check,forward:m.forward,reverse:m.reverse,next:list[i+1]?.id||"人工審批／後續研究"})),
+  reverseRule:"任何進站、送出、反證、否決及修正應保留原始 ID、時間、版本與退回目標；不能將接口示範視為實際送達。",
+  verificationGates:"雙向來源與身分查核、拒絕與修正歷史、時間隔離、獨立三方驗證、修正後重測、人工核准、加密保存及備份驗收。"};
+}
+function exportMemory(which){
+ try{
+  const core=assertCore(),draft=which==="full"?allArchitectureDraft():currentDraft;
+  if(!draft)throw Error("請先建立有效架構");
+  const pack=core.architecturePack(draft,nonce(),core.INTERFACES,effectiveRoutes());
+  downloadLocalJSON(pack,"tcvl-"+(which==="full"?"full":"draft")+"-architecture-memory-candidate.json");
+  by("memoryMessage").textContent="已觸發下載「"+(which==="full"?"完整主腦架構":"目前快速架構")+"」候選包。下一步：到記憶管理頁解鎖 → 提交候選 → 批次匯入 GPT① 記憶候選包 → 比較內容／核准或拒絕。並未自動寫入。";
+ }catch(err){by("memoryMessage").textContent="無法產生完整架構候選："+err.message+"。可以移除不必要內容或拆分架構，不能直接截斷造成資訊遺失。"}
+}
+by("downloadFullMemory").addEventListener("click",()=>exportMemory("full"));
+by("downloadDraftMemory").addEventListener("click",()=>exportMemory("draft"));
+by("importCandidateMap").addEventListener("click",()=>by("candidateMapFile").click());
+by("candidateMapFile").addEventListener("change",async()=>{
+ const file=by("candidateMapFile").files?.[0];if(!file)return;
+ try{
+  if(file.size>150000)throw Error("候選版圖上限 150 KB");
+  const payload=JSON.parse(await file.text());
+  const normalized=architectureCore.normalizeCandidateTransfer(payload,modules.map(m=>m.id));
+  if(modules.length+normalized.nodes.length>30)throw Error("架構目前最多 30 個模組；請分批匯入");
+  if(!normalized.nodes.length)throw Error("候選版圖內沒有可加入的節點");
+  modules.push(...normalized.nodes);
+  importedRoutes.push(...normalized.edges);
+  for(const m of normalized.nodes)appendModule(m);
+  refreshRouteSelectors();renderInterfaceCards();refreshBlueprint();renderRoute();
+  by("candidateMapStatus").textContent="已匯入 "+normalized.nodes.length+" 個未啟用版塊及 "+normalized.edges.length+" 條規劃關聯，原始節點與正式接口不受影響。";
+ }catch(e){by("candidateMapStatus").textContent="未匯入："+e.message+"。原架構保持不變。"}
+ finally{by("candidateMapFile").value=""}
+});
+by("planRoute").addEventListener("click",renderRoute);
+by("reverseRoute").addEventListener("click",()=>{const start=by("routeStart").value;by("routeStart").value=by("routeEnd").value;by("routeEnd").value=start;renderRoute()});
+
+if(architectureCore){
+ for(const [key,t] of Object.entries(architectureCore.FIELD_TEMPLATES)){
+  const option=document.createElement("option");option.value=key;option.textContent=t.name;by("recordTemplate").append(option);
+ }
+ by("recordTemplate").value="inbound";
+ by("recordTemplate").addEventListener("change",rebuildRecordFields);
+ rebuildRecordFields();
+ refreshRouteSelectors();renderInterfaceCards();renderHistory();
+}else{
+ by("recordMessage").textContent="缺少架構核心程式，暫停建立紀錄";
+ by("memoryMessage").textContent="缺少架構核心程式，不能匯出候選記憶包";
+}
+setupCompletionControls();selectModule("launcher");refreshBlueprint();if(architectureCore)renderRoute();
+})();
+</script>
+<script src="./tcvl-platform-core.js"></script>
+<script src="./tcvl-platform-shell.js"></script>
+</body></html>

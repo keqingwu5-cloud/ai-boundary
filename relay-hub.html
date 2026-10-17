@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'self' 'unsafe-inline';style-src 'unsafe-inline';connect-src 'none';img-src 'none';base-uri 'none';form-action 'none'">
+<title>TCVL｜三方 AI 中樞交接節點</title>
+<style>
+:root{color-scheme:dark;--bg:#08111f;--panel:#162740;--line:#466183;--soft:#bcd0e9;--ink:#f2f7ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse 960px 350px at 50% -90px,#26446b,transparent 78%),var(--bg);font:14px/1.65 system-ui,-apple-system,"PingFang TC",sans-serif;color:var(--ink)}
+main{max-width:1080px;margin:auto;padding:22px 16px 65px}a{color:#e2ecff}h1{font-size:clamp(27px,4vw,42px);line-height:1.3;margin:12px 0}h2{font-size:19px;margin:0 0 8px}h3{font-size:16px;margin:0 0 6px}
+p,.small{color:var(--soft)}.small{font-size:12px}.pill{display:inline-block;border:1px solid #667da4;padding:4px 9px;border-radius:99px;font-size:12px;color:#d6e5ff}
+.notice{border:1px solid #9d815e;border-radius:12px;background:#352c20;color:#ffeac7;padding:13px;margin:15px 0}
+.panel{border:1px solid var(--line);background:linear-gradient(150deg,#172a44,#111e30);border-radius:17px;padding:18px;margin:15px 0;min-width:0}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:13px}.roles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.role{padding:15px;border-radius:14px;border:1px solid #607c9e;background:#112039;min-width:0}.role.paused{opacity:.65}.role.rejected{border:2px solid #c99c7c}.role.reported_unverified{border:2px solid #85bda8}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.btns{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+label{display:block;font-size:13px;margin:9px 0 4px;color:#dce8ff;font-weight:600}
+input,textarea,select{width:100%;font:inherit;background:#091727;color:white;border:1px solid #6780a5;border-radius:10px;padding:10px;min-width:0}
+textarea{min-height:75px;resize:vertical;line-height:1.6}textarea.long{min-height:110px}
+button{font:inherit;border-radius:9px;padding:8px 13px;background:#2a476e;border:1px solid #718fb4;color:#f3f8ff;cursor:pointer}
+button.primary{background:#4f6d9f}button:disabled{opacity:.5;cursor:default}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #c2d5fa;outline-offset:3px}
+pre{background:#0a1729;border:1px solid #3d5476;padding:13px;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;font-size:12px;line-height:1.7}
+.statusline{font-size:12px;color:#bdcfe7}.log{display:grid;gap:8px}.event{border-left:3px solid #849fc6;background:#12243a;padding:9px 12px;border-radius:5px 10px 10px 5px;font-size:12px}
+.roomcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.roomrole{border:1px solid #6085a3;border-radius:12px;padding:13px;background:#11233a}.roomrole h3{font-size:15px}.roomrole p{font-size:12px}.room-record{padding:12px;border:1px solid #577794;background:#102238;border-radius:11px;margin:8px 0}.room-record small{color:#bed3eb}.room-record[aria-disabled=true]{opacity:.7}.room-entry{border-left:3px solid #87b9c9;padding:9px 13px;margin:8px 0;background:#132a3c}.room-entry.reject{border-left-color:#deb38c}.room-role-status{font-size:12px;color:#c9deef;margin:8px 0}.room-warning{font-size:12px;padding:11px;border-radius:9px;border:1px solid #a68c68;background:#302920;color:#ffe7bf}@media(max-width:800px){.roomcards{grid-template-columns:1fr}}
+.rejection{border-color:#d8a880;background:#30251f;color:#ffe8ce}.help{background:#0e1b2d;border-radius:9px;padding:9px;font-size:12px;color:#cadcf5}
+.hidden{display:none!important}
+@media(max-width:800px){.roles,.cols{grid-template-columns:1fr}.panel{padding:14px}}
+</style></head>
+<body><main>
+<div class="row"><span class="pill">TCVL｜中樞交接節點 V0.1</span><a href="./mainbrain.html#workspace">主腦工作台</a><a href="./governance-board.html">專案治理</a><a href="./launcher.html">原發射器</a><a href="./architecture-hub.html">架構圖</a></div>
+<h1>一次建立三份獨立指令，逐條回收結果</h1>
+<p>GPT① 負責問題與整合、GPT② 負責反證、BOT③ 負責測試。同一個中樞節點統一記錄原指令識別碼、人工交接、回覆、拒絕、停止與修正。</p>
+<div class="notice" role="note"><strong>目前只能人工交接，沒有遠端 AI 自動發送或自動收訊。</strong> 點「發射」會複製指令供你手動貼給指定 AI；即使複製成功，仍不能標成「AI 已收到」。回報的作者身分也未經驗證。此頁不會讀寫加密記憶庫，也不會儲存專案到 localStorage；關閉前請匯出 JSON。勿貼入密碼、私人資料或機密 API 金鑰。</div>
+<details class="panel" id="dispatchRules" aria-label="三方分工發射規章">
+<summary style="cursor:pointer;font-weight:700">查看 V1 三方分工規章與本輪完成條件</summary>
+<p>本階段只做「建立共同目標、產生三份獨立指令、人工交接、手動貼回回報」，不要求遠端自動 AI 聊天。</p>
+<div class="roles">
+ <div class="role"><strong>GPT①｜統籌</strong><p class="small">定義目標、假設、驗收條件；不能代替其他 AI 核准。</p></div>
+ <div class="role"><strong>GPT②｜反證</strong><p class="small">獨立提出反例與證據缺口；保留不同意見。</p></div>
+ <div class="role"><strong>BOT③｜測試</strong><p class="small">設計或在授權下進行可重現、條件變化測試；無權限時不得聲稱已實測。</p></div>
+</div>
+<p class="small">交接狀態必須區分：待交接 → 已複製／分享（非收件證明）→ 已人工回報（來源未驗證）；拒絕時即時顯示原因、影響、下一步；暫停指定角色不得清除進度或阻止其他對話。</p>
+<p class="small">完整草稿：<a href="https://github.com/keqingwu5-cloud/ai-boundary/blob/feat/tcvl-traceback-visual-v1/docs/tcvl-launcher-dispatch-rules-v1.md" target="_blank" rel="noopener noreferrer">Launcher Hub V1｜三方發射與分工執行規章</a>。目前待使用者核准，非正式部署規章。</p>
+</details>
+<section class="panel" aria-label="建立中樞任務">
+<h2>一、建立與專案關聯的三方任務</h2>
+<div class="cols">
+ <div><label for="projectId">專案 ID（可留空，由發射器建立）</label><input id="projectId" placeholder="留空自動建立；或輸入既有專案 ID" maxlength="100"><p class="small">不必先開專案治理頁。若將來要把三方結果匯入既有專案，請使用同一個專案 ID。</p></div>
+ <div><label for="projectTitle">任務／專案名稱</label><input id="projectTitle" maxlength="140" placeholder="例：主腦架構可靠性測試"></div>
+</div>
+<label for="objective">共同研究目標</label><textarea id="objective" maxlength="2500" placeholder="要研究什麼？什麼是已知與未知？"></textarea>
+<label for="context">必要背景（只複製你選擇提供的內容）</label><textarea id="context" maxlength="2800" placeholder="只填此任務需要的公開或已授權摘要；請勿加入秘密"></textarea>
+<div class="cols">
+ <div><label for="completion">完成條件</label><textarea id="completion" maxlength="1200" placeholder="每方須提供的交付內容及證據標準"></textarea></div>
+ <div><label for="stop">停止或退回條件</label><textarea id="stop" maxlength="1200" placeholder="無新證據、權限不足、工作不可重現時如何停下並回報"></textarea></div>
+</div>
+<div class="btns"><button type="button" id="make" class="primary">建立三方交接節點</button><button type="button" id="exportBatch">匯出完整進度 JSON</button><button type="button" id="importBatch">載入以前的交接批次</button></div>
+<input id="batchFile" type="file" accept=".json,application/json" hidden>
+<div id="createStatus" class="small" role="status">尚未建立交接批次。</div>
+</section>
+<section class="panel" aria-label="三個 AI 的獨立路徑">
+<h2>二、三方發射與接收通路</h2><p>以下各方都有自己的原指令、工作狀態與回報。停止其中一個角色，不影響其他角色，也不會中斷專案對話。</p>
+<div id="roleCards" class="roles"></div>
+<div id="roleStatus" class="small" role="status"></div>
+</section>
+<section class="panel" id="dataRoomCenter" aria-label="三方 AI 負責人與資料室治理">
+<h2>三、AI 對應人員與資料室治理</h2>
+<p>每位 AI 都有自己的<strong>對應人員、整理責任、人工審核者與上交清單</strong>。原檔與整理稿分離；修正、拒絕、重測不覆寫原始資料。</p>
+<div class="room-warning" role="note">目前是<strong>原檔治理索引（僅元資料）</strong>：這個公開展示網站不會上傳、儲存或託管原始檔。請將原檔保留在你控制的私人資料室或加密儲存位置。下載的治理索引 JSON **沒有加密**，請勿放入公開儲存庫或填入私人姓名、秘密路徑。這裡只記錄資料 ID、版本、保管人及人工聲稱的參照位置；不能把「已登記」說成「已安全保存」。工作紀錄需另行匯出 JSON。</div>
+<div id="roomRoles" class="roomcards" aria-label="每個 AI 的對應負責人卡片"></div>
+<h3>原始檔案索引｜保留來源，不覆蓋原檔</h3>
+<div class="cols">
+<div><label for="originalId">原檔 ID</label><input id="originalId" maxlength="120" placeholder="例如：SOURCE-001"></div>
+<div><label for="originalTitle">原檔名稱／內容概要</label><input id="originalTitle" maxlength="200" placeholder="例如：原始研究記錄"></div>
+<div><label for="originalLocator">私人資料室中的識別碼／索引位置</label><input id="originalLocator" maxlength="350" placeholder="僅填代號；勿填私人網址、密碼或 API 金鑰"></div>
+<div><label for="originalCustodian">原檔保管人</label><input id="originalCustodian" maxlength="120" placeholder="人工填寫，身分尚未核實"></div>
+<div><label for="originalVersion">不可覆蓋的原始版本</label><input id="originalVersion" maxlength="90" placeholder="v1 / 2026-10-16"></div>
+<div><label for="originalHash">SHA-256（選填，必須為已核對的 64 字元十六進位值）</label><input id="originalHash" maxlength="64" placeholder="選填；此處不替你驗證檔案內容"></div>
+</div>
+<div class="btns"><button id="registerOriginal" type="button">新增原檔治理索引</button></div>
+<div id="roomOriginalList"></div>
+<h3>各 AI 整理結果上交</h3>
+<div class="cols">
+<div><label for="roomRoleSelect">上交角色</label><select id="roomRoleSelect"><option value="GPT1">GPT① 統籌</option><option value="GPT2">GPT② 反證</option><option value="BOT3">BOT③ 測試</option></select></div>
+<div><label for="roomOriginalSelect">對應原始檔（每次至少一份）</label><select id="roomOriginalSelect"></select></div>
+<div><label for="roomSource">整理稿來源聲稱</label><input id="roomSource" maxlength="220" value="使用者人工整理／貼回，AI 身分尚未驗證"></div>
+<div><label for="roomSummary">整理結論／做了什麼</label><textarea id="roomSummary" maxlength="4000" placeholder="整理內容與已完成的工作"></textarea></div>
+<div><label for="roomEvidence">證據與檢驗方式</label><textarea id="roomEvidence" maxlength="2000" placeholder="原始資料、對照、測試及可信程度"></textarea></div>
+<div><label for="roomGaps">拒絕、異議、錯誤與未知</label><textarea id="roomGaps" maxlength="1500" placeholder="沒有問題也請說明依據；不可默默刪除反證"></textarea></div>
+</div>
+<label for="roomNext">下一步與退回對象</label><textarea id="roomNext" maxlength="1500" placeholder="需要誰補資料或核准？再驗證什麼？"></textarea>
+<div class="btns"><button id="submitRoleRoom" type="button" class="primary">整理並登記上交（待人工審核）</button></div>
+<h3>上交審核與修正歷史</h3>
+<div class="cols">
+<div><label for="roomSubmissionSelect">待審或已記錄的上交 ID</label><select id="roomSubmissionSelect"></select></div>
+<div><label for="roomDecision">審核處置</label><select id="roomDecision"><option value="under_review">正在審查</option><option value="rejected">拒絕（保留原紀錄）</option><option value="revision_requested">退回修正</option><option value="approved_for_archive">人工同意歸檔（不等於事實成立）</option></select></div>
+<div><label for="roomReviewer">人工審核人</label><input id="roomReviewer" maxlength="120" placeholder="不得把 AI 自稱當作已驗證人員"></div>
+<div><label for="roomReviewReason">理由</label><input id="roomReviewReason" maxlength="1500" placeholder="支持與反證"></div>
+<div><label for="roomReviewImpact">影響範圍</label><input id="roomReviewImpact" maxlength="1500" placeholder="可能需要重審的任務／記憶"></div>
+<div><label for="roomReviewNext">可行下一步</label><input id="roomReviewNext" maxlength="1500" placeholder="退回誰、補什麼證據"></div>
+</div>
+<div class="btns"><button id="reviewRoomSubmission" type="button">記錄本次審核／退回</button><button id="exportRoom" type="button">匯出資料室治理索引 JSON</button><button id="importRoom" type="button">匯入已保存的治理索引</button><button id="exportRoomCandidate" type="button">匯出選定上交的待審記憶候選</button></div>
+<input type="file" id="roomFile" accept=".json,application/json" hidden>
+<div id="roomSubmissionList" class="log"></div>
+<div id="roomMessage" class="statusline" role="status">先建立三方任務，再指派每個 AI 的對應人員及原檔索引。</div>
+<p class="help">資料流：原檔留在私人資料室 → 人工在此建立原檔索引 → 對應 AI 工作摘要由負責人登記 → 人工審查 → 以記憶候選包交給加密記憶庫。此處不提供遠端 AI 自動上交，也不包含真正的原始檔備份。</p>
+</section>
+<section class="panel" id="relayStopControls" aria-label="回報與拒絕登記">
+<h2>四、回報確認、拒絕與停止</h2>
+<div class="cols">
+<div><label for="roleSelect">指定哪個角色？</label><select id="roleSelect"></select></div>
+<div><label for="commandId">原指令 ID（必須符合選定角色）</label><input id="commandId" maxlength="125" readonly></div>
+</div>
+<label for="reply">手動貼回的 AI 回應（身分仍未驗證）</label><textarea id="reply" class="long" maxlength="8000" placeholder="只貼已獲授權分享的回覆；未提交前不會存到工作區"></textarea>
+<label for="source">回報來源聲稱</label><input id="source" maxlength="150" value="使用者手動貼回；AI 身分未驗證">
+<div class="btns"><button id="recordReply" type="button" class="primary">記錄對應回報</button><button type="button" id="loadLauncher">匯入相同原指令的 Launcher 回報 JSON</button></div>
+<input id="launcherFile" type="file" accept=".json,application/json" hidden>
+<div class="cols">
+ <div><label for="rejectReason">拒絕／出錯原因</label><input id="rejectReason" maxlength="1200" placeholder="例如：證據來源不完整"></div>
+ <div><label for="rejectImpact">影響範圍</label><input id="rejectImpact" maxlength="1200" placeholder="哪些任務、結論需要重新審查"></div>
+</div>
+<label for="rejectNext">可行下一步</label><input id="rejectNext" maxlength="1200" placeholder="補證、退回 GPT②、BOT③ 重測或人工決策">
+<div class="btns"><button type="button" id="reject" class="primary">拒絕並立即提醒</button><button type="button" id="pause">停止指定工作（僅本機）</button><button type="button" id="resume">恢復本機工作追蹤</button></div>
+<div id="roleNotice" class="notice hidden" role="alert"></div>
+</section>
+<section class="panel" aria-label="回中樞工作報告">
+<h2>五、回主腦中樞的驗證與交接</h2>
+<div class="cols"><div><h3>目前三方結果</h3><pre id="summary">尚未建立批次。</pre></div>
+<div><h3>回溯事件紀錄</h3><div id="events" class="log"><p>尚無事件。</p></div></div></div>
+<div class="btns"><button type="button" id="exportTransfer" class="primary">匯出三方回報至專案治理</button><button type="button" id="exportMemory">匯出待審記憶候選</button><a href="./governance-board.html">到專案治理匯入並審核 →</a><a href="./memory.html">記憶審核 →</a></div>
+<p id="handoffStatus" class="small" role="status"></p>
+<p class="help">通路狀態：平台內封包與識別碼核對可以測試；三個 AI 的實際收訊、遠端取消、服務端身分驗證尚未接通。只有真正取得服務端回執後，未來才能將「待交接」升格為「已收到」。</p>
+</section>
+</main>
+<script src="./tcvl-data-room-core.js"></script><script src="./tcvl-relay-core.js"></script><script src="./tcvl-platform-core.js"></script><script src="./tcvl-platform-shell.js"></script>
+<script>
+(function(){"use strict";
+const core=globalThis.TcvlRelayCore,projectCore=globalThis.TcvlPlatformCore,dataCore=globalThis.TcvlDataRoomCore;
+const $=id=>document.getElementById(id);
+let batch=null,room=null,sequence=0,lastExportedBatch=null,lastExportedRoom=null;
+function hasPendingLocalChanges(){return (batch!==null&&JSON.stringify(batch)!==lastExportedBatch)||(room!==null&&JSON.stringify(room)!==lastExportedRoom)}
+const date=()=>new Date().toISOString(),newId=p=>(p+"-"+Date.now().toString(36)+"-"+(++sequence));
+const node=(tag,text,css)=>{const a=document.createElement(tag);if(text!==undefined)a.textContent=text;if(css)a.className=css;return a};
+function info(text,id="roleStatus"){$(id).textContent=text}
+function saveAs(data,name){
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json;charset=utf-8"});
+ const link=document.createElement("a"),url=URL.createObjectURL(blob);link.href=url;link.download=name;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function copyText(text){
+ if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);return}
+ const field=document.createElement("textarea");field.value=text;field.style.cssText="position:fixed;left:-10000px";document.body.append(field);field.select();
+ const ok=document.execCommand("copy");field.remove();if(!ok)throw Error("無法複製。請下載指令 JSON 再人工交接");
+}
+function roleText(r){
+ const c=r.command,assignment=room?.assignments?.find(x=>x.roleId===r.id);
+ return ["【TCVL 中樞人工交接】","對應責任人："+(assignment?.owner||"尚未指派（待治理）"),"資料整理責任："+(assignment?.duty||"待填"),"人工審核者："+(assignment?.reviewer||"待指派"),"原始檔不得直接改寫；整理上交須包含原檔 ID／版本、來源、證據、反證、拒絕及下一步，供人類審核。","原指令 ID："+c.command_id,"接收角色："+c.recipient,"狀態：待交接，未證實 AI 收到","任務："+c.title,c.instructions,"完成條件："+c.completion_criteria,"停止或退回："+c.stop_and_escalation,c.response_requirements].join("\n\n");
+}
+function updateRoleSelect(){
+ const previous=$("roleSelect").value,select=$("roleSelect");select.replaceChildren();
+ for(const role of core.ROLES){const option=node("option",role.label+"｜"+role.duty);option.value=role.id;select.append(option)}
+ select.value=core.ROLES.some(r=>r.id===previous)?previous:"GPT1";
+ const match=batch?.roles.find(r=>r.id===select.value);$("commandId").value=match?.command.command_id||"";
+}
+function render(){
+ $("roleCards").replaceChildren();
+ if(!batch){info("請先建立三方任務。");$("summary").textContent="尚未建立批次。";$("events").replaceChildren();$("events").append(node("p","尚無事件"));updateRoleSelect();renderDataRoom();return}
+ for(const role of core.ROLES){
+  const r=batch.roles.find(x=>x.id===role.id),card=node("div",undefined,"role "+r.state);
+  card.append(node("h3",role.label+"｜"+role.duty));
+  card.append(node("p","狀態："+({prepared:"待交接",manual_handoff:"已複製／分享，未證實收到",reported_unverified:"已記錄回報，待查核",rejected:"已拒絕",paused:"本機已暫停"}[r.state]),"statusline"));
+  card.append(node("p","原指令："+r.command.command_id,"small"));
+  const assigned=room?.assignments.find(a=>a.roleId===role.id),reports=room?.submissions.filter(x=>x.roleId===role.id)||[];
+  card.append(node("p","對應負責人："+(assigned?.owner||"尚未指派")+"｜治理審核："+(assigned?.reviewer||"待指派"),"statusline"));
+  card.append(node("p","資料室上交："+reports.length+" 份，作者身分皆待查核；原檔索引不等於已保存原檔。","small"));
+  const actions=node("div",undefined,"btns"),select=node("button","選擇角色"),send=node("button","發射＝複製指令","primary"),download=node("button","下載指令");
+  select.type=send.type=download.type="button";
+  select.addEventListener("click",()=>{$("roleSelect").value=role.id;updateRoleSelect();$("reply").focus()});
+  send.disabled=r.state==="paused"||r.state==="rejected"||r.state==="reported_unverified";
+  send.addEventListener("click",async()=>{
+   try{await copyText(roleText(r));batch=core.recordHandoff(batch,{roleId:role.id,at:date()});render();info(role.label+" 指令已複製，請貼至相應 AI。沒有送達或身分回執。")}
+   catch(e){info("發射未完成："+e.message)}
+  });
+  download.addEventListener("click",()=>{saveAs(r.command,"tcvl-command-"+role.id+".json");info("已觸發指令下載。仍未證實送達 "+role.label)});
+  const assignButton=node("button","查看責任／上交");assignButton.type="button";
+  assignButton.addEventListener("click",()=>{$("roomRoleSelect").value=role.id;$("dataRoomCenter").scrollIntoView({behavior:"smooth",block:"start"});});
+  actions.append(select,send,download,assignButton);card.append(actions);
+  if(r.rejection){const e=node("p","拒絕原因："+r.rejection.reason+"｜影響："+r.rejection.impact+"｜下一步："+r.rejection.next,"small");e.className="rejection";card.append(e)}
+  if(r.responses.length)card.append(node("p","已記錄 "+r.responses.length+" 份人工回報，作者身分未經驗證。","small"));
+  $("roleCards").append(card);
+ }
+ updateRoleSelect();renderDataRoom();
+ const sum=core.summary(batch),lines=["專案："+batch.projectTitle+" ("+batch.projectId+")","批次："+batch.id,"總結："+sum.decision,"人工已記錄回報："+sum.count.reported_unverified+"/3","實際 AI 收到的已驗證回執：0/3","已驗證 AI 作者身分：0/3","正式核准：否",...batch.roles.map(r=>core.ROLES.find(x=>x.id===r.id).label+"："+r.state)];
+ $("summary").textContent=lines.join("\n");
+ const box=$("events");box.replaceChildren();
+ if(!batch.events.length){box.append(node("p","尚無人工交接事件"));return}
+ for(const event of [...batch.events].reverse().slice(0,30)){const item=node("div",undefined,"event"+(event.kind==="rejected"?" rejection":""));item.append(node("b",event.kind+"｜"+event.role),node("div",event.detail),node("small",event.at));box.append(item)}
+}
+$("make").addEventListener("click",()=>{
+ try{
+  if(batch&&!confirm("這會取代本頁尚未匯出的三方批次，確定已備份？"))return;
+  const projectId=$("projectId").value.trim()||newId("project");
+  batch=core.createBatch({id:newId("relay"),projectId,projectTitle:$("projectTitle").value.trim(),objective:$("objective").value.trim(),context:$("context").value.trim(),completion:$("completion").value.trim(),stop:$("stop").value.trim(),createdAt:date()});
+  $("projectId").value=projectId;
+  room=dataCore.createRoom({projectId:batch.projectId,batchId:batch.id,title:batch.projectTitle,at:date()});
+  render();info("已建立 3 個獨立角色的原始指令。尚未送出。","createStatus");$("roleNotice").classList.add("hidden");
+ }catch(e){info("無法建立："+e.message,"createStatus")}
+});
+$("roleSelect").addEventListener("change",updateRoleSelect);
+$("recordReply").addEventListener("click",()=>{
+ if(!batch){info("請先建立批次");return}
+ try{batch=core.addResponse(batch,{roleId:$("roleSelect").value,commandId:$("commandId").value,at:date(),text:$("reply").value.trim(),source:$("source").value.trim(),id:newId("reply")});$("reply").value="";render();info("已綁定原指令並記錄回報；仍待身分與內容查核。");}
+ catch(e){info("回報被拒絕："+e.message)}
+});
+$("reject").addEventListener("click",()=>{
+ if(!batch){info("尚未建立批次");return}
+ try{
+  const reason=$("rejectReason").value.trim(),impact=$("rejectImpact").value.trim(),next=$("rejectNext").value.trim(),roleId=$("roleSelect").value;
+  batch=core.reject(batch,{roleId,at:date(),reason,impact,next});render();
+  const notice=$("roleNotice");notice.classList.remove("hidden");notice.textContent="已拒絕 "+core.ROLES.find(x=>x.id===roleId).label+"｜原因："+reason+"｜影響："+impact+"｜下一步："+next;
+  notice.focus();document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason,impact,next}}));info("已保留拒絕與修正要求；共用提醒入口已更新。");
+ }catch(e){info("拒絕登記未完成："+e.message)}
+});
+$("pause").addEventListener("click",()=>{
+ if(!batch){info("尚未建立批次");return}
+ try{batch=core.pause(batch,{roleId:$("roleSelect").value,at:date(),reason:"使用者指定停止交接追蹤"});render();info("已停止本機工作追蹤。對話仍可繼續；不能遠端取消已送指令。")}
+ catch(e){info("停止未完成："+e.message)}
+});
+$("resume").addEventListener("click",()=>{if(!batch){info("尚未建立批次");return}try{batch=core.resume(batch,{roleId:$("roleSelect").value,at:date()});render();info("已恢復本機追蹤，不會自動重新向 AI 發射。")}catch(e){info("恢復失敗："+e.message)}});
+$("exportBatch").addEventListener("click",()=>{if(!batch){info("沒有可以匯出的批次","createStatus");return}saveAs(batch,"tcvl-relay-batch-"+batch.id+".json");lastExportedBatch=JSON.stringify(batch);info("已觸發批次 JSON 下載，請確認裝置已保存。治理索引若另有變更，仍須分別匯出。","createStatus")});
+$("importBatch").addEventListener("click",()=> $("batchFile").click());
+$("batchFile").addEventListener("change",async()=>{
+ const file=$("batchFile").files?.[0];if(!file)return;
+ try{if(file.size>120000)throw Error("批次檔超過 120KB");
+  const value=JSON.parse(await file.text());core.assertBatch(value);
+  if(batch&&!confirm("將覆蓋本頁尚未匯出的三方資料，確定？"))return;
+  batch=value;room=dataCore.createRoom({projectId:batch.projectId,batchId:batch.id,title:batch.projectTitle,at:date()});lastExportedBatch=JSON.stringify(batch);lastExportedRoom=JSON.stringify(room);render();info("已載入三方交接批次。若有資料室治理紀錄，請再匯入同一批次的索引 JSON。","createStatus")
+ }catch(e){info("匯入失敗："+e.message,"createStatus")}finally{$("batchFile").value=""}
+});
+$("loadLauncher").addEventListener("click",()=> $("launcherFile").click());
+$("launcherFile").addEventListener("change",async()=>{
+ const file=$("launcherFile").files?.[0];if(!file)return;
+ try{if(!batch)throw Error("先建立批次");if(file.size>25000)throw Error("回報檔超過 25KB");
+  const packet=JSON.parse(await file.text());batch=core.ingestLauncherResponse(batch,packet,{roleId:$("roleSelect").value,at:date(),id:newId("reply")});
+  render();info("已按指令 ID 匯入 Launcher 回報，仍是未驗證身分的人工資料。");
+ }catch(e){info("沒有匯入："+e.message)}finally{$("launcherFile").value=""}
+});
+$("exportTransfer").addEventListener("click",()=>{
+ if(!batch){info("請先建立三方批次","handoffStatus");return}
+ const data=core.transfer(batch);saveAs(data,"tcvl-relay-to-governance-"+data.id+".json");
+ info("已觸發三方交接回報下載。到專案治理選相同專案 ID，人工匯入、檢查後再核准。","handoffStatus");
+});
+$("exportMemory").addEventListener("click",()=>{
+ if(!batch){info("請先建立批次","handoffStatus");return}
+ try{
+  const data=core.transfer(batch),report=JSON.stringify(data,null,2);
+  if(report.length>12000)throw Error("報告超出記憶候選單筆上限；請改用完整批次 JSON 存檔");
+  const packet={schema:"ai-boundary.memory-pack.v1",items:[{id:"RELAY-"+newId("record"),question:"【主腦交接】"+batch.projectTitle,purpose:"三方人工交接與回報追溯，不表示遠端 AI 已接收或通過驗證。",content:report,reason:"由使用者在交接節點匯出供人工審核；來源與身分仍未驗證。",evidence:"人工交接紀錄；非自動模型 API 收件回執。",eventType:"new_question",evidenceLevel:"hypothesis"}]};
+  saveAs(packet,"tcvl-relay-memory-candidate.json");info("已觸發待審記憶包下載，沒有直接修改正式記憶。","handoffStatus");
+ }catch(e){info("記憶包匯出失敗："+e.message,"handoffStatus")}
+});
+
+/* Three AI accountable personnel and data room provenance: this is metadata only. */
+function roomStatus(message){$("roomMessage").textContent=message}
+function ensureRoom(){if(!batch||!room||!dataCore)throw Error("先建立三方交接批次，並確認資料室治理核心已載入");dataCore.assertRoom(room)}
+function roomRoleCard(role){
+ const assignment=room?.assignments.find(x=>x.roleId===role.id)||null;
+ const card=node("div",undefined,"roomrole");
+ card.append(node("h3",role.label+"｜對應人員"),node("p","AI 工作職責："+role.duty));
+ const fields=[
+  {id:"owner",label:"人類負責人（建議用代號）",value:assignment?.owner||"",hint:"請填真實負責者（人工標示）"},
+  {id:"duty",label:"資料整理／上交責任",value:assignment?.duty||role.duty+"；提交原始來源、證據、異議與下一步",hint:"這位 AI 應負責整理什麼？"},
+  {id:"reviewer",label:"人工審核者代號",value:assignment?.reviewer||"",hint:"負責檢查上交內容的人"}
+ ];
+ const inputs={};
+ for(const f of fields){
+  const label=node("label",f.label),input=node("input");input.type="text";input.value=f.value;input.placeholder=f.hint;input.maxLength=f.id==="duty"?450:120;
+  inputs[f.id]=input;card.append(label,input);
+ }
+ const btn=node("button","儲存人員與職責");btn.type="button";
+ btn.addEventListener("click",()=>{
+  try{
+   ensureRoom();
+   room=dataCore.assign(room,{roleId:role.id,owner:inputs.owner.value.trim(),duty:inputs.duty.value.trim(),
+    reviewer:inputs.reviewer.value.trim(),at:date(),eventId:newId("person")});
+   renderDataRoom();render();roomStatus(role.label+" 已設定人工負責人／整理責任／審核者。此指派不會自動送達任何 AI。");
+  }catch(e){roomStatus("未指派："+e.message)}
+ });
+ card.append(btn);
+ const assigned=room?.submissions.filter(x=>x.roleId===role.id)||[];
+ card.append(node("p","上交紀錄："+assigned.length+"｜人工登記；原檔未在本站託管","room-role-status"));
+ return card;
+}
+function renderDataRoom(){
+ const cards=$("roomRoles"),originalBox=$("roomOriginalList"),reportBox=$("roomSubmissionList");
+ cards.replaceChildren();originalBox.replaceChildren();reportBox.replaceChildren();
+ const originalSelect=$("roomOriginalSelect"),reportSelect=$("roomSubmissionSelect");
+ const previousOriginal=originalSelect.value,previousReport=reportSelect.value;
+ originalSelect.replaceChildren();reportSelect.replaceChildren();
+ for(const role of core.ROLES)cards.append(roomRoleCard(role));
+ if(!room){
+  originalBox.append(node("p","尚無原始檔案索引。先建立三方任務。","small"));
+  reportBox.append(node("p","尚無上交報告。","small"));
+  return;
+ }
+ for(const original of room.originals){
+  const article=node("article",undefined,"room-record");
+  article.append(node("strong",original.title+"｜"+original.id));
+  article.append(node("p","版本："+original.version+"｜保管人："+original.custodian+"｜索引位置："+original.locator,"small"));
+  article.append(node("p","保存狀態：只有引用，尚未在本平台儲存或驗證原檔。"+(original.sha256?"｜人工提供的 SHA-256："+original.sha256:""),"small"));
+  originalBox.append(article);
+  const option=node("option",original.id+"｜"+original.title);option.value=original.id;originalSelect.append(option);
+ }
+ if(!room.originals.length)originalBox.append(node("p","請先登記原始檔案 ID 與版本，不要上傳私人原檔到公開 GitHub。","small"));
+ if(room.originals.some(o=>o.id===previousOriginal))originalSelect.value=previousOriginal;
+ for(const submission of [...room.submissions].reverse()){
+  const row=node("div",undefined,"room-entry"+(submission.reviewState==="rejected"?" reject":""));
+  row.append(node("b",dataCore.ROLE_NAMES[submission.roleId]+"｜"+submission.id+"｜"+submission.reviewState));
+  row.append(node("p","對應負責人："+submission.owner+"｜來源聲稱："+submission.source+"｜原檔："+submission.originalIds.join("、"),"small"));
+  row.append(node("p","整理摘要："+submission.summary,"small"));
+  if(submission.gaps)row.append(node("p","異議／未知："+submission.gaps,"small"));
+  for(const review of submission.reviews){
+   row.append(node("p","審核："+review.decision+"｜原因："+review.reason+"｜影響："+review.impact+"｜下一步："+review.next,"rejection"));
+  }
+  reportBox.append(row);
+  const opt=node("option",dataCore.ROLE_NAMES[submission.roleId]+"｜"+submission.id+"｜"+submission.reviewState);
+  opt.value=submission.id;reportSelect.append(opt);
+ }
+ if(room.submissions.some(x=>x.id===previousReport))reportSelect.value=previousReport;
+ if(!room.submissions.length)reportBox.append(node("p","尚未有人工上交。先設定責任人與原檔索引，再填寫整理內容。","small"));
+}
+$("registerOriginal").addEventListener("click",()=>{
+ try{
+  ensureRoom();
+  room=dataCore.registerOriginal(room,{
+   id:$("originalId").value.trim(),title:$("originalTitle").value.trim(),
+   locator:$("originalLocator").value.trim(),custodian:$("originalCustodian").value.trim(),
+   version:$("originalVersion").value.trim(),sha256:$("originalHash").value.trim().toLowerCase()||null,
+   at:date(),eventId:newId("source")});
+  renderDataRoom();roomStatus("原始資料索引已登記。請另外確認私人資料室確實保存了原檔；本站不保留檔案內容。");
+ }catch(e){roomStatus("無法登記："+e.message)}
+});
+$("submitRoleRoom").addEventListener("click",()=>{
+ try{
+  ensureRoom();
+  const roleId=$("roomRoleSelect").value,selected=batch.roles.find(x=>x.id===roleId);
+  if(selected?.state==="paused")throw Error("該角色已暫停，需先恢復追蹤再上交新整理報告");
+  room=dataCore.submit(room,{id:newId("report"),roleId,
+   originalIds:[$("roomOriginalSelect").value],source:$("roomSource").value.trim(),
+   summary:$("roomSummary").value.trim(),evidence:$("roomEvidence").value.trim(),
+   gaps:$("roomGaps").value.trim(),next:$("roomNext").value.trim(),
+   at:date(),eventId:newId("submit")});
+  renderDataRoom();render();roomStatus("已登記 "+dataCore.ROLE_NAMES[roleId]+" 整理上交，等待人工審核。原始檔案索引保持不變。");
+ }catch(e){roomStatus("上交未成立："+e.message)}
+});
+$("reviewRoomSubmission").addEventListener("click",()=>{
+ try{
+  ensureRoom();
+  const decision=$("roomDecision").value,reason=$("roomReviewReason").value.trim(),
+    impact=$("roomReviewImpact").value.trim(),next=$("roomReviewNext").value.trim();
+  room=dataCore.review(room,{submissionId:$("roomSubmissionSelect").value,decision,
+   reviewer:$("roomReviewer").value.trim(),reason,impact,next,
+   at:date(),eventId:newId("review")});
+  renderDataRoom();render();
+  if(["rejected","revision_requested"].includes(decision)){
+   const notice=$("roleNotice");notice.classList.remove("hidden");
+   notice.textContent="資料室審核："+decision+"｜原因："+reason+"｜影響："+impact+"｜下一步："+next;
+   document.dispatchEvent(new CustomEvent("tcvl:attention",{detail:{reason,impact,next}}));
+  }
+  roomStatus("審核紀錄已追加，原始上交不會覆蓋；若需整理新版，請重新上交並引用同一原檔 ID。");
+ }catch(e){roomStatus("審核未完成："+e.message)}
+});
+$("exportRoom").addEventListener("click",()=>{
+ try{ensureRoom();saveAs(room,"tcvl-data-room-index-"+room.batchId+".json");lastExportedRoom=JSON.stringify(room);
+  roomStatus("已觸發下載資料室索引 JSON。裡面只有原檔引用與人工紀錄，不含原檔本體。請與三方批次 JSON 一同安全保存。");
+ }catch(e){roomStatus(e.message)}
+});
+$("importRoom").addEventListener("click",()=>$("roomFile").click());
+$("roomFile").addEventListener("change",async()=>{
+ const f=$("roomFile").files?.[0];if(!f)return;
+ try{
+  if(!batch)throw Error("請先匯入同一批次的三方原始指令");
+  if(f.size>250000)throw Error("治理索引檔過大");
+  const parsed=JSON.parse(await f.text());dataCore.assertRoom(parsed);
+  if(parsed.projectId!==batch.projectId||parsed.batchId!==batch.id)throw Error("索引與目前三方任務的專案或批次 ID 不符，禁止混用");
+  if(room&&(room.originals.length||room.submissions.length||room.assignments.length)&&
+    !confirm("將取代本頁尚未匯出的治理索引。請確認已先備份原始 JSON，是否繼續？"))return;
+  room=parsed;lastExportedRoom=JSON.stringify(room);renderDataRoom();render();roomStatus("已載入相同批次的治理索引。來源及 AI 身分仍未經自動驗證。");
+ }catch(e){roomStatus("匯入未完成："+e.message)}finally{$("roomFile").value=""}
+});
+$("exportRoomCandidate").addEventListener("click",()=>{
+ try{
+  ensureRoom();
+  const packet=dataCore.buildCandidate(room,$("roomSubmissionSelect").value,newId("candidate"));
+  saveAs(packet,"tcvl-data-room-memory-candidate.json");
+  roomStatus("已觸發待審記憶包下載。請到加密記憶庫人工匯入，並進行審核；原始檔本體未轉入記憶。");
+ }catch(e){roomStatus("無法匯出候選："+e.message)}
+});
+window.addEventListener("beforeunload",event=>{
+ if(!hasPendingLocalChanges())return;
+ event.preventDefault();event.returnValue="";
+});
+updateRoleSelect();render();
+})();
+</script>
+</body></html>

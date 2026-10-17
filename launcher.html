@@ -35,7 +35,7 @@ hr{border:0;border-top:1px solid var(--line);margin:22px 0}
 </style>
 </head>
 <body>
-<header><div class="nav"><strong>🚀 主腦 · 發射器</strong><nav aria-label="站內功能"><a href="./memory.html">🗂️ 記憶管理</a><a href="./mainbrain.html">主腦控制台</a> <a href="./index.html">3D 認知大腦</a> <a href="./feed.html">短影音</a></nav></div></header>
+<header><div class="nav"><strong>🚀 主腦 · 發射器</strong><nav aria-label="站內功能"><a href="./relay-hub.html">🔗 三方中樞交接</a><a href="./architecture-hub.html">🧩 架構導覽與快速設計</a><a href="./traceback-visual.html">↩ 回溯驗證</a><a href="./memory.html">🗂️ 記憶管理</a><a href="./mainbrain.html">主腦控制台</a> <a href="./index.html">3D 認知大腦</a> <a href="./feed.html">短影音</a></nav></div></header>
 <main class="wrap">
 <section class="intro"><div class="eyebrow">CENTRAL COMMAND LAUNCHER · V0.1</div><h1>從主腦中央發射指令</h1>
 <p>你可以在這裡自行輸入任務，或選擇已建立的首輪任務；選擇 GPT①、GPT②、BOT③ 或全部作為接收對象。</p>
@@ -55,6 +55,8 @@ hr{border:0;border-top:1px solid var(--line);margin:22px 0}
 <div><label for="stop">停止與升級條件</label><textarea id="stop" rows="3" style="min-height:92px"></textarea></div>
 </div>
 <div class="btns"><button class="primary" type="button" id="launch">🚀 發射（分享或複製）</button><button type="button" id="copy">複製指令</button><button type="button" id="download">下載任務 JSON</button></div>
+<div class="btns"><button type="button" id="import-relay-command">匯入三方中樞原指令 JSON</button><input type="file" id="relay-command-file" accept=".json,application/json" hidden></div>
+<p class="tiny">從三方中樞下載個別角色指令，再在這裡匯入，可保留原指令 ID。回覆後用「下載回報 JSON」回傳中樞；若自行重新產生新指令 ID，中樞會拒絕錯誤關聯。</p>
 <div id="status" class="status" role="status" aria-live="polite"></div>
 <p class="tiny">任務包會標記為「待交接」。即使裝置分享成功，也不代表指定 AI 已接收。請在接收端確認。</p>
 <hr>
@@ -232,8 +234,26 @@ $("#launch").addEventListener("click",async()=>{
 });
 $("#download").addEventListener("click",()=>{if(!validate())return;const p=packet();downloadJSON(p,p.command_id+".json");rememberCommand(p);say("已下載任務 JSON；狀態仍為待交接。");addLog("已下載任務 JSON（未送達）");});
 $("#export-response").addEventListener("click",()=>{if(!response.value.trim()){say("請先貼上 AI 回報內容。");return;}const p=commandHistory.find(x=>x.command_id===responseCommand.value);if(!p){say('請核對並選擇原指令；不會把回覆自動綁到目前編輯的任務。');return;}const r={schema:"ai-boundary.response.v0.1",exported_at:new Date().toISOString(),source_command:clone(p),reported_by:null,intended_recipient:p.recipient,identity_status:'未驗證；人工貼上',binding_status:'使用者選擇原指令；待審核', response_text:response.value,verification_status:"待主腦審核（人工匯入）"};downloadJSON(r,"mainbrain-response-"+Date.now()+".json");say("已下載回報包，未寫入中央記憶；需人工交接審核。");addLog("已下載回報包（待審核）");});
+$("#import-relay-command").addEventListener("click",()=>$("#relay-command-file").click());
+$("#relay-command-file").addEventListener("change",async()=>{
+ const file=$("#relay-command-file").files?.[0];if(!file)return;
+ try{
+  if(file.size>25000)throw Error("指令檔超過 25KB");
+  const packet=JSON.parse(await file.text());
+  if(!validCommand(packet)||packet.source_template!=="tcvl_relay_v1"||!["GPT①","GPT②","BOT③"].includes(packet.recipient))
+   throw Error("不是有效的中樞三方指令");
+  if(!confirm("載入後會替換此頁未儲存的指令及回覆內容，確定嗎？"))return;
+  applyFields({task:"custom",target:packet.recipient,title:packet.title,instructions:packet.instructions,done:packet.completion_criteria,stop:packet.stop_and_escalation,response:"",
+   command_cache:packet,command_history:[packet],response_command_id:packet.command_id});
+  rememberCommand(packet);responseCommand.value=packet.command_id;
+  say("已匯入中樞原指令 "+packet.command_id+"，來源未認證；可分享或複製給 "+packet.recipient+"。回覆將連回相同 ID。");
+  addLog("人工匯入三方交接指令，沒有自動向 AI 發送："+packet.command_id);
+ }catch(e){say("匯入失敗："+e.message)}finally{$("#relay-command-file").value=""}
+});
 $("#clear-response").addEventListener("click",()=>{response.value="";say("回報欄位已清空。");});
 applyTemplate();refreshDrafts();
 })();
 </script>
+<script src="./tcvl-platform-core.js"></script>
+<script src="./tcvl-platform-shell.js"></script>
 </body></html>
