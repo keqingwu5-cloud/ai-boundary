@@ -115,6 +115,30 @@
   const issues=check(next);if(issues.length)throw Error("候選資料不合法："+issues.join(","));
   return next;
  }
+ /* A private rule index may be manually loaded. Only permitted public-facing metadata is kept;
+    title can still be sensitive, so never upload such JSON to a public repo. */
+ function addRuleIndex(ledger,rows,{idPrefix="rule-index",at}={}){
+  if(check(ledger).length)throw Error("既有候選資料格式不合法");
+  if(!Array.isArray(rows)||rows.length<1||rows.length>MAX)throw Error("規章索引應為 1～100 筆");
+  let next=ledger;
+  const ids=new Set();
+  for(let i=0;i<rows.length;i++){
+   const row=rows[i];if(!row||typeof row!=="object"||Array.isArray(row))throw Error("規章索引格式錯誤");
+   // Whitelist only; don't accidentally pull the JSON rule body or private source documents.
+   const ruleId=clean(row.regulation_id,80),version=Number(row.version);
+   if(!ruleId||!Number.isInteger(version)||version<1||version>9999||
+     ids.has(ruleId+":"+version))throw Error("缺規章 ID、版本或重複");
+   ids.add(ruleId+":"+version);
+   const itemId="rule:"+ruleId+":v"+version;
+   const ref="regulation_room.rule_versions/"+ruleId+"/v"+version;
+   next=add(next,{
+    id:itemId,kind:"rule",title:clean(row.title,160)||ruleId,
+    summary:"私人規章候選索引；未讀取原文，需補齊證據及適用上下文後才可送審。",
+    sources:[ref],origin_status:"candidate_unverified",entered_at:at
+   },{id:idPrefix+":"+i+":"+ruleId,at,note:"人工匯入唯讀規章索引；非核准、非 DB 同步"});
+  }
+  return next;
+ }
  function screen(ledger,itemId,{id,at,note=""}={}){
   if(check(ledger).length)throw Error("既有候選資料格式不合法");
   const item=ledger.items.find(x=>x.id===itemId);if(!item)throw Error("找不到候選資料");
@@ -124,5 +148,5 @@
   const errors=check(next);if(errors.length)throw Error(errors.join(","));
   return {ledger:next,result};
  }
- return Object.freeze({SCHEMA,KINDS,STATUS,blank,candidate,check,add,evaluate,sameAs,screen});
+ return Object.freeze({SCHEMA,KINDS,STATUS,blank,candidate,check,add,addRuleIndex,evaluate,sameAs,screen});
 });
