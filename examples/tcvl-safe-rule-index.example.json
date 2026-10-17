@@ -1,0 +1,15 @@
+{
+  "schema": "tcvl.safe-rule-index.v1",
+  "records": [
+    {
+      "regulation_id": "DEMO-RULE-001",
+      "version": 1,
+      "title": "示範規章：版本留痕"
+    },
+    {
+      "regulation_id": "DEMO-RULE-002",
+      "version": 1,
+      "title": "示範規章：候選不自動核准"
+    }
+  ]
+}
