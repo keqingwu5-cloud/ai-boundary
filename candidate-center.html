@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<title>候選選拔與關聯｜第一大腦系統</title>
+<style>
+:root{color-scheme:dark;--bg:#091320;--p:#12243a;--p2:#172b44;--line:#4c6b87;--fg:#f1f6ff;--sub:#c3d4e8}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse 850px 400px at 50% -150px,#26576b,transparent 80%),var(--bg);color:var(--fg);font:14px/1.6 system-ui,"PingFang TC",sans-serif}
+main{max-width:1190px;margin:auto;padding:23px 17px 70px}h1{font-size:clamp(27px,5vw,40px);line-height:1.23;margin:12px 0}h2{font-size:20px;margin:0 0 11px}h3{font-size:15px;margin:0 0 8px}p{color:var(--sub);margin:6px 0 12px}a{color:#bfecff}
+.panel{border:1px solid var(--line);background:linear-gradient(140deg,var(--p2),var(--p));border-radius:16px;padding:17px;margin:13px 0}
+.warning{background:#2f281e;border:1px solid #a18b5c;padding:12px;border-radius:11px;color:#ffefc4}.muted{font-size:12px;color:var(--sub)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.kpi{background:#142b41;border-radius:12px;border:1px solid #57728e;padding:12px}.kpi b{display:block;font-size:24px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.triple{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+label{display:block;color:#d8ebfa;font-weight:600;font-size:13px;margin:10px 0 5px}input,select,textarea{min-width:0;width:100%;background:#0b1d30;color:var(--fg);border:1px solid #7094b1;border-radius:9px;padding:10px;font:inherit}textarea{min-height:78px;resize:vertical}
+button{font:inherit;cursor:pointer;padding:9px 12px;border:1px solid #80a6ad;border-radius:9px;color:#fff;background:#28556a}button:hover{background:#336a80}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #e3fff6;outline-offset:2px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:14px}.scroll{overflow:auto}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid #42617e;font-size:12px;overflow-wrap:anywhere;vertical-align:top}th{color:#d6e8f7}tr.active{background:#254b61}
+.pill{font-size:12px;border:1px solid #83a6aa;border-radius:20px;padding:3px 8px;color:#d7fff1;display:inline-block}
+.notice{border-left:3px solid #badae5;padding:9px 12px;margin:10px 0;background:#122b40;border-radius:5px;overflow-wrap:anywhere}
+.error{border-left-color:#f1b79c}dl{display:grid;grid-template-columns:120px 1fr;gap:10px;margin:10px 0}dt{color:#c2dfec}dd{margin:0;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:760px){.formgrid,.triple,.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}.panel{padding:13px}dl{grid-template-columns:1fr;gap:3px}}
+</style>
+<script defer src="./tcvl-platform-core.js"></script><script defer src="./tcvl-platform-shell.js"></script><script defer src="./tcvl-candidate-core.js"></script>
+</head><body><main>
+<header>
+<span class="pill">P0｜候選選拔 · 資料關聯 · 送審門檻</span>
+<h1>先比較價值，再決定資料往哪裡走</h1>
+<p>像面試一樣，候選資料先說清楚自己的亮點、來源、上下文、與其他資料的差別。重複的可成為支持證據；可反駁的新假設可交給第一大腦研發。**沒有任何候選會自動變成正式規章或核心記憶。**</p>
+<div class="warning"><strong>目前是本機人工原型：</strong>此頁沒有直接讀取私有 Supabase、沒有 AI 自動篩選或正式核准接口。原有 23 條候選規章仍在私庫，若要顯示，必須由有權限者匯入<strong>僅含 ID／版本／名稱的索引 JSON</strong>；勿放入原始規章明文、私人記憶或憑證。重新整理前請手動匯出工作簿。</div>
+</header>
+<section class="panel">
+<h2>目前本頁資料狀態</h2>
+<div class="kpis"><div class="kpi"><span class="muted">已載入候選</span><b id="countAll">0</b></div>
+<div class="kpi"><span class="muted">等待補充</span><b id="countHold">0</b></div>
+<div class="kpi"><span class="muted">可能重複</span><b id="countDuplicate">0</b></div>
+<div class="kpi"><span class="muted">可送下一輪審查</span><b id="countReady">0</b></div></div>
+<p class="muted">以上是本頁人工資料的門檻統計，不是 Supabase 全庫數字；其中「可送審」也不等於已獲准或已執行。</p>
+<div class="actions"><button id="export" type="button">匯出候選與歷史 JSON</button><label for="ledgerFile" class="pill">匯入本頁候選工作簿</label><input type="file" id="ledgerFile" hidden accept=".json,application/json"><label for="indexFile" class="pill">匯入規章安全索引（本機）</label><input type="file" id="indexFile" hidden accept=".json,application/json"></div>
+<p id="status" class="muted" role="status">資料尚未載入。</p>
+</section>
+<section class="grid">
+<section class="panel">
+<h2>候選資料與狀態表</h2>
+<label for="filter">依處理建議篩選</label><select id="filter"><option value="all">全部</option><option value="hold">待補上下文或來源</option><option value="compare_duplicates">可能重複</option><option value="research_review">第一大腦研發候選</option><option value="database_review">資料庫收錄審查</option></select>
+<div class="scroll"><table><thead><tr><th>ID／類型</th><th>名稱</th><th>候選門檻</th><th>動作</th></tr></thead><tbody id="rows"><tr><td colspan="4">尚未登記候選資料</td></tr></tbody></table></div>
+<p class="muted">候選資料可以同時有上下文、記憶管理鏈與因果鏈；不以「三選一」分類。原始版本、關聯與拒絕原因須保留。</p>
+</section>
+<section class="panel">
+<h2>選取候選的理由與關聯檢查</h2>
+<div id="detail" aria-live="polite"><p>選取左側資料後，會顯示來源、亮點、三類鏈、重複提醒及所有門檻原因。</p></div>
+</section>
+</section>
+<section class="panel">
+<h2>人工新增一份候選（不會自動核准）</h2>
+<form id="form">
+<div class="formgrid">
+<div><label for="id">候選 ID</label><input id="id" maxlength="80" required placeholder="例如 KNOW-0001"></div>
+<div><label for="kind">分類</label><select id="kind"><option value="knowledge">新知識</option><option value="research">新假設／研發</option><option value="rule">候選規章</option><option value="memory">記憶候選</option><option value="correction">錯誤／修正</option><option value="task">任務候選</option></select></div>
+<div><label for="title">資料標題</label><input id="title" maxlength="160" required></div>
+<div><label for="sources">來源 ID（多筆用逗號分開）</label><input id="sources" maxlength="500" placeholder="doc-1, doc-2"></div>
+</div>
+<div class="formgrid">
+<div><label for="summary">原始主張摘要</label><textarea id="summary" maxlength="1200"></textarea></div>
+<div><label for="highlight">這份資料最突出的新價值</label><textarea id="highlight" maxlength="500"></textarea></div>
+<div><label for="comparison">與既有資料有何不同／重複？</label><textarea id="comparison" maxlength="500"></textarea></div>
+<div><label for="context">用途、對象、時間或適用條件（上下文）</label><textarea id="context" maxlength="500"></textarea></div>
+<div><label for="uncertainties">反證、疑問、尚未確認的地方</label><textarea id="uncertainties" maxlength="500"></textarea></div>
+<div><label for="evidence">驗證證據索引（不是重複來源）</label><textarea id="evidence" maxlength="500"></textarea></div>
+</div>
+<h3>三類鏈關聯（只填索引 ID，不填私人內容）</h3>
+<div class="triple">
+<div><label for="contextState">上下文鏈</label><select id="contextState"><option value="missing">尚未連結</option><option value="linked">已有引用</option></select><label for="contextRefs">引用 ID</label><input id="contextRefs" maxlength="500" placeholder="例如 ctx-1"></div>
+<div><label for="memoryState">記憶管理鏈</label><select id="memoryState"><option value="missing">尚未連結</option><option value="linked">已有授權索引</option><option value="not_applicable">不適用（說明理由）</option></select><label for="memoryRefs">引用 ID／不適用理由</label><input id="memoryRefs" maxlength="500" placeholder="僅索引，不含明文"></div>
+<div><label for="causalState">因果鏈</label><select id="causalState"><option value="missing">尚未連結</option><option value="linked">已有假設／反證索引</option><option value="not_applicable">不適用（說明理由）</option></select><label for="causalRefs">引用 ID／不適用理由</label><input id="causalRefs" maxlength="500" placeholder="純操作規章可標不適用"></div>
+</div>
+<div class="actions"><button type="submit">登記候選並檢查門檻</button><button id="reset" type="button">清空輸入</button></div>
+</form>
+</section>
+<footer><a href="./ecosystem-dashboard.html">AI 生態總覽</a> · <a href="./governance-board.html#gateCenter">原工作空間門檻</a> · <a href="./mainbrain.html">主腦首頁</a><p class="muted">此頁的門檻只決定送審準備程度；R1～R4 的正式治理權限與真實後端執行尚未在此頁接線。</p></footer>
+</main>
+<script>
+(function(){
+"use strict";
+function init(){
+ const core=globalThis.TcvlCandidateCore,by=id=>document.getElementById(id);
+ const elem=(tag,value)=>{const x=document.createElement(tag);if(value!==undefined)x.textContent=value;return x};
+ const parse=s=>s.split(/[,，;\n]+/).map(v=>v.trim()).filter(Boolean).slice(0,12);
+ const now=()=>new Date().toISOString();let ledger=core.blank(),selected="",seq=0;
+ function report(msg){by("status").textContent=msg}
+ function gate(item){return core.evaluate(item,ledger.items)}
+ function label(x){return {hold:"待補資料",compare_duplicates:"可能重複",research_review:"可送研發審查",database_review:"可送資料庫審查"}[x]||x}
+ function render(){
+  const evaluations=ledger.items.map(v=>({v,g:gate(v)}));
+  by("countAll").textContent=String(ledger.items.length);
+  by("countHold").textContent=String(evaluations.filter(x=>x.g.route==="hold").length);
+  by("countDuplicate").textContent=String(evaluations.filter(x=>x.g.route==="compare_duplicates").length);
+  by("countReady").textContent=String(evaluations.filter(x=>["research_review","database_review"].includes(x.g.route)).length);
+  const filter=by("filter").value,tbody=by("rows");tbody.replaceChildren();
+  for(const {v,g} of evaluations.filter(x=>filter==="all"||x.g.route===filter)){
+   const row=elem("tr");if(selected===v.id)row.className="active";
+   for(const val of [v.id+"／"+v.kind,v.title,label(g.route)])row.append(elem("td",val));
+   const td=elem("td"),btn=elem("button","詳情");btn.type="button";btn.addEventListener("click",()=>{selected=v.id;render()});td.append(btn);row.append(td);tbody.append(row);
+  }
+  if(!tbody.children.length){const row=elem("tr"),cell=elem("td","目前沒有符合的候選");cell.colSpan=4;row.append(cell);tbody.append(row)}
+  const detail=by("detail");detail.replaceChildren();const current=ledger.items.find(x=>x.id===selected);
+  if(!current){detail.append(elem("p","請從左側選擇一筆候選，查看來源與門檻。"));return}
+  const g=gate(current);
+  detail.append(elem("h3",current.title));detail.append(elem("p","評估："+label(g.route)+"｜正式記憶與規章：未核准"));
+  const dl=elem("dl");
+  for(const [a,b] of [["來源",current.sources.join("、")||"缺少"],["亮點",current.highlight||"缺少"],["上下文",current.context||"缺少"],["與其他資料比較",current.comparison||"缺少"],["反證／未知",current.uncertainties||"待補"],["上下文鏈",current.links.context.state+"｜"+current.links.context.refs.join("、")],["記憶管理鏈",current.links.memory.state+"｜"+(current.links.memory.refs.join("、")||current.links.memory.reason)],["因果鏈",current.links.causal.state+"｜"+(current.links.causal.refs.join("、")||current.links.causal.reason)]]){dl.append(elem("dt",a),elem("dd",b))}
+  detail.append(dl);
+  for(const msg of g.reasons){const n=elem("p","需補："+msg);n.className="notice error";detail.append(n)}
+  for(const msg of g.warnings){const n=elem("p","注意："+msg);n.className="notice";detail.append(n)}
+  const btn=elem("button","記錄人工篩選意見");btn.type="button";
+  btn.addEventListener("click",()=>{const note=prompt("請輸入篩選理由（只保存本機，不會核准規章）");if(!note)return;
+   try{const out=core.screen(ledger,current.id,{id:"screen-"+Date.now()+"-"+(++seq),at:now(),note});ledger=out.ledger;report("已記錄人工篩選：" + label(out.result.route)+"；非正式核准。");render()}
+   catch(e){report("篩選無法儲存："+e.message)}
+  });detail.append(btn);
+ }
+ function link(kind){
+  const state=by(kind+"State").value,t=by(kind+"Refs").value.trim();
+  return {state,refs:state==="linked"?parse(t):[],reason:state==="not_applicable"?t:""};
+ }
+ by("form").addEventListener("submit",e=>{e.preventDefault();try{
+  const data={id:by("id").value,kind:by("kind").value,title:by("title").value,
+   summary:by("summary").value,highlight:by("highlight").value,comparison:by("comparison").value,
+   context:by("context").value,uncertainties:by("uncertainties").value,
+   sources:parse(by("sources").value),evidence_refs:parse(by("evidence").value),
+   links:{context:link("context"),memory:link("memory"),causal:link("causal")},entered_at:now()};
+  ledger=core.add(ledger,data,{id:"entry-"+Date.now()+"-"+(++seq),at:now(),note:"人工新增；保留候選狀態"});
+  selected=data.id;render();by("form").reset();
+  report("候選已登記在本頁；門檻結果："+label(gate(ledger.items.find(x=>x.id===selected)).route)+"。");
+ }catch(err){report("無法登記："+err.message)}});
+ by("reset").addEventListener("click",()=>by("form").reset());
+ by("filter").addEventListener("change",render);
+ function load(file,fn){if(!file)return;file.text().then(str=>{if(file.size>200000)throw Error("檔案過大，請先去除私人資料");return fn(JSON.parse(str))}).catch(e=>report("匯入失敗："+e.message))}
+ by("ledgerFile").addEventListener("change",e=>{const f=e.target.files?.[0];load(f,obj=>{
+   const errors=core.check(obj);if(errors.length)throw Error(errors.join("、"));
+   ledger=obj;selected="";render();report("已載入本機候選工作簿，仍未核驗其來源或權限。");
+  });e.target.value=""});
+ by("indexFile").addEventListener("change",e=>{const f=e.target.files?.[0];load(f,obj=>{
+   if(!obj||obj.schema!=="tcvl.safe-rule-index.v1"||!Array.isArray(obj.records))throw Error("預期格式 {schema: tcvl.safe-rule-index.v1, records:[{regulation_id,version,title}]}");
+   ledger=core.addRuleIndex(ledger,obj.records,{idPrefix:"rule-import-"+Date.now(),at:now()});
+   selected="";render();report("已匯入 "+obj.records.length+" 筆僅含索引的規章候選；無正文、無核准、無後端同步。");
+  });e.target.value=""});
+ by("export").addEventListener("click",()=>{
+  try{const blob=new Blob([JSON.stringify(ledger,null,2)],{type:"application/json"});
+   const url=URL.createObjectURL(blob),a=elem("a");a.href=url;a.download="tcvl-candidate-workbook.json";
+   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+   report("已請瀏覽器下載本機工作簿，請確認下載成功；檔案未加密，請勿外傳。");
+  }catch(e){report("匯出失敗："+e.message)}
+ });
+ render();
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
+})();
+</script></body></html>
