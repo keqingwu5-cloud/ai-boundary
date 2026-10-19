@@ -39,7 +39,8 @@
   }
   function validateEvent(event) {
     if (!event || event.schema !== SCHEMA) throw Error('unsupported event schema');
-    for (const key of ['task_id','event_id','correlation_id','attempt_id','idempotency_key','source_agent_id','source_endpoint_id','destination_agent_id','destination_endpoint_id','payload_version','user_original_goal']) required(event[key], key);
+    for (const key of ['task_id','event_id','correlation_id','attempt_id','idempotency_key','source_agent_id','source_endpoint_id','destination_agent_id','destination_endpoint_id','payload_version','payload_digest','user_original_goal']) required(event[key], key);
+    if (!/^[a-f0-9]{64}$/.test(event.payload_digest)) throw Error('payload_digest must be lowercase SHA-256');
     validateResource(event.resource);
     if (!STATES.includes(event.state)) throw Error('unknown state');
     if (event.state === 'ack_received' && !event.verified_ack) throw Error('ack_received requires verified_ack');
@@ -49,7 +50,7 @@
     validateEvent(incoming);
     const prior = existing.find(x => x.idempotency_key === incoming.idempotency_key);
     if (!prior) return { result: 'new' };
-    return { result: prior.event_id === incoming.event_id && prior.payload_version === incoming.payload_version ? 'duplicate' : 'conflict', prior_event_id: prior.event_id };
+    return { result: prior.event_id === incoming.event_id && prior.payload_version === incoming.payload_version && prior.payload_digest === incoming.payload_digest ? 'duplicate' : 'conflict', prior_event_id: prior.event_id };
   }
   function retry(event, newEventId, newAttemptId, newKey) {
     validateEvent(event);
