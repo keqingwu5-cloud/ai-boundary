@@ -92,7 +92,7 @@
     const eventId = required(newEventId, 'newEventId');
     const attemptId = required(newAttemptId, 'newAttemptId');
     const key = required(newKey, 'newKey');
-    if (eventId === event.event_id || attemptId === event.attempt_id || key === event.idempotency_key)
+    if (eventId === event.event_id || attemptTrail(event).includes(attemptId) || key === event.idempotency_key)
       throw Error('retry must have new event, attempt and idempotency IDs');
     return validateEvent({
       ...event, event_id: eventId, attempt_id: attemptId, idempotency_key: key,
