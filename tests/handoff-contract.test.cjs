@@ -1,0 +1,24 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const H = require('../handoff-contract.js');
+const resource = H.parseResourceUrl('https://github.com/keqingwu5-cloud/ai-boundary/issues/41');
+function event(overrides={}) { return {schema:H.SCHEMA,task_id:'TASK-1',event_id:'EV-1',correlation_id:'COR-1',attempt_id:'ATT-1',idempotency_key:'KEY-1',source_agent_id:'GPT2',source_endpoint_id:'connector-g2',destination_agent_id:'GPT1',destination_endpoint_id:'connector-g1',payload_version:'1',user_original_goal:'Review issue',state:'candidate',resource,...overrides}; }
+const ack={event_id:'EV-1',task_id:'TASK-1',payload_version:'1',endpoint_id:'connector-g1',received_at:'2026-10-19T11:00:00Z',read_evidence:'read title and issue body'};
+const trusted={verified:true,endpoint_id:'connector-g1',agent_id:'GPT1'};
+test('Issue #41 is an issue, not a PR',()=>{assert.equal(resource.resource_type,'issue');assert.equal(resource.resource_id,'41');assert.equal(H.parseResourceUrl('https://github.com/keqingwu5-cloud/ai-boundary/pull/41').resource_type,'pull_request');});
+test('resource type mismatch is rejected',()=>assert.throws(()=>H.validateResource({...resource,resource_type:'pull_request'}),/resource_type/));
+test('repository and issue number mismatch are rejected',()=>{assert.throws(()=>H.validateResource({...resource,scope:'other/repo'}),/scope/);assert.throws(()=>H.validateResource({...resource,resource_id:'40'}),/resource_id/);});
+test('unknown, non-HTTPS and noncanonical resources are rejected',()=>{for(const url of ['http://github.com/o/r/issues/41','https://evil.com/o/r/issues/41','https://github.com/o/r/issues/41?fake=1'])assert.throws(()=>H.parseResourceUrl(url));});
+test('Notion URL normalizes page identity',()=>{const x=H.parseResourceUrl('https://app.notion.com/p/3fe0a4dc475c81369f5aea50d0b71273?pvs=204');assert.equal(x.resource_type,'notion_page');assert.equal(x.resource_id,'3fe0a4dc475c81369f5aea50d0b71273');});
+test('event contract requires explicit destination endpoint',()=>assert.throws(()=>H.validateEvent(event({destination_endpoint_id:''})),/destination_endpoint_id/));
+test('cannot claim ACK by setting state',()=>assert.throws(()=>H.validateEvent(event({state:'ack_received'})),/verified_ack/));
+test('same idempotency key and same version is duplicate',()=>assert.equal(H.checkDuplicate([event()],event()).result,'duplicate'));
+test('same idempotency key but changed version is conflict',()=>assert.equal(H.checkDuplicate([event()],event({payload_version:'2'})).result,'conflict'));
+test('different key is new',()=>assert.equal(H.checkDuplicate([event()],event({event_id:'EV-2',idempotency_key:'KEY-2'})).result,'new'));
+test('retry preserves task/correlation and generates new attempt',()=>{const x=H.retry(event(),'EV-2','ATT-2','KEY-2');assert.equal(x.task_id,'TASK-1');assert.equal(x.correlation_id,'COR-1');assert.equal(x.retry_of,'EV-1');assert.equal(x.state,'candidate');});
+test('retry cannot reuse identity',()=>assert.throws(()=>H.retry(event(),'EV-1','ATT-2','KEY-2'),/retry must/));
+test('delivered requires independent evidence',()=>{assert.throws(()=>H.markDelivered(event({state:'queued'}),{verified:false,destination_endpoint_id:'connector-g1',evidence:'ok'}));assert.equal(H.markDelivered(event({state:'queued'}),{verified:true,destination_endpoint_id:'connector-g1',evidence:'webhook log'}).state,'delivered');});
+test('ACK requires verified identity, not text claim',()=>{assert.throws(()=>H.acceptAck(event({state:'delivered'}),ack,{...trusted,verified:false}),/trusted/);assert.throws(()=>H.acceptAck(event({state:'delivered'}),ack,{...trusted,endpoint_id:'other'}),/identity/);});
+test('ACK requires event and version match',()=>{assert.throws(()=>H.acceptAck(event({state:'delivered'}),{...ack,event_id:'EV-2'},trusted),/event_id/);assert.throws(()=>H.acceptAck(event({state:'delivered'}),{...ack,payload_version:'2'},trusted),/payload_version/);});
+test('valid ACK records verified identity and evidence',()=>{const x=H.acceptAck(event({state:'delivered'}),ack,trusted);assert.equal(x.state,'ack_received');assert.equal(x.verified_ack.actor,'GPT1');assert.equal(x.verified_ack.read_evidence,ack.read_evidence);});
+test('ACK blocked when not queued or delivered',()=>assert.throws(()=>H.acceptAck(event(),ack,trusted),/not permitted/));
