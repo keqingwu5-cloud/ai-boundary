@@ -66,7 +66,47 @@ test('ack_received metadata with mismatched attempt is rejected',()=>{
   assert.throws(()=>H.validateEvent({...accepted,verified_ack:{...accepted.verified_ack,attempt_id:'ATT-OLD'}}),/matching verified_ack/);
 });
 test('retry blocks reused attempts and previously accepted events',()=>{
-  assert.throws(()=>H.retryAttempt(event(),'ATT-1'),/new attempt ID/);
+  assert.throws(()=>H.retryAttempt(event({state:'delivered'}),'ATT-1'),/attempt ID already used/);
   const accepted=H.acceptAck(event({state:'delivered'}),ack,trusted);
   assert.throws(()=>H.retryAttempt(accepted,'ATT-2'),/not permitted/);
+});
+
+test('blocked, approval-pending, failed and terminal events cannot be retried',()=>{
+  for (const state of ['blocked','failed','needs_approval','ack_received','reviewed','closed']) {
+    const e=state==='ack_received' ? H.acceptAck(event({state:'delivered'}),ack,trusted) : event({state});
+    assert.throws(()=>H.retryAttempt(e,'ATT-2'),/retry not permitted/,state);
+    assert.throws(()=>H.retry(e,'EV-2','ATT-2','KEY-2'),/new dispatch not permitted/,state);
+  }
+});
+test('first-time candidate cannot be queued by the same-event retry path',()=>{
+  assert.throws(()=>H.retryAttempt(event(),'ATT-2'),/retry not permitted/);
+  assert.equal(H.retry(event(),'EV-2','ATT-2','KEY-2').state,'candidate');
+});
+test('same-event attempt history blocks non-adjacent old attempt replay',()=>{
+  const first=H.retryAttempt(event({state:'delivered'}),'ATT-2');
+  const second=H.retryAttempt(first,'ATT-3');
+  assert.deepEqual(second.attempt_history,['ATT-1','ATT-2','ATT-3']);
+  assert.equal(second.attempt_count,3);
+  assert.throws(()=>H.retryAttempt(second,'ATT-1'),/attempt ID already used/);
+  assert.throws(()=>H.retryAttempt(second,'ATT-2'),/attempt ID already used/);
+  assert.deepEqual(first.attempt_history,['ATT-1','ATT-2']);
+});
+test('inconsistent or missing attempt history fails closed',()=>{
+  const old=H.retryAttempt(event({state:'queued'}),'ATT-2');
+  assert.throws(()=>H.validateEvent({...old,attempt_history:undefined}),/missing authoritative attempt history/);
+  assert.throws(()=>H.validateEvent({...old,attempt_history:['ATT-2']}),/invalid attempt history/);
+  assert.throws(()=>H.validateEvent({...old,attempt_history:['ATT-1','ATT-1']}),/invalid attempt history/);
+  assert.throws(()=>H.validateEvent({...old,retry_of_attempt:'ATT-X'}),/invalid attempt history/);
+  assert.throws(()=>H.validateEvent({...old,attempt_count:99}),/invalid attempt history/);
+});
+test('distinct-event retry clears old attempt history and evidence',()=>{
+  const old=H.retryAttempt(event({state:'delivered'}),'ATT-2');
+  const replacement=H.retry({...old,state:'delivered',delivery_evidence:{evidence:'prior'}},'EV-2','ATT-NEW','KEY-2');
+  assert.equal(replacement.event_id,'EV-2');
+  assert.equal(replacement.retry_of,'EV-1');
+  assert.equal(replacement.attempt_count,1);
+  assert.deepEqual(replacement.attempt_history,['ATT-NEW']);
+  assert.equal(replacement.retry_of_attempt,null);
+  assert.equal(replacement.delivery_evidence,null);
+  assert.equal(replacement.state,'candidate');
 });
