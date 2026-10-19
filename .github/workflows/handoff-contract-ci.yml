@@ -17,5 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Test handoff contract and regressions
-        run: node --test tests/*.test.cjs
+      - name: Test handoff contract
+        run: node --test tests/handoff-contract.test.cjs
+      - name: Test existing memory and launcher regressions
+        run: node --test tests/launcher-memory.test.cjs tests/memory-workflow-core.test.cjs
