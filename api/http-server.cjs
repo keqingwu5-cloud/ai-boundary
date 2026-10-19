@@ -21,7 +21,8 @@ function createHttpServer({store,authenticate,logger=()=>{}}){
    const value=await api[method]({headers:req.headers,body,params:match?{event_id:match[1]}:{}});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({data:value}));
   }catch(e){
-   const code=e.code||(/UNAUTHORIZED/.test(e.message)?'UNAUTHORIZED':'INTERNAL_ERROR');
+   const knownCodes=new Set(['UNAUTHORIZED','FORBIDDEN','NOT_FOUND','BAD_REQUEST','TOO_LARGE','IDEMPOTENCY_CONFLICT','EVENT_CONFLICT']);
+   const code=(typeof e.code==='string'&&knownCodes.has(e.code))?e.code:(knownCodes.has(e.message)?e.message:'INTERNAL_ERROR');
    const status={UNAUTHORIZED:401,FORBIDDEN:403,NOT_FOUND:404,BAD_REQUEST:400,TOO_LARGE:413,IDEMPOTENCY_CONFLICT:409,EVENT_CONFLICT:409}[code]||500;
    logger({action,error_code:code,status});
    res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({error:code}));
