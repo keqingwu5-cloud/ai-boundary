@@ -2703,6 +2703,146 @@ const SEED_EXTRAS = [
       "video": "",
       "image": ""
     }
+  },
+  /* ↓ INTP 鏡像研究員第 1 組：Merlin 2026-10-19 16:10（UTC+8）勾選的 3 個節點（intp-mirror/nodes.json v2；P1 方向 + 延伸 e1、e3；e2 未核准不收） */
+  {
+    "id": "n_x_intp_p1",
+    "parentId": "n_q2",
+    "kind": "direction",
+    "title": "推理與判斷為何是全網最薄的一區？",
+    "type": "推理與判斷",
+    "oneLiner": "AI 主題 35 節點中，推理與判斷 5 個，能力邊界／理解與意識／倫理與責任各 8 個；新增的 bot 節點補進 2 個仍是最薄。偏重來自題目本身，還是分類方式？",
+    "source": {
+      "who": "INTP 鏡像研究員（bot，程式統計）",
+      "outlet": "intp-mirror/patterns.md v2（P1）",
+      "date": "2026-10-12",
+      "url": "",
+      "also": []
+    },
+    "assumptions": "【推測】無外部來源；本節點由 INTP 鏡像研究員依知識網種子資料的程式統計提出（見 patterns.md P1），待 Merlin 審核。",
+    "reasoning": [
+      {
+        "k": "問題定義",
+        "v": "AI 主題 35 節點中，推理與判斷 5 個，能力邊界／理解與意識／倫理與責任各 8 個；新增的 bot 節點補進 2 個仍是最薄。偏重來自題目本身，還是分類方式？"
+      },
+      {
+        "k": "證據",
+        "v": "typeAI：能力邊界 8／理解與意識 8／推理與判斷 5／倫理與責任 8／社會影響 6／其他 0；推理與判斷：n_q1_e1, n_q2, n_q3_e2, n_x_cot_faithful, n_x_language_e4"
+      },
+      {
+        "k": "推演",
+        "v": "【推測】統計只描述主腦種子網（seed 25 + SEED_EXTRAS 16）的形狀，不等於 Merlin 本人的思考習慣；Merlin 親手建立的節點 0 個。"
+      },
+      {
+        "k": "未解關鍵點",
+        "v": "需要 Merlin 的匯出 JSON 或雲端共用大腦上線後，用 createdBy:'merlin' 的節點重跑 scripts/analyze-v2.js 才能確認。"
+      }
+    ],
+    "concepts": [
+      "泛化",
+      "AGI定義"
+    ],
+    "processPattern": "",
+    "counterEvidence": [],
+    "botNotes": [
+      "INTP 鏡像研究員 2026-10-12；依 keqingwu5-cloud/ai-boundary main@f374d1e（2026-10-11 23:24 UTC+8），41 個種子節點 重算；舊 id bot_p1",
+      "Merlin 2026-10-19 16:10（UTC+8）勾選發布（INTP 鏡像研究員第 1 組）"
+    ],
+    "createdBy": "bot",
+    "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    },
+    "x_reviewStatus": "已核准",
+    "x_oldId": "bot_p1",
+    "x_patternRef": "P1",
+    "x_evidenceNodes": [
+      "n_q1_e1",
+      "n_q2",
+      "n_q3_e2",
+      "n_x_cot_faithful",
+      "n_x_language_e4"
+    ]
+  },
+  {
+    "id": "n_x_intp_p1_e1",
+    "parentId": "n_x_intp_p1",
+    "kind": "extension",
+    "title": "「推理」和「能力」的界線在哪裡？哪些節點換一個分類標準就會跨區？",
+    "type": "推理與判斷",
+    "oneLiner": "",
+    "source": {
+      "who": "INTP 鏡像研究員（bot 提出的探索問題）",
+      "outlet": "intp-mirror/nodes.json v2",
+      "date": "2026-10-12",
+      "url": "",
+      "also": []
+    },
+    "assumptions": "【推測】無外部來源；子問題為 bot 提出的探索方向，非任何人的引言。",
+    "reasoning": [],
+    "concepts": [
+      "AGI定義"
+    ],
+    "processPattern": "",
+    "counterEvidence": [],
+    "botNotes": [
+      "INTP 鏡像研究員 2026-10-12；依 keqingwu5-cloud/ai-boundary main@f374d1e（2026-10-11 23:24 UTC+8），41 個種子節點 重算；舊 id bot_p1_c0",
+      "Merlin 2026-10-19 16:10（UTC+8）勾選發布（INTP 鏡像研究員第 1 組）"
+    ],
+    "createdBy": "bot",
+    "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    },
+    "x_reviewStatus": "已核准",
+    "x_oldId": "bot_p1_c0",
+    "x_move": "找邊界"
+  },
+  {
+    "id": "n_x_intp_p1_e3",
+    "parentId": "n_x_intp_p1",
+    "kind": "extension",
+    "title": "我自己判斷「這是推理」時，看的是過程還是結果？",
+    "type": "推理與判斷",
+    "oneLiner": "",
+    "source": {
+      "who": "INTP 鏡像研究員（bot 提出的探索問題）",
+      "outlet": "intp-mirror/nodes.json v2",
+      "date": "2026-10-12",
+      "url": "",
+      "also": []
+    },
+    "assumptions": "【推測】無外部來源；子問題為 bot 提出的探索方向，非任何人的引言。",
+    "reasoning": [],
+    "concepts": [
+      "理解vs模仿"
+    ],
+    "processPattern": "",
+    "counterEvidence": [],
+    "botNotes": [
+      "INTP 鏡像研究員 2026-10-12；依 keqingwu5-cloud/ai-boundary main@f374d1e（2026-10-11 23:24 UTC+8），41 個種子節點 重算；舊 id bot_p1_c2",
+      "Merlin 2026-10-19 16:10（UTC+8）勾選發布（INTP 鏡像研究員第 1 組）"
+    ],
+    "createdBy": "bot",
+    "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    },
+    "x_reviewStatus": "已核准",
+    "x_oldId": "bot_p1_c2",
+    "x_move": "看自己",
+    "x_suggestedNewConcepts": [
+      "邊界條件"
+    ],
+    "x_relatedMainNodes": [
+      "n_x_language_e4"
+    ]
   }
 ];
 
