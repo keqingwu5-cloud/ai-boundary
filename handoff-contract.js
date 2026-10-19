@@ -48,7 +48,7 @@
     if (!STATES.includes(event.state)) throw Error('unknown state');
     if (event.state === 'ack_received') {
       const a = event.verified_ack;
-      if (!a || a.event_id !== event.event_id || a.task_id !== event.task_id || a.payload_version !== event.payload_version || a.payload_digest !== event.payload_digest || a.endpoint_id !== event.destination_endpoint_id || a.actor !== event.destination_agent_id || !a.received_at || !a.read_evidence || !a.verification_evidence) throw Error('ack_received requires matching verified_ack metadata');
+      if (!a || a.event_id !== event.event_id || a.task_id !== event.task_id || a.attempt_id !== event.attempt_id || a.payload_version !== event.payload_version || a.payload_digest !== event.payload_digest || a.endpoint_id !== event.destination_endpoint_id || a.actor !== event.destination_agent_id || !a.received_at || !a.read_evidence || !a.verification_evidence) throw Error('ack_received requires matching verified_ack metadata');
     }
     return event;
   }
@@ -66,10 +66,28 @@
     if (next.event_id === event.event_id || next.attempt_id === event.attempt_id || next.idempotency_key === event.idempotency_key) throw Error('retry must have new event, attempt and idempotency IDs');
     return validateEvent(next);
   }
+
+  // Same logical event retry: preserve event_id and idempotency_key; rotate attempt only.
+  // For a distinct new dispatch, use the legacy retry() which creates a new event.
+  function retryAttempt(event, newAttemptId) {
+    validateEvent(event);
+    const attemptId = required(newAttemptId, 'newAttemptId');
+    if (attemptId === event.attempt_id) throw Error('retry must have new attempt ID');
+    if (!['candidate', 'queued', 'delivered', 'blocked', 'failed'].includes(event.state)) throw Error('retry not permitted in state ' + event.state);
+    return validateEvent({
+      ...event,
+      attempt_id: attemptId,
+      state: 'queued',
+      attempt_count: (Number.isInteger(event.attempt_count) ? event.attempt_count : 1) + 1,
+      retry_of_attempt: event.attempt_id,
+      verified_ack: null,
+      delivery_evidence: null
+    });
+  }
   function acceptAck(event, ack, trustedContext) {
     validateEvent(event);
     if (!ack || !trustedContext || trustedContext.verified !== true) throw Error('ACK requires trusted independent verification');
-    for (const k of ['event_id','task_id','payload_version','payload_digest']) if (ack[k] !== event[k]) throw Error('ACK ' + k + ' mismatch');
+    for (const k of ['event_id','task_id','attempt_id','payload_version','payload_digest']) if (ack[k] !== event[k]) throw Error('ACK ' + k + ' mismatch');
     if (trustedContext.endpoint_id !== event.destination_endpoint_id || trustedContext.agent_id !== event.destination_agent_id) throw Error('ACK sender identity mismatch');
     if (ack.endpoint_id !== trustedContext.endpoint_id) throw Error('ACK endpoint claim mismatch');
     required(trustedContext.verification_evidence, 'trustedContext.verification_evidence');
@@ -77,7 +95,7 @@
     required(ack.received_at, 'ACK received_at');
     if (!Number.isFinite(Date.parse(ack.received_at))) throw Error('invalid ACK timestamp');
     if (!['delivered','queued'].includes(event.state)) throw Error('ACK not permitted in state ' + event.state);
-    return { ...event, state: 'ack_received', verified_ack: { event_id: event.event_id, task_id: event.task_id, payload_version: event.payload_version, payload_digest: event.payload_digest, endpoint_id: trustedContext.endpoint_id, actor: trustedContext.agent_id, received_at: ack.received_at, read_evidence: ack.read_evidence, verification_evidence: trustedContext.verification_evidence } };
+    return { ...event, state: 'ack_received', verified_ack: { event_id: event.event_id, task_id: event.task_id, attempt_id: event.attempt_id, payload_version: event.payload_version, payload_digest: event.payload_digest, endpoint_id: trustedContext.endpoint_id, actor: trustedContext.agent_id, received_at: ack.received_at, read_evidence: ack.read_evidence, verification_evidence: trustedContext.verification_evidence } };
   }
   function markDelivered(event, deliveryEvidence) {
     validateEvent(event);
@@ -92,5 +110,5 @@
     if (ref.resource_type === 'pull_request') return { adapter: 'github.get_pr_info', repository: ref.scope, pr_number: Number(ref.resource_id) };
     return { adapter: 'notion.fetch', page_id: ref.resource_id };
   }
-  return { SCHEMA, STATES, RESOURCE_TYPES, parseResourceUrl, validateResource, validateEvent, checkDuplicate, retry, acceptAck, markDelivered, resolveLookup };
+  return { SCHEMA, STATES, RESOURCE_TYPES, parseResourceUrl, validateResource, validateEvent, checkDuplicate, retry, retryAttempt, acceptAck, markDelivered, resolveLookup };
 });
