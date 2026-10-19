@@ -99,6 +99,12 @@ test('inconsistent or missing attempt history fails closed',()=>{
   assert.throws(()=>H.validateEvent({...old,retry_of_attempt:'ATT-X'}),/invalid attempt history/);
   assert.throws(()=>H.validateEvent({...old,attempt_count:99}),/invalid attempt history/);
 });
+test('legacy redispatch must not reuse historical attempt IDs',()=>{
+  const old=H.retryAttempt(event({state:'delivered'}),'ATT-2');
+  assert.throws(()=>H.retry(old,'EV-2','ATT-1','KEY-2'),/retry must have new event, attempt and idempotency IDs/);
+  const next=H.retry(old,'EV-2','ATT-3','KEY-2');
+  assert.deepEqual(next.attempt_history,['ATT-3']);
+});
 test('distinct-event retry clears old attempt history and evidence',()=>{
   const old=H.retryAttempt(event({state:'delivered'}),'ATT-2');
   const replacement=H.retry({...old,state:'delivered',delivery_evidence:{evidence:'prior'}},'EV-2','ATT-NEW','KEY-2');
