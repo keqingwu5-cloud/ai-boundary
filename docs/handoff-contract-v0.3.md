@@ -3,7 +3,7 @@
 
 ## 修補範圍
 - 新增 `handoff-contract.js`：從 URL 辨識 `provider`、`scope`、`resource_type`、`resource_id`、`canonical_url`；避免把 GitHub Issue #41 當 PR #41。
-- 新增事件契約：`task_id`、`event_id`、`correlation_id`、`attempt_id`、`idempotency_key`、`payload_version`、來源／目的 AI 角色與實際 endpoint、原始目的、狀態與證據。
+- 新增事件契約：`task_id`、`event_id`、`correlation_id`、`attempt_id`、`idempotency_key`、`payload_version`、`payload_digest`（SHA-256）、來源／目的 AI 角色與實際 endpoint、原始目的、狀態與證據。
 - 提供重試、重複／版本衝突檢查、送達證據檢查、ACK 事件／版本／目的端身分檢查。
 - 發射器對預設 GitHub 任務輸出明確 `resource_ref`、`resource_type`，並標示 endpoint 未驗證、ACK 未取得；自訂任務仍需人工補資源識別。
 - 保留既有 `ai-boundary.command.v0.1` 以相容舊草稿；新增 `ai-boundary.handoff.v0.3` 為獨立的跨系統事件契約，兩者不是已接通的網路協定。
@@ -20,7 +20,7 @@
 
 ## 本地測試
 執行：`node --test tests/handoff-contract.test.cjs`
-17 個測試：Issue/PR 區分、Notion URL、錯誤 URL、欄位缺漏、狀態、去重／衝突、重試、送達證據、ACK 身分與版本。原有測試可另外執行 `node --test tests/*.test.cjs`。
+19 個測試：Issue/PR 區分、Notion URL、錯誤 URL、欄位缺漏、狀態、去重／衝突、重試、送達證據、ACK 身分與版本。原有測試可另外執行 `node --test tests/*.test.cjs`。
 以上是離線規則測試，不等於跨 AI 端到端驗收。真正端到端仍需 Issue #41 的 T01–T08 與實際日志。
 
 ## 下一步
