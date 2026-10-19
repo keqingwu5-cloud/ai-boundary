@@ -20,7 +20,9 @@
 
 ## 本地測試
 執行：`node --test tests/handoff-contract.test.cjs`
-19 個測試：Issue/PR 區分、Notion URL、錯誤 URL、欄位缺漏、狀態、去重／衝突、重試、送達證據、ACK 身分與版本。原有測試可另外執行 `node --test tests/*.test.cjs`。
+30 個測試：Issue/PR 區分、Notion URL、錯誤 URL、欄位缺漏、狀態、去重／衝突、重試、送達證據、ACK 身分與版本。原有測試可另外執行 `node --test tests/*.test.cjs`。
+GPT② 以隔離 JavaScript 執行環境（URL shim）實際執行同一測試檔 30 項斷言，30/30 通過；這不等於原生 Node CLI 或 GitHub Actions 成功。2026-10-19 首次 GitHub Actions CI 執行失敗（run 39242054701），尚未取得完整測試日誌；已將新舊測試拆分為兩步以便定位。CI 必須重新跑通才能核准合併。
+
 以上是離線規則測試，不等於跨 AI 端到端驗收。真正端到端仍需 Issue #41 的 T01–T08 與實際日志。
 
 ## 下一步
