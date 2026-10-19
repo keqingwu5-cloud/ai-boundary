@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const H = require('../handoff-contract.js');
 const resource = H.parseResourceUrl('https://github.com/keqingwu5-cloud/ai-boundary/issues/41');
-function event(overrides={}) { return {schema:H.SCHEMA,task_id:'TASK-1',event_id:'EV-1',correlation_id:'COR-1',attempt_id:'ATT-1',idempotency_key:'KEY-1',source_agent_id:'GPT2',source_endpoint_id:'connector-g2',destination_agent_id:'GPT1',destination_endpoint_id:'connector-g1',payload_version:'1',user_original_goal:'Review issue',state:'candidate',resource,...overrides}; }
+function event(overrides={}) { return {schema:H.SCHEMA,task_id:'TASK-1',event_id:'EV-1',correlation_id:'COR-1',attempt_id:'ATT-1',idempotency_key:'KEY-1',source_agent_id:'GPT2',source_endpoint_id:'connector-g2',destination_agent_id:'GPT1',destination_endpoint_id:'connector-g1',payload_version:'1',payload_digest:'a'.repeat(64),user_original_goal:'Review issue',state:'candidate',resource,...overrides}; }
 const ack={event_id:'EV-1',task_id:'TASK-1',payload_version:'1',endpoint_id:'connector-g1',received_at:'2026-10-19T11:00:00Z',read_evidence:'read title and issue body'};
 const trusted={verified:true,endpoint_id:'connector-g1',agent_id:'GPT1'};
 test('Issue #41 is an issue, not a PR',()=>{assert.equal(resource.resource_type,'issue');assert.equal(resource.resource_id,'41');assert.equal(H.parseResourceUrl('https://github.com/keqingwu5-cloud/ai-boundary/pull/41').resource_type,'pull_request');});
@@ -14,6 +14,8 @@ test('event contract requires explicit destination endpoint',()=>assert.throws((
 test('cannot claim ACK by setting state',()=>assert.throws(()=>H.validateEvent(event({state:'ack_received'})),/verified_ack/));
 test('same idempotency key and same version is duplicate',()=>assert.equal(H.checkDuplicate([event()],event()).result,'duplicate'));
 test('same idempotency key but changed version is conflict',()=>assert.equal(H.checkDuplicate([event()],event({payload_version:'2'})).result,'conflict'));
+test('same key and version but changed payload is conflict',()=>assert.equal(H.checkDuplicate([event()],event({payload_digest:'b'.repeat(64)})).result,'conflict'));
+test('digest must be SHA-256',()=>assert.throws(()=>H.validateEvent(event({payload_digest:'x'})),/payload_digest/));
 test('different key is new',()=>assert.equal(H.checkDuplicate([event()],event({event_id:'EV-2',idempotency_key:'KEY-2'})).result,'new'));
 test('retry preserves task/correlation and generates new attempt',()=>{const x=H.retry(event(),'EV-2','ATT-2','KEY-2');assert.equal(x.task_id,'TASK-1');assert.equal(x.correlation_id,'COR-1');assert.equal(x.retry_of,'EV-1');assert.equal(x.state,'candidate');});
 test('retry cannot reuse identity',()=>assert.throws(()=>H.retry(event(),'EV-1','ATT-2','KEY-2'),/retry must/));
