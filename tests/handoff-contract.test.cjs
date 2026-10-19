@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const H = require('../handoff-contract.js');
 const resource = H.parseResourceUrl('https://github.com/keqingwu5-cloud/ai-boundary/issues/41');
 function event(overrides={}) { return {schema:H.SCHEMA,task_id:'TASK-1',event_id:'EV-1',correlation_id:'COR-1',attempt_id:'ATT-1',idempotency_key:'KEY-1',source_agent_id:'GPT2',source_endpoint_id:'connector-g2',destination_agent_id:'GPT1',destination_endpoint_id:'connector-g1',payload_version:'1',payload_digest:'a'.repeat(64),user_original_goal:'Review issue',state:'candidate',resource,...overrides}; }
-const ack={event_id:'EV-1',task_id:'TASK-1',payload_version:'1',payload_digest:'a'.repeat(64),endpoint_id:'connector-g1',received_at:'2026-10-19T11:00:00Z',read_evidence:'read title and issue body'};
+const ack={event_id:'EV-1',task_id:'TASK-1',payload_version:'1',payload_digest:'a'.repeat(64),endpoint_id:'connector-g1',attempt_id:'ATT-1',received_at:'2026-10-19T11:00:00Z',read_evidence:'read title and issue body'};
 const trusted={verified:true,endpoint_id:'connector-g1',agent_id:'GPT1',verification_evidence:'signed endpoint identity assertion'};
 test('Issue #41 is an issue, not a PR',()=>{assert.equal(resource.resource_type,'issue');assert.equal(resource.resource_id,'41');assert.equal(H.parseResourceUrl('https://github.com/keqingwu5-cloud/ai-boundary/pull/41').resource_type,'pull_request');});
 test('resource type mismatch is rejected',()=>assert.throws(()=>H.validateResource({...resource,resource_type:'pull_request'}),/resource_type/));
@@ -36,3 +36,37 @@ test('duplicate key with changed resource is conflict',()=>assert.equal(H.checkD
 test('duplicate key with changed task is conflict',()=>assert.equal(H.checkDuplicate([event()],event({task_id:'TASK-2'})).result,'conflict'));
 test('duplicate key with conflicting history is conflict',()=>assert.equal(H.checkDuplicate([event(),event({payload_digest:'b'.repeat(64)})],event()).result,'conflict'));
 test('ACK state passes validation after accepted',()=>assert.equal(H.validateEvent(H.acceptAck(event({state:'delivered'}),ack,trusted)).state,'ack_received'));
+
+test('same-event retry preserves event/idempotency but rotates attempt',()=>{
+  const x=H.retryAttempt(event({state:'delivered',delivery_evidence:{evidence:'old'}}),'ATT-2');
+  assert.equal(x.event_id,'EV-1');
+  assert.equal(x.idempotency_key,'KEY-1');
+  assert.equal(x.attempt_id,'ATT-2');
+  assert.equal(x.retry_of_attempt,'ATT-1');
+  assert.equal(x.state,'queued');
+  assert.equal(x.delivery_evidence,null);
+  assert.equal(x.verified_ack,null);
+});
+test('stale attempt ACK rejected after retry',()=>{
+  const x=H.retryAttempt(event({state:'delivered'}),'ATT-2');
+  assert.throws(()=>H.acceptAck({...x,state:'delivered'},ack,trusted),/attempt_id mismatch/);
+});
+test('ACK must contain an attempt ID',()=>{
+  const {attempt_id,...unbound}=ack;
+  assert.throws(()=>H.acceptAck(event({state:'delivered'}),unbound,trusted),/attempt_id mismatch/);
+});
+test('valid current-attempt ACK records attempt and passes validation',()=>{
+  const x={...H.retryAttempt(event({state:'delivered'}),'ATT-2'),state:'delivered'};
+  const y=H.acceptAck(x,{...ack,attempt_id:'ATT-2'},trusted);
+  assert.equal(y.verified_ack.attempt_id,'ATT-2');
+  assert.equal(H.validateEvent(y).state,'ack_received');
+});
+test('ack_received metadata with mismatched attempt is rejected',()=>{
+  const accepted=H.acceptAck(event({state:'delivered'}),ack,trusted);
+  assert.throws(()=>H.validateEvent({...accepted,verified_ack:{...accepted.verified_ack,attempt_id:'ATT-OLD'}}),/matching verified_ack/);
+});
+test('retry blocks reused attempts and previously accepted events',()=>{
+  assert.throws(()=>H.retryAttempt(event(),'ATT-1'),/new attempt ID/);
+  const accepted=H.acceptAck(event({state:'delivered'}),ack,trusted);
+  assert.throws(()=>H.retryAttempt(accepted,'ATT-2'),/not permitted/);
+});
