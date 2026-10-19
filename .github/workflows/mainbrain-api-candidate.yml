@@ -3,8 +3,11 @@ on:
   pull_request:
     paths:
       - 'api/**'
-      - 'tests/mainbrain-api.test.cjs'
-      - 'docs/mainbrain-api-v0.1.md'
+      - 'tests/mainbrain-*.test.cjs'
+      - 'tests/handoff-contract.test.cjs'
+      - 'tests/launcher-memory.test.cjs'
+      - 'tests/memory-workflow-core.test.cjs'
+      - 'docs/mainbrain-api-*.md'
       - '.github/workflows/mainbrain-api-candidate.yml'
   workflow_dispatch:
 permissions:
@@ -18,7 +21,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: API candidate tests
-        run: node --test tests/mainbrain-api.test.cjs
+      - name: API candidate and HTTP authentication tests
+        run: node --test tests/mainbrain-api.test.cjs tests/mainbrain-auth-http.test.cjs
       - name: Existing handoff and launcher regression tests
         run: node --test tests/handoff-contract.test.cjs tests/launcher-memory.test.cjs tests/memory-workflow-core.test.cjs
