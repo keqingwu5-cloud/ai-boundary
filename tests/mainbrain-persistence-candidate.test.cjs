@@ -165,3 +165,34 @@ test('worker refuses receipt-free output and fails closed on unrecorded failure'
   const w=createPollingWorker({client,performTask:async()=>({execution_evidence:'x'})});
   await assert.rejects(w.runOnce(),/persistent receipt unavailable/);
 });
+
+test('HTTP worker client only accepts secure service roots',()=>{
+  const {createHttpTaskClient}=require('../api/http-task-client-candidate.cjs');
+  for(const url of ['http://api.example.com/','https://api.example.com/path',
+    'https://user:pass@api.example.com/']) {
+    assert.throws(()=>createHttpTaskClient({baseUrl:url,tokenProvider:async()=> 'x',httpFetch:async()=>{}}),/HTTPS service root/);
+  }
+});
+test('HTTP worker client transmits scoped bearer token without exposing it in result',async()=>{
+  const {createHttpTaskClient}=require('../api/http-task-client-candidate.cjs');
+  const calls=[];
+  const client=createHttpTaskClient({baseUrl:'https://api.example.com/',
+    tokenProvider:async action=>'signed-'+action,
+    httpFetch:async(url,options)=>{
+      calls.push({url,options});
+      return {ok:true,json:async()=>({data:[]})};
+    }});
+  assert.deepEqual(await client.receive(),[]);
+  assert.equal(calls[0].url,'https://api.example.com/v1/tasks/receive');
+  assert.equal(calls[0].options.headers.authorization,'Bearer signed-receive');
+  assert.equal(calls[0].options.method,'POST');
+});
+test('HTTP worker client rejects missing credentials and server denial',async()=>{
+  const {createHttpTaskClient}=require('../api/http-task-client-candidate.cjs');
+  const uncredentialed=createHttpTaskClient({baseUrl:'https://api.example.com/',
+    tokenProvider:async()=>'',httpFetch:async()=>{throw Error('should not fetch');}});
+  await assert.rejects(uncredentialed.receive(),/authenticated token/);
+  const forbidden=createHttpTaskClient({baseUrl:'https://api.example.com/',
+    tokenProvider:async()=> 'fake',httpFetch:async()=>({ok:false,json:async()=>({error:'FORBIDDEN'})})});
+  await assert.rejects(forbidden.receive(),e=>e.code==='FORBIDDEN');
+});
