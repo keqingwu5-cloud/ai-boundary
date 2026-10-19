@@ -1,0 +1,21 @@
+name: Handoff contract tests
+on:
+  pull_request:
+    paths:
+      - 'handoff-contract.js'
+      - 'launcher.html'
+      - 'tests/handoff-contract.test.cjs'
+      - '.github/workflows/handoff-contract-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Test handoff contract and regressions
+        run: node --test tests/*.test.cjs
