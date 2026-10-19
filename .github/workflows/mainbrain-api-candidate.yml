@@ -22,6 +22,6 @@ jobs:
         with:
           node-version: '22'
       - name: API candidate and HTTP authentication tests
-        run: node --test tests/mainbrain-api.test.cjs tests/mainbrain-auth-http.test.cjs
+        run: node --test tests/mainbrain-api.test.cjs tests/mainbrain-auth-http.test.cjs tests/mainbrain-persistence-candidate.test.cjs
       - name: Existing handoff and launcher regression tests
         run: node --test tests/handoff-contract.test.cjs tests/launcher-memory.test.cjs tests/memory-workflow-core.test.cjs
