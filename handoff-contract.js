@@ -50,6 +50,7 @@
       const a = event.verified_ack;
       if (!a || a.event_id !== event.event_id || a.task_id !== event.task_id || a.attempt_id !== event.attempt_id || a.payload_version !== event.payload_version || a.payload_digest !== event.payload_digest || a.endpoint_id !== event.destination_endpoint_id || a.actor !== event.destination_agent_id || !a.received_at || !a.read_evidence || !a.verification_evidence) throw Error('ack_received requires matching verified_ack metadata');
     }
+    if (event.attempt_history !== undefined || event.retry_of_attempt != null || (event.attempt_count !== undefined && event.attempt_count > 1)) attemptTrail(event);
     return event;
   }
   function checkDuplicate(existing, incoming) {
@@ -60,28 +61,61 @@
     const allSame = priors.every(prior => prior.event_id === incoming.event_id && prior.task_id === incoming.task_id && prior.payload_version === incoming.payload_version && prior.payload_digest === incoming.payload_digest && prior.resource.canonical_url === incoming.resource.canonical_url);
     return { result: allSame ? 'duplicate' : 'conflict', prior_event_id: priors[0].event_id };
   }
+  // A pure contract-level history check. Production must verify attempt history
+  // against its authoritative transactional store and recheck grant/STOP policy.
+  function attemptTrail(event) {
+    const history = event.attempt_history;
+    if (history === undefined) {
+      if (event.retry_of_attempt != null || (event.attempt_count !== undefined &&
+        (!Number.isInteger(event.attempt_count) || event.attempt_count < 0 || event.attempt_count > 1))) {
+        throw Error('missing authoritative attempt history');
+      }
+      return [event.attempt_id];
+    }
+    if (!Array.isArray(history) || !history.length ||
+        history.some(x => typeof x !== 'string' || !x.trim() || x !== x.trim()) ||
+        new Set(history).size !== history.length ||
+        history[history.length - 1] !== event.attempt_id ||
+        (event.attempt_count !== undefined && event.attempt_count !== history.length) ||
+        (history.length > 1 && event.retry_of_attempt !== history[history.length - 2]) ||
+        (history.length === 1 && event.retry_of_attempt != null)) {
+      throw Error('invalid attempt history');
+    }
+    return history;
+  }
+  // Legacy behavior: a separate dispatch creates a NEW event.
+  // Never use it to reopen blocked, failed, approval-pending or terminal events.
   function retry(event, newEventId, newAttemptId, newKey) {
     validateEvent(event);
-    const next = { ...event, event_id: required(newEventId, 'newEventId'), attempt_id: required(newAttemptId, 'newAttemptId'), idempotency_key: required(newKey, 'newKey'), state: 'candidate', verified_ack: null, delivery_evidence: null, retry_of: event.event_id };
-    if (next.event_id === event.event_id || next.attempt_id === event.attempt_id || next.idempotency_key === event.idempotency_key) throw Error('retry must have new event, attempt and idempotency IDs');
-    return validateEvent(next);
+    if (!['candidate', 'queued', 'delivered'].includes(event.state))
+      throw Error('new dispatch not permitted in state ' + event.state);
+    const eventId = required(newEventId, 'newEventId');
+    const attemptId = required(newAttemptId, 'newAttemptId');
+    const key = required(newKey, 'newKey');
+    if (eventId === event.event_id || attemptTrail(event).includes(attemptId) || key === event.idempotency_key)
+      throw Error('retry must have new event, attempt and idempotency IDs');
+    return validateEvent({
+      ...event, event_id: eventId, attempt_id: attemptId, idempotency_key: key,
+      state: 'candidate', attempt_count: 1, attempt_history: [attemptId],
+      retry_of_attempt: null, verified_ack: null, delivery_evidence: null,
+      retry_of: event.event_id
+    });
   }
-
-  // Same logical event retry: preserve event_id and idempotency_key; rotate attempt only.
-  // For a distinct new dispatch, use the legacy retry() which creates a new event.
+  // Same-event retry: rotate attempt but preserve logical event and idempotency.
+  // This is a CANDIDATE state transformer, not a permission decision or a DB
+  // transaction. Dispatch is forbidden until a trusted backend revalidates the
+  // active grant, STOP state and the complete persisted attempt history.
   function retryAttempt(event, newAttemptId) {
     validateEvent(event);
+    if (!['queued', 'delivered'].includes(event.state))
+      throw Error('retry not permitted in state ' + event.state);
+    const history = attemptTrail(event);
     const attemptId = required(newAttemptId, 'newAttemptId');
-    if (attemptId === event.attempt_id) throw Error('retry must have new attempt ID');
-    if (!['candidate', 'queued', 'delivered', 'blocked', 'failed'].includes(event.state)) throw Error('retry not permitted in state ' + event.state);
+    if (history.includes(attemptId)) throw Error('attempt ID already used');
     return validateEvent({
-      ...event,
-      attempt_id: attemptId,
-      state: 'queued',
-      attempt_count: (Number.isInteger(event.attempt_count) ? event.attempt_count : 1) + 1,
-      retry_of_attempt: event.attempt_id,
-      verified_ack: null,
-      delivery_evidence: null
+      ...event, attempt_id: attemptId, state: 'queued',
+      attempt_count: history.length + 1, attempt_history: [...history, attemptId],
+      retry_of_attempt: event.attempt_id, verified_ack: null, delivery_evidence: null
     });
   }
   function acceptAck(event, ack, trustedContext) {
