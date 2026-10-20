@@ -89,12 +89,12 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
       const at=now();
       return inTransaction(pool,async c=>{
         const row=(await c.query(
-          'SELECT * FROM '+E+" WHERE destination_endpoint_id=$1 AND ((state='queued' AND next_attempt_at<=$2::timestamptz) OR (state='leased' AND lease_until<=$2::timestamptz)) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1",
+          'SELECT * FROM '+E+" WHERE destination_endpoint_id=$1 AND ((state='queued' AND next_attempt_at<=$2::timestamptz) OR (state IN ('leased','executed') AND lease_until<=$2::timestamptz)) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1",
           [destination_endpoint_id,at])).rows[0];
         if(!row)return [];
         // A lease may have executed external work before the worker disappeared.
         // Without an idempotent external executor, never steal an expired lease.
-        if(row.state==='leased'){
+        if(row.state==='leased'||row.state==='executed'){
           await c.query('UPDATE '+E+" SET state='blocked',lease_until=NULL,updated_at=$2::timestamptz WHERE event_id=$1",[row.event_id,at]);
           await audit(c,row.event_id,destination_endpoint_id,'blocked',{reason:'lease_expired_outcome_unknown',attempt_id:row.current_attempt_id});
           return [];
