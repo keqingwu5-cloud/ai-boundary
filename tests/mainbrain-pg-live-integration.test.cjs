@@ -33,7 +33,8 @@ async function fixture({maxAttempts=3,actions=['send','receive','execute','ack']
      VALUES ($1,$2,$3,$4,$5,$6::timestamptz,$7)`,
     [o.grantId,o.taskId,o.source,o.destination,actions,iso(3600000),maxAttempts]);
   const store=createPostgresStore({pool:db,clock:()=>iso(o.now),leaseSeconds:10});
-  return {...o,store};
+  o.store=store;
+  return o; // Preserve the clock object captured by the store; tests advance o.now.
 }
 async function enqueue(o){return o.store.enqueue(payloadFor(o));}
 async function getReceipts(eventId){return (await db.query(
