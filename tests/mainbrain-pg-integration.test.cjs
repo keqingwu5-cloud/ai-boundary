@@ -1,7 +1,7 @@
 'use strict';
 // Runs ONLY with a throwaway PostgreSQL service container in GitHub Actions.
 // No Supabase, production DB, credentials, or migrations are touched.
-const {test,before,after}=require('node:test');
+const {test,before,beforeEach,after}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
@@ -35,6 +35,12 @@ before(async()=>{
   }
   await pool.query(fs.readFileSync(path.join(__dirname,'../api/schema.sql'),'utf8'));
   await pool.query(fs.readFileSync(path.join(__dirname,'../api/persistence-candidate.sql'),'utf8'));
+});
+beforeEach(async()=>{
+  // Every real-DB test starts from an empty disposable dataset.
+  // Avoid accidentally leasing another test's previously queued task.
+  await pool.query('TRUNCATE TABLE mainbrain_api.receipts, mainbrain_api.attempts, mainbrain_api.event_logs, mainbrain_api.events, mainbrain_api.grants RESTART IDENTITY CASCADE');
+  time=Date.parse(BASE);
 });
 after(async()=>{await pool.end();});
 test('live PostgreSQL: denied enqueue leaves no event',async()=>{
