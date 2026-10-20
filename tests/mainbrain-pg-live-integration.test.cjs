@@ -136,7 +136,7 @@ test('failed audit write atomically rolls back ACK receipt and state',async()=>{
   const leased=(await o.store.lease({destination_endpoint_id:o.destination}))[0];
   const common={event_id:o.eventId,attempt_id:leased.current_attempt_id,endpoint_id:o.destination};
   await o.store.markExecuted({...common,execution_evidence:'real PG isolated test'});
-  await db.query("ALTER TABLE mainbrain_api.event_logs ADD CONSTRAINT ci_deny_ack_log CHECK (action <> 'ack_received')");
+  await db.query("ALTER TABLE mainbrain_api.event_logs ADD CONSTRAINT ci_deny_ack_log CHECK (action <> 'ack_received') NOT VALID");
   try{
     await assert.rejects(o.store.ack({...common,payload_digest:leased.payload_digest,payload_version:'1',
       receipt_evidence:'should roll back',channel:'api'}));
