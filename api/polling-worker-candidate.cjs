@@ -31,14 +31,16 @@ function createPollingWorker({client,performTask,intervalMs=1000,logger=()=>{}}=
       logger({action:'processed',event_id:eventId,attempt_id:attemptId});
       return {state:'processed',event_id:eventId,attempt_id:attemptId};
     }catch(e) {
+      // An external effect or ACK may have committed before its reply was lost.
+      // Never automatically requeue an uncertain outcome.
       try {
-        await client.fail({event_id:eventId,attempt_id:attemptId,reason:'worker_step_failed'});
+        await client.fail({event_id:eventId,attempt_id:attemptId,reason:'execution_outcome_unknown'});
       }catch(failure){
         logger({action:'fail_receipt_error',event_id:eventId,code:failure.code||'ERROR'});
         throw failure; // fail closed; do not swallow missing failure receipt.
       }
-      logger({action:'requeued_or_failed',event_id:eventId,code:e.code||'WORKER_STEP_ERROR'});
-      return {state:'failed_attempt',event_id:eventId,attempt_id:attemptId};
+      logger({action:'reconciliation_requested',event_id:eventId,code:e.code||'WORKER_STEP_ERROR'});
+      return {state:'needs_reconciliation',event_id:eventId,attempt_id:attemptId};
     }
   }
   async function runUntilStopped({signal}={}) {
