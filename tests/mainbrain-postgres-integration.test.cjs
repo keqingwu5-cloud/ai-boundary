@@ -101,6 +101,19 @@ test('real PostgreSQL: isolated transaction, concurrency, grant and failure path
       assert.equal(state.state,'blocked');
       assert.equal(state.attempt_count,1);
     });
+    await t.test('executed task with lost ACK becomes blocked after lease expiry',async()=>{
+      await store.enqueue(input('CI-E3-EXEC'));
+      const [task]=await store.lease({destination_endpoint_id:'ci-worker'});
+      assert.equal(task.event_id,'CI-E3-EXEC');
+      await store.markExecuted({event_id:task.event_id,
+        attempt_id:task.current_attempt_id,endpoint_id:'ci-worker',
+        execution_evidence:'ci-completed-but-ack-missing'});
+      await pool.query("UPDATE mainbrain_api.events SET lease_until=now()-INTERVAL '5 minutes' WHERE event_id='CI-E3-EXEC'");
+      assert.deepEqual(await store.lease({destination_endpoint_id:'ci-worker'}),[]);
+      const state=await store.get('CI-E3-EXEC');
+      assert.equal(state.state,'blocked');
+      assert.equal(state.attempt_count,1);
+    });
     await t.test('revoked grant blocks queued event before execution',async()=>{
       await store.enqueue(input('CI-E4'));
       await pool.query("UPDATE mainbrain_api.grants SET revoked_at=now() WHERE grant_id='CI-G1'");
