@@ -152,7 +152,7 @@ test('worker reports handler failure without acknowledging work',async()=>{
     fail:async()=>calls.push('fail')
   };
   const w=createPollingWorker({client,performTask:async()=>{throw Error('failed');}});
-  assert.equal((await w.runOnce()).state,'failed_attempt');
+  assert.equal((await w.runOnce()).state,'needs_reconciliation');
   assert.deepEqual(calls,['fail']);
 });
 test('worker refuses receipt-free output and fails closed on unrecorded failure',async()=>{
@@ -195,4 +195,45 @@ test('HTTP worker client rejects missing credentials and server denial',async()=
   const forbidden=createHttpTaskClient({baseUrl:'https://api.example.com/',
     tokenProvider:async()=> 'fake',httpFetch:async()=>({ok:false,json:async()=>({error:'FORBIDDEN'})})});
   await assert.rejects(forbidden.receive(),e=>e.code==='FORBIDDEN');
+});
+
+test('expired worker lease is blocked without assigning another attempt',async()=>{
+  const expired={...event,state:'leased',current_attempt_id:UUID,
+    lease_until:'2026-10-20T05:59:00Z',attempt_count:1};
+  const {store,calls}=harness(q=>{
+    if(has(q,'SKIP LOCKED'))return {rows:[expired]};
+    return {rows:[]};
+  });
+  assert.deepEqual(await store.lease({destination_endpoint_id:'target'}),[]);
+  assert(calls.some(c=>has(c.sql,"SET state='blocked'")));
+  assert(!calls.some(c=>has(c.sql,'INSERT INTO mainbrain_api.attempts')));
+});
+test('uncertain work failure blocks rather than silently requeueing',async()=>{
+  const leased={...event,state:'executed',current_attempt_id:UUID,
+    lease_until:'2026-10-20T06:01:00Z',attempt_count:1};
+  const {store,calls}=harness(q=>{
+    if(has(q,'SELECT * FROM mainbrain_api.events'))return {rows:[leased]};
+    if(has(q,'FROM mainbrain_api.grants'))return {rows:[grant]};
+    if(has(q,'UPDATE mainbrain_api.events'))return {rows:[{...leased,state:'blocked'}]};
+    return {rows:[]};
+  });
+  const r=await store.fail({event_id:'EV1',attempt_id:UUID,endpoint_id:'target',
+    reason:'execution_outcome_unknown'});
+  assert.equal(r.state,'blocked');
+  assert(!calls.some(c=>has(c.sql,"SET state=$2,next_attempt_at")));
+  assert(calls.some(c=>has(c.sql,"SET state='blocked'")));
+});
+test('ACK network uncertainty requests reconciliation, not auto-retry',async()=>{
+  const calls=[];
+  const client={
+    receive:async()=>[{...event,current_attempt_id:UUID}],
+    execute:async()=>{calls.push('execute');},
+    ack:async()=>{calls.push('ack');throw Error('connection reset');},
+    fail:async p=>{calls.push(p.reason);}
+  };
+  const w=createPollingWorker({client,performTask:async()=>({
+    execution_evidence:'actual-work',receipt_evidence:'actual-receipt'
+  })});
+  assert.equal((await w.runOnce()).state,'needs_reconciliation');
+  assert.deepEqual(calls,['execute','ack','execution_outcome_unknown']);
 });
