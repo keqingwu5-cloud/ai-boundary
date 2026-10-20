@@ -92,6 +92,13 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
           'SELECT * FROM '+E+" WHERE destination_endpoint_id=$1 AND ((state='queued' AND next_attempt_at<=$2::timestamptz) OR (state='leased' AND lease_until<=$2::timestamptz)) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1",
           [destination_endpoint_id,at])).rows[0];
         if(!row)return [];
+        // A lease may have executed external work before the worker disappeared.
+        // Without an idempotent external executor, never steal an expired lease.
+        if(row.state==='leased'){
+          await c.query('UPDATE '+E+" SET state='blocked',lease_until=NULL,updated_at=$2::timestamptz WHERE event_id=$1",[row.event_id,at]);
+          await audit(c,row.event_id,destination_endpoint_id,'blocked',{reason:'lease_expired_outcome_unknown',attempt_id:row.current_attempt_id});
+          return [];
+        }
         let grant;
         try{grant=await checkGrant(c,row,'receive',at);}
         catch(e){
@@ -150,15 +157,15 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
       const at=now();
       return inTransaction(pool,async c=>{
         const e=await locked(c,p.event_id);
-        const grant=await checkGrant(c,e,'execute',at);
+        await checkGrant(c,e,'execute',at);
         correctLease(e,p,at,['leased','executed']);
-        const terminal=e.attempt_count>=grant.max_attempts;
-        const delay=Math.min(3600,30*2**Math.min(8,e.attempt_count-1));
+        // A started handler may have performed an irreversible side effect.
+        // Block until independently reconciled. Do not auto-requeue.
         const updated=(await c.query(
-          'UPDATE '+E+" SET state=$2,next_attempt_at=$3::timestamptz + ($4::int * INTERVAL '1 second'),lease_until=NULL,updated_at=$3::timestamptz WHERE event_id=$1 RETURNING *",
-          [e.event_id,terminal?'failed':'queued',at,terminal?0:delay])).rows[0];
-        await audit(c,e.event_id,p.endpoint_id,terminal?'failed':'requeued',
-          {attempt_id:p.attempt_id,reason:String(p.reason||'worker failure').slice(0,200),backoff_seconds:terminal?0:delay});
+          'UPDATE '+E+" SET state='blocked',lease_until=NULL,updated_at=$2::timestamptz WHERE event_id=$1 RETURNING *",
+          [e.event_id,at])).rows[0];
+        await audit(c,e.event_id,p.endpoint_id,'blocked',
+          {attempt_id:p.attempt_id,reason:'execution_outcome_unknown'});
         return updated;
       });
     },
