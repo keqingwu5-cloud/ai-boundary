@@ -1,0 +1,45 @@
+name: Mainbrain PostgreSQL isolated integration
+on:
+  pull_request:
+    paths:
+      - 'api/**'
+      - 'tests/mainbrain-pg-live-integration.test.cjs'
+      - '.github/workflows/mainbrain-pg-integration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  disposable-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-disposable
+          POSTGRES_DB: mainbrain_ci_isolated
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mainbrain_ci_isolated"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PG_TEST_ISOLATED: 'true'
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: mainbrain_ci_isolated
+      PGUSER: postgres
+      PGPASSWORD: ci-only-disposable
+      NODE_PATH: /tmp/pg-integration-deps/node_modules
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated PostgreSQL test driver (not committed)
+        run: npm install --prefix /tmp/pg-integration-deps --no-save --ignore-scripts --package-lock=false pg@8.16.3
+      - name: Real PostgreSQL transaction, concurrency and HTTP-worker tests
+        run: node --test tests/mainbrain-pg-live-integration.test.cjs
