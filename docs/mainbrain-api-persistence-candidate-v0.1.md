@@ -38,3 +38,11 @@
 - CI 若通過：只代表候選源碼與使用 fake pg pool 的測試通過；**不能據此宣稱實際 PostgreSQL 交易或正式 worker 持續運行通過**。
 - 代碼可由 GPT① 在本窗口審查、安排下一步；GPT② 其他對話是否實際接收仍須另外核對。
 - 不合併 PR、不部署、不修改正式 DB、記憶、憑證或權限。
+## 隔離實際 PostgreSQL 測試與待核對修復（後續候選）
+
+- `tests/mainbrain-postgres-integration.test.cjs` 在 GitHub Actions 臨時 PostgreSQL 16 service 使用**合成資料**執行，限 loopback `candidate_queue` 專用資料庫，無正式 Supabase 連線或私有密鑰。
+- GitHub Actions 隔離 job `postgres-integration` 使用模擬身分與角色，真正套用候選 `schema.sql` 和 `persistence-candidate.sql` 至此**可拋棄 CI 資料庫**（正式資料庫完全不變）。
+- 測試涵蓋真實 transaction、併發 worker 防重領、執行/ACK 原子記錄、過期 lease 阻擋、撤銷 grant、重複與錯誤版本衝突。通過後仍非正式環境上線證據。
+- **執行結果不明時預設暫停**：外部 handler 執行過程拋錯或 ACK 回覆遺失，worker 使用 `execution_outcome_unknown` 申報並要求人工/獨立系統核對；store 轉 `blocked`，不可自動再執行。過期 `leased` 事件也進入 `blocked` 而不由另一 worker 偷接續。
+- 上述設計偏安全而非高可用性；`blocked` 任務將需要後續經授權的**獨立對帳與解除阻塞流程**，不能由執行者自己自認成功或直接重新排隊。
+- 限制仍存在：如果 PostgreSQL/服務崩潰在任務已產生外部副作用、尚未上報失敗的時刻，必須依 lease 過期的隔離規則轉人工核對；不保證 exactly-once 的外部操作。缺少正式模型 handler、runtime、key rotation、ChatGPT 對話端真實 ACK 和雙向 E2E。
