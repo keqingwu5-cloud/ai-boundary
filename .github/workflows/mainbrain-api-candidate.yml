@@ -25,3 +25,33 @@ jobs:
         run: node --test tests/mainbrain-api.test.cjs tests/mainbrain-auth-http.test.cjs tests/mainbrain-persistence-candidate.test.cjs
       - name: Existing handoff and launcher regression tests
         run: node --test tests/handoff-contract.test.cjs tests/launcher-memory.test.cjs tests/memory-workflow-core.test.cjs
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: candidate_queue
+          POSTGRES_USER: candidate
+          POSTGRES_PASSWORD: candidate_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U candidate -d candidate_queue"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MAINBRAIN_CI_PG_ONLY: yes
+      MAINBRAIN_CI_PG_URL: postgresql://candidate:candidate_test_password@127.0.0.1:5432/candidate_queue
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install ephemeral PostgreSQL client dependency
+        run: npm install --no-save --no-package-lock --ignore-scripts --no-audit pg@8.13.3
+      - name: Real disposable PostgreSQL transaction and concurrency tests
+        run: node --test tests/mainbrain-postgres-integration.test.cjs
