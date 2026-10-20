@@ -68,7 +68,7 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
         const grant=grants.rows[0];
         if(!grant)throw error('FORBIDDEN','no effective task-scoped human grant');
         const inserted=await c.query(
-          'INSERT INTO '+E+' (event_id,task_id,source_endpoint_id,destination_endpoint_id,idempotency_key,payload_version,payload_digest,payload,state,grant_id,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,\'queued\',$9,$10::timestamptz) ON CONFLICT DO NOTHING RETURNING *',
+          'INSERT INTO '+E+' (event_id,task_id,source_endpoint_id,destination_endpoint_id,idempotency_key,payload_version,payload_digest,payload,state,grant_id,created_at,next_attempt_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,\'queued\',$9,$10::timestamptz,$10::timestamptz) ON CONFLICT DO NOTHING RETURNING *',
           [p.event_id,p.task_id,p.source_endpoint_id,p.destination_endpoint_id,p.idempotency_key,p.payload_version,p.payload_digest,JSON.stringify(p.payload),grant.grant_id,at]);
         if(inserted.rows.length) {
           await audit(c,p.event_id,p.source_endpoint_id,'queued',{grant_id:grant.grant_id});
