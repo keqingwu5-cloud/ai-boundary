@@ -2843,6 +2843,508 @@ const SEED_EXTRAS = [
     "x_relatedMainNodes": [
       "n_x_language_e4"
     ]
+  },
+  /* 2026-10-21 使用者方向交接：公開研究節點，非權威私人記憶。 */
+  {
+    "id": "n_x_20261021_org",
+    "parentId": null,
+    "kind": "direction",
+    "title": "主腦是組織能力生成系統，工作流只是初期規劃",
+    "type": "推理與判斷",
+    "oneLiner": "主腦以人的長期方向為核心，調度大量 AI 工作者；比的是想法轉化成可驗證能力的速度。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "方向→任務→資源調度→實作→證據→修正→能力累積；工作流僅為基礎運作條件。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "比較單 AI、多提示詞協作與有工具／權限／證據的代理協作，測時間、品質、成本。"
+      }
+    ],
+    "concepts": [
+      "驗證"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_20261021_roles",
+    "parentId": "n_x_20261021_org",
+    "kind": "extension",
+    "title": "BOT 只是名稱／提示詞？真正的工作單位是可替換能力",
+    "type": "推理與判斷",
+    "oneLiner": "不必固定大量角色名；按任務調用工具、模型與權限，並使用客觀驗收。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "名稱與提示詞本身不保證獨立能力；需要輸入輸出契約、工具、記憶、權限、拒絕和停止。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "比較角色提示詞 vs. 可重複執行的能力模組。"
+      }
+    ],
+    "concepts": [
+      "驗證"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_20261021_idea",
+    "parentId": "n_x_20261021_org",
+    "kind": "extension",
+    "title": "想法到實作的時間差，才是長期競爭重點",
+    "type": "推理與判斷",
+    "oneLiner": "不是誰更早追逐潮流，而是想到後多久做出可驗證原型並整合。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "想法→原型→測試→修正→重複使用；模型升級只是可替換工具。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "能做≠值得做；須量測首次有效驗證時間、返工率、可重用性。"
+      }
+    ],
+    "concepts": [
+      "驗證"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_20261021_memory",
+    "parentId": "n_x_20261021_org",
+    "kind": "extension",
+    "title": "記憶是用來保存長期方向與決策脈絡",
+    "type": "推理與判斷",
+    "oneLiner": "保留為何研究、為何做出決策、什麼假設遭推翻，不只是對話記錄。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "方向→理由→依據→任務→成果／失敗→修正；換模型時仍須維持脈絡。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "研究候選不等於私人權威記憶；正式記憶須核准、追溯及版本控制。"
+      }
+    ],
+    "concepts": [
+      "驗證"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_20261021_budget",
+    "parentId": "n_x_20261021_org",
+    "kind": "extension",
+    "title": "先解決錢與資源，再建立持續運作的 AI 組織",
+    "type": "推理與判斷",
+    "oneLiner": "希望主腦能持續規劃、執行與驗證；『永動機』只是可持續循環的比喻。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "可用成果→驗證價值→資源支持→維持 AI 工作→累積新能力。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "API、算力、資料與維護皆有成本；必須設定預算與停止機制。"
+      }
+    ],
+    "concepts": [
+      "驗證"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_20261021_defense",
+    "parentId": "n_x_20261021_org",
+    "kind": "extension",
+    "title": "攻擊驅動的安全驗證，不必依賴數學家 BOT",
+    "type": "倫理與責任",
+    "oneLiner": "優先研究如何失敗，再以形式條件、來源證據、權限與隔離檢查系統。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "資料／記憶污染、身分偽造、代理共識錯誤、權限越界、成本失控皆須受控測試。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "只能在授權隔離環境測試；權限由程式執行，不由 AI 自行宣稱。"
+      }
+    ],
+    "concepts": [
+      "對齊",
+      "權力與控制",
+      "驗證"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_20261021_visual",
+    "parentId": null,
+    "kind": "direction",
+    "title": "3D 與短影音：如何將抽象概念轉譯成畫面",
+    "type": "其他",
+    "oneLiner": "建立概念→物件→位置→關係→狀態→動畫→鏡頭→影格的視覺語言。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "不是只追求科技風格，而是讓觀眾理解系統關係、動態因果與互動。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "驗證觀眾是否看懂關係方向；示意動畫不可冒充證實的因果。"
+      }
+    ],
+    "concepts": [
+      "世界模型",
+      "驗證"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_20261021_six",
+    "parentId": "n_x_20261021_visual",
+    "kind": "extension",
+    "title": "六種 3D 動態視覺規則",
+    "type": "其他",
+    "oneLiner": "節點擴張、路徑流動、風險擴散、任務傳遞、層級展開、點擊聚焦。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "擴張＝子節點增生；流動＝粒子沿邊；擴散＝警戒狀態傳導；傳遞＝任務包移動；展開＝父子層次；聚焦＝鏡頭及背景控制。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "動態要對應真實節點、任務狀態或明確標示為示意。"
+      }
+    ],
+    "concepts": [
+      "世界模型",
+      "驗證"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_20261021_video",
+    "parentId": "n_x_20261021_visual",
+    "kind": "extension",
+    "title": "生成式影片與真 3D 的輸出機制比較",
+    "type": "其他",
+    "oneLiner": "影片模型生成時空表示及連續影格；真 3D 在固定場景規則下逐幀渲染。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "文字／圖像條件→時空表示→幀→編碼；Three.js／Blender：物件＋動作＋鏡頭→影格／互動。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "比較長期一致性、幀率、4K 成本、可控度與資料對應。"
+      }
+    ],
+    "concepts": [
+      "世界模型",
+      "評測效度"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_20261021_hardware",
+    "parentId": null,
+    "kind": "direction",
+    "title": "2026–2028 假設：個人化軟體大量湧現，硬體可能跟不上",
+    "type": "社會影響",
+    "oneLiner": "使用者提出 1–2 年觀察窗口：個人化 AI 軟體需求分化，手機等硬體的整機設計與升級方式可能出現不匹配。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "個人化工作負載增加→算力、記憶體、功耗與感測需求分化→整機升級成本提高→新硬體形態機會。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "這是待驗證推論；若硬體效率提升、雲端算力或軟體最佳化足以滿足需求，須修正。"
+      }
+    ],
+    "concepts": [
+      "世界模型",
+      "評測效度"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_20261021_modular",
+    "parentId": "n_x_20261021_hardware",
+    "kind": "extension",
+    "title": "個人化硬體：模組化與維修是否降低總成本？",
+    "type": "社會影響",
+    "oneLiner": "像組裝電腦一樣，依需求搭配功能；手機模組化可能降低部分升級成本，但不保證更便宜。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "基礎平台＋可選模組＋個人化 AI 軟體；企業若採共用標準則可能建立模組供應鏈。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "比較五年總成本、防水、體積、故障率、性能及零件供應期限。"
+      }
+    ],
+    "concepts": [
+      "驗證"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_20261021_terminal",
+    "parentId": "n_x_20261021_hardware",
+    "kind": "extension",
+    "title": "整機手機或輕量個人終端＋外部 AI？",
+    "type": "社會影響",
+    "oneLiner": "重新思考未來是否需要整支高性能手機，或用輕量終端調動雲端和外接硬體。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "終端保留顯示／連線／安全／供電；部分運算或感測按需求外掛。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "比較網路延遲、離線可用性、隱私、能耗、訂閱費及跨品牌相容。"
+      }
+    ],
+    "concepts": [
+      "驗證"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
+  },
+  {
+    "id": "n_x_20261021_signals",
+    "parentId": "n_x_20261021_hardware",
+    "kind": "extension",
+    "title": "一至兩年的軟硬體錯配：需觀察哪些可反證指標",
+    "type": "社會影響",
+    "oneLiner": "以 2026-10 至 2028-10 追蹤端側 AI 工作負載、裝置要求與消費行為。",
+    "createdBy": "merlin",
+    "status": "open",
+    "source": {
+      "who": "使用者（當日對話）",
+      "outlet": "2026-10-21 方向交接；未進行獨立實證",
+      "date": "2026-10-21",
+      "url": "https://github.com/keqingwu5-cloud/ai-boundary/blob/main/docs/vision-2026-10-21-organization-visual-hardware.md",
+      "also": []
+    },
+    "assumptions": "【使用者方向／待驗證】非已驗證的外部市場事實。",
+    "reasoning": [
+      {
+        "k": "核心論點",
+        "v": "觀察：AI 功能採用、RAM／儲存／算力需求、續航與熱、換機週期、維修與模組採用、雲端成本。"
+      },
+      {
+        "k": "需驗證／反證",
+        "v": "反證：若裝置效能和價格同步改善、模組需求未增，硬體撐不住的推論不成立。"
+      }
+    ],
+    "concepts": [
+      "評測效度",
+      "驗證"
+    ],
+    "botNotes": [
+      "2026-10-21 公開交接種子；不等於私人加密記憶已核准或自動同步。"
+    ],
+    "media": {
+      "video": "",
+      "image": ""
+    }
   }
 ];
 
