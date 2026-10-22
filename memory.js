@@ -183,8 +183,60 @@ function renderDiff(){const box=$("auditList");box.replaceChildren();const date=
 }
 $("dateFilter").addEventListener("change",renderDiff);
 function renderAll(){if(!state)return;
+ renderMemoryControls();
  const info=$("vaultMetadata");if(info)info.textContent="本機記憶庫："+state.vaultId+"｜版本 "+state.revision+"｜儲存 "+fmtDate(state.updatedAt);
  $("countMemories").textContent=String(state.memories.length);$("countPending").textContent=String(state.candidates.filter(c=>c.status==="pending").length);$("countRejected").textContent=String(state.candidates.filter(c=>c.status==="rejected"&&!c.resolvedBy).length);renderSelectors();renderReviews();renderMemories();renderDiff();}
+
+/* Local controls: editable direction and final gate, separate from the transport hub.
+   These are user notes, not runtime approval rules. */
+const memoryControlsCore=globalThis.MemoryControlsCore;
+const controlFields={direction:"memoryDirectionEditor",threshold:"memoryThresholdEditor"};
+const controlVersions={direction:"memoryDirectionVersion",threshold:"memoryThresholdVersion"};
+function renderMemoryControls(){
+ const box=$("memoryControlHistory");box.replaceChildren();
+ if(!state)return;
+ if(!memoryControlsCore){appendText(box,"p","small","設定模組未載入，請勿嘗試修改。");return;}
+ let controls;
+ try{controls=memoryControlsCore.view(state.memoryControls);}
+ catch(e){appendText(box,"p","small","設定資料格式異常，已停止設定編輯以避免覆寫。");return;}
+ for(const kind of ["direction","threshold"]){
+  const field=$(controlFields[kind]);
+  if(field.dataset.dirty==="true"&&field.value===controls[kind].text)field.dataset.dirty="false";
+  if(field.dataset.dirty!=="true")field.value=controls[kind].text;
+  $(controlVersions[kind]).textContent="目前版本 "+controls[kind].version+"｜"+(controls[kind].text?"已設定":"尚未設定");
+ }
+ if(!controls.history.length){appendText(box,"p","small","尚無設定變更。原本的候選與記憶版本不受影響。");return;}
+ for(const h of [...controls.history].reverse()){
+  const row=node("article","card");
+  appendText(row,"b","",h.kind==="direction"?"記憶體方向 · 第 "+h.version+" 版":"記憶體門檻 · 第 "+h.version+" 版");
+  appendText(row,"p","small",fmtDate(h.at)+"｜原因："+h.reason);
+  appendText(row,"p","small","上一版："+(h.before||"未設定"));
+  appendText(row,"p","","調整後："+(h.after||"未設定"));
+  box.append(row);
+ }
+}
+for(const kind of ["direction","threshold"]){
+ $(controlFields[kind]).addEventListener("input",e=>{e.target.dataset.dirty="true";});
+ $("save"+(kind==="direction"?"MemoryDirection":"MemoryThreshold")).addEventListener("click",()=>{
+  if(!state||!memoryControlsCore)return;
+  let current;
+  try{current=memoryControlsCore.view(state.memoryControls);}
+  catch(e){feedback("設定格式異常，已阻擋修改。");return;}
+  const value=$(controlFields[kind]).value,reason=$("memoryControlReason").value.trim();
+  if(!reason){feedback("請先填寫本次設定變更原因。");return;}
+  if(value===current[kind].text){feedback("這個設定沒有改變，未新增版本。");return;}
+  const version=current[kind].version;
+  if(!confirm("將只修改記憶體的"+(kind==="direction"?"方向":"門檻")+"設定，保留歷史；不會自動批准候選或改變中樞。是否保存？"))return;
+  queueChange(()=>{
+   const latest=memoryControlsCore.view(state.memoryControls);
+   if(latest[kind].version!==version)throw Error("設定已有新版，請先重新核對");
+   state.memoryControls=memoryControlsCore.revise(latest,kind,value,reason,utc(),uid());
+   evt("memory.controls."+kind,kind,"使用者更新"+(kind==="direction"?"方向":"門檻")+"至版本 "+state.memoryControls[kind].version);
+   return "你的記憶體"+(kind==="direction"?"方向":"門檻")+"設定已加密保存；未自動套用任何審核規則。";
+  });
+ });
+}
+
 const tabs=[...document.querySelectorAll("[data-tab]")];
 function selectTab(name){for(const t of tabs){const on=t.dataset.tab===name;t.setAttribute("aria-selected",String(on));t.tabIndex=on?0:-1;$("tab-"+t.dataset.tab).hidden=!on;}}
 tabs.forEach((t,i)=>{t.addEventListener("click",()=>selectTab(t.dataset.tab));t.addEventListener("keydown",e=>{if(!["ArrowRight","ArrowLeft"].includes(e.key))return;e.preventDefault();const next=tabs[(i+(e.key==="ArrowRight"?1:tabs.length-1))%tabs.length];next.focus();selectTab(next.dataset.tab);});});
