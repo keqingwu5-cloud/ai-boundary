@@ -16,7 +16,26 @@ function fresh(){const at=utc();return {schema:VAULT,vaultId:uid(),revision:0,up
 function migrateMeta(obj){if(obj.vaultId&&Number.isSafeInteger(obj.revision)&&obj.revision>=0)return false;obj.vaultId=uid();obj.revision=0;obj.updatedAt=obj.updatedAt||obj.createdAt||utc();return true;}
 function validState(obj){return obj&&obj.schema===VAULT&&Array.isArray(obj.memories)&&Array.isArray(obj.candidates)&&Array.isArray(obj.audit)&&obj.memories.length<2500&&obj.candidates.length<10000&&obj.audit.length<30000;}
 async function decryptEnvelope(e,password){const sl=unb64(e.salt),iv=unb64(e.iv);if(sl.length!==16||iv.length!==12)throw Error("bad_nonce");const k=await derive(password,sl);const plaintext=await crypto.subtle.decrypt({name:"AES-GCM",iv},k,unb64(e.payload));const parsed=JSON.parse(decoder.decode(plaintext));if(!validState(parsed))throw Error("invalid_vault");return {data:parsed,key:k,salt:sl};}
-async function encryptCurrent(){if(!key||!state||!salt)throw Error("locked");const iv=crypto.getRandomValues(new Uint8Array(12));const raw=encoder.encode(JSON.stringify(state));if(raw.length>700000)throw Error("vault_too_large");const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,raw);return JSON.stringify({format:FORMAT,kdf:"PBKDF2-SHA256",cipher:"AES-256-GCM",iterations:ROUNDS,salt:b64(salt),iv:b64(iv),payload:b64(new Uint8Array(encrypted))});}
+async function encryptSnapshot(snapshot,vaultKey,vaultSalt){
+ if(!vaultKey||!snapshot||!vaultSalt)throw Error("locked");
+ const iv=crypto.getRandomValues(new Uint8Array(12));
+ const raw=encoder.encode(JSON.stringify(snapshot));
+ if(raw.length>700000)throw Error("vault_too_large");
+ const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},vaultKey,raw);
+ return JSON.stringify({format:FORMAT,kdf:"PBKDF2-SHA256",cipher:"AES-256-GCM",iterations:ROUNDS,salt:b64(vaultSalt),iv:b64(iv),payload:b64(new Uint8Array(encrypted))});
+}
+async function encryptCurrent(){return encryptSnapshot(state,key,salt);}
+// Preflight and re-encrypt legacy backups before the only localStorage commit.
+async function stageBackupRestore(raw,decoded){
+ const data=JSON.parse(JSON.stringify(decoded.data));
+ const changed=migrateMeta(data);
+ const replacement=changed?await encryptSnapshot(data,decoded.key,decoded.salt):raw;
+ return {raw:replacement,data};
+}
+function commitStagedBackup(staged,expectedRaw){
+ if(stored()!==expectedRaw)throw Error("其他分頁已修改記憶庫，停止還原避免覆蓋");
+ localStorage.setItem(STORE,staged.raw);
+}
 async function persist(){
  if(stored()!==observedEnvelope)throw Error("其他分頁已修改記憶庫，已停止寫入避免覆蓋。請先備份並重新開啟頁面。");
  if(!state.vaultId)migrateMeta(state);
@@ -246,6 +265,7 @@ $("exportBackup").addEventListener("click",downloadBackup);$("saveBackupTop").ad
 $("restoreBackup").addEventListener("click",()=>{$("backupInput").click();});$("importLocked").addEventListener("click",()=>{$("backupInput").click();});
 $("backupInput").addEventListener("change",async e=>{
  const f=e.target.files[0];e.target.value="";if(!f)return;
+ let committed=false;
  try{
   if(f.size>1200000)throw Error("too_large");
   const raw=await f.text(),env=readEnvelope(raw);
@@ -265,11 +285,12 @@ $("backupInput").addEventListener("change",async e=>{
      "\n確定已保留本機目前的加密備份，要繼續嗎？"))return;
    if(prompt("此動作會整庫覆蓋，確認已保留舊備份請輸入「確認覆蓋」：")!=="確認覆蓋")return;
   }
-  localStorage.setItem(STORE,raw);
-  key=decoded.key;salt=decoded.salt;state=decoded.data;observedEnvelope=raw;lastBackupEnvelope=null;
-  if(migrateMeta(state))await persist();
+  const staged=await stageBackupRestore(raw,decoded);
+  commitStagedBackup(staged,previous);
+  committed=true;
+  key=decoded.key;salt=decoded.salt;state=staged.data;observedEnvelope=staged.raw;lastBackupEnvelope=null;
   showOpen();feedback("已按你的明確確認還原本機加密備份；尚未合併不同版本。");
- }catch(err){feedback("還原失敗：密碼不符、檔案格式錯誤、資料過大或儲存空間受限；原本記憶庫未更動。");}
+ }catch(err){feedback(committed?"備份已寫入但畫面更新失敗；請重新開啟並核對內容。":"還原失敗：密碼、格式、驗證、加密或儲存操作失敗；原本記憶庫未更動。");}
 });
 
 /* GPT① memory handoff: manual local import, encrypted audit, contextual recall. */
