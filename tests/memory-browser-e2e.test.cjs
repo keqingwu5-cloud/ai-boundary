@@ -142,3 +142,66 @@ test("security observation: another page on the SAME origin can access ciphertex
    await new Promise(resolve=>server.close(resolve));
  }
 });
+
+test("same browser on a DISTINCT origin cannot read the vault ciphertext", {timeout:60000}, async()=>{
+ const first=startServer(),second=startServer();
+ await new Promise(resolve=>first.server.listen(0,"127.0.0.1",resolve));
+ await new Promise(resolve=>second.server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+   browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+   const context=await browser.newContext();
+   const page=await context.newPage();
+   await page.goto("http://127.0.0.1:"+first.server.address().port+"/memory.html");
+   await page.evaluate(()=>localStorage.setItem("aiBoundary.privateMemory.v1","SYNTHETIC_CIPHERTEXT_ONLY"));
+   await page.goto("http://127.0.0.1:"+second.server.address().port+"/launcher.html",{waitUntil:"domcontentloaded"});
+   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),null);
+   await context.close();
+ }finally{
+   if(browser)await browser.close();
+   await new Promise(resolve=>first.server.close(resolve));
+   await new Promise(resolve=>second.server.close(resolve));
+ }
+});
+test("two tabs: stale memory-direction edit is rejected without overwriting the first tab", {timeout:80000}, async()=>{
+ const {server}=startServer();
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+   browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+   const context=await browser.newContext();
+   const origin="http://127.0.0.1:"+server.address().port;
+   const first=await context.newPage();
+   first.on("dialog",d=>d.accept());
+   await first.goto(origin+"/memory.html");
+   await first.locator("#passphrase").fill(PASS);
+   await first.locator("#confirmPassphrase").fill(PASS);
+   await first.locator("#unlockButton").click();await unlocked(first);
+   const second=await context.newPage();
+   second.on("dialog",d=>d.accept());
+   await second.goto(origin+"/memory.html");
+   await second.locator("#passphrase").fill(PASS);
+   await second.locator("#unlockButton").click();await unlocked(second);
+   await first.locator('[data-tab="controls"]').click();
+   await first.locator("#memoryControlReason").fill("頁面一更改方向");
+   await first.locator("#memoryDirectionEditor").fill("新版本由頁面一保存");
+   await first.locator("#saveMemoryDirection").click();
+   await first.waitForFunction(()=>document.getElementById("memoryDirectionVersion")?.textContent.includes("版本 1"));
+   const validCipher=await first.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+   await second.locator('[data-tab="controls"]').click();
+   await second.locator("#memoryControlReason").fill("頁面二的過時修改");
+   await second.locator("#memoryDirectionEditor").fill("試圖覆蓋的舊快照");
+   await second.locator("#saveMemoryDirection").click();
+   await second.waitForFunction(()=>document.getElementById("feedback")?.textContent.includes("其他分頁"));
+   assert.equal(await second.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),validCipher);
+   await second.reload();
+   await second.locator("#passphrase").fill(PASS);
+   await second.locator("#unlockButton").click();await unlocked(second);
+   await second.locator('[data-tab="controls"]').click();
+   assert.equal(await second.locator("#memoryDirectionEditor").inputValue(),"新版本由頁面一保存");
+   await context.close();
+ }finally{
+   if(browser)await browser.close();
+   await new Promise(resolve=>server.close(resolve));
+ }
+});
