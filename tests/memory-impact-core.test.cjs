@@ -66,3 +66,11 @@ test("page warns before restore commit using real preview output",()=>{
  assert.match(js,/impactDetails\+"\\n確定已保留本機目前的加密備份/);
  assert.match(js,/commitStagedBackup\(staged,previous\)/);
 });
+
+test("legacy backup with no vault ID or revision is explicitly warned before any overwrite",()=>{
+ const old=state(),incoming=JSON.parse(JSON.stringify(old));delete incoming.vaultId;delete incoming.revision;
+ const r=core.previewRestore(old,incoming);
+ assert.ok(r.warnings.includes("UNKNOWN_BACKUP_VAULT_ID"));
+ assert.ok(r.warnings.includes("UNKNOWN_BACKUP_REVISION"));
+ assert.equal(r.requiresHumanApproval,true);
+});
