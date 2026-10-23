@@ -83,17 +83,33 @@ async function stageBackupRestore(raw,decoded){
  const replacement=changed?await encryptSnapshot(data,decoded.key,decoded.salt):raw;
  return {raw:replacement,data};
 }
+/* All cooperative same-origin vault writers must hold one exclusive Web Lock.
+ * A localStorage compare followed by async AES is not atomic. No unsafe fallback. */
+async function withVaultWriteLock(work){
+ const locks=globalThis.navigator?.locks;
+ if(!locks||typeof locks.request!=="function")
+   throw Error("此瀏覽器缺少跨分頁寫入鎖；已停止寫入避免資料覆蓋。請改用支援 Web Locks 的安全瀏覽器。");
+ return locks.request(STORE+":exclusive-write",{mode:"exclusive"},work);
+}
 function commitStagedBackup(staged,expectedRaw){
+ // Caller must hold withVaultWriteLock; retains a final stale-value check.
  if(stored()!==expectedRaw)throw Error("其他分頁已修改記憶庫，停止還原避免覆蓋");
  localStorage.setItem(STORE,staged.raw);
 }
 async function persist(){
- if(stored()!==observedEnvelope)throw Error("其他分頁已修改記憶庫，已停止寫入避免覆蓋。請先備份並重新開啟頁面。");
- if(!state.vaultId)migrateMeta(state);
- const r=state.revision,t=state.updatedAt;
- state.revision=r+1;state.updatedAt=utc();
- try{const value=await encryptCurrent();localStorage.setItem(STORE,value);observedEnvelope=value;}
- catch(e){state.revision=r;state.updatedAt=t;throw e;}
+ // Serialize preflight, AES-GCM encryption and localStorage commit under the
+ // SAME cooperative cross-tab lock. An unsupported browser fails closed.
+ return withVaultWriteLock(async()=>{
+  if(stored()!==observedEnvelope)throw Error("其他分頁已修改記憶庫，已停止寫入避免覆蓋。請先備份並重新開啟頁面。");
+  if(!state.vaultId)migrateMeta(state);
+  const r=state.revision,t=state.updatedAt;
+  state.revision=r+1;state.updatedAt=utc();
+  try{
+   const value=await encryptCurrent();
+   if(stored()!==observedEnvelope)throw Error("加密期間記憶庫已被其他程式修改，停止寫入並保留現有資料。");
+   localStorage.setItem(STORE,value);observedEnvelope=value;
+  }catch(e){state.revision=r;state.updatedAt=t;throw e;}
+ });
 }
 function showLocked(){key=null;salt=null;state=null;revising=null;observedEnvelope=null;lastBackupEnvelope=null;$("workspace").hidden=true;$("lockedState").hidden=false;const exists=!!stored();$("lockTitle").textContent=exists?"解鎖本機加密記憶庫":"首次建立本機加密記憶庫";$("lockHint").textContent=exists?"輸入原密碼以讀取此瀏覽器中加密的記憶。密碼不會儲存在網站。":"設定至少 12 字元的密碼；忘記密碼便無法復原內容。請妥善保管加密備份。";$("confirmArea").hidden=exists;$("unlockButton").textContent=exists?"解鎖記憶庫":"建立記憶庫";$("passphrase").value="";$("confirmPassphrase").value="";}
 function showOpen(){ $("lockedState").hidden=true;$("workspace").hidden=false;$("passphrase").value="";$("confirmPassphrase").value="";renderAll();}
@@ -104,11 +120,11 @@ $("unlockButton").addEventListener("click",async()=>{
  try{
   if(existing){const envelope=readEnvelope(existing);const unlocked=await decryptEnvelope(envelope,pass);state=unlocked.data;key=unlocked.key;salt=unlocked.salt;observedEnvelope=existing;
     if(migrateMeta(state)){await persist();feedback("舊版記憶庫已加入識別與版本資訊，請更新加密備份。");}
-    else feedback("記憶庫解鎖成功。");
+    else feedback(globalThis.navigator?.locks?.request?"記憶庫解鎖成功。":"記憶庫已解鎖（唯讀）：瀏覽器缺少跨分頁寫入鎖，已停用修改。");
    }
   else{salt=crypto.getRandomValues(new Uint8Array(16));key=await derive(pass,salt);state=fresh();observedEnvelope=null;await persist();feedback("本機記憶庫已加密建立。請下載備份避免資料遺失。");}
   showOpen();
- }catch(e){key=null;salt=null;state=null;feedback(existing?"無法解鎖：密碼錯誤、資料已損毀或瀏覽器禁止存取。":"無法建立：儲存空間不足或瀏覽器拒絕存取。");}
+ }catch(e){key=null;salt=null;state=null;feedback(String(e.message||"").includes("跨分頁寫入鎖")?e.message:(existing?"無法解鎖：密碼錯誤、資料已損毀或瀏覽器禁止存取。":"無法建立：儲存空間不足或瀏覽器拒絕存取。"));}
 });
 $("lockButton").addEventListener("click",async()=>{await writeChain.catch(()=>{});showLocked();feedback("已鎖定記憶庫。");});
 function evt(kind,ref,summary){state.audit.unshift({id:uid(),kind,ref,summary,at:utc()});}
@@ -396,7 +412,7 @@ $("backupInput").addEventListener("change",async e=>{
    if(prompt("此動作會整庫覆蓋，確認已保留舊備份請輸入「確認覆蓋」：")!=="確認覆蓋")return;
   }
   const staged=await stageBackupRestore(raw,decoded);
-  commitStagedBackup(staged,previous);
+  await withVaultWriteLock(()=>commitStagedBackup(staged,previous));
   committed=true;
   key=decoded.key;salt=decoded.salt;state=staged.data;observedEnvelope=staged.raw;lastBackupEnvelope=null;
   showOpen();feedback("已按你的明確確認還原本機加密備份；尚未合併不同版本。");
