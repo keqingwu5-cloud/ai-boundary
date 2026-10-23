@@ -468,3 +468,39 @@ test("FIXED PRE-MERGE P0: exclusive Web Lock prevents concurrent stale tab overw
    await new Promise(resolve=>server.close(resolve));
  }
 });
+
+test("FIXED PRE-MERGE: unsupported Web Locks fails closed for candidate writes and backup overwrite", {timeout:90000},async()=>{
+ const {server}=startServer();
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+   browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+   const context=await browser.newContext({acceptDownloads:true});
+   const page=await context.newPage();
+   page.on("dialog",d=>d.accept(d.type()==="prompt"?
+     (d.message().includes("確認覆蓋")?"確認覆蓋":PASS):undefined));
+   await page.goto("http://127.0.0.1:"+server.address().port+"/memory.html");
+   await page.locator("#passphrase").fill(PASS);
+   await page.locator("#confirmPassphrase").fill(PASS);
+   await page.locator("#unlockButton").click();await unlocked(page);
+   const old=await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+   const backup=await downloadJSON(page);
+   await page.evaluate(()=>Object.defineProperty(navigator,"locks",{configurable:true,value:undefined}));
+   await submit(page,"缺少寫入鎖合成測試","SYNTHETIC_FAIL_CLOSED","UNSUPPORTED-WEBLOCK-1");
+   await page.waitForFunction(()=>document.getElementById("feedback")?.textContent.includes("跨分頁寫入鎖"));
+   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),old);
+   await page.locator("#backupInput").setInputFiles({name:"backup-while-lock-unsupported.json",
+     mimeType:"application/json",buffer:Buffer.from(backup)});
+   await page.waitForFunction(()=>document.getElementById("feedback")?.textContent.includes("還原失敗"));
+   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),old);
+   await page.reload();
+   await page.locator("#passphrase").fill(PASS);
+   await page.locator("#unlockButton").click();await unlocked(page);
+   assert.equal(await page.locator("#countPending").innerText(),"0");
+   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),old);
+   await context.close();
+ }finally{
+   if(browser)await browser.close();
+   await new Promise(resolve=>server.close(resolve));
+ }
+});
