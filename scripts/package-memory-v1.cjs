@@ -6,6 +6,7 @@ const root=path.resolve(__dirname,"..");
 const outIndex=process.argv.indexOf("--out");
 const dest=outIndex>=0?path.resolve(process.argv[outIndex+1]):path.join(root,".memory-v1-bundle");
 if(dest===root||root.startsWith(dest+path.sep))throw Error("unsafe_destination");
+if(fs.existsSync(dest)&&fs.readdirSync(dest).length)throw Error("destination_not_empty");
 const filenames=["memory.html","memory.js","memory-controls-core.js","memory-workflow-core.js","memory-impact-core.js"];
 for(const file of filenames)if(!fs.existsSync(path.join(root,file)))throw Error("missing_source_"+file);
 fs.mkdirSync(dest,{recursive:true});
