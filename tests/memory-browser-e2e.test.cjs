@@ -241,3 +241,107 @@ test("dedicated-origin candidate bundle keeps a usable vault while public-platfo
    fs.rmSync(tmp,{recursive:true,force:true});
  }
 });
+
+/* Pre-merge cross-version compatibility: encrypted fixture follows the actual
+ * historical main-branch vault schema, including the absence of optional metadata.
+ * Only synthetic content is used. */
+const nativeCrypto=require("node:crypto").webcrypto;
+async function syntheticEnvelope(payload,password=PASS){
+ const salt=nativeCrypto.getRandomValues(new Uint8Array(16));
+ const iv=nativeCrypto.getRandomValues(new Uint8Array(12));
+ const material=await nativeCrypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveKey"]);
+ const key=await nativeCrypto.subtle.deriveKey(
+   {name:"PBKDF2",hash:"SHA-256",salt,iterations:260000},
+   material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+ const encrypted=await nativeCrypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(payload)));
+ return JSON.stringify({format:"ai-boundary.encrypted-memory.v1",kdf:"PBKDF2-SHA256",
+   cipher:"AES-256-GCM",iterations:260000,salt:Buffer.from(salt).toString("base64"),
+   iv:Buffer.from(iv).toString("base64"),payload:Buffer.from(encrypted).toString("base64")});
+}
+async function decryptedSyntheticEnvelope(raw,password=PASS){
+ const e=JSON.parse(raw);
+ const salt=Buffer.from(e.salt,"base64"),iv=Buffer.from(e.iv,"base64");
+ const material=await nativeCrypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveKey"]);
+ const key=await nativeCrypto.subtle.deriveKey(
+   {name:"PBKDF2",hash:"SHA-256",salt,iterations:260000},
+   material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+ const bytes=await nativeCrypto.subtle.decrypt({name:"AES-GCM",iv},key,Buffer.from(e.payload,"base64"));
+ return JSON.parse(new TextDecoder().decode(bytes));
+}
+test("PRE-MERGE: real AES legacy backup survives migration, failed authenticated restore preserves current ciphertext", {timeout:120000},async()=>{
+ const {server}=startServer();
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
+ const stamp="2026-10-13T08:40:00.000Z";
+ const oldCandidate={id:"LEGACY-C1",eventType:"new_question",parentId:null,question:"舊版合成問題",
+   purpose:"舊版來源完整性",content:"SYNTHETIC_OLD_APPROVED_CONTENT",evidence:"舊版合成憑據",
+   reason:"跨版還原驗證",proposer:"user",evidenceLevel:"hypothesis",createdAt:stamp,
+   status:"approved",repairOf:null,review:{action:"approved",reason:"本機人工核准",at:stamp}};
+ const oldRejected={...oldCandidate,id:"LEGACY-C2",question:"曾拒絕問題",status:"rejected",
+   review:{action:"rejected",reason:"證據不足",at:stamp},content:"SYNTHETIC_REJECTED"};
+ const oldVault={schema:"ai-boundary.memory.v1",createdAt:stamp,memories:[{
+   id:"LEGACY-M1",question:oldCandidate.question,purpose:oldCandidate.purpose,parentId:null,
+   relation:"new_branch",createdAt:stamp,versions:[{number:1,content:oldCandidate.content,
+     evidence:oldCandidate.evidence,reason:oldCandidate.reason,evidenceLevel:"hypothesis",
+     source:"user",candidateId:oldCandidate.id,approvedAt:stamp}]}],
+   candidates:[oldCandidate,oldRejected],
+   audit:[{id:"LEGACY-A1",kind:"candidate.approved",ref:oldCandidate.id,summary:"人工核准",at:stamp},
+     {id:"LEGACY-A2",kind:"candidate.rejected",ref:oldRejected.id,summary:"拒絕保留",at:stamp}]};
+ const oldEncrypted=await syntheticEnvelope(oldVault);
+ let browser;
+ try{
+   browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+   const context=await browser.newContext({acceptDownloads:true});
+   const page=await context.newPage();
+   const errors=[];
+   page.on("pageerror",err=>errors.push(err.message));
+   page.on("dialog",d=>d.accept(d.type()==="prompt"?
+     (d.message().includes("確認覆蓋")?"確認覆蓋":PASS):undefined));
+   await page.goto("http://127.0.0.1:"+server.address().port+"/memory.html");
+   await page.evaluate(raw=>localStorage.setItem("aiBoundary.privateMemory.v1",raw),oldEncrypted);
+   await page.reload();
+   await page.locator("#passphrase").fill(PASS);
+   await page.locator("#unlockButton").click();await unlocked(page);
+   const migratedRaw=await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+   assert.notEqual(migratedRaw,oldEncrypted);
+   const migrated=await decryptedSyntheticEnvelope(migratedRaw);
+   assert.equal(migrated.revision,1);
+   assert.ok(typeof migrated.vaultId==="string"&&migrated.vaultId.length>0);
+   for(const key of ["memories","candidates","audit"])
+     assert.deepEqual(migrated[key],oldVault[key],"historical "+key+" unchanged by migration");
+   assert.equal(await page.locator("#countMemories").innerText(),"1");
+   assert.equal(await page.locator("#countRejected").innerText(),"1");
+
+   // Authenticate a maliciously malformed backup with a *valid* AES-GCM tag.
+   // Envelope-format-only tests cannot catch this class of corruption.
+   const broken=structuredClone(oldVault);
+   broken.memories[0].versions[0].candidateId="MISSING-CANDIDATE";
+   const invalidButEncrypted=await syntheticEnvelope(broken);
+   await downloadJSON(page); // fulfills mandatory current-vault backup gate
+   await page.locator("#backupInput").setInputFiles({name:"bad-reference.json",
+     mimeType:"application/json",buffer:Buffer.from(invalidButEncrypted)});
+   await page.waitForFunction(()=>document.getElementById("feedback")?.textContent.includes("還原失敗"));
+   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),migratedRaw,
+     "invalid but authentically encrypted backup must not overwrite current vault");
+
+   // Original legacy backup is still accepted only after human confirmation.
+   await page.locator("#backupInput").setInputFiles({name:"valid-legacy.json",
+     mimeType:"application/json",buffer:Buffer.from(oldEncrypted)});
+   await page.waitForFunction(()=>document.getElementById("feedback")?.textContent.includes("已按你的明確確認還原"));
+   const restoredRaw=await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+   const restored=await decryptedSyntheticEnvelope(restoredRaw);
+   assert.ok(restored.vaultId&&restored.vaultId!==migrated.vaultId);
+   assert.equal(restored.revision,0,"manual restored old vault metadata migrated before single storage commit");
+   for(const key of ["memories","candidates","audit"])
+     assert.deepEqual(restored[key],oldVault[key],"historical "+key+" preserved after staged restore");
+   await page.reload();
+   await page.locator("#passphrase").fill(PASS);
+   await page.locator("#unlockButton").click();await unlocked(page);
+   assert.equal(await page.locator("#countMemories").innerText(),"1");
+   assert.equal(await page.locator("#countRejected").innerText(),"1");
+   assert.deepEqual(errors,[],"no JavaScript runtime errors");
+   await context.close();
+ }finally{
+   if(browser)await browser.close();
+   await new Promise(resolve=>server.close(resolve));
+ }
+});
