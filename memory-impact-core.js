@@ -85,8 +85,8 @@
      if(!m||!Array.isArray(m.versions))continue;
      const newer=map.get(m.id);
      if(!newer||!Array.isArray(newer.versions)){lostVersions+=m.versions.length;continue;}
-     const recognized=new Set(newer.versions.map(x=>x&&x.number));
-     lostVersions+=m.versions.filter(x=>!recognized.has(x?.number)).length;
+     const recognized=new Set(newer.versions.map(x=>JSON.stringify(x)));
+     lostVersions+=m.versions.filter(x=>!recognized.has(JSON.stringify(x))).length;
    }
    const differentVault=!!(current.vaultId&&incoming.vaultId&&current.vaultId!==incoming.vaultId);
    const older=Number.isSafeInteger(current.revision)&&Number.isSafeInteger(incoming.revision)&&incoming.revision<current.revision;
