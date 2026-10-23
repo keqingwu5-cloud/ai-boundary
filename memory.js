@@ -379,12 +379,20 @@ $("backupInput").addEventListener("change",async e=>{
   if(previous&&previous!==observedEnvelope){feedback("偵測到其他分頁已更新記憶庫。為避免覆蓋，請重新開啟並解鎖。");return;}
   if(previous){
    if(lastBackupEnvelope!==previous){feedback("請先點擊「下載加密備份」並確認檔案保存成功，才可覆蓋目前記憶。");return;}
+   if(!globalThis.MemoryImpactCore){feedback("還原影響預演模組未載入，已停止覆蓋");return;}
+   const restoreImpact=globalThis.MemoryImpactCore.previewRestore(state,decoded.data);
+   const risk=restoreImpact.counts;
+   const impactDetails="\n覆蓋前預演（只讀，不自動合併）：" +
+     "\n可能失去的記憶主題 "+risk.lostMemories+"；原始版本 "+risk.lostVersions+
+     "；候選 "+risk.lostCandidates+"；稽核事件 "+risk.lostAuditEvents+
+     "。\n檢查碼："+(restoreImpact.warnings.join("、")||"無已知差異")+
+     "。\n即使沒有已知差異也不能保證跨裝置內容相同。";
    const older=decoded.data.vaultId===state.vaultId&&Number.isSafeInteger(decoded.data.revision)&&decoded.data.revision<=state.revision;
    const different=!decoded.data.vaultId||decoded.data.vaultId!==state.vaultId;
    const warning=different?"備份來自其他／無識別碼的記憶庫。":older?"此備份的版次不比目前新版，可能回滾你的歷史。":"此備份將完整取代目前記憶，不會自動合併。";
    if(!confirm(warning+"\n現有："+state.vaultId+"（修訂 "+state.revision+"）"+
      "\n備份："+(decoded.data.vaultId||"舊格式／未知")+"（修訂 "+(decoded.data.revision??"未知")+"）"+
-     "\n確定已保留本機目前的加密備份，要繼續嗎？"))return;
+     impactDetails+"\n確定已保留本機目前的加密備份，要繼續嗎？"))return;
    if(prompt("此動作會整庫覆蓋，確認已保留舊備份請輸入「確認覆蓋」：")!=="確認覆蓋")return;
   }
   const staged=await stageBackupRestore(raw,decoded);
