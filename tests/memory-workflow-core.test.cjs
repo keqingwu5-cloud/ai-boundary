@@ -18,3 +18,9 @@ test("workflow latest status keeps original audit untouched",()=>{
  assert.equal(c.processLatest(events)[0].status,"done");assert.equal(events.length,2);
 });
 test("irrelevant recall returns no results",()=>assert.equal(c.recall("完全無關",{...empty,memories:[{id:"m1",question:"主腦分工",purpose:"責任",versions:[{content:"GPT①發號"}]}]}).length,0));
+
+test("same ID with punctuation-only changed payload still blocks silent duplicate skip",()=>{
+ const first={originId:"G1-001",question:"主腦分工",content:item.content};
+ const newer={...item,content:item.content+"。"};
+ assert.throws(()=>c.planImport({...pack,items:[newer]},{...empty,candidates:[first]}),/來源版本衝突/);
+});
