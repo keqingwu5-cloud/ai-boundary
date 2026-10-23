@@ -39,7 +39,7 @@
       const oldByOrigin = existing.find(c => c.originId === item.id);
       const exact = same.find(c => simplify(c.content) === simplify(item.content));
       // Reused provenance ID with changed content is not an exact duplicate.
-      if(oldByOrigin && (simplify(oldByOrigin.question)!==key || simplify(oldByOrigin.content)!==simplify(item.content)))
+      if(oldByOrigin && (oldByOrigin.question!==item.question || oldByOrigin.content!==item.content))
         throw Error("相同來源 ID 對應不同內容：來源版本衝突，停止匯入並要求人工核對");
       if (oldByOrigin || exact || seen.has(key + "\u241f" + simplify(item.content))) {
         duplicated.push(item.id);
