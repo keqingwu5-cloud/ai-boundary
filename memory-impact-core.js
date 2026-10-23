@@ -96,6 +96,8 @@
      lostAuditEvents:delta("audit"),lostVersions};
    const warnings=[];
    if(differentVault)warnings.push("DIFFERENT_VAULT");
+   if(current.vaultId&&!incoming.vaultId)warnings.push("UNKNOWN_BACKUP_VAULT_ID");
+   if(current.revision!==undefined&&!Number.isSafeInteger(incoming.revision))warnings.push("UNKNOWN_BACKUP_REVISION");
    if(older)warnings.push("OLDER_REVISION");
    if(controlRollback.length)warnings.push("CONTROL_VERSION_ROLLBACK");
    if(Object.values(counts).some(x=>x>0))warnings.push("HISTORY_REMOVAL");
