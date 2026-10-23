@@ -25,9 +25,10 @@ jobs:
           node --check memory-controls-core.js
           node --check memory-workflow-core.js
           node --check memory-impact-core.js
+          node --check scripts/package-memory-v1.cjs
       - name: Existing and new isolated regression
         run: |
-          node --test tests/memory-controls-core.test.cjs tests/memory-workflow-core.test.cjs tests/memory-first-batch-safe-restore.test.cjs tests/memory-impact-core.test.cjs tests/memory-batch1-schema-integration.test.cjs
+          node --test tests/memory-controls-core.test.cjs tests/memory-workflow-core.test.cjs tests/memory-first-batch-safe-restore.test.cjs tests/memory-impact-core.test.cjs tests/memory-batch1-schema-integration.test.cjs tests/memory-standalone-package.test.cjs
 
   browser-e2e:
     runs-on: ubuntu-latest
