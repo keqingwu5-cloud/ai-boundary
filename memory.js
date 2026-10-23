@@ -93,6 +93,8 @@ $("reportInput").addEventListener("change",async e=>{
      typeof pkg.response_text!=="string"||!pkg.response_text.trim()||
      pkg.response_text.length>12000)throw Error("回報格式不符，或內容太長");
   resetForm();$("eventType").value="new_question";$("parentMemory").value="";
+  const rawSourceId=pkg.source_command.command_id||pkg.source_command.task_ref;
+  $("originSourceId").value=typeof rawSourceId==="string"?rawSourceId.slice(0,200):"";
   $("question").value=pkg.source_command.title.slice(0,3000);
   $("purpose").value=(pkg.source_command.completion_criteria||pkg.source_command.instructions||"待使用者重新界定目的").slice(0,3000);
   $("content").value=pkg.response_text;
@@ -123,13 +125,60 @@ function validateCandidate(c){
  if(c.eventType==="new_question"&&state.memories.some(m=>semantic(m.question)===semantic(c.question)&&semantic(m.versions.at(-1)?.content)===semantic(c.content)))return "已有相同問題與內容的已核准記憶，請勿重複建立。";
  return null;
 }
+const impactCore=globalThis.MemoryImpactCore;
+function candidateFromForm(){
+ const sourceId=$("originSourceId").value.trim();
+ return {id:uid(),eventType:$("eventType").value,parentId:$("parentMemory").value||null,
+   question:$("question").value.trim(),purpose:$("purpose").value.trim(),content:$("content").value.trim(),
+   evidence:$("evidence").value.trim(),reason:$("reason").value.trim(),proposer:$("proposer").value,
+   evidenceLevel:$("evidenceLevel").value,originId:sourceId||undefined,
+   originVerification:sourceId?"unverified_manual_claim":"not_provided",
+   directionRelation:$("directionRelation").value,createdAt:utc(),status:"pending",repairOf:revising,review:null};
+}
+function impactBeforeSave(c,expected){
+ if(!impactCore||!globalThis.MemoryControlsCore)throw Error("預演元件未載入：候選寫入已停止");
+ const control=globalThis.MemoryControlsCore.view(state.memoryControls);
+ const opts={directionRelation:c.directionRelation||"unassessed",
+   expectedVaultRevision:expected?.vaultRevision??state.revision,
+   expectedDirectionVersion:expected?.directionVersion??control.direction.version,
+   expectedThresholdVersion:expected?.thresholdVersion??control.threshold.version};
+ return impactCore.preview(state,c,opts);
+}
+function impactSummary(p){
+ const codes=[...p.blocks,...p.warnings];
+ return "唯讀預演："+(p.blocks.length?"阻擋此候選寫入":p.warnings.length?"待人工核對":"無已知結構衝突")+
+   "｜記憶庫版次 "+(p.vaultRevision??"未知")+"；方向 v"+p.directionVersion+"；門檻 v"+p.thresholdVersion+
+   "｜可能影響的既有記憶 "+p.affectedMemoryIds.length+" 筆"+
+   (codes.length?"｜風險代碼："+codes.join("、"):"")+
+   "。這不是語意驗證、正式核准或自動發射。";
+}
+$("previewMemoryImpact").addEventListener("click",()=>{
+ if(!state){feedback("請先解鎖記憶庫");return;}
+ try{$("memoryImpactPreview").textContent=impactSummary(impactBeforeSave(candidateFromForm()));}
+ catch(err){$("memoryImpactPreview").textContent="預演失敗："+err.message;}
+});
 $("candidateForm").addEventListener("submit",e=>{
  e.preventDefault();
- const c={id:uid(),eventType:$("eventType").value,parentId:$("parentMemory").value||null,question:$("question").value.trim(),purpose:$("purpose").value.trim(),content:$("content").value.trim(),evidence:$("evidence").value.trim(),reason:$("reason").value.trim(),proposer:$("proposer").value,evidenceLevel:$("evidenceLevel").value,createdAt:utc(),status:"pending",repairOf:revising,review:null};
+ if(!state){feedback("請先解鎖記憶庫");return;}
+ const c=candidateFromForm();
  const problem=validateCandidate(c);if(problem){feedback(problem);return;}
+ let impact;
+ try{impact=impactBeforeSave(c);}catch(err){feedback("候選預演失敗："+err.message);return;}
+ $("memoryImpactPreview").textContent=impactSummary(impact);
+ if(!impact.canSaveCandidate){feedback("候選寫入已阻擋；請先處理來源／父節點／版本衝突。");return;}
  if(c.eventType==="new_question"&&state.memories.some(m=>semantic(m.question)===semantic(c.question))&&!confirm("記憶庫已有相同問題。確定要另外建立新問題，而不是修正既有答案？"))return;
- queueChange(()=>{const again=validateCandidate(c);if(again)throw Error(again);
- state.candidates.unshift(c);evt("candidate.created",c.id,names[c.eventType]+"・"+c.question.slice(0,56));resetForm();selectTab("review");return "候選已加密儲存，等待你的審核。";});
+ queueChange(()=>{
+   const again=validateCandidate(c);if(again)throw Error(again);
+   const latest=impactBeforeSave(c,impact);
+   if(!latest.canSaveCandidate)throw Error("候選基準已變更或衝突，請重新預演");
+   c.impactPreview={schema:latest.schema,outcome:latest.outcome,directionVersion:latest.directionVersion,
+     thresholdVersion:latest.thresholdVersion,vaultRevision:latest.vaultRevision,
+     directionRelation:latest.directionRelation,warnings:latest.warnings};
+   state.candidates.unshift(c);evt("candidate.created",c.id,names[c.eventType]+"・"+c.question.slice(0,56));
+   resetForm();$("memoryImpactPreview").textContent="已建立待審候選；下次提出分支請重新預演。";
+   selectTab("review");
+   return "候選已加密儲存，等待你的審核（未自動核准、封存或發射）。";
+ });
 });
 function reviewApproval(c){
  const parent=parentOf(c.parentId);
@@ -175,6 +224,8 @@ function renderReviews(){const box=$("reviewList");box.replaceChildren();const c
  appendText(more,"p","","證據／未知："+(c.evidence||"未提供"));
  if(c.parentId)appendText(more,"p","small","來源記憶："+c.parentId);
  if(c.repairOf)appendText(more,"p","small","修復原候選："+c.repairOf);
+ if(c.originId)appendText(more,"p","small","原始來源 ID（未獨立驗證）："+c.originId);
+ if(c.impactPreview)appendText(more,"p","small","候選裂變預演："+c.impactPreview.outcome+"；方向版本 "+c.impactPreview.directionVersion+"；門檻版本 "+c.impactPreview.thresholdVersion+"；仍須人工審核。");
  if(c.review)appendText(more,"p","small","審核："+c.review.action+"；理由："+c.review.reason+"；"+fmtDate(c.review.at));
  card.append(more);
  const buttons=appendText(card,"div","actions");
@@ -316,8 +367,14 @@ $("memoryPackInput").addEventListener("change",async e=>{
       question:item.question,purpose:item.purpose,content:item.content,
       evidence:item.evidence,reason:item.reason+(possibleConflictWith.length?"；同題不同版本需人工比較："+possibleConflictWith.join(","):""),
       proposer:"GPT1",evidenceLevel:item.evidenceLevel||"hypothesis",
-      createdAt:utc(),status:"pending",repairOf:null,review:null};
+      createdAt:utc(),status:"pending",repairOf:null,review:null,
+      originVerification:"unverified_manual_claim",directionRelation:"unassessed"};
     const problem=validateCandidate(c);if(problem)throw Error(problem);
+    const impact=impactBeforeSave(c);
+    if(!impact.canSaveCandidate)throw Error("記憶包來源或版本衝突，停止匯入");
+    c.impactPreview={schema:impact.schema,outcome:impact.outcome,directionVersion:impact.directionVersion,
+      thresholdVersion:impact.thresholdVersion,vaultRevision:impact.vaultRevision,
+      directionRelation:impact.directionRelation,warnings:impact.warnings};
     state.candidates.unshift(c);evt("candidate.created",c.id,"GPT①記憶包 "+item.id+"・"+c.question.slice(0,50));
    }
    evt("memory.pack_imported",pack.schema,"新增 "+next.accepted.length+" 筆，跳過 "+next.duplicated.length+" 筆，待人工比較 "+next.conflicts.length+" 筆");
