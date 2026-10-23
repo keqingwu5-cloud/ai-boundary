@@ -504,3 +504,39 @@ test("FIXED PRE-MERGE: unsupported Web Locks fails closed for candidate writes a
    await new Promise(resolve=>server.close(resolve));
  }
 });
+
+test("G2 isolation negative test: private bundle CSP blocks attempted outbound public-origin fetch", {timeout:70000},async()=>{
+ const os=require("node:os"),cp=require("node:child_process");
+ const tmp=fs.mkdtempSync(path.join(os.tmpdir(),"synthetic-private-csp-"));
+ const bundle=path.join(tmp,"bundle");
+ cp.execFileSync(process.execPath,[path.join(root,"scripts/package-memory-v1.cjs"),"--out",bundle]);
+ const privateSite=startServer(bundle),publicSite=startServer(root);
+ await new Promise(resolve=>privateSite.server.listen(0,"127.0.0.1",resolve));
+ await new Promise(resolve=>publicSite.server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+  browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+  const context=await browser.newContext();
+  const page=await context.newPage();
+  const target="http://127.0.0.1:"+publicSite.server.address().port+"/launcher.html";
+  const csp=[];
+  page.on("console",m=>{if(m.type()==="error"&&m.text().includes("Content Security Policy"))csp.push(m.text());});
+  await page.goto("http://127.0.0.1:"+privateSite.server.address().port+"/memory.html");
+  const before=publicSite.hits.length;
+  const blocked=await page.evaluate(async target=>{
+    try{await fetch(target,{method:"POST",body:"SYNTHETIC-DO-NOT-TRANSMIT"});return false;}
+    catch(error){return error instanceof TypeError||error.name==="TypeError";}
+  },target);
+  assert.equal(blocked,true,"connect-src none must reject attempted transport");
+  assert.equal(publicSite.hits.length,before,"public server must receive zero attempted payload requests");
+  const meta=await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute("content");
+  assert.match(meta,/connect-src 'none'/);
+  assert.match(meta,/form-action 'none'/);
+  await context.close();
+ }finally{
+  if(browser)await browser.close();
+  await new Promise(resolve=>privateSite.server.close(resolve));
+  await new Promise(resolve=>publicSite.server.close(resolve));
+  fs.rmSync(tmp,{recursive:true,force:true});
+ }
+});
