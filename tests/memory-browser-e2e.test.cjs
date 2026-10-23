@@ -345,3 +345,50 @@ test("PRE-MERGE: real AES legacy backup survives migration, failed authenticated
    await new Promise(resolve=>server.close(resolve));
  }
 });
+
+test("PRE-MERGE: injected storage quota error and wrong backup password never corrupt existing AES vault", {timeout:80000},async()=>{
+ const {server}=startServer();
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+   browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+   const context=await browser.newContext({acceptDownloads:true});
+   const page=await context.newPage();
+   page.on("dialog",d=>d.accept(d.type()==="prompt"?"intentionally-wrong-secret":undefined));
+   await page.goto("http://127.0.0.1:"+server.address().port+"/memory.html");
+   await page.locator("#passphrase").fill(PASS);
+   await page.locator("#confirmPassphrase").fill(PASS);
+   await page.locator("#unlockButton").click();await unlocked(page);
+   const firstRaw=await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+   const backup=await downloadJSON(page);
+   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),firstRaw);
+   await page.evaluate(()=>{
+     const original=Storage.prototype.setItem;
+     Storage.prototype.setItem=function(k,value){
+       if(k==="aiBoundary.privateMemory.v1")throw new DOMException("Synthetic quota failure","QuotaExceededError");
+       return original.call(this,k,value);
+     };
+   });
+   await submit(page,"合成配額寫入失敗","SYNTHETIC_QUOTA_PROTECTION","QUOTA-E2E-ONE");
+   await page.waitForFunction(()=>document.getElementById("feedback")?.textContent.includes("操作未儲存"));
+   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),firstRaw,
+     "quota failure must preserve previous authenticated ciphertext");
+   await page.reload();
+   await page.locator("#passphrase").fill(PASS);
+   await page.locator("#unlockButton").click();await unlocked(page);
+   assert.equal(await page.locator("#countPending").innerText(),"0");
+   assert.equal(await page.locator("#countMemories").innerText(),"0");
+   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),firstRaw);
+
+   // A syntactically valid self-backup with an intentionally incorrect passphrase
+   // must not pass AES-GCM authentication nor modify the current encrypted blob.
+   await page.locator("#backupInput").setInputFiles({name:"synthetic-real-backup.json",
+     mimeType:"application/json",buffer:Buffer.from(backup)});
+   await page.waitForFunction(()=>document.getElementById("feedback")?.textContent.includes("還原失敗"));
+   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),firstRaw);
+   await context.close();
+ }finally{
+   if(browser)await browser.close();
+   await new Promise(resolve=>server.close(resolve));
+ }
+});
