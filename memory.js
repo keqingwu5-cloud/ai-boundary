@@ -14,7 +14,58 @@ function readEnvelope(raw){const e=JSON.parse(raw);if(e.format!==FORMAT||e.kdf!=
 async function derive(password,derivedSalt){const material=await crypto.subtle.importKey("raw",encoder.encode(password),"PBKDF2",false,["deriveKey"]);return crypto.subtle.deriveKey({name:"PBKDF2",hash:"SHA-256",salt:derivedSalt,iterations:ROUNDS},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);}
 function fresh(){const at=utc();return {schema:VAULT,vaultId:uid(),revision:0,updatedAt:at,createdAt:at,memories:[],candidates:[],audit:[]};}
 function migrateMeta(obj){if(obj.vaultId&&Number.isSafeInteger(obj.revision)&&obj.revision>=0)return false;obj.vaultId=uid();obj.revision=0;obj.updatedAt=obj.updatedAt||obj.createdAt||utc();return true;}
-function validState(obj){return obj&&obj.schema===VAULT&&Array.isArray(obj.memories)&&Array.isArray(obj.candidates)&&Array.isArray(obj.audit)&&obj.memories.length<2500&&obj.candidates.length<10000&&obj.audit.length<30000;}
+function validState(obj){
+ const record=x=>x!==null&&typeof x==="object"&&!Array.isArray(x);
+ const str=x=>typeof x==="string";
+ const id=x=>str(x)&&x.length>0&&x.length<=200;
+ const nullableId=x=>x==null||id(x);
+ const timestamp=x=>str(x)&&Number.isFinite(Date.parse(x));
+ const unique=xs=>new Set(xs).size===xs.length;
+ if(!record(obj)||obj.schema!==VAULT||
+   !Array.isArray(obj.memories)||!Array.isArray(obj.candidates)||!Array.isArray(obj.audit)||
+   obj.memories.length>=2500||obj.candidates.length>=10000||obj.audit.length>=30000)return false;
+ if(obj.vaultId!==undefined&&!id(obj.vaultId))return false;
+ if(obj.revision!==undefined&&(!Number.isSafeInteger(obj.revision)||obj.revision<0))return false;
+ if(obj.createdAt!==undefined&&!timestamp(obj.createdAt))return false;
+ if(obj.updatedAt!==undefined&&!timestamp(obj.updatedAt))return false;
+ const memories=obj.memories,candidates=obj.candidates,audit=obj.audit;
+ if(memories.some(x=>!record(x))||candidates.some(x=>!record(x))||audit.some(x=>!record(x)))return false;
+ if(!unique(memories.map(x=>x.id))||!unique(candidates.map(x=>x.id))||!unique(audit.map(x=>x.id)))return false;
+ const memoryIds=new Set(memories.map(x=>x.id));
+ const candidateIds=new Set(candidates.map(x=>x.id));
+ for(const m of memories){
+  if(!record(m)||!id(m.id)||!str(m.question)||!str(m.purpose)||
+    !nullableId(m.parentId)||!Array.isArray(m.versions)||!m.versions.length||
+    m.versions.length>10000)return false;
+  if(m.parentId&&!memoryIds.has(m.parentId))return false;
+  for(let i=0;i<m.versions.length;i++){
+   const v=m.versions[i];
+   if(!record(v)||v.number!==i+1||!str(v.content)||!str(v.evidence)||
+     !str(v.reason)||!str(v.source)||!timestamp(v.approvedAt)||
+     (v.candidateId!==undefined&&!candidateIds.has(v.candidateId)))return false;
+  }
+ }
+ for(const c of candidates){
+  if(!record(c)||!id(c.id)||!str(c.eventType)||!nullableId(c.parentId)||
+    !str(c.question)||!str(c.purpose)||!str(c.content)||!str(c.evidence)||
+    !str(c.reason)||!str(c.proposer)||!str(c.evidenceLevel)||
+    !timestamp(c.createdAt)||!["pending","approved","rejected"].includes(c.status)||
+    (c.parentId&&!memoryIds.has(c.parentId))||
+    (c.repairOf!=null&&!candidateIds.has(c.repairOf)))return false;
+  if(c.review!=null&&(!record(c.review)||!str(c.review.action)||
+    !str(c.review.reason)||!timestamp(c.review.at)))return false;
+ }
+ for(const a of audit){
+  if(!record(a)||!id(a.id)||!str(a.kind)||!id(a.ref)||
+    !str(a.summary)||!timestamp(a.at))return false;
+ }
+ if(obj.memoryControls!==undefined){
+  const ctrl=globalThis.MemoryControlsCore;
+  if(!ctrl)return false;
+  try{ctrl.view(obj.memoryControls);}catch(_){return false;}
+ }
+ return true;
+}
 async function decryptEnvelope(e,password){const sl=unb64(e.salt),iv=unb64(e.iv);if(sl.length!==16||iv.length!==12)throw Error("bad_nonce");const k=await derive(password,sl);const plaintext=await crypto.subtle.decrypt({name:"AES-GCM",iv},k,unb64(e.payload));const parsed=JSON.parse(decoder.decode(plaintext));if(!validState(parsed))throw Error("invalid_vault");return {data:parsed,key:k,salt:sl};}
 async function encryptSnapshot(snapshot,vaultKey,vaultSalt){
  if(!vaultKey||!snapshot||!vaultSalt)throw Error("locked");
