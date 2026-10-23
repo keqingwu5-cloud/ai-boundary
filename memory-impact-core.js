@@ -71,5 +71,39 @@
      blocks:[...new Set(blocks)],warnings:[...new Set(warnings)]
    };
  }
- return {preview};
+ function previewRestore(current,incoming){
+   if(!current||!incoming||!["memories","candidates","audit"].every(k=>
+     Array.isArray(current[k])&&Array.isArray(incoming[k])))throw Error("restore_impact_input_invalid");
+   const ids=(list)=>new Set(list.map(x=>x&&x.id).filter(x=>typeof x==="string"));
+   const delta=(key)=>{
+     const keep=ids(incoming[key]);
+     return current[key].filter(x=>x&&typeof x.id==="string"&&!keep.has(x.id)).length;
+   };
+   let lostVersions=0;
+   const map=new Map(incoming.memories.filter(x=>x&&typeof x.id==="string").map(x=>[x.id,x]));
+   for(const m of current.memories){
+     if(!m||!Array.isArray(m.versions))continue;
+     const newer=map.get(m.id);
+     if(!newer||!Array.isArray(newer.versions)){lostVersions+=m.versions.length;continue;}
+     const recognized=new Set(newer.versions.map(x=>x&&x.number));
+     lostVersions+=m.versions.filter(x=>!recognized.has(x?.number)).length;
+   }
+   const differentVault=!!(current.vaultId&&incoming.vaultId&&current.vaultId!==incoming.vaultId);
+   const older=Number.isSafeInteger(current.revision)&&Number.isSafeInteger(incoming.revision)&&incoming.revision<current.revision;
+   const controlRollback=["direction","threshold"].filter(k=>
+     (incoming.memoryControls?.[k]?.version??0)<(current.memoryControls?.[k]?.version??0));
+   const counts={lostMemories:delta("memories"),lostCandidates:delta("candidates"),
+     lostAuditEvents:delta("audit"),lostVersions};
+   const warnings=[];
+   if(differentVault)warnings.push("DIFFERENT_VAULT");
+   if(older)warnings.push("OLDER_REVISION");
+   if(controlRollback.length)warnings.push("CONTROL_VERSION_ROLLBACK");
+   if(Object.values(counts).some(x=>x>0))warnings.push("HISTORY_REMOVAL");
+   return {schema:"ai-boundary.memory-restore-preview.v1",operation:"restore",
+     requiresHumanApproval:true,willMerge:false,
+     currentVaultId:current.vaultId||null,incomingVaultId:incoming.vaultId||null,
+     currentRevision:current.revision??null,incomingRevision:incoming.revision??null,
+     controlsRollingBack:controlRollback,counts,warnings};
+ }
+ return {preview,previewRestore};
 });
