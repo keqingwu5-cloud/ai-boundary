@@ -11,14 +11,14 @@ const root=path.resolve(__dirname,"..");
 const types={".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8"};
 const allowed=new Set(["memory.html","memory.js","memory-controls-core.js","memory-workflow-core.js","memory-impact-core.js","launcher.html","launcher.js"]);
 const PASS="synthetic-passphrase-never-user-data-1234";
-function startServer(){
+function startServer(serveRoot=root){
  const hits=[];
  const server=http.createServer((req,res)=>{
    const file=decodeURIComponent((req.url||"").split("?")[0]).replace(/^\//,"");
    hits.push(file);
    if(!allowed.has(file)){res.writeHead(404);res.end("not found");return;}
    try{
-     const bytes=fs.readFileSync(path.join(root,file));
+     const bytes=fs.readFileSync(path.join(serveRoot,file));
      res.writeHead(200,{"Content-Type":types[path.extname(file)]||"text/plain","Cache-Control":"no-store"});
      res.end(bytes);
    }catch(err){res.writeHead(404);res.end("missing");}
@@ -203,5 +203,41 @@ test("two tabs: stale memory-direction edit is rejected without overwriting the 
  }finally{
    if(browser)await browser.close();
    await new Promise(resolve=>server.close(resolve));
+ }
+});
+
+test("dedicated-origin candidate bundle keeps a usable vault while public-platform origin cannot read it", {timeout:100000}, async()=>{
+ const os=require("node:os"),cp=require("node:child_process");
+ const tmp=fs.mkdtempSync(path.join(os.tmpdir(),"synthetic-memory-isolated-origin-"));
+ const folder=path.join(tmp,"bundle");
+ cp.execFileSync(process.execPath,[path.join(root,"scripts/package-memory-v1.cjs"),"--out",folder]);
+ const privateSite=startServer(folder),publicSite=startServer(root);
+ await new Promise(resolve=>privateSite.server.listen(0,"127.0.0.1",resolve));
+ await new Promise(resolve=>publicSite.server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+   browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+   const context=await browser.newContext();
+   const page=await context.newPage();
+   const privateUrl="http://127.0.0.1:"+privateSite.server.address().port;
+   const publicUrl="http://127.0.0.1:"+publicSite.server.address().port;
+   await page.goto(privateUrl+"/memory.html");
+   await page.locator("#passphrase").fill(PASS);
+   await page.locator("#confirmPassphrase").fill(PASS);
+   await page.locator("#unlockButton").click();await unlocked(page);
+   const privateCipher=await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+   assert.ok(privateCipher&&privateCipher.includes('"AES-256-GCM"'));
+   await page.goto(publicUrl+"/launcher.html",{waitUntil:"domcontentloaded"});
+   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),null);
+   await page.goto(privateUrl+"/memory.html",{waitUntil:"domcontentloaded"});
+   await page.locator("#passphrase").fill(PASS);
+   await page.locator("#unlockButton").click();await unlocked(page);
+   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),privateCipher);
+   await context.close();
+ }finally{
+   if(browser)await browser.close();
+   await new Promise(resolve=>privateSite.server.close(resolve));
+   await new Promise(resolve=>publicSite.server.close(resolve));
+   fs.rmSync(tmp,{recursive:true,force:true});
  }
 });
