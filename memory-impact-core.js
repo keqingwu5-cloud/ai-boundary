@@ -13,10 +13,11 @@
  function preview(state,candidate,options={}){
    if(!state||!Array.isArray(state.memories)||!Array.isArray(state.candidates)||
       !candidate||!allowed.has(candidate.eventType))throw Error("impact_input_invalid");
-   const blocks=[],warnings=[],impacted=[];
+   const blocks=[],warnings=[],impacted=[],affectedCandidates=[];
    const controls=state.memoryControls;
    const directionVersion=controls?.direction?.version??0;
    const thresholdVersion=controls?.threshold?.version??0;
+   if(controls!==undefined&&(!controls||!controls.direction||!controls.threshold))blocks.push("CONTROLS_INVALID");
    if(!Number.isSafeInteger(directionVersion)||!Number.isSafeInteger(thresholdVersion)||
       directionVersion<0||thresholdVersion<0)blocks.push("CONTROLS_INVALID");
    const relation=options.directionRelation||"unassessed";
@@ -47,7 +48,7 @@
        if(same(prior.question,candidate.question)&&same(prior.content,candidate.content))
          warnings.push("EXACT_ORIGIN_DUPLICATE");
        else blocks.push("SOURCE_ID_CONTENT_CONFLICT");
-       impacted.push(prior.id);
+       affectedCandidates.push(prior.id);
      }
    } else warnings.push("SOURCE_ID_UNVERIFIED");
    if(relation==="unassessed")warnings.push("DIRECTION_NOT_ASSESSED");
@@ -66,7 +67,8 @@
      vaultRevision:Number.isSafeInteger(state.revision)?state.revision:null,
      directionVersion,thresholdVersion,directionRelation:relation,
      parentId,originId:originId||null,
-     affectedMemoryIds:impacted,blocks:[...new Set(blocks)],warnings:[...new Set(warnings)]
+     affectedMemoryIds:impacted,affectedCandidateIds:affectedCandidates,
+     blocks:[...new Set(blocks)],warnings:[...new Set(warnings)]
    };
  }
  return {preview};
