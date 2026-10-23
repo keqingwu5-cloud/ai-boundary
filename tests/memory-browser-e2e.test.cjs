@@ -392,3 +392,63 @@ test("PRE-MERGE: injected storage quota error and wrong backup password never co
    await new Promise(resolve=>server.close(resolve));
  }
 });
+
+test("PRE-MERGE P0 FINDING: simultaneous tab writes can overwrite after both passed the stale check", {timeout:100000},async()=>{
+ const {server}=startServer();
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+   browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+   const context=await browser.newContext();
+   const url="http://127.0.0.1:"+server.address().port+"/memory.html";
+   const first=await context.newPage();
+   await first.goto(url);
+   await first.locator("#passphrase").fill(PASS);
+   await first.locator("#confirmPassphrase").fill(PASS);
+   await first.locator("#unlockButton").click();await unlocked(first);
+   const second=await context.newPage();
+   await second.goto(url);
+   await second.locator("#passphrase").fill(PASS);
+   await second.locator("#unlockButton").click();await unlocked(second);
+   const initial=await first.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+   // Hold both AES encryptions *after* their separate last-known-value preflight checks,
+   // then commit one at a time to force the non-atomic check-then-write race.
+   for(const page of [first,second]){
+     await page.evaluate(()=>{
+       const original=SubtleCrypto.prototype.encrypt;
+       SubtleCrypto.prototype.encrypt=function(...args){
+         window.__heldEncrypt=true;
+         return new Promise((resolve,reject)=>{
+           window.__releaseEncrypt=()=>original.apply(this,args).then(resolve,reject);
+         });
+       };
+     });
+     await page.locator('[data-tab="controls"]').click();
+     await page.locator("#memoryControlReason").fill("合成跨分頁競態驗證");
+   }
+   await first.locator("#memoryDirectionEditor").fill("FIRST_TAB_COMMITTED_DIRECTION");
+   await second.locator("#memoryDirectionEditor").fill("SECOND_TAB_STALE_DIRECTION");
+   await Promise.all([first.locator("#saveMemoryDirection").click(),second.locator("#saveMemoryDirection").click()]);
+   await Promise.all([first.waitForFunction(()=>window.__heldEncrypt===true),
+                      second.waitForFunction(()=>window.__heldEncrypt===true)]);
+   assert.equal(await first.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),initial);
+   await first.evaluate(()=>window.__releaseEncrypt());
+   await first.waitForFunction(()=>document.getElementById("memoryDirectionVersion")?.textContent.includes("版本 1"));
+   const afterFirst=await first.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+   assert.notEqual(afterFirst,initial);
+   assert.equal((await decryptedSyntheticEnvelope(afterFirst)).memoryControls.direction.text,
+     "FIRST_TAB_COMMITTED_DIRECTION");
+   await second.evaluate(()=>window.__releaseEncrypt());
+   await second.waitForFunction(()=>document.getElementById("memoryDirectionVersion")?.textContent.includes("版本 1"));
+   const afterSecond=await first.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+   const finallyStored=await decryptedSyntheticEnvelope(afterSecond);
+   assert.equal(finallyStored.memoryControls.direction.text,"SECOND_TAB_STALE_DIRECTION");
+   assert.equal(finallyStored.memoryControls.history.length,1);
+   // PASS means a documented P0 lost-update vulnerability was reproduced, NOT fixed.
+   // Do not merge/deploy this design until write consistency is addressed.
+   await context.close();
+ }finally{
+   if(browser)await browser.close();
+   await new Promise(resolve=>server.close(resolve));
+ }
+});
