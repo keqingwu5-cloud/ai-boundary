@@ -37,6 +37,7 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 </style>
 <script src="./memory-workflow-core.js?v=20261013" defer></script>
 <script src="./memory-controls-core.js?v=20261022" defer></script>
+<script src="./memory-impact-core.js?v=20261023" defer></script>
 <script src="./memory.js?v=20261022controls01" defer></script>
 </head>
 <body>
@@ -92,9 +93,15 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 <div><label for="proposer">提出者（人工標示，非身份驗證）</label><select id="proposer"><option value="user">使用者</option><option value="GPT1">GPT①</option><option value="GPT2">GPT②</option><option value="BOT3">BOT③</option><option value="other">其他</option></select></div>
 <div><label for="evidenceLevel">證據層級</label><select id="evidenceLevel"><option value="hypothesis">假設／待驗證</option><option value="fact">事實／有原始證據</option><option value="derived">計算或直接推導</option><option value="inference">推論</option><option value="forecast">條件預測</option></select></div>
 </div>
+<div class="cols">
+<div><label for="originSourceId">原始來源 ID（選填；人工填寫或從發射回報帶入，尚未驗證身分）</label><input id="originSourceId" maxlength="200" placeholder="command_id／task_id；不能以文字相似代替同一 ID"></div>
+<div><label for="directionRelation">與目前記憶方向的關係（人工標示，不會自動判定）</label><select id="directionRelation"><option value="unassessed">尚未評估</option><option value="aligned">人工判斷符合目前方向</option><option value="divergent_keep">方向不同但值得保留為候選</option></select></div>
+</div>
 <p class="small" id="typeHint">同一問題可修正答案，問題定義改變時應另建分支。</p>
+<div class="actions"><button type="button" id="previewMemoryImpact">先預演裂變與版本影響（唯讀）</button></div>
+<div id="memoryImpactPreview" class="help" role="status" aria-live="polite">尚未預演。本預演不更動加密記憶，也不自動核准或傳送資料。</div>
 <div class="actions"><button class="primary" type="submit">提交候選並加密儲存</button><button type="button" id="importReport">匯入發射器 AI 回報 JSON</button><button type="button" id="importMemoryPack">批次匯入 GPT① 記憶候選包</button><button type="button" id="resetProposal">清除表單</button></div>
-<p class="small">匯入 AI 回報只會填入草稿表單，不會自動核准或寫入權威記憶。請自行確認問題定義、目的、事件類別與資料來源。</p>
+<p class="small">預演只檢查結構、來源及版本衝突，無法自動判斷語意或真正授權。即使與方向不同，候選仍可保留待人工審核；發射器來源屬人工聲稱，無可信 ACK 不得稱為已驗證送達。</p>
 </form></div>
 </section>
 <section id="tab-review" role="tabpanel" hidden>
