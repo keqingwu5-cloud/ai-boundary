@@ -111,7 +111,7 @@ test("full real browser loop: controls, candidate, human approval, AES backup, c
    assert.equal(await page.locator("#countPending").innerText(),"0");
    await page.locator('[data-tab="controls"]').click();
    assert.match(await page.locator("#memoryDirectionEditor").inputValue(),/廣度探索/);
-   assert.match(await page.locator("#memoryThresholdEditor").inputValue(),/人工核准/);
+   assert.match(await page.locator("#memoryThresholdEditor").inputValue(),/不得自動核准/);
    assert.equal(errors.length,0,"browser JS errors: "+errors.join(" | "));
    const unexpected=hits.filter(x=>!allowed.has(x)&&x!=="favicon.ico");
    assert.deepEqual(unexpected,[],"unexpected relative resources");
