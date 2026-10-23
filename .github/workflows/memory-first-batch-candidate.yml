@@ -27,9 +27,10 @@ jobs:
           node --check memory-impact-core.js
           node --check scripts/package-memory-v1.cjs
           node --check scripts/verify-memory-v1-bundle.cjs
+          node --check scripts/check-memory-private-origin.cjs
       - name: Existing and new isolated regression
         run: |
-          node --test tests/memory-controls-core.test.cjs tests/memory-workflow-core.test.cjs tests/memory-first-batch-safe-restore.test.cjs tests/memory-impact-core.test.cjs tests/memory-batch1-schema-integration.test.cjs tests/memory-standalone-package.test.cjs tests/memory-write-lock.test.cjs tests/memory-toctou-repro.test.cjs tests/memory-isolated-origin-policy.test.cjs
+          node --test tests/memory-controls-core.test.cjs tests/memory-workflow-core.test.cjs tests/memory-first-batch-safe-restore.test.cjs tests/memory-impact-core.test.cjs tests/memory-batch1-schema-integration.test.cjs tests/memory-standalone-package.test.cjs tests/memory-write-lock.test.cjs tests/memory-toctou-repro.test.cjs tests/memory-isolated-origin-policy.test.cjs tests/memory-private-origin-preflight.test.cjs
 
   browser-e2e:
     runs-on: ubuntu-latest
