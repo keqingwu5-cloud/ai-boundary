@@ -58,5 +58,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Fail closed: CI is not identity, independent G2 or real-origin proof
+      - name: 'Fail closed: CI is not identity, independent G2 or real-origin proof'
         run: node scripts/memory-release-gate.cjs --strict
