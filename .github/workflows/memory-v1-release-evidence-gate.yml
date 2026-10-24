@@ -1,0 +1,62 @@
+name: Memory V1 evidence inventory and release block
+on:
+  push:
+    branches:
+      - candidate/memory-v1-gate-automation-20261024
+      - integration/memory-v1-predeploy-20261023
+    paths:
+      - 'scripts/memory-release-gate.cjs'
+      - 'tests/memory-release-gate.test.cjs'
+      - 'docs/memory-release-gate-automation-20261024.md'
+      - '.github/workflows/memory-v1-release-evidence-gate.yml'
+  pull_request:
+    branches:
+      - main
+      - integration/memory-v1-predeploy-20261023
+    paths:
+      - 'memory*.js'
+      - 'memory.html'
+      - 'scripts/memory-release-gate.cjs'
+      - 'scripts/check-memory-private-origin.cjs'
+      - 'tests/memory*.test.cjs'
+      - 'docs/memory-release-gate-automation-20261024.md'
+      - '.github/workflows/memory-v1-release-evidence-gate.yml'
+permissions:
+  contents: read
+jobs:
+  candidate-evidence:
+    name: Candidate evidence inventory (NO_GO is expected)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify release guard tests
+        run: node --test tests/memory-release-gate.test.cjs
+      - name: Generate append-only release evidence inventory
+        run: node scripts/memory-release-gate.cjs --out gate-evidence.json
+      - name: Upload non-sensitive gate inventory (candidate only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory-v1-gate-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: gate-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+  block-main-release:
+    name: Production release gate (NO_GO until independent review)
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 'Fail closed: CI is not identity, independent G2 or real-origin proof'
+        run: node scripts/memory-release-gate.cjs --strict
