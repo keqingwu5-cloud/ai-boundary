@@ -1,0 +1,17 @@
+name: Isolated TCVL handoff adapter checks
+on:
+  push:
+    branches: [test/tcvl-handoff-adapter-isolated-20261025]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  adapter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/tcvl-handoff-adapter.test.cjs tests/tcvl-data-room-core.test.cjs tests/tcvl-relay-core.test.cjs tests/tcvl-reporting-core.test.cjs tests/handoff-contract.test.cjs
