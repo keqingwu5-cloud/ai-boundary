@@ -270,3 +270,13 @@ test("only the self workflow is excluded: external failures and human review fin
  assert.equal(result.report.review_events.length,0);
  assert.equal(result.report.action_required,"NONE");
 });
+
+test("public candidate workflow cannot resolve an external Notion credential on any event",()=>{
+ const source=fs.readFileSync(path.join(__dirname,"../.github/workflows/monitor-15min-candidate.yml"),"utf8");
+ assert.match(source,/\bNOTION_MONITOR_TOKEN:\s*''/);
+ assert.doesNotMatch(source,/\$\{\{\s*secrets\./);
+ assert.doesNotMatch(source,/NOTION_MONITOR_TOKEN:\s*\$\{\{/);
+ assert.match(source,/\bcontents:\s*read\b/);
+ assert.match(source,/\bissues:\s*read\b/);
+ assert.doesNotMatch(source,/^\s*(?:contents|issues|pull-requests|actions|deployments):\s*write\b/m);
+});
