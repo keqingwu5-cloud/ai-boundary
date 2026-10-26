@@ -17,6 +17,7 @@ on:
       - 'tests/monitor-operational-baseline.test.cjs'
       - 'docs/monitor-15min-candidate-20261027.md'
       - 'docs/monitor-15min-security-g2-handoff-20261027.md'
+      - 'docs/monitor-purpose-baseline-r7-20261027.md'
       - '.github/workflows/monitor-15min-candidate.yml'
 
 permissions:
