@@ -199,3 +199,11 @@ test("old-created but newly retried workflow may still be captured from latest c
  assert.equal(result.events.filter(x=>x.kind==="run").length,1);
  assert.match(result.events.find(x=>x.kind==="run").key,/attempt-4/);
 });
+
+test("Notion 2026 in_trash is treated as a reviewable change",()=>{
+ const page=m.normalizeNotion({id:uuid,last_edited_time:NOW,in_trash:true},"page");
+ assert.equal(page.priority,"REVIEW_UNVERIFIED");
+ assert.equal(page.ref.includes(uuid),false);
+ const archived=m.normalizeNotion({id:uuid,last_edited_time:NOW,archived:true},"page");
+ assert.equal(archived.priority,"REVIEW_UNVERIFIED");
+});
