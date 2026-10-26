@@ -70,9 +70,10 @@ function seedState(){
 function valid(s){ return s && Array.isArray(s.brains) && Array.isArray(s.nodes) && Array.isArray(s.links) && Array.isArray(s.history) && s.brains.some(b => b.id === 'main'); }
 // Corrupt persisted data is quarantined in place, not silently replaced with seed data.
 let blockedStoredState = false, preservedRawState = null;
+let expectedMainRaw = null; // Raw main snapshot last loaded or persisted in this tab.
 function load(){
   let raw;
-  try { raw = localStorage.getItem(KEY); }
+  try { raw = localStorage.getItem(KEY); expectedMainRaw = raw; }
   catch(e){ blockedStoredState = true; return null; }
   if (raw === null) return null;
   try {
@@ -134,11 +135,12 @@ let saveT = 0;
 function save(now = false){
   if (blockedStoredState) return false; // UI warning is installed after startup.
   clearTimeout(saveT);
-  const result = commitBrainImport(localStorage, KEY, UKEY, state, undoStack.slice(-12));
+  const result = commitBrainImport(localStorage, KEY, UKEY, state, undoStack.slice(-12), expectedMainRaw);
   if (!result.ok){
     toast('⚠ 儲存未完成：' + result.reason + (result.rollbackOk ? '' : '（回復失敗，請保留備份）'));
     return false;
   }
+  expectedMainRaw = JSON.stringify(state);
   flashSaved();
   return true;
 }
@@ -149,13 +151,14 @@ function commitChange(proposed, nextUndo, successLabel){
   if (blockedStoredState){ toast('⚠ 舊存檔待保護，禁止自動覆寫'); return false; }
   const checked = validateBrainImport(proposed);
   if (!checked.ok){ toast('⚠ 變更未保存：' + checked.reason); return false; }
-  const result = commitBrainImport(localStorage, KEY, UKEY, proposed, nextUndo);
+  const result = commitBrainImport(localStorage, KEY, UKEY, proposed, nextUndo, expectedMainRaw);
   if (!result.ok){
     toast('⚠ 變更未保存：' + result.reason + (result.rollbackOk ? '' : '（回復失敗，請保留備份）'));
     return false;
   }
   state = proposed;
   undoStack = nextUndo;
+  expectedMainRaw = JSON.stringify(proposed);
   flashSaved();
   if (successLabel) toast(successLabel);
   return true;
@@ -390,7 +393,7 @@ function importJSON(obj){
     return false;
   }
   const nextUndo = [...undoStack, JSON.stringify(state)].slice(-12);
-  const written = commitBrainImport(localStorage, KEY, UKEY, proposed, nextUndo);
+  const written = commitBrainImport(localStorage, KEY, UKEY, proposed, nextUndo, expectedMainRaw);
   if (!written.ok){
     toast('⚠ 匯入未完成：' + written.reason + (written.rollbackOk ? '（原資料未變或已回復）' : '（回復失敗，請保留備份）'));
     return false;
@@ -398,6 +401,7 @@ function importJSON(obj){
   clearTimeout(saveT);
   undoStack = nextUndo;
   state = proposed;
+  expectedMainRaw = JSON.stringify(proposed);
   sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入並驗證保存');
   return true;
 }
@@ -1120,6 +1124,28 @@ window.AIBrain = {
   on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); }
 };
 document.body.dataset.ready = '1';
+// If another tab writes while this tab is open, stop silent lost updates.
+function showConcurrentWarning(){
+  if(document.getElementById('brainConcurrentWarning'))return;
+  const banner=document.createElement('aside');
+  banner.id='brainConcurrentWarning';
+  banner.setAttribute('role','alert');
+  banner.style.cssText='position:fixed;z-index:100001;top:12px;left:12px;right:12px;padding:12px 16px;border:2px solid #f7ca83;border-radius:12px;background:#29241d;color:#fff4da;font:14px/1.5 system-ui';
+  const msg=document.createElement('span');
+  msg.textContent='另一分頁更新了主腦。為避免覆寫新資料，本分頁修改會被拒絕，請重新整理讀取最新內容。';
+  banner.append(msg);
+  const action=document.createElement('button');
+  action.type='button';
+  action.textContent='重新整理並讀取最新內容';
+  action.style.cssText='margin-left:10px;padding:4px 8px;border:1px solid #f7ca83;border-radius:8px;background:#453224;color:#fff4da';
+  action.addEventListener('click',()=>location.reload());
+  banner.append(action);
+  document.body.append(banner);
+}
+addEventListener('storage',event=>{
+  if(event.key===KEY && event.newValue!==expectedMainRaw)showConcurrentWarning();
+});
+
 // Keep the original damaged snapshot available to the person, without uploading it.
 if (blockedStoredState){
   const banner = document.createElement('aside');
