@@ -351,3 +351,11 @@ test("main commit listing pagination is fail closed when too many updates exist"
    throw Error("Unexpected route "+route);
  },"2026-10-27T01:45:00Z"),/PAGINATION_LIMIT/);
 });
+
+test("candidate workflow does not double-trigger push and PR polling for one commit",()=>{
+ const yaml=fs.readFileSync(path.join(__dirname,"../.github/workflows/monitor-15min-candidate.yml"),"utf8");
+ assert.doesNotMatch(yaml,/^\s{2}push:\s*$/m);
+ assert.match(yaml,/^\s{2}pull_request:\s*$/m);
+ assert.match(yaml,/github\.head_ref \|\| github\.ref_name/);
+ assert.match(yaml,/cancel-in-progress:\s*false/);
+});
