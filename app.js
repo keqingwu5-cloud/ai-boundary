@@ -107,22 +107,65 @@ function migrate(st){
 const CPAL = ['#5eead4','#a3e635','#fde047','#fdba74','#67e8f9','#f0abfc','#86efac','#c4b5fd','#f9a8d4','#fca5a5','#fb7185','#93c5fd','#fb923c','#f472b6','#cbd5e1','#bef264','#7dd3fc','#fcd34d','#d8b4fe','#99f6e4'];
 function pickColor(st){ const used = new Set(Object.values(st.concepts || {}).map(c => c.color)); return CPAL.find(c => !used.has(c)) || `hsl(${Math.floor(Math.random() * 360)},85%,72%)`; }
 let state = migrate(load() || seedState());
-let undoStack = []; try { undoStack = JSON.parse(localStorage.getItem(UKEY) || '[]'); } catch(e){ undoStack = []; }
+let undoStack = [];
+try {
+  const value = JSON.parse(localStorage.getItem(UKEY) || '[]');
+  if (Array.isArray(value) && value.length <= 12 && value.every(v => typeof v === 'string')) undoStack = value;
+} catch(e){ undoStack = []; }
 let saveT = 0;
+// Returns real persistence status. A partial localStorage write is not a successful save.
 function save(now = false){
   clearTimeout(saveT);
-  const f = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); localStorage.setItem(UKEY, JSON.stringify(undoStack.slice(-12))); flashSaved(); } catch(e){ toast('⚠ 儲存失敗：' + e.message); } };
-  now ? f() : (saveT = setTimeout(f, 250));
+  const result = commitBrainImport(localStorage, KEY, UKEY, state, undoStack.slice(-12));
+  if (!result.ok){
+    toast('⚠ 儲存未完成：' + result.reason + (result.rollbackOk ? '' : '（回復失敗，請保留備份）'));
+    return false;
+  }
+  flashSaved();
+  return true;
 }
 save(true);
 const listeners = {};
 function emit(ev, data){ (listeners[ev] || []).forEach(f => { try { f(data); } catch(e){ console.error(e); } }); }
+function commitChange(proposed, nextUndo, successLabel){
+  const checked = validateBrainImport(proposed);
+  if (!checked.ok){ toast('⚠ 變更未保存：' + checked.reason); return false; }
+  const result = commitBrainImport(localStorage, KEY, UKEY, proposed, nextUndo);
+  if (!result.ok){
+    toast('⚠ 變更未保存：' + result.reason + (result.rollbackOk ? '' : '（回復失敗，請保留備份）'));
+    return false;
+  }
+  state = proposed;
+  undoStack = nextUndo;
+  flashSaved();
+  if (successLabel) toast(successLabel);
+  return true;
+}
 function mutate(action, payload, fn){
-  undoStack.push(JSON.stringify(state)); if (undoStack.length > 12) undoStack.shift();
-  fn();
-  state.history.push({ ts:Date.now(), action, payload });
-  save(); sync(); renderHistory(); renderCrumbs();
+  let previous;
+  try { previous = JSON.stringify(state); }
+  catch(e){ toast('⚠ 無法建立變更快照'); return false; }
+  // Legacy change callbacks can close over node objects. Apply to the current
+  // graph, then roll back the in-memory graph if validation or persistence fails.
+  try {
+    fn();
+    state.history.push({ ts:Date.now(), action, payload });
+  } catch(e){
+    state = JSON.parse(previous);
+    toast('⚠ 變更失敗：' + (e && e.message || 'invalid_operation'));
+    sync(); renderHistory(); renderCrumbs();
+    return false;
+  }
+  const proposed = state;
+  const nextUndo = [...undoStack, previous].slice(-12);
+  if (!commitChange(proposed, nextUndo)){
+    state = JSON.parse(previous);
+    sync(); renderHistory(); renderCrumbs();
+    return false;
+  }
+  sync(); renderHistory(); renderCrumbs();
   emit('change', { action, payload });
+  return true;
 }
 const N = id => state.nodes.find(n => n.id === id);
 const B = id => state.brains.find(b => b.id === id);
@@ -280,13 +323,29 @@ function deleteNode(id){
   closePanel();
 }
 function undo(){
-  if (!undoStack.length){ toast('沒有可復原的步驟'); return; }
-  state = JSON.parse(undoStack.pop());
-  save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已復原');
+  if (!undoStack.length){ toast('沒有可復原的步驟'); return false; }
+  let proposed;
+  try { proposed = JSON.parse(undoStack[undoStack.length - 1]); }
+  catch(e){ toast('⚠ 復原快照無法讀取'); return false; }
+  const nextUndo = undoStack.slice(0, -1);
+  if (!commitChange(proposed, nextUndo)) return false;
+  sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已復原');
   if (!B(focusId)) focusBrain('main');
   emit('change', { action:'undo' });
+  return true;
 }
-function resetAll(){ undoStack.push(JSON.stringify(state)); state = seedState(); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); }
+function resetAll(){
+  let proposed;
+  try {
+    proposed = seedState();
+    proposed.history.push({ ts:Date.now(), action:'reset', payload:{} });
+  } catch(e){ toast('⚠ 重置資料建立失敗'); return false; }
+  const nextUndo = [...undoStack, JSON.stringify(state)].slice(-12);
+  if (!commitChange(proposed, nextUndo)) return false;
+  sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main');
+  emit('change', { action:'reset' });
+  return true;
+}
 function exportJSON(){
   const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ai-brain-' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.json';
