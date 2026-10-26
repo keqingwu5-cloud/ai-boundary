@@ -3408,6 +3408,184 @@ const SEED_EXTRAS = [
       "n_q5_e0",
       "n_q6_e2"
     ]
+  },
+  /* ↓ INTP 鏡像研究員第 3 組：Merlin 2026-10-27 00:37（UTC+8）勾選的 4 個節點（P3 方向 + 延伸 e1–e3；e3 獨立，不與 n_x_intp_p1_e3 合併） */
+  {
+    "id": "n_x_intp_p3",
+    "parentId": "n_q1",
+    "kind": "direction",
+    "title": "能力落差和「看起來有意識」是同一種「表現 vs 內在」落差嗎？",
+    "type": "理解與意識",
+    "oneLiner": "q1–q4 仍是唯一沒有共享概念的題樹組合；q1–q5、q3–q5 現在只靠 bot 節點 n_x_cognitive_offloading 帶進的「責任歸屬」相連。「奧數金牌卻錯簡單題」和「看起來有意識」是不是同一種「表現 vs 內在」落差？",
+    "source": {
+      "who": "INTP 鏡像研究員（bot，程式統計）",
+      "outlet": "intp-mirror/patterns.md v2（P3）",
+      "date": "2026-10-12",
+      "url": "",
+      "also": []
+    },
+    "assumptions": "【推測】無外部來源；本節點由 INTP 鏡像研究員依知識網種子資料的程式統計提出（見 patterns.md P3）；Merlin 2026-10-27 已核准發布。",
+    "reasoning": [
+      {
+        "k": "問題定義",
+        "v": "q1–q4 仍是唯一沒有共享概念的題樹組合；q1–q5、q3–q5 現在只靠 bot 節點 n_x_cognitive_offloading 帶進的「責任歸屬」相連。「奧數金牌卻錯簡單題」和「看起來有意識」是不是同一種「表現 vs 內在」落差？"
+      },
+      {
+        "k": "證據",
+        "v": "treePairsWithNoSharedConcept：q1—q4；q1—q5：責任歸屬；q3—q5：責任歸屬；【推測】n_x_cot_faithful、n_x_alignment_faking 是「表現≠內在」的具體案例，但還沒有節點把 q1 的參差和 q5 的意識表象放進同一框架"
+      },
+      {
+        "k": "推演",
+        "v": "【推測】統計只描述主腦種子網（seed 25 + SEED_EXTRAS 16）的形狀，不等於 Merlin 本人的思考習慣；Merlin 親手建立的節點 0 個。"
+      },
+      {
+        "k": "未解關鍵點",
+        "v": "需要 Merlin 的匯出 JSON 或雲端共用大腦上線後，用 createdBy:'merlin' 的節點重跑 scripts/analyze-v2.js 才能確認。"
+      }
+    ],
+    "concepts": [
+      "理解vs模仿",
+      "一致性",
+      "意識表象"
+    ],
+    "processPattern": "",
+    "counterEvidence": [],
+    "botNotes": [
+      "INTP 鏡像研究員 2026-10-12；依 keqingwu5-cloud/ai-boundary main@f374d1e（2026-10-11 23:24 UTC+8），41 個種子節點 重算；舊 id bot_p3",
+      "Merlin 2026-10-27 00:37（UTC+8）勾選發布（INTP 鏡像研究員第 3 組）"
+    ],
+    "createdBy": "bot",
+    "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    },
+    "x_reviewStatus": "已核准",
+    "x_oldId": "bot_p3",
+    "x_patternRef": "P3",
+    "x_crossLinks": [
+      "n_q4"
+    ],
+    "x_relatedMainNodes": [
+      "n_x_cot_faithful",
+      "n_x_alignment_faking"
+    ]
+  },
+  {
+    "id": "n_x_intp_p3_e1",
+    "parentId": "n_x_intp_p3",
+    "kind": "extension",
+    "title": "「奧數金牌卻錯高中數學」和「看起來有意識」能不能用同一個「表現/內在」框架描述？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "INTP 鏡像研究員（bot 提出的探索問題）",
+      "outlet": "intp-mirror/nodes.json v2",
+      "date": "2026-10-12",
+      "url": "",
+      "also": []
+    },
+    "assumptions": "【推測】無外部來源；子問題為 bot 提出的探索方向，非任何人的引言。",
+    "reasoning": [],
+    "concepts": [
+      "理解vs模仿",
+      "一致性"
+    ],
+    "processPattern": "",
+    "counterEvidence": [],
+    "botNotes": [
+      "INTP 鏡像研究員 2026-10-12；依 keqingwu5-cloud/ai-boundary main@f374d1e（2026-10-11 23:24 UTC+8），41 個種子節點 重算；舊 id bot_p3_c0",
+      "Merlin 2026-10-27 00:37（UTC+8）勾選發布（INTP 鏡像研究員第 3 組）"
+    ],
+    "createdBy": "bot",
+    "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    },
+    "x_reviewStatus": "已核准",
+    "x_oldId": "bot_p3_c0",
+    "x_move": "找結構"
+  },
+  {
+    "id": "n_x_intp_p3_e2",
+    "parentId": "n_x_intp_p3",
+    "kind": "extension",
+    "title": "這個共同框架在哪一題會失效？哪一題的落差不是表現和內在的落差？",
+    "type": "推理與判斷",
+    "oneLiner": "",
+    "source": {
+      "who": "INTP 鏡像研究員（bot 提出的探索問題）",
+      "outlet": "intp-mirror/nodes.json v2",
+      "date": "2026-10-12",
+      "url": "",
+      "also": []
+    },
+    "assumptions": "【推測】無外部來源；子問題為 bot 提出的探索方向，非任何人的引言。",
+    "reasoning": [],
+    "concepts": [
+      "理解vs模仿"
+    ],
+    "processPattern": "",
+    "counterEvidence": [],
+    "botNotes": [
+      "INTP 鏡像研究員 2026-10-12；依 keqingwu5-cloud/ai-boundary main@f374d1e（2026-10-11 23:24 UTC+8），41 個種子節點 重算；舊 id bot_p3_c1",
+      "Merlin 2026-10-27 00:37（UTC+8）勾選發布（INTP 鏡像研究員第 3 組）"
+    ],
+    "createdBy": "bot",
+    "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    },
+    "x_reviewStatus": "已核准",
+    "x_oldId": "bot_p3_c1",
+    "x_move": "找邊界",
+    "x_suggestedNewConcepts": [
+      "邊界條件"
+    ]
+  },
+  {
+    "id": "n_x_intp_p3_e3",
+    "parentId": "n_x_intp_p3",
+    "kind": "extension",
+    "title": "我判斷一個人「真的懂」時，是不是也只能看他的表現？",
+    "type": "理解與意識",
+    "oneLiner": "",
+    "source": {
+      "who": "INTP 鏡像研究員（bot 提出的探索問題）",
+      "outlet": "intp-mirror/nodes.json v2",
+      "date": "2026-10-12",
+      "url": "",
+      "also": []
+    },
+    "assumptions": "【推測】無外部來源；子問題為 bot 提出的探索方向，非任何人的引言。",
+    "reasoning": [],
+    "concepts": [
+      "理解vs模仿"
+    ],
+    "processPattern": "",
+    "counterEvidence": [],
+    "botNotes": [
+      "INTP 鏡像研究員 2026-10-12；依 keqingwu5-cloud/ai-boundary main@f374d1e（2026-10-11 23:24 UTC+8），41 個種子節點 重算；舊 id bot_p3_c2",
+      "Merlin 2026-10-27 00:37（UTC+8）勾選發布（INTP 鏡像研究員第 3 組）"
+    ],
+    "createdBy": "bot",
+    "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    },
+    "x_reviewStatus": "已核准",
+    "x_oldId": "bot_p3_c2",
+    "x_move": "看自己",
+    "x_suggestedNewConcepts": [
+      "觀察者自身"
+    ]
   }
 ];
 
