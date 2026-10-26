@@ -1,0 +1,14 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),{decide}=require('../tcvl-node-diffusion-core.js');
+const parent=()=>({id:'root',origin_command_id:'cmd1',direction_version:'v1',depth:0,permissions_scope:['read']});
+const request=()=>({id:'r1',reason:'evidence requires specialized research',capabilities:['research'],evidence_refs:['issue:65']});
+const run=(o={})=>decide({parent:parent(),request:request(),nodes:[],tasks:[],...o});
+test('positive: creates candidate without inheriting permissions',()=>{const x=run();assert.equal(x.action,'candidate');assert.equal(x.node.status,'candidate');assert.deepEqual(x.node.permissions_scope,[]);assert.equal(x.node.origin_command_id,'cmd1');});
+test('positive: reuse compatible existing node',()=>{const x=run({nodes:[{id:'research1',capabilities:['research'],permissions_scope:['read'],status:'active'}]});assert.equal(x.action,'reuse');assert.equal(x.node_id,'research1');});
+test('negative: duplicate request rejected',()=>assert.equal(run({tasks:[{diffusion_request_id:'r1'}]}).reason,'duplicate_request'));
+test('negative: permission escalation rejected',()=>assert.equal(run({request:{...request(),permissions_scope:['admin']}}).reason,'permission_escalation'));
+test('negative: max depth blocks expansion',()=>assert.equal(run({parent:{...parent(),depth:3}}).reason,'depth_limit'));
+test('negative: max children blocks expansion',()=>assert.equal(run({nodes:[{id:'x',parent_node_id:'root',status:'active'}],limits:{maxChildren:1}}).reason,'child_limit'));
+test('negative: ancestry cycle blocked',()=>assert.equal(run({parent:{...parent(),parent_node_id:'x'},nodes:[{id:'x',parent_node_id:'root'}]}).reason,'cycle'));
+test('legacy: parent and registry remain unchanged',()=>{const p=parent(),n=[{id:'old',capabilities:[],status:'active'}],before=JSON.stringify([p,n]);run({parent:p,nodes:n});assert.equal(JSON.stringify([p,n]),before);});
+test('cross-module: output is a proposal, not task or ACK',()=>{const x=run();assert.equal(x.requires_review,true);assert.equal(x.node.status,'candidate');assert.equal('verified_ack' in x.node,false);});
