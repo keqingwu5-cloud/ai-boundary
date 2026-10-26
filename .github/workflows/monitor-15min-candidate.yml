@@ -66,7 +66,9 @@ jobs:
           GH_REPO: '${{ github.repository }}'
         run: |
           mkdir -p prior
-          if gh api "/repos/$GH_REPO/actions/runs?branch=$GITHUB_REF_NAME&per_page=30" --jq '.workflow_runs[] | select(.name == "TCVL 15-minute read-only monitoring candidate" and (.conclusion == "success" or .conclusion == "failure")) | .id' > previous-run-ids.txt; then
+          monitor_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          monitor_branch_encoded="$(jq -rn --arg v "$monitor_branch" '$v|@uri')"
+          if gh api "/repos/$GH_REPO/actions/runs?branch=$monitor_branch_encoded&per_page=30" --jq '.workflow_runs[] | select(.name == "TCVL 15-minute read-only monitoring candidate" and (.conclusion == "success" or .conclusion == "failure")) | .id' > previous-run-ids.txt; then
             while IFS= read -r run_id; do
               [[ "$run_id" =~ ^[0-9]+$ ]] || continue
               if gh run download "$run_id" --name monitor-15min-state --dir prior >/dev/null 2>&1 && [ -s prior/state.json ]; then
