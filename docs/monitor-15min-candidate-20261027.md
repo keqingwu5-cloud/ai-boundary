@@ -50,3 +50,15 @@
 6. 回退：停止此候選的自動化、保留原有 GitHub/Notion 原始證據與失敗工單；既有每小時監控繼續運作。禁止破壞性刪歷史。
 
 **本文件為追加的候選研究/工程基準，不能作正式規章或任何人的批准證明。**
+
+
+## 補充安全審查（2026-10-27｜候選 R2，原 R1 內容保留）
+
+- **Secret 防線**：Workflow 已將 Notion token 引用限制為主線 `schedule`／`workflow_dispatch` 的條件表達式；候選 push / PR 預設不得收到 token。**但這只是工作流層防護**，不能抵抗有權修改 workflow 本身的惡意同倉庫提交。正式核准前，必須另外配置 GitHub environment protected secret、限制可部署分支到受審 main、必要時附可信審核者。不得只建立可被任意 PR 存取的 repository-wide secret。上述保護目前未配置／未驗證。
+- **證據遺失必須 fail-closed**：已有相同分支舊 Actions run 但下載不到 checkpoint 時，候選拒絕把它當成乾淨首次執行；既存 checkpoint 損壞或距今超過 24 小時，輸出 `REVIEW_CHECKPOINT_GAP` 並以失敗狀態要求人工處理。
+- **意外通知不保證送達**：新 P0 或人工審核事件產生 `REVIEW_CHANGES` 和 Action 異常狀態候選；實際 Email/手機通知、接收者、去噪、失效恢復都尚未完成實測。
+- **Actions rerun 與版本**：新增 `run_attempt` 到去重鍵；歷史執行重新 rerun 在最新 500 筆執行列表內才可觀測，超過窗口或 API 過量不能宣稱完整追蹤。
+- **Notion API 2026**：`in_trash` 與舊 `archived` 均辨識成待審刪除候選。仍未取得實際合法的 Notion Runner token 或私有頁面讀取實測，不能將合成資料測試視為真權限驗收。
+- **獨立 G2 未完成**：候選開發者自測和同一對話的風險盤點，均不能冒稱為另一位審查員的獨立簽核。正式 GO 仍待使用者另行批准。
+
+**R2 關卡狀態：僅工程候選修補；main 未合併／Notion 憑證未變／原每小時監控照常。**
