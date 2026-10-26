@@ -51,7 +51,7 @@ async function collectAnchors(request){
   }
   return anchors;
 }
-function buildBaseline({anchors,github,notion,checkpoint,branch,event,checkedAt,previousIntentFingerprint}){
+function buildBaseline({anchors,github,notion,checkpoint,branch,event,checkedAt,previousIntentFingerprint,previousTaskSnapshot}){
   if(!Array.isArray(anchors)||anchors.length!==ANCHORS.length)throw Error("OPERATING_BASELINE_SCOPE_INCOMPLETE");
   for(let i=0;i<ANCHORS.length;i++){
     if(anchors[i]?.number!==ANCHORS[i].number || anchors[i]?.role!==ANCHORS[i].role)
@@ -66,6 +66,23 @@ function buildBaseline({anchors,github,notion,checkpoint,branch,event,checkedAt,
   const evidenceMatch=checkpoint?.status==="RESTORED";
   const intentContinuity=previousIntentFingerprint===undefined||previousIntentFingerprint===null?"FIRST_PIN":
     previousIntentFingerprint===INTENT_FINGERPRINT?"MATCH":"POLICY_CHANGED_REVIEW";
+  const previous=Array.isArray(previousTaskSnapshot)?new Map(previousTaskSnapshot.map(x=>[x.number,x])):null;
+  const anchorDeltas=anchors.map(x=>{
+    const was=previous?.get(x.number);
+    const change=(!was)?"FIRST_OBSERVATION":(
+      was.observed_github_state===x.observed_github_state && was.observed_updated_at===x.observed_updated_at?
+      "UNCHANGED":"METADATA_CHANGED_REVIEW");
+    return {number:x.number,role:x.role,reference:x.reference,change,
+      previous_github_state:was?.observed_github_state||null,
+      current_github_state:x.observed_github_state,
+      // GitHub open/closed and updated_at are metadata, not approval or progress evidence.
+      verified_work_completed:false};
+  });
+  const anchorDeltaSummary={
+    first_observations:anchorDeltas.filter(x=>x.change==="FIRST_OBSERVATION").length,
+    metadata_changes:anchorDeltas.filter(x=>x.change==="METADATA_CHANGED_REVIEW").length,
+    unchanged:anchorDeltas.filter(x=>x.change==="UNCHANGED").length
+  };
   const activityTypes={};
   for(const e of github.events||[]){
     const type=["issue","pr","comment","run","commit","main_commit"].includes(e.kind)?e.kind:"OTHER";
@@ -93,6 +110,8 @@ function buildBaseline({anchors,github,notion,checkpoint,branch,event,checkedAt,
       evidence_continuity_verified:evidenceMatch
     },
     task_anchors:anchors,
+    task_anchor_deltas:anchorDeltas,
+    task_anchor_delta_summary:anchorDeltaSummary,
     observed_activity_count:Number.isSafeInteger(github?.events?.length)?github.events.length:null,
     observed_activity_types:activityTypes,
     task_meaning_not_inferred_from_issue_state:true,
