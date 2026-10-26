@@ -65,9 +65,10 @@ test("failed workflow yields CRITICAL_UNVERIFIED rather than approval",()=>{
 });
 test("known fail-closed release guard does not create a false critical incident",()=>{
  const item=m.normalizeRun({id:900,updated_at:NOW,status:"completed",conclusion:"failure",name:"Memory V1 evidence inventory and release block"});
- assert.equal(item.priority,"KNOWN_EXPECTED_NO_GO");
+ assert.equal(item.priority,"REVIEW_UNVERIFIED");
  const r=run({github:{...gh,events:[item]}});
- assert.equal(r.report.action_required,"NONE");
+ assert.equal(r.report.action_required,"REVIEW_CHANGES");
+ assert.equal(r.report.review_events[0].priority,"REVIEW_UNVERIFIED");
 });
 test("unfinished workflow status produces no completed-run claim",()=>{
  assert.equal(m.normalizeRun({id:990,status:"in_progress",updated_at:NOW,name:"Browser E2E"}),null);
@@ -147,4 +148,14 @@ test("changed public texts never copied into emitted evidence report",()=>{
  const x=m.normalizeIssue({number:65,title:"CRITICAL "+secret,updated_at:NOW});
  const doc=JSON.stringify(run({github:{...gh,events:[x]}}).report);
  assert.equal(doc.includes(secret),false);
+});
+
+test("ordinary task/PR updates appear as sanitized evidence links, not hidden behind risk classifier",()=>{
+ const a=m.normalizeIssue({number:100,title:"normal new task",updated_at:NOW});
+ const b=m.normalizeIssue({number:101,title:"ordinary PR",updated_at:NOW,pull_request:{}});
+ const result=run({github:{...gh,events:[a,b]}});
+ assert.equal(result.report.observed_events.length,2);
+ assert.equal(result.report.review_events.length,0);
+ assert.deepEqual(result.report.observed_events.map(e=>e.kind),["issue","pr"]);
+ assert.equal(JSON.stringify(result.report.observed_events).includes("normal new task"),false);
 });
