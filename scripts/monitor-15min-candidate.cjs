@@ -63,7 +63,7 @@ function normalizeRun(x) {
   if (!Number.isSafeInteger(x.id) || !ISO(x.updated_at || x.created_at)) return null;
   if (x.status !== "completed") return null;
   const blockKnown = /memory v1 evidence inventory and release block/i.test(String(x.name||""));
-  return {key:"run:"+x.id+":"+x.conclusion,kind:"run",ref:safeGithubUrl("run",x.id),
+  return {key:"run:"+x.id+":attempt-"+(Number.isSafeInteger(x.run_attempt)&&x.run_attempt>0?x.run_attempt:"unverified")+":"+x.conclusion,kind:"run",ref:safeGithubUrl("run",x.id),
     at:x.updated_at||x.created_at,
     priority:x.conclusion==="failure"?(blockKnown?"REVIEW_UNVERIFIED":"CRITICAL_UNVERIFIED"):"CHANGE",
     ack_status:"NOT_APPLICABLE"};
@@ -90,7 +90,7 @@ async function collectGithub(request,since) {
   const u=encodeURIComponent(since);
   const issues=await paginated(request,"/repos/"+REPO+"/issues?state=all&since="+u);
   const comments=await paginated(request,"/repos/"+REPO+"/issues/comments?since="+u);
-  const runs=await paginated(request,"/repos/"+REPO+"/actions/runs?created=>="+u,"workflow_runs");
+  const runs=await paginated(request,"/repos/"+REPO+"/actions/runs?status=completed","workflow_runs");
   const commit=await request("/repos/"+REPO+"/commits/main");
   if (!/^[0-9a-f]{40}$/i.test(commit.sha||"")) throw Error("GITHUB_MAIN_SHA_NOT_VERIFIABLE");
   const events=[
@@ -148,6 +148,7 @@ function evaluate({branch,now,checkpoint,github,notion}) {
   const fresh=all.filter(e=>!previous.has(e.key));
   const baseline=checkpoint.status!=="RESTORED";
   const material=baseline?[]:fresh.filter(e=>e.priority==="CRITICAL_UNVERIFIED" || e.priority==="REVIEW_UNVERIFIED");
+  const checkpointGap=checkpoint.status==="INVALID_PREVIOUS_EVIDENCE" || checkpoint.status==="STALE_CHECKPOINT";
   const nextSeen=[...new Set([...checkpoint.seen,...all.map(e=>e.key)])].slice(-MAX_SEEN);
   return {
     report:{schema:SCHEMA,branch,checked_at:now,readonly:true,
@@ -164,7 +165,8 @@ function evaluate({branch,now,checkpoint,github,notion}) {
       deployment_authorized:false,main_merge_authorized:false,
       coverage:(notion.status!=="READ_SUCCEEDED_METADATA_ONLY"||baseline)?"PARTIAL":"CONFIGURED_SOURCES_ONLY",
       notification_channel:"GITHUB_ACTIONS_FAILURE_AND_SUMMARY_ONLY_NOT_PUSH_GUARANTEED",
-      action_required:material.some(e=>e.priority==="CRITICAL_UNVERIFIED")?"REVIEW_WORKFLOW_FAILURE":
+      action_required:checkpointGap?"REVIEW_CHECKPOINT_GAP":
+                      material.some(e=>e.priority==="CRITICAL_UNVERIFIED")?"REVIEW_WORKFLOW_FAILURE":
                       material.length?"REVIEW_CHANGES":"NONE",
       policy:POLICY},
     checkpoint:{schema:SCHEMA,branch,last_checked_at:now,seen:nextSeen}
@@ -217,7 +219,7 @@ async function main() {
   if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary);
   process.stdout.write(summary);
   // A candidate report can be green with incomplete Notion configuration, but never claims full coverage.
-  if(report.action_required==="REVIEW_WORKFLOW_FAILURE" || report.review_overflow || report.observed_overflow) process.exitCode=3;
+  if(report.action_required!=="NONE" || report.review_overflow || report.observed_overflow) process.exitCode=3;
 }
 if(require.main===module)main().catch(err=>{
   const code=String(err&&err.message||"UNKNOWN_MONITOR_ERROR").replace(/[^A-Z0-9_]/gi,"_").slice(0,100);
