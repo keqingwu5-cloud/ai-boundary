@@ -50,7 +50,10 @@ function normalizeIssue(x) {
 }
 function normalizeComment(x) {
   if (!Number.isSafeInteger(x.id) || !ISO(x.updated_at || x.created_at)) return null;
-  const number = Number((x.issue_url||"").split("/").pop());
+  // Never attribute a foreign issue/comment to the monitored repository.
+  const match = /^https:\/\/api\.github\.com\/repos\/keqingwu5-cloud\/ai-boundary\/issues\/([1-9][0-9]*)$/.exec(String(x.issue_url||""));
+  if (!match) return null;
+  const number = Number(match[1]);
   const url = safeGithubUrl("issue",number);
   if (!url) return null;
   const body = String(x.body||"").slice(0,3000);
@@ -149,7 +152,10 @@ function evaluate({branch,now,checkpoint,github,notion}) {
   const baseline=checkpoint.status!=="RESTORED";
   const material=baseline?[]:fresh.filter(e=>e.priority==="CRITICAL_UNVERIFIED" || e.priority==="REVIEW_UNVERIFIED");
   const checkpointGap=checkpoint.status==="INVALID_PREVIOUS_EVIDENCE" || checkpoint.status==="STALE_CHECKPOINT";
-  const nextSeen=[...new Set([...checkpoint.seen,...all.map(e=>e.key)])].slice(-MAX_SEEN);
+  const nextSeen=[...new Set([...checkpoint.seen,...all.map(e=>e.key)])];
+  // Do not silently evict evidence by lexicographic key ordering: this can drop
+  // newer low-numbered issues and cause duplicate alerts or missed recovery.
+  if (nextSeen.length > MAX_SEEN) throw Error("MONITOR_CHECKPOINT_CAPACITY_EXCEEDED_MANUAL_REBASE_REQUIRED");
   return {
     report:{schema:SCHEMA,branch,checked_at:now,readonly:true,
       github:{status:"READ_SUCCEEDED",counts:github.counts,main_sha:github.main_sha},
