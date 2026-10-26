@@ -4,6 +4,7 @@
  * Purpose and restrictions are the human-approved candidate scope, while
  * GitHub issues provide read-only observations, never inferred authorization.
  */
+const crypto = require("node:crypto");
 const REPO = "keqingwu5-cloud/ai-boundary";
 const SCHEMA = "tcvl-monitor-purpose-observation/v1";
 const CANDIDATE_BRANCH = "candidate/monitor-15min-github-notion-20261027";
@@ -27,6 +28,7 @@ const POLICY = Object.freeze({
   actual_owner_approval:"NOT_MACHINE_VERIFIED",
   independent_G2:"NOT_MACHINE_VERIFIED"
 });
+const INTENT_FINGERPRINT=crypto.createHash("sha256").update(JSON.stringify({policy:POLICY,anchors:ANCHORS})).digest("hex");
 const isISO=s=>typeof s==="string" && Number.isFinite(Date.parse(s));
 function isExpectedAnchor(x,a){
   return x && x.number===a.number &&
@@ -49,7 +51,7 @@ async function collectAnchors(request){
   }
   return anchors;
 }
-function buildBaseline({anchors,github,notion,checkpoint,branch,event,checkedAt}){
+function buildBaseline({anchors,github,notion,checkpoint,branch,event,checkedAt,previousIntentFingerprint}){
   if(!Array.isArray(anchors)||anchors.length!==ANCHORS.length)throw Error("OPERATING_BASELINE_SCOPE_INCOMPLETE");
   for(let i=0;i<ANCHORS.length;i++){
     if(anchors[i]?.number!==ANCHORS[i].number || anchors[i]?.role!==ANCHORS[i].role)
@@ -62,13 +64,23 @@ function buildBaseline({anchors,github,notion,checkpoint,branch,event,checkedAt}
   const stageMatch=branch===CANDIDATE_BRANCH && allowed.includes(event);
   const scopeMatch=notion?.status==="NOT_CONFIGURED";
   const evidenceMatch=checkpoint?.status==="RESTORED";
+  const intentContinuity=previousIntentFingerprint===undefined||previousIntentFingerprint===null?"FIRST_PIN":
+    previousIntentFingerprint===INTENT_FINGERPRINT?"MATCH":"POLICY_CHANGED_REVIEW";
+  const activityTypes={};
+  for(const e of github.events||[]){
+    const type=["issue","pr","comment","run","commit","main_commit"].includes(e.kind)?e.kind:"OTHER";
+    activityTypes[type]=(activityTypes[type]||0)+1;
+  }
   return {
     schema:SCHEMA,
     checked_at:checkedAt,
     task_contract:POLICY,
+    intent_fingerprint:INTENT_FINGERPRINT,
+    intent_continuity:intentContinuity,
     intended_vs_observed:{
       intended_stage:POLICY.phase,
       actual_event:event||"UNKNOWN",
+      actual_operation:event==="pull_request"?"ISOLATED_PR_VALIDATION":event==="workflow_dispatch"?"ISOLATED_MANUAL_CHECK":"UNVERIFIED_EVENT",
       actual_branch:branch||"UNKNOWN",
       stage_match:stageMatch,
       expected_github_source:"READ_SUCCEEDED",
@@ -82,11 +94,12 @@ function buildBaseline({anchors,github,notion,checkpoint,branch,event,checkedAt}
     },
     task_anchors:anchors,
     observed_activity_count:Number.isSafeInteger(github?.events?.length)?github.events.length:null,
+    observed_activity_types:activityTypes,
     task_meaning_not_inferred_from_issue_state:true,
     real_gpt_receiver_ack_verified:false,
     approval_or_deployment_verified:false,
-    conclusion:stageMatch && scopeMatch && evidenceMatch?"CANDIDATE_EVIDENCE_ONLY":"REVIEW_UNVERIFIED",
+    conclusion:stageMatch && scopeMatch && evidenceMatch && intentContinuity!=="POLICY_CHANGED_REVIEW"?"CANDIDATE_EVIDENCE_ONLY":"REVIEW_UNVERIFIED",
     pending_gates:["independent G2","owner release authorization","real 15-minute schedule","notification delivery","separate Notion safety approval"]
   };
 }
-module.exports={SCHEMA,REPO,POLICY,ANCHORS,CANDIDATE_BRANCH,collectAnchors,buildBaseline};
+module.exports={SCHEMA,REPO,POLICY,ANCHORS,CANDIDATE_BRANCH,INTENT_FINGERPRINT,collectAnchors,buildBaseline};
