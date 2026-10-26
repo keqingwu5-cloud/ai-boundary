@@ -82,13 +82,17 @@ jobs:
             echo "::warning::Cannot list previous monitor runs; baseline-only coverage until recovered."
           fi
           if [ ! -s prior/state.json ]; then
-            echo "No trusted prior checkpoint available: bootstrap will not emit historic alerts."
+            if [ -s previous-run-ids.txt ]; then
+              echo "::error::Previous monitor runs exist but no checkpoint could be restored. Failing closed to prevent silent skipped changes."
+              exit 2
+            fi
+            echo "No trusted prior checkpoint available: initial bootstrap, no historic alerts."
           fi
           rm -f previous-run-ids.txt
       - name: Poll public GitHub metadata and configured private Notion metadata
         env:
           GITHUB_TOKEN: '${{ github.token }}'
-          NOTION_MONITOR_TOKEN: '${{ secrets.NOTION_MONITOR_TOKEN }}'
+          NOTION_MONITOR_TOKEN: ${{ (github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')) && secrets.NOTION_MONITOR_TOKEN || '' }}
           NOTION_MONITOR_PAGE_IDS: '${{ vars.NOTION_MONITOR_PAGE_IDS }}'
           NOTION_MONITOR_DATA_SOURCE_IDS: '${{ vars.NOTION_MONITOR_DATA_SOURCE_IDS }}'
         run: node scripts/monitor-15min-candidate.cjs
