@@ -239,3 +239,34 @@ test("checkpoint under capacity retains prior evidence and new revisions",()=>{
  assert.equal(v.checkpoint.seen[0],prev[0]);
  assert.ok(v.checkpoint.seen.includes(one.key));
 });
+
+test("previous self-monitoring failure is excluded to avoid an infinite failure-alert cascade",async()=>{
+ const list=await m.collectGithub(async route=>{
+   if(route.includes("/issues/comments?"))return [];
+   if(route.includes("/issues?"))return [];
+   if(route.includes("/actions/runs?"))return {workflow_runs:[
+     {id:20001,run_attempt:1,name:"TCVL 15-minute read-only monitoring candidate",status:"completed",conclusion:"failure",updated_at:NOW},
+     {id:20002,run_attempt:1,name:"Independent CI",status:"completed",conclusion:"failure",updated_at:NOW}]};
+   if(route.endsWith("/commits/main"))return {sha:SHA,commit:{committer:{date:NOW}}};
+   throw Error("Unexpected mock route "+route);
+ }, "2026-10-27T01:45:00.000Z");
+ assert.equal(list.counts.workflow_runs,2);
+ const alerts=list.events.filter(e=>e.kind==="run");
+ assert.equal(alerts.length,1);
+ assert.match(alerts[0].ref,/20002$/);
+ const result=run({github:list});
+ assert.equal(result.report.action_required,"REVIEW_WORKFLOW_FAILURE");
+});
+test("only the self workflow is excluded: external failures and human review findings still surface",async()=>{
+ const failures=await m.collectGithub(async route=>{
+  if(route.includes("/issues/comments?"))return [];
+  if(route.includes("/issues?"))return [];
+  if(route.includes("/actions/runs?"))return {workflow_runs:[
+    {id:20001,run_attempt:2,name:"TCVL 15-minute read-only monitoring candidate",status:"completed",conclusion:"failure",updated_at:NOW}]};
+  if(route.endsWith("/commits/main"))return {sha:SHA,commit:{committer:{date:NOW}}};
+  throw Error("Unexpected mock route "+route);
+ }, "2026-10-27T01:45:00.000Z");
+ const result=run({github:failures});
+ assert.equal(result.report.review_events.length,0);
+ assert.equal(result.report.action_required,"NONE");
+});
