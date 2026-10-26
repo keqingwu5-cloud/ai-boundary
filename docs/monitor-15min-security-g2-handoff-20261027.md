@@ -63,3 +63,14 @@
 - 本 PR 在 S01、S02、S05、S06、S07、S09 未有可回查補證前維持 `MAIN_MERGE=NO_GO`、`NOTION_ENABLE=NO_GO`、`PRODUCTION=NO_GO`。
 - 需要有身份可驗證的 G2 結論及使用者最終授權，才能把候選視為正式。
 
+
+## 5. G1 第二輪外部來源核對與權限收斂（R4；不取代 G2）
+
+**GitHub 規則已直接查證**：repo 可見之 active ruleset [#24906639](https://github.com/keqingwu5-cloud/ai-boundary/rules/24906639) 適用預設分支，包含 PR 必經、禁止刪除及非快轉修改。但其 `pull_request.parameters.required_approving_review_count = 0`、`required_reviewers=[]`。這不是獨立 G2 審核必需規則，不能聲稱權限控制已足以防止未審直接合併。Github `branches/main/protection` 端點回應 403 `Resource not accessible by integration`；因此**不能對其他可能的 branch protection settings 下全域不存在結論**。需由有權限者截取實際 Settings → Rules／Branch protection 配置及 required checks，另行授權修改規則；本輪不動。
+
+**Notion 來源檢查更新**：透過目前使用者已連結 Notion 連接器，已能搜尋並唯讀取得「AI 主腦｜Notion 自動化接口沙盒 V0.1」、「主腦接口事件佇列｜測試版」以及 GPT① 測試說明；前次某些歷史單頁 URL 的 NOT_FOUND 只表示那些特定 ID 不能讀，不應推論整個 Notion 連接不可用。仍需區分：**ChatGPT Notion 連接器可以讀 ≠ GitHub Runner 已獲授權**。所有本次 Notion 內容只在當前對話核查，未複製私人內容或內部資料列至公共 GitHub repo、Action artifact 或狀態快照。Notion source scope 的本次結果仍是只讀沙盒，未觸及正式私人記憶。
+
+**R4 最小實際變更**：公開候選 workflow 移除 `secrets.NOTION_MONITOR_TOKEN` 的直接引用，固定在 GitHub-only 觀測狀態 `NOTION_MONITOR_TOKEN: ''`；增加靜態負例斷言 workflow **不能解析 GitHub secrets，也不能宣告 GitHub write 權限**。這樣未來僅在 GitHub repo 新增同名 secret，也不會讓這份公共候選直接取得私有 Notion token。注意：這並非無法被有權限修改程式/Workflow 的人繞過的信任邊界；真正跨源方案須另行審查專用隔離 runtime、最小權限與資料分類，並由使用者批准後另立 PR。
+
+**待 G2 核對新增項**：R4 固定 SHA 下核對 YAML/CI 權限；ruleset 零必要 reviewer 的正式合併風險；何時才應設定環境與受保護 secret；Notion Test DB 是否存在可脫敏且可授權的唯讀狀態事件；GitHub→ChatGPT 實際 ACK/通知送達的證據。**缺乏獨立 reviewer/正式授權時一律 NO_GO**。
+
