@@ -48,7 +48,7 @@ function normalizeIssue(x) {
   return {key:kind+":"+x.number+":"+x.updated_at,kind,ref:safeGithubUrl("issue",x.number),
     at:x.updated_at,
     priority:/(?:\bP0\b|\bBLOCKED\b|資安|安全異常|安全風險|部署阻擋|RELEASE\s*=\s*NO_GO)/i.test(issueText)?"REVIEW_UNVERIFIED":"CHANGE",
-    ack_status:/\bACK\b/i.test(title)?"CLAIM_ONLY_NOT_VERIFIED":"NOT_ASSESSED"};
+    ack_status:/\bACK\b/i.test(issueText)?"CLAIM_ONLY_NOT_VERIFIED":"NOT_ASSESSED"};
 }
 function normalizeComment(x) {
   if (!Number.isSafeInteger(x.id) || !ISO(x.updated_at || x.created_at)) return null;
