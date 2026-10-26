@@ -1,6 +1,7 @@
 /* 3D 動態認知大腦 v1 — plain Three.js (ES modules, vendored), no build step. */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { validateBrainImport, commitBrainImport } from './brain-import-guard.mjs';
 
 /* ================= constants ================= */
 const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
@@ -293,10 +294,29 @@ function exportJSON(){
   toast('⇩ 已匯出 JSON');
 }
 function importJSON(obj){
-  if (!valid(obj)){ toast('⚠ 檔案格式不符'); return false; }
-  undoStack.push(JSON.stringify(state));
-  state = migrate(obj); state.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
-  save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入');
+  const checked = validateBrainImport(obj);
+  if (!checked.ok){ toast('⚠ 匯入資料檢查失敗：' + checked.reason); return false; }
+  let proposed;
+  try {
+    // Migrate a copy; a rejected import must not mutate the supplied snapshot.
+    proposed = migrate(JSON.parse(JSON.stringify(obj)));
+    proposed.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
+    const afterMigration = validateBrainImport(proposed);
+    if (!afterMigration.ok) throw Error('after_migration_' + afterMigration.reason);
+  } catch(e) {
+    toast('⚠ 匯入轉換失敗：' + (e && e.message || 'invalid_data'));
+    return false;
+  }
+  const nextUndo = [...undoStack, JSON.stringify(state)].slice(-12);
+  const written = commitBrainImport(localStorage, KEY, UKEY, proposed, nextUndo);
+  if (!written.ok){
+    toast('⚠ 匯入未完成：' + written.reason + (written.rollbackOk ? '（原資料未變或已回復）' : '（回復失敗，請保留備份）'));
+    return false;
+  }
+  clearTimeout(saveT);
+  undoStack = nextUndo;
+  state = proposed;
+  sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入並驗證保存');
   return true;
 }
 
