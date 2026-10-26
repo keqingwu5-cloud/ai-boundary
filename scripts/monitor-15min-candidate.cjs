@@ -65,7 +65,7 @@ function normalizeRun(x) {
   const blockKnown = /memory v1 evidence inventory and release block/i.test(String(x.name||""));
   return {key:"run:"+x.id+":"+x.conclusion,kind:"run",ref:safeGithubUrl("run",x.id),
     at:x.updated_at||x.created_at,
-    priority:x.conclusion==="failure"?(blockKnown?"KNOWN_EXPECTED_NO_GO":"CRITICAL_UNVERIFIED"):"CHANGE",
+    priority:x.conclusion==="failure"?(blockKnown?"REVIEW_UNVERIFIED":"CRITICAL_UNVERIFIED"):"CHANGE",
     ack_status:"NOT_APPLICABLE"};
 }
 function normalizeNotion(x, src) {
@@ -154,7 +154,9 @@ function evaluate({branch,now,checkpoint,github,notion}) {
       github:{status:"READ_SUCCEEDED",counts:github.counts,main_sha:github.main_sha},
       notion:{status:notion.status,scope:notion.scope},
       checkpoint_status:checkpoint.status,baseline_no_alerts:baseline,
-      observed_changes:fresh.length,review_events:material.map(e=>({kind:e.kind,reference:e.ref,
+      observed_changes:fresh.length,observed_events:fresh.map(e=>({kind:e.kind,reference:e.ref,priority:e.priority,ack_status:e.ack_status})).slice(0,100),
+      observed_overflow:fresh.length>100,
+      review_events:material.map(e=>({kind:e.kind,reference:e.ref,
         priority:e.priority,ack_status:e.ack_status})).slice(0,100),
       review_overflow:material.length>100,
       unverified_receiver_ack_only:true,
@@ -215,7 +217,7 @@ async function main() {
   if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary);
   process.stdout.write(summary);
   // A candidate report can be green with incomplete Notion configuration, but never claims full coverage.
-  if(report.action_required==="REVIEW_WORKFLOW_FAILURE" || report.review_overflow) process.exitCode=3;
+  if(report.action_required==="REVIEW_WORKFLOW_FAILURE" || report.review_overflow || report.observed_overflow) process.exitCode=3;
 }
 if(require.main===module)main().catch(err=>{
   const code=String(err&&err.message||"UNKNOWN_MONITOR_ERROR").replace(/[^A-Z0-9_]/gi,"_").slice(0,100);
