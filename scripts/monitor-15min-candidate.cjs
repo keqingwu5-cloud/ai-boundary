@@ -7,6 +7,7 @@ const crypto = require("node:crypto");
 const SCHEMA = "tcvl-monitor-15m-candidate/v1";
 const REPO = "keqingwu5-cloud/ai-boundary";
 const POLICY = "https://github.com/keqingwu5-cloud/ai-boundary/issues/31";
+const MONITOR_WORKFLOW = "TCVL 15-minute read-only monitoring candidate";
 const TRACKED = Object.freeze([31, 36, 38, 41, 54, 55, 56, 57, 60, 62, 63, 64, 65]);
 const MAX_PAGES = 5;
 const PAGE_SIZE = 100;
@@ -99,7 +100,7 @@ async function collectGithub(request,since) {
   const events=[
     ...issues.map(normalizeIssue),
     ...comments.map(normalizeComment),
-    ...runs.filter(x=>Date.parse(x.updated_at||x.created_at)>=Date.parse(since)).map(normalizeRun)
+    ...runs.filter(x=>x.name!==MONITOR_WORKFLOW && Date.parse(x.updated_at||x.created_at)>=Date.parse(since)).map(normalizeRun)
   ].filter(Boolean);
   events.push({key:"main:"+commit.sha,kind:"main_commit",ref:"https://github.com/"+REPO+"/commit/"+commit.sha,
     at:commit.commit?.committer?.date||since,priority:"CHANGE",ack_status:"NOT_APPLICABLE"});
@@ -221,7 +222,12 @@ async function main() {
     "- Checkpoint: "+report.checkpoint_status+"; coverage "+report.coverage,
     "- New changes: "+report.observed_changes+"; review signals "+report.review_events.length,
     "- No automated delivery/ACK proof, approvals, merge, deploy or vault access",
-    "- Evidence: monitor-output/report.json; checkpoint: state.json"].join("\n")+"\n";
+    "- Evidence: monitor-output/report.json; checkpoint: state.json",
+    // Show only canonical public GitHub references; never log Notion identifiers.
+    ...report.review_events.filter(e=>typeof e.reference==="string" &&
+      e.reference.startsWith("https://github.com/"+REPO+"/")).slice(0,20)
+      .map(e=>"- Review candidate ("+e.priority+"): "+e.reference)
+    ].join("\n")+"\n";
   if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary);
   process.stdout.write(summary);
   // A candidate report can be green with incomplete Notion configuration, but never claims full coverage.
