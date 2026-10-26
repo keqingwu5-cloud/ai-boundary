@@ -72,7 +72,7 @@ function normalizeNotion(x, src) {
   if (!x || !ID.test(String(x.id||"")) || !ISO(x.last_edited_time)) return null;
   return {key:"notion:"+HASH(x.id)+":"+x.last_edited_time,kind:"notion",
     ref:"notion:sha256:"+HASH(x.id),at:x.last_edited_time,
-    priority:x.archived?"REVIEW_UNVERIFIED":"CHANGE",
+    priority:(x.in_trash===true || x.archived===true)?"REVIEW_UNVERIFIED":"CHANGE",
     ack_status:"NOT_ASSESSED",source:src};
 }
 async function paginated(request, route, attr) {
