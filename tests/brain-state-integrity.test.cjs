@@ -17,7 +17,7 @@ async function harness(opts={}){
  const env={commitBrainImport,validateBrainImport,localStorage:storage,KEY:"aiBrain.v1",UKEY:"aiBrain.v1.undo",
  migrate:s=>{s.concepts ||= {};s.patterns ||= {};return s;},load:()=>copy(sample()),seedState:()=>sample("seed"),clearTimeout(){},flashSaved(){ui.push("saved")},
  toast:s=>ui.push(s),sync(){},renderHistory(){},renderCrumbs(){},closePanel(){},focusBrain(){}};
- const prefix="let blockedStoredState=false; const {commitBrainImport,validateBrainImport,localStorage,KEY,UKEY,migrate,load,seedState,clearTimeout,flashSaved,toast,sync,renderHistory,renderCrumbs,closePanel,focusBrain}=env; const focusId='main'; const B=id=>state.brains.find(x=>x.id===id);";
+ const prefix="let blockedStoredState=false,expectedMainRaw=env.localStorage.getItem('aiBrain.v1'); const {commitBrainImport,validateBrainImport,localStorage,KEY,UKEY,migrate,load,seedState,clearTimeout,flashSaved,toast,sync,renderHistory,renderCrumbs,closePanel,focusBrain}=env; const focusId='main'; const B=id=>state.brains.find(x=>x.id===id);";
  const suffix="return {get:()=>state,undoStack:()=>undoStack,mutate,undo,resetAll,save,events:listeners};";
  return {...new Function("env",prefix+"\n"+pieces+"\n"+suffix)(env),storage,ui};
 }
@@ -37,3 +37,10 @@ test("13 reset fails without losing data",async()=>{const h=await harness();h.mu
 test("14 save failure not claimed as saved",async()=>{const h=await harness();h.ui.length=0;h.storage.failOn("aiBrain.v1");assert.equal(h.save(true),false);assert.equal(h.ui.includes("saved"),false)});
 test("15 invalid undo graph rejected",async()=>{const h=await harness({undo:[JSON.stringify({...sample(),nodes:[null]})]});assert.equal(h.undo(),false);assert.equal(h.get().nodes[0].title,"old")});
 test("16 reset migrates missing concept and pattern dictionaries before rendering",async()=>{const h=await harness();assert.equal(h.resetAll(),true);assert.equal(typeof h.get().concepts,"object");assert.equal(typeof h.get().patterns,"object")});
+test("17 stale revision prevents mutate and preserves external persisted value",async()=>{
+ const h=await harness(),newer=JSON.stringify(sample("external"));
+ h.storage.data.set("aiBrain.v1",newer);
+ assert.equal(h.mutate("edit",{},()=>{h.get().nodes[0].title="stale"}),false);
+ assert.equal(h.storage.getItem("aiBrain.v1"),newer);
+ assert.equal(h.get().nodes[0].title,"old");
+});
