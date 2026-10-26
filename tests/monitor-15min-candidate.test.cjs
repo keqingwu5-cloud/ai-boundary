@@ -159,3 +159,43 @@ test("ordinary task/PR updates appear as sanitized evidence links, not hidden be
  assert.deepEqual(result.report.observed_events.map(e=>e.kind),["issue","pr"]);
  assert.equal(JSON.stringify(result.report.observed_events).includes("normal new task"),false);
 });
+
+test("rerunning the same GitHub Actions run with same conclusion is a distinct attempt",()=>{
+ const common={id:7782,status:"completed",conclusion:"failure",updated_at:NOW,name:"Other workflow"};
+ const a=m.normalizeRun({...common,run_attempt:1});
+ const b=m.normalizeRun({...common,run_attempt:2});
+ assert.notEqual(a.key,b.key);
+ const r=run({github:{...gh,events:[a,b]},checkpoint:{...checkpoint,seen:[a.key]}});
+ assert.equal(r.report.observed_changes,1);
+ assert.equal(r.report.action_required,"REVIEW_WORKFLOW_FAILURE");
+});
+test("checkpoint corruption escalates instead of silently treating later events as safe",()=>{
+ const a=run({checkpoint:{status:"INVALID_PREVIOUS_EVIDENCE",seen:[],last_checked_at:null}});
+ assert.equal(a.report.action_required,"REVIEW_CHECKPOINT_GAP");
+ assert.equal(a.report.baseline_no_alerts,true);
+});
+test("stale checkpoint remains a safety incident even if no event is in the newest 24h",()=>{
+ const a=run({checkpoint:{status:"STALE_CHECKPOINT",seen:[],last_checked_at:"2026-10-01T01:45:00Z"}});
+ assert.equal(a.report.action_required,"REVIEW_CHECKPOINT_GAP");
+ assert.equal(a.report.review_events.length,0);
+});
+test("old-created but newly retried workflow may still be captured from latest completed listing",async()=>{
+ let runRoute="";
+ const result=await m.collectGithub(async route=>{
+   if(route.includes("/issues/comments?"))return [];
+   if(route.includes("/issues?"))return [];
+   if(route.includes("/actions/runs?")){
+     runRoute=route;
+     return {workflow_runs:[{
+       id:1901,name:"Backup CI",created_at:"2026-10-20T08:00:00Z",
+       updated_at:NOW,run_attempt:4,status:"completed",conclusion:"failure"
+     }]};
+   }
+   if(route.endsWith("/commits/main"))return {sha:SHA,commit:{committer:{date:NOW}}};
+   throw Error("Unexpected request "+route);
+ },"2026-10-27T01:45:00Z");
+ assert.match(runRoute,/status=completed/);
+ assert.doesNotMatch(runRoute,/created=/);
+ assert.equal(result.events.filter(x=>x.kind==="run").length,1);
+ assert.match(result.events.find(x=>x.kind==="run").key,/attempt-4/);
+});
