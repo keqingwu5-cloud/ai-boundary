@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const {collectAnchors,buildBaseline} = require("./monitor-operational-baseline.cjs");
 
 const SCHEMA = "tcvl-monitor-15m-candidate/v1";
 const REPO = "keqingwu5-cloud/ai-boundary";
@@ -221,7 +222,10 @@ async function main() {
   const sources=validateIds(process.env.NOTION_MONITOR_DATA_SOURCE_IDS||"");
   const github=await collectGithub(route=>githubRequest(route,process.env.GITHUB_TOKEN),since);
   const notion=await collectNotion(notionRequest,process.env.NOTION_MONITOR_TOKEN,ids,sources);
+  const anchors=await collectAnchors(route=>githubRequest(route,process.env.GITHUB_TOKEN));
+  const operational=buildBaseline({anchors,github,notion,checkpoint,branch,event:process.env.GITHUB_EVENT_NAME,checkedAt:now});
   const {report,checkpoint:next}=evaluate({branch,now,checkpoint,github,notion});
+  report.operational_baseline=operational;
   persistExclusive("monitor-output/report.json",report);
   persistExclusive("monitor-output/state.json",next);
   const summary=["## TCVL 15-minute candidate monitor",
@@ -229,6 +233,8 @@ async function main() {
     "- GitHub: "+report.github.status+"; issues/PR "+github.counts.issues+"; comments "+github.counts.comments+"; main commits "+github.counts.main_commits,
     "- Notion: "+report.notion.status+" (read-only, metadata only)",
     "- Checkpoint: "+report.checkpoint_status+"; coverage "+report.coverage,
+    "- Task-aware baseline: "+operational.conclusion+"; stage "+(operational.intended_vs_observed.stage_match?"MATCH":"REVIEW")+"; source "+(operational.intended_vs_observed.source_scope_match?"MATCH":"REVIEW"),
+    "- Purpose/phase and live anchor metadata: "+operational.task_anchors.length+" references; issue state does not prove task completion",
     "- New changes: "+report.observed_changes+"; review signals "+report.review_events.length,
     "- No automated delivery/ACK proof, approvals, merge, deploy or vault access",
     "- Evidence: monitor-output/report.json; checkpoint: state.json",
@@ -240,7 +246,8 @@ async function main() {
   if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary);
   process.stdout.write(summary);
   // A candidate report can be green with incomplete Notion configuration, but never claims full coverage.
-  if(report.action_required!=="NONE" || report.review_overflow || report.observed_overflow) process.exitCode=3;
+  if(report.action_required!=="NONE" || report.review_overflow || report.observed_overflow ||
+     !operational.intended_vs_observed.stage_match || !operational.intended_vs_observed.source_scope_match) process.exitCode=3;
 }
 if(require.main===module)main().catch(err=>{
   const code=String(err&&err.message||"UNKNOWN_MONITOR_ERROR").replace(/[^A-Z0-9_]/gi,"_").slice(0,100);
