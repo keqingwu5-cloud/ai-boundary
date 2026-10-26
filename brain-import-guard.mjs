@@ -59,10 +59,13 @@ function restore(storage,key,value){
   if(value===null)storage.removeItem(key);
   else storage.setItem(key,value);
 }
-export function commitBrainImport(storage,mainKey,undoKey,nextState,nextUndo){
+export function commitBrainImport(storage,mainKey,undoKey,nextState,nextUndo,expectedMainRaw){
   let oldMain,oldUndo;
   try{oldMain=storage.getItem(mainKey);oldUndo=storage.getItem(undoKey);}
   catch(_){return {ok:false,reason:"snapshot_read_failed",rollbackOk:true};}
+  // Optimistic revision check: never overwrite another tab's newer snapshot.
+  if(expectedMainRaw!==undefined && oldMain!==expectedMainRaw)
+    return {ok:false,reason:"stale_write_conflict",rollbackOk:true};
   let undoWritten=false,mainWritten=false;
   try{
     const undoJSON=JSON.stringify(nextUndo),mainJSON=JSON.stringify(nextState);
