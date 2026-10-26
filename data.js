@@ -3345,6 +3345,69 @@ const SEED_EXTRAS = [
       "video": "",
       "image": ""
     }
+  },
+  /* ↓ INTP 鏡像研究員第 2 組：Merlin 2026-10-27 00:34（UTC+8）勾選的 1 個節點（intp-mirror/nodes.json v2；P2 方向；延伸問題未收） */
+  {
+    "id": "n_x_intp_p2",
+    "parentId": "n_q6",
+    "kind": "direction",
+    "title": "為什麼每個問題最後都會被拉到「誰負責」？",
+    "type": "倫理與責任",
+    "oneLiner": "6/6 個種子主問題仍各有一個倫理延伸；10 個「往外拉」裡 9 個落在倫理或社會，唯一例外是 bot 提出的 n_x_language（往語言學拉）。這是必要的連結，還是慣性路徑？",
+    "source": {
+      "who": "INTP 鏡像研究員（bot，程式統計）",
+      "outlet": "intp-mirror/patterns.md v2（P2）",
+      "date": "2026-10-12",
+      "url": "",
+      "also": []
+    },
+    "assumptions": "【推測】無外部來源；本節點由 INTP 鏡像研究員依知識網種子資料的程式統計提出（見 patterns.md P2）；Merlin 2026-10-27 已核准發布。",
+    "reasoning": [
+      {
+        "k": "問題定義",
+        "v": "6/6 個種子主問題仍各有一個倫理延伸；10 個「往外拉」裡 9 個落在倫理或社會，唯一例外是 bot 提出的 n_x_language（往語言學拉）。這是必要的連結，還是慣性路徑？"
+      },
+      {
+        "k": "證據",
+        "v": "ethicsExtPerQuestion：n_q1_e3, n_q2_e2, n_q3_e1, n_q4_e2, n_q5_e0, n_q6_e2；【判斷】outwardTargets：倫理 6、社會 3、理解與意識 1（n_x_language）；conceptTreeSpan 責任歸屬：q1/q2/q3/q6/q5"
+      },
+      {
+        "k": "推演",
+        "v": "【推測】統計只描述主腦種子網（seed 25 + SEED_EXTRAS 16）的形狀，不等於 Merlin 本人的思考習慣；Merlin 親手建立的節點 0 個。"
+      },
+      {
+        "k": "未解關鍵點",
+        "v": "需要 Merlin 的匯出 JSON 或雲端共用大腦上線後，用 createdBy:'merlin' 的節點重跑 scripts/analyze-v2.js 才能確認。"
+      }
+    ],
+    "concepts": [
+      "責任歸屬",
+      "治理監管"
+    ],
+    "processPattern": "風險鏈→治理對策",
+    "counterEvidence": [],
+    "botNotes": [
+      "INTP 鏡像研究員 2026-10-12；依 keqingwu5-cloud/ai-boundary main@f374d1e（2026-10-11 23:24 UTC+8），41 個種子節點 重算；舊 id bot_p2",
+      "Merlin 2026-10-27 00:34（UTC+8）勾選發布（INTP 鏡像研究員第 2 組）"
+    ],
+    "createdBy": "bot",
+    "bot": "INTP 鏡像研究員",
+    "status": "open",
+    "media": {
+      "video": "",
+      "image": ""
+    },
+    "x_reviewStatus": "已核准",
+    "x_oldId": "bot_p2",
+    "x_patternRef": "P2",
+    "x_evidenceNodes": [
+      "n_q1_e3",
+      "n_q2_e2",
+      "n_q3_e1",
+      "n_q4_e2",
+      "n_q5_e0",
+      "n_q6_e2"
+    ]
   }
 ];
 
