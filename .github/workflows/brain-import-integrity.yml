@@ -5,6 +5,7 @@ on:
       - app.js
       - brain-import-guard.mjs
       - tests/brain-import-integrity.test.cjs
+      - tests/brain-state-integrity.test.cjs
       - .github/workflows/brain-import-integrity.yml
 jobs:
   node-regression:
@@ -18,4 +19,4 @@ jobs:
         with:
           node-version: "22"
       - name: Run real Node.js regression suite
-        run: node --test tests/brain-import-integrity.test.cjs
+        run: node --test tests/brain-import-integrity.test.cjs tests/brain-state-integrity.test.cjs
