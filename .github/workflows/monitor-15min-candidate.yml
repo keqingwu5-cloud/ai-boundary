@@ -12,7 +12,9 @@ on:
       - main
     paths:
       - 'scripts/monitor-15min-candidate.cjs'
+      - 'scripts/monitor-operational-baseline.cjs'
       - 'tests/monitor-15min-candidate.test.cjs'
+      - 'tests/monitor-operational-baseline.test.cjs'
       - 'docs/monitor-15min-candidate-20261027.md'
       - 'docs/monitor-15min-security-g2-handoff-20261027.md'
       - '.github/workflows/monitor-15min-candidate.yml'
@@ -40,7 +42,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run all existing launcher, memory and monitor Node regressions
+      - name: Run launcher, memory, task-aware baseline and monitor regressions
         run: node --test tests/*.test.cjs
 
   monitor-preview:
