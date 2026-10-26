@@ -66,15 +66,18 @@ jobs:
           GH_REPO: '${{ github.repository }}'
         run: |
           mkdir -p prior
-          if gh run list --workflow monitor-15min-candidate.yml --branch "$GITHUB_REF_NAME" --limit 20 --json databaseId,conclusion --jq '.[] | select(.conclusion == "success" or .conclusion == "failure") | .databaseId' > previous-run-ids.txt 2>/dev/null; then
+          if gh api "/repos/$GH_REPO/actions/runs?branch=$GITHUB_REF_NAME&per_page=30" --jq '.workflow_runs[] | select(.name == "TCVL 15-minute read-only monitoring candidate" and (.conclusion == "success" or .conclusion == "failure")) | .id' > previous-run-ids.txt; then
             while IFS= read -r run_id; do
               [[ "$run_id" =~ ^[0-9]+$ ]] || continue
               if gh run download "$run_id" --name monitor-15min-state --dir prior >/dev/null 2>&1 && [ -s prior/state.json ]; then
                 echo "Prior checkpoint restored; it is revalidated by the monitor."
                 break
               fi
+              echo "::warning::Failed to download a valid monitor checkpoint from prior run $run_id; trying older."
               rm -f prior/state.json
             done < previous-run-ids.txt
+          else
+            echo "::warning::Cannot list previous monitor runs; baseline-only coverage until recovered."
           fi
           if [ ! -s prior/state.json ]; then
             echo "No trusted prior checkpoint available: bootstrap will not emit historic alerts."
