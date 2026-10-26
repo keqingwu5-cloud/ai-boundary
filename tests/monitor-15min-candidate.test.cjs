@@ -207,3 +207,35 @@ test("Notion 2026 in_trash is treated as a reviewable change",()=>{
  const archived=m.normalizeNotion({id:uuid,last_edited_time:NOW,archived:true},"page");
  assert.equal(archived.priority,"REVIEW_UNVERIFIED");
 });
+
+test("foreign GitHub issue comment URL may not be falsely attributed to local issue",()=>{
+ const comment={id:101,updated_at:NOW,body:"P0 ACK",
+   issue_url:"https://api.github.com/repos/other-owner/other-repo/issues/31"};
+ assert.equal(m.normalizeComment(comment),null);
+ assert.equal(m.normalizeComment({...comment,issue_url:"https://api.github.com/repos/keqingwu5-cloud/ai-boundary/issues/31"}).kind,"comment");
+});
+test("malformed or query-injected GitHub comment references are rejected",()=>{
+ const base={id:1234,updated_at:NOW};
+ for(const issue_url of [
+  "http://api.github.com/repos/keqingwu5-cloud/ai-boundary/issues/31",
+  "https://api.github.com/repos/keqingwu5-cloud/ai-boundary/issues/31?fake=true",
+  "https://attacker.invalid/repos/keqingwu5-cloud/ai-boundary/issues/31",
+  "https://api.github.com/repos/keqingwu5-cloud/ai-boundary/issues/-31",
+  "https://api.github.com/repos/keqingwu5-cloud/ai-boundary/issues/31/extra"
+ ]) assert.equal(m.normalizeComment({...base,issue_url}),null);
+});
+test("checkpoint capacity overflow raises error instead of discarding arbitrary old event ids",()=>{
+ const many=Array.from({length:5000},(_,i)=>"issue:"+i+":2026-10-20T00:00:00Z");
+ const one=m.normalizeIssue({number:31,updated_at:NOW,title:"new direction"});
+ assert.throws(()=>m.evaluate({branch:"candidate/test",now:NOW,
+  checkpoint:{...checkpoint,seen:many},github:{...gh,events:[one]},notion}),/MONITOR_CHECKPOINT_CAPACITY_EXCEEDED/);
+});
+test("checkpoint under capacity retains prior evidence and new revisions",()=>{
+ const prev=Array.from({length:4999},(_,i)=>"issue:"+i+":2026-10-20T00:00:00Z");
+ const one=m.normalizeIssue({number:31,updated_at:NOW,title:"new direction"});
+ const v=m.evaluate({branch:"candidate/test",now:NOW,
+  checkpoint:{...checkpoint,seen:prev},github:{...gh,events:[one]},notion});
+ assert.equal(v.checkpoint.seen.length,5000);
+ assert.equal(v.checkpoint.seen[0],prev[0]);
+ assert.ok(v.checkpoint.seen.includes(one.key));
+});
