@@ -68,7 +68,24 @@ function seedState(){
   return st;
 }
 function valid(s){ return s && Array.isArray(s.brains) && Array.isArray(s.nodes) && Array.isArray(s.links) && Array.isArray(s.history) && s.brains.some(b => b.id === 'main'); }
-function load(){ try { const s = JSON.parse(localStorage.getItem(KEY)); return valid(s) ? s : null; } catch(e){ return null; } }
+// Corrupt persisted data is quarantined in place, not silently replaced with seed data.
+let blockedStoredState = false, preservedRawState = null;
+function load(){
+  let raw;
+  try { raw = localStorage.getItem(KEY); }
+  catch(e){ blockedStoredState = true; return null; }
+  if (raw === null) return null;
+  try {
+    const saved = JSON.parse(raw);
+    const checked = validateBrainImport(saved);
+    if (!checked.ok) throw Error(checked.reason);
+    return saved;
+  } catch(e){
+    blockedStoredState = true;
+    preservedRawState = raw;
+    return null;
+  }
+}
 /* concept layer migration: adds concepts[] / processPattern to old saves without touching user edits */
 function seedKey(id){ const m = /^n_(q\d+)(?:_e(\d+))?$/.exec(id); return m ? (m[2] !== undefined ? m[1] + ':e' + m[2] : m[1]) : null; }
 function migrate(st){
@@ -115,6 +132,7 @@ try {
 let saveT = 0;
 // Returns real persistence status. A partial localStorage write is not a successful save.
 function save(now = false){
+  if (blockedStoredState){ toast('⚠ 偵測到受損舊存檔，已停止自動覆寫'); return false; }
   clearTimeout(saveT);
   const result = commitBrainImport(localStorage, KEY, UKEY, state, undoStack.slice(-12));
   if (!result.ok){
@@ -128,6 +146,7 @@ save(true);
 const listeners = {};
 function emit(ev, data){ (listeners[ev] || []).forEach(f => { try { f(data); } catch(e){ console.error(e); } }); }
 function commitChange(proposed, nextUndo, successLabel){
+  if (blockedStoredState){ toast('⚠ 舊存檔待保護，禁止自動覆寫'); return false; }
   const checked = validateBrainImport(proposed);
   if (!checked.ok){ toast('⚠ 變更未保存：' + checked.reason); return false; }
   const result = commitBrainImport(localStorage, KEY, UKEY, proposed, nextUndo);
@@ -142,6 +161,7 @@ function commitChange(proposed, nextUndo, successLabel){
   return true;
 }
 function mutate(action, payload, fn){
+  if (blockedStoredState){ toast('⚠ 舊存檔待保護，暫停修改'); return false; }
   let previous;
   try { previous = JSON.stringify(state); }
   catch(e){ toast('⚠ 無法建立變更快照'); return false; }
@@ -355,6 +375,7 @@ function exportJSON(){
   toast('⇩ 已匯出 JSON');
 }
 function importJSON(obj){
+  if (blockedStoredState){ toast('⚠ 舊存檔待保護；請先下載備份後處理'); return false; }
   const checked = validateBrainImport(obj);
   if (!checked.ok){ toast('⚠ 匯入資料檢查失敗：' + checked.reason); return false; }
   let proposed;
@@ -1099,3 +1120,29 @@ window.AIBrain = {
   on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); }
 };
 document.body.dataset.ready = '1';
+// Keep the original damaged snapshot available to the person, without uploading it.
+if (blockedStoredState){
+  const banner = document.createElement('aside');
+  banner.id = 'brainRecoveryWarning';
+  banner.setAttribute('role', 'alert');
+  banner.style.cssText = 'position:fixed;z-index:100000;inset:auto 12px 12px 12px;padding:14px 18px;border:2px solid #f7ca83;border-radius:12px;background:#2b221b;color:#fff4da;box-shadow:0 8px 30px #000b;font:14px/1.6 system-ui';
+  const message = document.createElement('span');
+  message.textContent = '原有主腦存檔無法安全讀取，系統已禁止自動覆寫。現在畫面是暫時的初始資料，並非原有資料已恢復。';
+  banner.append(message);
+  if (preservedRawState !== null){
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = '下載原始存檔備份';
+    button.style.cssText = 'margin-left:12px;border:1px solid #f7ca83;border-radius:8px;padding:5px 9px;background:#453224;color:#fff4da;cursor:pointer';
+    button.addEventListener('click', () => {
+      const blob = new Blob([preservedRawState], {type:'text/plain;charset=utf-8'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ai-brain-preserved-original.txt';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
+    banner.append(button);
+  }
+  document.body.append(banner);
+}
