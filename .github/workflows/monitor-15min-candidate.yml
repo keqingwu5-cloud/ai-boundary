@@ -94,7 +94,10 @@ jobs:
       - name: Poll public GitHub metadata and configured private Notion metadata
         env:
           GITHUB_TOKEN: '${{ github.token }}'
-          NOTION_MONITOR_TOKEN: ${{ (github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')) && secrets.NOTION_MONITOR_TOKEN || '' }}
+          # G0/G1 safety: no Notion credential can be injected by this
+          # public-repository candidate. A future protected, separately
+          # approved Notion runner needs an independent design and PR.
+          NOTION_MONITOR_TOKEN: ''
           NOTION_MONITOR_PAGE_IDS: '${{ vars.NOTION_MONITOR_PAGE_IDS }}'
           NOTION_MONITOR_DATA_SOURCE_IDS: '${{ vars.NOTION_MONITOR_DATA_SOURCE_IDS }}'
         run: node scripts/monitor-15min-candidate.cjs
