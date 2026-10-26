@@ -65,3 +65,26 @@ test("real Chromium: 3D import-save-reload-undo-reset-failure and Feed",async()=
   await context.close();await browser.close();
  }
 });
+
+test("real Chromium: invalid saved snapshot is preserved and exportable",async()=>{
+ const browser=await chromium.launch({channel:"chrome",headless:true,args:["--no-sandbox","--enable-unsafe-swiftshader","--use-gl=angle","--disable-dev-shm-usage"]});
+ const context=await browser.newContext({acceptDownloads:true,viewport:{width:1200,height:800}});
+ const raw='{"brains":[{"id":"main"}],"nodes":[null],"links":[],"history":[]}';
+ await context.addInitScript(({saved})=>{localStorage.setItem("aiBrain.v1",saved);},{saved:raw});
+ const page=await context.newPage();
+ try{
+  await page.goto(root+"/index.html",{waitUntil:"domcontentloaded",timeout:45000});
+  await page.waitForFunction("window.AIBrain && document.body.dataset.ready === '1'",null,{timeout:45000});
+  assert.equal(await page.evaluate(()=>localStorage.getItem("aiBrain.v1")),raw);
+  assert.equal(await page.locator("#brainRecoveryWarning").count(),1,"recovery warning visible");
+  assert.equal(await page.evaluate(()=>window.AIBrain.reset()),false,"reset blocked");
+  assert.equal(await page.evaluate(()=>window.AIBrain.importJSON(window.AIBrain.getState())),false,"import blocked");
+  assert.equal(await page.evaluate(()=>localStorage.getItem("aiBrain.v1")),raw,"old raw still intact");
+  const [download]=await Promise.all([
+    page.waitForEvent("download",{timeout:20000}),
+    page.locator("#brainRecoveryWarning button").click()
+  ]);
+  assert.equal(fs.readFileSync(await download.path(),"utf8"),raw,"downloaded original bytes");
+  console.log("CHROMIUM_CORRUPT_STATE_PROTECTED");
+ }finally{await context.close();await browser.close();}
+});
