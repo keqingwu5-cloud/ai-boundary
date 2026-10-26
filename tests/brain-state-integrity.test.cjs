@@ -17,7 +17,7 @@ async function harness(opts={}){
  const env={commitBrainImport,validateBrainImport,localStorage:storage,KEY:"aiBrain.v1",UKEY:"aiBrain.v1.undo",
  migrate:s=>{s.concepts ||= {};s.patterns ||= {};return s;},load:()=>copy(sample()),seedState:()=>sample("seed"),clearTimeout(){},flashSaved(){ui.push("saved")},
  toast:s=>ui.push(s),sync(){},renderHistory(){},renderCrumbs(){},closePanel(){},focusBrain(){}};
- const prefix="const {commitBrainImport,validateBrainImport,localStorage,KEY,UKEY,migrate,load,seedState,clearTimeout,flashSaved,toast,sync,renderHistory,renderCrumbs,closePanel,focusBrain}=env; const focusId='main'; const B=id=>state.brains.find(x=>x.id===id);";
+ const prefix="let blockedStoredState=false; const {commitBrainImport,validateBrainImport,localStorage,KEY,UKEY,migrate,load,seedState,clearTimeout,flashSaved,toast,sync,renderHistory,renderCrumbs,closePanel,focusBrain}=env; const focusId='main'; const B=id=>state.brains.find(x=>x.id===id);";
  const suffix="return {get:()=>state,undoStack:()=>undoStack,mutate,undo,resetAll,save,events:listeners};";
  return {...new Function("env",prefix+"\n"+pieces+"\n"+suffix)(env),storage,ui};
 }
