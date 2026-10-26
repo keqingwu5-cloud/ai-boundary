@@ -15,7 +15,7 @@ async function harness(opts={}){
  storage.data.set("aiBrain.v1",JSON.stringify(sample()));
  storage.data.set("aiBrain.v1.undo",JSON.stringify(opts.undo||[]));
  const env={commitBrainImport,validateBrainImport,localStorage:storage,KEY:"aiBrain.v1",UKEY:"aiBrain.v1.undo",
- migrate:s=>s,load:()=>copy(sample()),seedState:()=>sample("seed"),clearTimeout(){},flashSaved(){ui.push("saved")},
+ migrate:s=>{s.concepts ||= {};s.patterns ||= {};return s;},load:()=>copy(sample()),seedState:()=>sample("seed"),clearTimeout(){},flashSaved(){ui.push("saved")},
  toast:s=>ui.push(s),sync(){},renderHistory(){},renderCrumbs(){},closePanel(){},focusBrain(){}};
  const prefix="const {commitBrainImport,validateBrainImport,localStorage,KEY,UKEY,migrate,load,seedState,clearTimeout,flashSaved,toast,sync,renderHistory,renderCrumbs,closePanel,focusBrain}=env; const focusId='main'; const B=id=>state.brains.find(x=>x.id===id);";
  const suffix="return {get:()=>state,undoStack:()=>undoStack,mutate,undo,resetAll,save,events:listeners};";
@@ -36,3 +36,4 @@ test("12 reset then undo",async()=>{const h=await harness();h.mutate("edit",{},(
 test("13 reset fails without losing data",async()=>{const h=await harness();h.mutate("edit",{},()=>h.get().nodes[0].title="new");const old=h.storage.getItem("aiBrain.v1"),undo=copy(h.undoStack());h.storage.failOn("aiBrain.v1");assert.equal(h.resetAll(),false);assert.equal(h.get().nodes[0].title,"new");assert.equal(h.storage.getItem("aiBrain.v1"),old);assert.deepEqual(h.undoStack(),undo)});
 test("14 save failure not claimed as saved",async()=>{const h=await harness();h.ui.length=0;h.storage.failOn("aiBrain.v1");assert.equal(h.save(true),false);assert.equal(h.ui.includes("saved"),false)});
 test("15 invalid undo graph rejected",async()=>{const h=await harness({undo:[JSON.stringify({...sample(),nodes:[null]})]});assert.equal(h.undo(),false);assert.equal(h.get().nodes[0].title,"old")});
+test("16 reset migrates missing concept and pattern dictionaries before rendering",async()=>{const h=await harness();assert.equal(h.resetAll(),true);assert.equal(typeof h.get().concepts,"object");assert.equal(typeof h.get().patterns,"object")});
