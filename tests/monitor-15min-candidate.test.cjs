@@ -359,3 +359,13 @@ test("candidate workflow does not double-trigger push and PR polling for one com
  assert.match(yaml,/github\.head_ref \|\| github\.ref_name/);
  assert.match(yaml,/cancel-in-progress:\s*false/);
 });
+
+test("malformed prior task snapshots fail closed rather than silently resetting baseline",()=>{
+ const file=path.join(fs.mkdtempSync(path.join(os.tmpdir(),"tcvl-baseline-")),"state.json");
+ try{
+  fs.writeFileSync(file,JSON.stringify({schema:m.SCHEMA,branch:"A",
+   last_checked_at:"2026-10-27T01:45:00Z",seen:[],
+   task_anchor_snapshot:[{number:31,observed_github_state:"verified-ACK",observed_updated_at:NOW}]}));
+  assert.equal(m.readCheckpoint(file,"A",NOW).status,"INVALID_PREVIOUS_EVIDENCE");
+ }finally{fs.rmSync(path.dirname(file),{recursive:true,force:true});}
+});
