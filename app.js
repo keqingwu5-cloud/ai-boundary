@@ -132,7 +132,7 @@ try {
 let saveT = 0;
 // Returns real persistence status. A partial localStorage write is not a successful save.
 function save(now = false){
-  if (blockedStoredState){ toast('⚠ 偵測到受損舊存檔，已停止自動覆寫'); return false; }
+  if (blockedStoredState) return false; // UI warning is installed after startup.
   clearTimeout(saveT);
   const result = commitBrainImport(localStorage, KEY, UKEY, state, undoStack.slice(-12));
   if (!result.ok){
