@@ -22,6 +22,7 @@ function base(opts={}){
  return buildBaseline({anchors,github:opts.github||github,notion:opts.notion||notion,
  checkpoint:opts.checkpoint||evidence,branch:opts.branch||CANDIDATE_BRANCH,
  event:opts.event||"pull_request",checkedAt:WHEN,
+ previousTaskSnapshot:opts.previousTaskSnapshot,
  previousIntentFingerprint:Object.hasOwn(opts,"previousIntentFingerprint")?
   opts.previousIntentFingerprint:INTENT_FINGERPRINT});
 }
@@ -133,4 +134,33 @@ test("literal task content never leaks from live Issue metadata into a public re
  const snap=base({anchors});
  assert.equal(JSON.stringify(snap).includes("CONFIDENTIAL"),false);
  assert.equal(JSON.stringify(snap).includes("SECRETTITLE"),false);
+});
+
+test("first task observation is never misrepresented as task progress",()=>{
+ const snap=base();
+ assert.equal(snap.task_anchor_delta_summary.first_observations,ANCHORS.length);
+ assert.equal(snap.task_anchor_delta_summary.metadata_changes,0);
+ assert.equal(snap.task_anchor_deltas.every(x=>!x.verified_work_completed),true);
+});
+test("unchanged task metadata is not a new task version",()=>{
+ const anchors=ANCHORS.map(a=>({
+  number:a.number,role:a.role,reference:"https://github.com/keqingwu5-cloud/ai-boundary/issues/"+a.number,
+  observed_github_state:"open",observed_updated_at:WHEN
+ }));
+ const prev=anchors.map(a=>({number:a.number,observed_github_state:a.observed_github_state,observed_updated_at:a.observed_updated_at}));
+ const snap=base({anchors,previousTaskSnapshot:prev});
+ assert.equal(snap.task_anchor_delta_summary.unchanged,ANCHORS.length);
+ assert.equal(snap.task_anchor_delta_summary.first_observations,0);
+});
+test("task metadata changes are review candidates, not inferred task completion",()=>{
+ const anchors=ANCHORS.map(a=>({
+  number:a.number,role:a.role,observed_github_state:"open",observed_updated_at:WHEN,
+  reference:"https://github.com/keqingwu5-cloud/ai-boundary/issues/"+a.number
+ }));
+ const previous=anchors.map(a=>({number:a.number,observed_github_state:"open",observed_updated_at:WHEN}));
+ anchors[2]={...anchors[2],observed_github_state:"closed",observed_updated_at:"2026-10-27T03:05:00Z"};
+ const snap=base({anchors,previousTaskSnapshot:previous});
+ assert.equal(snap.task_anchor_delta_summary.metadata_changes,1);
+ assert.equal(snap.task_anchor_deltas.find(x=>x.number===41).verified_work_completed,false);
+ assert.equal(snap.approval_or_deployment_verified,false);
 });
