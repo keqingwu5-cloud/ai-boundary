@@ -88,3 +88,52 @@ test("real Chromium: invalid saved snapshot is preserved and exportable",async()
   console.log("CHROMIUM_CORRUPT_STATE_PROTECTED");
  }finally{await context.close();await browser.close();}
 });
+
+test("real Chromium: two browser tabs reject stale writes and recover on reload",async()=>{
+ const browser=await chromium.launch({channel:"chrome",headless:true,args:["--no-sandbox","--enable-unsafe-swiftshader","--use-gl=angle","--disable-dev-shm-usage"]});
+ const context=await browser.newContext({viewport:{width:1180,height:770}});
+ const pageA=await context.newPage(),pageB=await context.newPage();
+ const ready=p=>p.waitForFunction("window.AIBrain && document.body.dataset.ready === '1'",null,{timeout:45000});
+ try{
+  await pageA.goto(root+"/index.html",{waitUntil:"domcontentloaded"});await ready(pageA);
+  await pageB.goto(root+"/index.html",{waitUntil:"domcontentloaded"});await ready(pageB);
+  const id=await pageA.evaluate(()=>window.AIBrain.getState().nodes[0].id);
+  await pageA.evaluate(id=>window.AIBrain.setStatus(id,"researching"),id);
+  assert.equal(await pageA.evaluate(id=>window.AIBrain.getState().nodes.find(n=>n.id===id).status,id),"researching");
+  await pageB.waitForFunction("!!document.querySelector('#brainConcurrentWarning')",null,{timeout:12000});
+  await pageB.evaluate(id=>window.AIBrain.setStatus(id,"resolved"),id);
+  assert.equal(await pageB.evaluate(id=>window.AIBrain.getState().nodes.find(n=>n.id===id).status,id),"open","old tab state restored after refused write");
+  assert.equal(await pageA.evaluate(id=>window.AIBrain.getState().nodes.find(n=>n.id===id).status,id),"researching");
+  assert.equal(await pageB.evaluate(id=>JSON.parse(localStorage.getItem('aiBrain.v1')).nodes.find(n=>n.id===id).status,id),"researching","newer persisted state preserved");
+  await pageB.reload({waitUntil:"domcontentloaded"});await ready(pageB);
+  assert.equal(await pageB.evaluate(id=>window.AIBrain.getState().nodes.find(n=>n.id===id).status,id),"researching");
+  await pageB.evaluate(id=>window.AIBrain.setStatus(id,"resolved"),id);
+  assert.equal(await pageB.evaluate(id=>window.AIBrain.getState().nodes.find(n=>n.id===id).status,id),"resolved");
+  await pageA.waitForFunction("!!document.querySelector('#brainConcurrentWarning')",null,{timeout:12000});
+  console.log("CHROMIUM_MULTI_TAB_CONFLICT_GUARD_PASS");
+ }finally{await context.close();await browser.close();}
+});
+test("real Chromium: emulated phone and tablet load brain and Feed",async()=>{
+ const browser=await chromium.launch({channel:"chrome",headless:true,args:["--no-sandbox","--enable-unsafe-swiftshader","--use-gl=angle","--disable-dev-shm-usage"]});
+ try{
+  for(const spec of [{name:"phone",width:390,height:844},{name:"tablet",width:820,height:1180}]){
+   const ctx=await browser.newContext({viewport:{width:spec.width,height:spec.height},hasTouch:true,isMobile:true,deviceScaleFactor:2});
+   const page=await ctx.newPage(),errors=[];
+   page.on("pageerror",err=>errors.push(String(err)));
+   try{
+    await page.goto(root+"/index.html",{waitUntil:"domcontentloaded",timeout:45000});
+    await page.waitForFunction("window.AIBrain && document.body.dataset.ready === '1'",null,{timeout:45000});
+    const info=await page.evaluate(()=>({node:window.AIBrain.getState().nodes[0].id,count:window.AIBrain.getState().nodes.length,overflow:document.documentElement.scrollWidth-window.innerWidth,canvas:!!document.querySelector('canvas')}));
+    assert.ok(info.count>100&&info.canvas,spec.name+" 3D visible");
+    assert.ok(info.overflow<=8,spec.name+" horizontal page overflow="+info.overflow);
+    await page.goto(root+"/feed.html#node="+encodeURIComponent(info.node),{waitUntil:"domcontentloaded",timeout:45000});
+    await page.waitForFunction("window.AIFeed && document.body.dataset.ready === '1'",null,{timeout:45000});
+    const feed=await page.evaluate(()=>({ids:window.AIFeed.list(),overflow:document.documentElement.scrollWidth-window.innerWidth}));
+    assert.ok(feed.ids.includes(info.node),spec.name+" Feed keeps node ID");
+    assert.ok(feed.overflow<=8,spec.name+" Feed horizontal overflow="+feed.overflow);
+    assert.equal(errors.length,0,spec.name+" errors "+errors.slice(0,3).join(";"));
+    console.log("CHROMIUM_EMULATED_"+spec.name.toUpperCase()+"_PASS nodes="+info.count);
+   }finally{await ctx.close();}
+  }
+ }finally{await browser.close();}
+});
