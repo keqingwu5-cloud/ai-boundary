@@ -337,7 +337,9 @@ function undo(){
 function resetAll(){
   let proposed;
   try {
-    proposed = seedState();
+    // Seed snapshots lack the concept/pattern dictionaries expected by the 3D renderer.
+    // Reset must pass through the same migration as first load and JSON import.
+    proposed = migrate(seedState());
     proposed.history.push({ ts:Date.now(), action:'reset', payload:{} });
   } catch(e){ toast('⚠ 重置資料建立失敗'); return false; }
   const nextUndo = [...undoStack, JSON.stringify(state)].slice(-12);
