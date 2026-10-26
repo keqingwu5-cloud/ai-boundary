@@ -33,7 +33,7 @@ async function harness(failKey=null){
  initial,migrate:x=>{x.version=2;x.history.push({ts:1,action:"migrate",payload:{}});return x;},
  clearTimeout(){},sync(){},renderHistory(){},renderCrumbs(){},closePanel(){},focusBrain(){},
  toast:s=>notices.push(s)};
- const runner=new Function("env","const {validateBrainImport,commitBrainImport,localStorage,KEY,UKEY,migrate,clearTimeout,sync,renderHistory,renderCrumbs,closePanel,focusBrain,toast}=env;let state=env.initial,undoStack=[],saveT=0;"+imp+";return {importJSON,state:()=>state,undo:()=>undoStack};");
+ const runner=new Function("env","const {validateBrainImport,commitBrainImport,localStorage,KEY,UKEY,migrate,clearTimeout,sync,renderHistory,renderCrumbs,closePanel,focusBrain,toast}=env;let blockedStoredState=false,state=env.initial,undoStack=[],saveT=0;"+imp+";return {importJSON,state:()=>state,undo:()=>undoStack};");
  return {...runner(env),storage,notices,expected};
 }
 test("01 original valid legacy-format snapshot",async()=>{const g=await guardPromise;assert.equal(g.validateBrainImport(sample()).ok,true);});
