@@ -6,9 +6,6 @@ on:
       - brain-import-guard.mjs
       - tests/brain-import-integrity.test.cjs
       - .github/workflows/brain-import-integrity.yml
-  push:
-    branches:
-      - fix/brain-import-integrity-isolated-20261027
 jobs:
   node-regression:
     runs-on: ubuntu-latest
