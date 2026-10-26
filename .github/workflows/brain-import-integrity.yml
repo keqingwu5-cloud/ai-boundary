@@ -6,6 +6,7 @@ on:
       - brain-import-guard.mjs
       - tests/brain-import-integrity.test.cjs
       - tests/brain-state-integrity.test.cjs
+      - tests/brain-browser-smoke.test.cjs
       - .github/workflows/brain-import-integrity.yml
 jobs:
   node-regression:
@@ -20,3 +21,27 @@ jobs:
           node-version: "22"
       - name: Run real Node.js regression suite
         run: node --test tests/brain-import-integrity.test.cjs tests/brain-state-integrity.test.cjs
+  chromium-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install browser automation runtime
+        run: npm install --no-save --package-lock=false playwright-core@1.56.1
+      - name: Check installed Chrome
+        run: google-chrome --version
+      - name: Start local static site
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/brain-server.log 2>&1 &
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:8765/index.html > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Test real browser 3D and Feed workflows
+        run: node --test tests/brain-browser-smoke.test.cjs
