@@ -7,7 +7,7 @@ const crypto = require("node:crypto");
 const SCHEMA = "tcvl-monitor-15m-candidate/v1";
 const REPO = "keqingwu5-cloud/ai-boundary";
 const POLICY = "https://github.com/keqingwu5-cloud/ai-boundary/issues/31";
-const MONITOR_WORKFLOW = "TCVL 15-minute read-only monitoring candidate";
+const MONITOR_WORKFLOW_PATH = ".github/workflows/monitor-15min-candidate.yml";
 const TRACKED = Object.freeze([31, 36, 38, 41, 54, 55, 56, 57, 60, 62, 63, 64, 65]);
 const MAX_PAGES = 5;
 const PAGE_SIZE = 100;
@@ -43,10 +43,11 @@ function safeGithubUrl(kind, id) {
 function normalizeIssue(x) {
   if (!Number.isSafeInteger(x.number) || !ISO(x.updated_at)) return null;
   const kind = x.pull_request ? "pr" : "issue";
-  const title = String(x.title||"").slice(0,200);
+  // Classification reads title AND full body, but never persists either.
+  const issueText = String(x.title||"")+"\n"+String(x.body||"");
   return {key:kind+":"+x.number+":"+x.updated_at,kind,ref:safeGithubUrl("issue",x.number),
     at:x.updated_at,
-    priority:/(?:\bP0\b|\bBLOCKED\b|資安|安全異常)/i.test(title)?"REVIEW_UNVERIFIED":"CHANGE",
+    priority:/(?:\bP0\b|\bBLOCKED\b|資安|安全異常|安全風險|部署阻擋|RELEASE\s*=\s*NO_GO)/i.test(issueText)?"REVIEW_UNVERIFIED":"CHANGE",
     ack_status:/\bACK\b/i.test(title)?"CLAIM_ONLY_NOT_VERIFIED":"NOT_ASSESSED"};
 }
 function normalizeComment(x) {
@@ -57,19 +58,21 @@ function normalizeComment(x) {
   const number = Number(match[1]);
   const url = safeGithubUrl("issue",number);
   if (!url) return null;
-  const body = String(x.body||"").slice(0,3000);
+  const body = String(x.body||"");
   return {key:"comment:"+x.id+":"+(x.updated_at||x.created_at),kind:"comment",
     ref:url+"#issuecomment-"+x.id,at:x.updated_at||x.created_at,
-    priority:/(?:\bP0\b|RELEASE=NO_GO|部署阻擋|安全風險)/i.test(body)?"REVIEW_UNVERIFIED":"CHANGE",
+    priority:/(?:\bP0\b|\bBLOCKED\b|RELEASE\s*=\s*NO_GO|部署阻擋|安全風險|安全異常|資安)/i.test(body)?"REVIEW_UNVERIFIED":"CHANGE",
     ack_status:/\bACK\b/i.test(body)?"CLAIM_ONLY_NOT_VERIFIED":"NOT_ASSESSED"};
 }
 function normalizeRun(x) {
   if (!Number.isSafeInteger(x.id) || !ISO(x.updated_at || x.created_at)) return null;
   if (x.status !== "completed") return null;
   const blockKnown = /memory v1 evidence inventory and release block/i.test(String(x.name||""));
+  const abnormal = ["failure","timed_out","startup_failure","stale"].includes(x.conclusion);
+  const otherReview = ["cancelled","action_required"].includes(x.conclusion);
   return {key:"run:"+x.id+":attempt-"+(Number.isSafeInteger(x.run_attempt)&&x.run_attempt>0?x.run_attempt:"unverified")+":"+x.conclusion,kind:"run",ref:safeGithubUrl("run",x.id),
     at:x.updated_at||x.created_at,
-    priority:x.conclusion==="failure"?(blockKnown?"REVIEW_UNVERIFIED":"CRITICAL_UNVERIFIED"):"CHANGE",
+    priority:abnormal?(blockKnown?"REVIEW_UNVERIFIED":"CRITICAL_UNVERIFIED"):(otherReview?"REVIEW_UNVERIFIED":"CHANGE"),
     ack_status:"NOT_APPLICABLE"};
 }
 function normalizeNotion(x, src) {
@@ -95,16 +98,22 @@ async function collectGithub(request,since) {
   const issues=await paginated(request,"/repos/"+REPO+"/issues?state=all&since="+u);
   const comments=await paginated(request,"/repos/"+REPO+"/issues/comments?since="+u);
   const runs=await paginated(request,"/repos/"+REPO+"/actions/runs?status=completed","workflow_runs");
+  const commits=await paginated(request,"/repos/"+REPO+"/commits?sha=main&since="+u);
   const commit=await request("/repos/"+REPO+"/commits/main");
   if (!/^[0-9a-f]{40}$/i.test(commit.sha||"")) throw Error("GITHUB_MAIN_SHA_NOT_VERIFIABLE");
   const events=[
     ...issues.map(normalizeIssue),
     ...comments.map(normalizeComment),
-    ...runs.filter(x=>x.name!==MONITOR_WORKFLOW && Date.parse(x.updated_at||x.created_at)>=Date.parse(since)).map(normalizeRun)
+    // Identity is the canonical workflow file path, not a spoofable display name.
+    ...runs.filter(x=>x.path!==MONITOR_WORKFLOW_PATH && Date.parse(x.updated_at||x.created_at)>=Date.parse(since)).map(normalizeRun),
+    ...commits.filter(x=>/^[a-f0-9]{40}$/i.test(x.sha||"")).map(x=>({
+      key:"commit:"+x.sha,kind:"commit",ref:"https://github.com/"+REPO+"/commit/"+x.sha,
+      at:ISO(x.commit?.committer?.date)||since,priority:"CHANGE",ack_status:"NOT_APPLICABLE"
+    }))
   ].filter(Boolean);
   events.push({key:"main:"+commit.sha,kind:"main_commit",ref:"https://github.com/"+REPO+"/commit/"+commit.sha,
     at:commit.commit?.committer?.date||since,priority:"CHANGE",ack_status:"NOT_APPLICABLE"});
-  return {events,counts:{issues:issues.length,comments:comments.length,workflow_runs:runs.length},main_sha:commit.sha};
+  return {events,counts:{issues:issues.length,comments:comments.length,workflow_runs:runs.length,main_commits:commits.length},main_sha:commit.sha};
 }
 async function collectNotion(request,token,pages,datasources) {
   if (!token || (!pages.length && !datasources.length))
@@ -217,7 +226,7 @@ async function main() {
   persistExclusive("monitor-output/state.json",next);
   const summary=["## TCVL 15-minute candidate monitor",
     "- Checked: "+now,
-    "- GitHub: "+report.github.status+"; issues/PR "+github.counts.issues+"; comments "+github.counts.comments,
+    "- GitHub: "+report.github.status+"; issues/PR "+github.counts.issues+"; comments "+github.counts.comments+"; main commits "+github.counts.main_commits,
     "- Notion: "+report.notion.status+" (read-only, metadata only)",
     "- Checkpoint: "+report.checkpoint_status+"; coverage "+report.coverage,
     "- New changes: "+report.observed_changes+"; review signals "+report.review_events.length,
