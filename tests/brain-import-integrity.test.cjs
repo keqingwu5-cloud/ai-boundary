@@ -33,7 +33,7 @@ async function harness(failKey=null){
  initial,migrate:x=>{x.version=2;x.history.push({ts:1,action:"migrate",payload:{}});return x;},
  clearTimeout(){},sync(){},renderHistory(){},renderCrumbs(){},closePanel(){},focusBrain(){},
  toast:s=>notices.push(s)};
- const runner=new Function("env","const {validateBrainImport,commitBrainImport,localStorage,KEY,UKEY,migrate,clearTimeout,sync,renderHistory,renderCrumbs,closePanel,focusBrain,toast}=env;let blockedStoredState=false,state=env.initial,undoStack=[],saveT=0;"+imp+";return {importJSON,state:()=>state,undo:()=>undoStack};");
+ const runner=new Function("env","const {validateBrainImport,commitBrainImport,localStorage,KEY,UKEY,migrate,clearTimeout,sync,renderHistory,renderCrumbs,closePanel,focusBrain,toast}=env;let blockedStoredState=false,expectedMainRaw=env.localStorage.getItem('aiBrain.v1'),state=env.initial,undoStack=[],saveT=0;"+imp+";return {importJSON,state:()=>state,undo:()=>undoStack};");
  return {...runner(env),storage,notices,expected};
 }
 test("01 original valid legacy-format snapshot",async()=>{const g=await guardPromise;assert.equal(g.validateBrainImport(sample()).ok,true);});
@@ -131,4 +131,12 @@ test("18 no false success after readback mismatch",async()=>{
 test("19 nonexistent rootNodeId rejected",async()=>{
  const g=await guardPromise,s=sample();s.brains[0].rootNodeId="unavailable";
  assert.equal(g.validateBrainImport(s).ok,false);
+});
+test("20 stale authoritative snapshot refuses to overwrite a newer tab",async()=>{
+ const g=await guardPromise,storage=memoryStorage();
+ storage.data.set("main","revision-new");storage.data.set("undo","[]");
+ const result=g.commitBrainImport(storage,"main","undo",sample("old"),["old"],"revision-old");
+ assert.equal(result.ok,false);assert.equal(result.reason,"stale_write_conflict");
+ assert.equal(storage.getItem("main"),"revision-new");assert.equal(storage.getItem("undo"),"[]");
+ assert.equal(storage.log.length,0,"no writes allowed on stale revision");
 });
