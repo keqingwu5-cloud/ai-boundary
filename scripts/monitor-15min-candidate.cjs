@@ -26,10 +26,11 @@ function readCheckpoint(filename, branch, now) {
   const time = ISO(data.last_checked_at);
   if (data.schema !== SCHEMA || data.branch !== branch || !Array.isArray(data.seen) ||
       !data.seen.every(s => typeof s === "string" && s.length < 150) || !time ||
-      Date.parse(time) > Date.parse(now) + 60000 || data.seen.length > MAX_SEEN)
+      Date.parse(time) > Date.parse(now) + 60000 || data.seen.length > MAX_SEEN ||
+      (data.intent_fingerprint!==undefined && !/^[a-f0-9]{64}$/.test(data.intent_fingerprint)))
     return {status:"INVALID_PREVIOUS_EVIDENCE",seen:[],last_checked_at:null};
   const stale = Date.parse(now) - Date.parse(time) > 24 * 3600000;
-  return {status:stale?"STALE_CHECKPOINT":"RESTORED",seen:data.seen,last_checked_at:time};
+  return {status:stale?"STALE_CHECKPOINT":"RESTORED",seen:data.seen,last_checked_at:time,intent_fingerprint:data.intent_fingerprint||null};
 }
 function sinceFor(state, now) {
   if (!state.last_checked_at) return new Date(Date.parse(now)-24*3600000).toISOString();
@@ -223,9 +224,13 @@ async function main() {
   const github=await collectGithub(route=>githubRequest(route,process.env.GITHUB_TOKEN),since);
   const notion=await collectNotion(notionRequest,process.env.NOTION_MONITOR_TOKEN,ids,sources);
   const anchors=await collectAnchors(route=>githubRequest(route,process.env.GITHUB_TOKEN));
-  const operational=buildBaseline({anchors,github,notion,checkpoint,branch,event:process.env.GITHUB_EVENT_NAME,checkedAt:now});
+  const operational=buildBaseline({anchors,github,notion,checkpoint,branch,event:process.env.GITHUB_EVENT_NAME,checkedAt:now,
+    previousIntentFingerprint:checkpoint.intent_fingerprint});
   const {report,checkpoint:next}=evaluate({branch,now,checkpoint,github,notion});
   report.operational_baseline=operational;
+  // Never silently accept a changed task purpose based on a new code version.
+  next.intent_fingerprint=operational.intent_continuity==="POLICY_CHANGED_REVIEW"?
+    checkpoint.intent_fingerprint:operational.intent_fingerprint;
   persistExclusive("monitor-output/report.json",report);
   persistExclusive("monitor-output/state.json",next);
   const summary=["## TCVL 15-minute candidate monitor",
@@ -233,7 +238,7 @@ async function main() {
     "- GitHub: "+report.github.status+"; issues/PR "+github.counts.issues+"; comments "+github.counts.comments+"; main commits "+github.counts.main_commits,
     "- Notion: "+report.notion.status+" (read-only, metadata only)",
     "- Checkpoint: "+report.checkpoint_status+"; coverage "+report.coverage,
-    "- Task-aware baseline: "+operational.conclusion+"; stage "+(operational.intended_vs_observed.stage_match?"MATCH":"REVIEW")+"; source "+(operational.intended_vs_observed.source_scope_match?"MATCH":"REVIEW"),
+    "- Task-aware baseline: "+operational.conclusion+"; intent "+operational.intent_continuity+"; stage "+(operational.intended_vs_observed.stage_match?"MATCH":"REVIEW")+"; source "+(operational.intended_vs_observed.source_scope_match?"MATCH":"REVIEW"),
     "- Purpose/phase and live anchor metadata: "+operational.task_anchors.length+" references; issue state does not prove task completion",
     "- New changes: "+report.observed_changes+"; review signals "+report.review_events.length,
     "- No automated delivery/ACK proof, approvals, merge, deploy or vault access",
@@ -247,7 +252,8 @@ async function main() {
   process.stdout.write(summary);
   // A candidate report can be green with incomplete Notion configuration, but never claims full coverage.
   if(report.action_required!=="NONE" || report.review_overflow || report.observed_overflow ||
-     !operational.intended_vs_observed.stage_match || !operational.intended_vs_observed.source_scope_match) process.exitCode=3;
+     !operational.intended_vs_observed.stage_match || !operational.intended_vs_observed.source_scope_match ||
+     operational.intent_continuity==="POLICY_CHANGED_REVIEW") process.exitCode=3;
 }
 if(require.main===module)main().catch(err=>{
   const code=String(err&&err.message||"UNKNOWN_MONITOR_ERROR").replace(/[^A-Z0-9_]/gi,"_").slice(0,100);
