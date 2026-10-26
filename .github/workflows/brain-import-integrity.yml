@@ -1,0 +1,24 @@
+name: Brain import integrity regression (isolated)
+on:
+  pull_request:
+    paths:
+      - app.js
+      - brain-import-guard.mjs
+      - tests/brain-import-integrity.test.cjs
+      - .github/workflows/brain-import-integrity.yml
+  push:
+    branches:
+      - fix/brain-import-integrity-isolated-20261027
+jobs:
+  node-regression:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run real Node.js regression suite
+        run: node --test tests/brain-import-integrity.test.cjs
