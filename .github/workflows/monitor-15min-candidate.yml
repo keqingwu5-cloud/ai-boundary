@@ -5,15 +5,8 @@ on:
     # Offset from :00 to reduce load; GitHub cron execution may be delayed/dropped.
     - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
-  push:
-    branches:
-      - candidate/monitor-15min-github-notion-20261027
-    paths:
-      - 'scripts/monitor-15min-candidate.cjs'
-      - 'tests/monitor-15min-candidate.test.cjs'
-      - 'docs/monitor-15min-candidate-20261027.md'
-      - 'docs/monitor-15min-security-g2-handoff-20261027.md'
-      - '.github/workflows/monitor-15min-candidate.yml'
+  # Intentionally omit push: open PR validation already runs on each update.
+  # Duplicate push+PR triggers competed for one checkpoint and cancelled pending runs.
   pull_request:
     branches:
       - main
