@@ -12,6 +12,7 @@ on:
       - 'scripts/monitor-15min-candidate.cjs'
       - 'tests/monitor-15min-candidate.test.cjs'
       - 'docs/monitor-15min-candidate-20261027.md'
+      - 'docs/monitor-15min-security-g2-handoff-20261027.md'
       - '.github/workflows/monitor-15min-candidate.yml'
   pull_request:
     branches:
@@ -20,6 +21,7 @@ on:
       - 'scripts/monitor-15min-candidate.cjs'
       - 'tests/monitor-15min-candidate.test.cjs'
       - 'docs/monitor-15min-candidate-20261027.md'
+      - 'docs/monitor-15min-security-g2-handoff-20261027.md'
       - '.github/workflows/monitor-15min-candidate.yml'
 
 permissions:
