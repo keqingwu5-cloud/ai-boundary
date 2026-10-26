@@ -47,8 +47,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run synthetic idempotency, authorization and failure tests
-        run: node --test tests/monitor-15min-candidate.test.cjs
+      - name: Run all existing launcher, memory and monitor Node regressions
+        run: node --test tests/*.test.cjs
 
   monitor-preview:
     name: Read-only monitor; report only, never dispatch
