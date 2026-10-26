@@ -116,6 +116,7 @@ test("GitHub polling maps issue, comment, runs and main SHA without remote ACK",
    if(route.includes("/issues/comments?"))return [{id:77,issue_url:"https://api.github.com/repos/keqingwu5-cloud/ai-boundary/issues/41",body:"ACK",updated_at:NOW}];
    if(route.includes("/issues?"))return [{number:41,title:"handoff",updated_at:NOW}];
    if(route.includes("/actions/runs?"))return {workflow_runs:[{id:1555,status:"completed",conclusion:"success",updated_at:NOW}]};
+   if(route.includes("/commits?"))return [];
    if(route.includes("/commits/main"))return {sha:SHA,commit:{committer:{date:NOW}}};
    throw Error("unplanned-route:"+route);
  },"2026-10-27T01:45:00Z");
@@ -191,7 +192,9 @@ test("old-created but newly retried workflow may still be captured from latest c
        updated_at:NOW,run_attempt:4,status:"completed",conclusion:"failure"
      }]};
    }
-   if(route.endsWith("/commits/main"))return {sha:SHA,commit:{committer:{date:NOW}}};
+   if(route.includes("/commits?"))return [];
+   if(route.includes("/commits?"))return [];
+  if(route.endsWith("/commits/main"))return {sha:SHA,commit:{committer:{date:NOW}}};
    throw Error("Unexpected request "+route);
  },"2026-10-27T01:45:00Z");
  assert.match(runRoute,/status=completed/);
@@ -245,9 +248,11 @@ test("previous self-monitoring failure is excluded to avoid an infinite failure-
    if(route.includes("/issues/comments?"))return [];
    if(route.includes("/issues?"))return [];
    if(route.includes("/actions/runs?"))return {workflow_runs:[
-     {id:20001,run_attempt:1,name:"TCVL 15-minute read-only monitoring candidate",status:"completed",conclusion:"failure",updated_at:NOW},
+     {id:20001,run_attempt:1,name:"TCVL 15-minute read-only monitoring candidate",path:".github/workflows/monitor-15min-candidate.yml",status:"completed",conclusion:"failure",updated_at:NOW},
      {id:20002,run_attempt:1,name:"Independent CI",status:"completed",conclusion:"failure",updated_at:NOW}]};
-   if(route.endsWith("/commits/main"))return {sha:SHA,commit:{committer:{date:NOW}}};
+   if(route.includes("/commits?"))return [];
+   if(route.includes("/commits?"))return [];
+  if(route.endsWith("/commits/main"))return {sha:SHA,commit:{committer:{date:NOW}}};
    throw Error("Unexpected mock route "+route);
  }, "2026-10-27T01:45:00.000Z");
  assert.equal(list.counts.workflow_runs,2);
@@ -262,7 +267,8 @@ test("only the self workflow is excluded: external failures and human review fin
   if(route.includes("/issues/comments?"))return [];
   if(route.includes("/issues?"))return [];
   if(route.includes("/actions/runs?"))return {workflow_runs:[
-    {id:20001,run_attempt:2,name:"TCVL 15-minute read-only monitoring candidate",status:"completed",conclusion:"failure",updated_at:NOW}]};
+    {id:20001,run_attempt:2,name:"TCVL 15-minute read-only monitoring candidate",path:".github/workflows/monitor-15min-candidate.yml",status:"completed",conclusion:"failure",updated_at:NOW}]};
+  if(route.includes("/commits?"))return [];
   if(route.endsWith("/commits/main"))return {sha:SHA,commit:{committer:{date:NOW}}};
   throw Error("Unexpected mock route "+route);
  }, "2026-10-27T01:45:00.000Z");
@@ -279,4 +285,69 @@ test("public candidate workflow cannot resolve an external Notion credential on 
  assert.match(source,/\bcontents:\s*read\b/);
  assert.match(source,/\bissues:\s*read\b/);
  assert.doesNotMatch(source,/^\s*(?:contents|issues|pull-requests|actions|deployments):\s*write\b/m);
+});
+
+test("important risk in issue body is detected without emitting body contents",()=>{
+ const x=m.normalizeIssue({number:102,title:"ordinary issue",body:"Private details... P0 urgent security",updated_at:NOW});
+ assert.equal(x.priority,"REVIEW_UNVERIFIED");
+ assert.equal(JSON.stringify(x).includes("Private details"),false);
+});
+test("comment risk after 3000 characters is not silently ignored",()=>{
+ const x=m.normalizeComment({id:234,issue_url:"https://api.github.com/repos/keqingwu5-cloud/ai-boundary/issues/56",
+ body:"x".repeat(3100)+"\nBLOCKED",updated_at:NOW});
+ assert.equal(x.priority,"REVIEW_UNVERIFIED");
+});
+test("timed_out and startup_failure are critical; cancelled and action_required still require review",()=>{
+ for(const conclusion of ["timed_out","startup_failure","stale","failure"]){
+  assert.equal(m.normalizeRun({id:501,name:"External",path:".github/workflows/external.yml",
+    status:"completed",conclusion,updated_at:NOW}).priority,"CRITICAL_UNVERIFIED");
+ }
+ for(const conclusion of ["cancelled","action_required"]){
+  assert.equal(m.normalizeRun({id:502,name:"External",status:"completed",conclusion,updated_at:NOW}).priority,"REVIEW_UNVERIFIED");
+ }
+});
+test("different workflow with identical display name is never excluded from alerts",async()=>{
+ const g=await m.collectGithub(async route=>{
+   if(route.includes("/issues/comments?"))return [];
+   if(route.includes("/issues?"))return [];
+   if(route.includes("/actions/runs?"))return {workflow_runs:[
+    {id:7001,name:"TCVL 15-minute read-only monitoring candidate",path:".github/workflows/monitor-15min-candidate.yml",status:"completed",conclusion:"failure",updated_at:NOW},
+    {id:7002,name:"TCVL 15-minute read-only monitoring candidate",path:".github/workflows/different-workflow.yml",status:"completed",conclusion:"failure",updated_at:NOW}
+   ]};
+   if(route.includes("/commits?"))return [];
+   if(route.endsWith("/commits/main"))return {sha:SHA,commit:{committer:{date:NOW}}};
+   throw Error("Unexpected route "+route);
+ },"2026-10-27T01:45:00Z");
+ const related=g.events.filter(x=>x.kind==="run");
+ assert.equal(related.length,1);assert.match(related[0].ref,/7002$/);
+});
+test("commit list includes intermediate main commits rather than only final HEAD SHA",async()=>{
+ const c1="a".repeat(40), c2="b".repeat(40),c3="c".repeat(40);
+ const routes=[];
+ const g=await m.collectGithub(async route=>{
+ routes.push(route);
+ if(route.includes("/issues/comments?"))return [];
+ if(route.includes("/issues?"))return [];
+ if(route.includes("/actions/runs?"))return {workflow_runs:[]};
+ if(route.includes("/commits?"))return [
+   {sha:c1,commit:{committer:{date:NOW}}},
+   {sha:c2,commit:{committer:{date:NOW}}},
+   {sha:c3,commit:{committer:{date:NOW}}}];
+ if(route.endsWith("/commits/main"))return {sha:c3,commit:{committer:{date:NOW}}};
+ throw Error("Unexpected route "+route);
+ },"2026-10-27T01:45:00Z");
+ assert.equal(g.counts.main_commits,3);
+ assert.equal(g.events.filter(x=>x.kind==="commit").length,3);
+ assert.equal(g.events.filter(x=>x.kind==="main_commit").length,1);
+ assert.ok(routes.some(r=>r.includes("commits?sha=main&since=")));
+});
+test("main commit listing pagination is fail closed when too many updates exist",async()=>{
+ await assert.rejects(()=>m.collectGithub(async route=>{
+   if(route.includes("/issues/comments?"))return [];
+   if(route.includes("/issues?"))return [];
+   if(route.includes("/actions/runs?"))return {workflow_runs:[]};
+   if(route.includes("/commits?"))return new Array(100).fill({sha:"a".repeat(40)});
+   if(route.endsWith("/commits/main"))return {sha:SHA,commit:{committer:{date:NOW}}};
+   throw Error("Unexpected route "+route);
+ },"2026-10-27T01:45:00Z"),/PAGINATION_LIMIT/);
 });
