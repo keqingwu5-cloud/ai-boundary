@@ -145,6 +145,9 @@ test("09 two tabs reject stale history edits instead of replacing events",async(
   await a.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await ready(a);
   await b.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await ready(b);
   assert.equal(await a.evaluate(r=>window.WorldVerifyHistory.append({type:"create",row:r,reason:"A creates"}),row("a")),true);
+  // Test the advertised stale-state guard only *after* B sees the other-tab event.
+  // An unobserved truly concurrent write remains an open race on localStorage.
+  await b.waitForFunction(()=>document.querySelector('#worldHistoryStatus')?.textContent?.includes('其他分頁已修改研究'),null,{timeout:15000});
   assert.equal(await b.evaluate(r=>window.WorldVerifyHistory.append({type:"create",row:r,reason:"B old tab"}),row("b")),false);
   assert.equal(await a.evaluate(()=>window.WorldVerifyHistory.view().rows[0].id),"a");
   await b.reload({waitUntil:"domcontentloaded"});await ready(b);
