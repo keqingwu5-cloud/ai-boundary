@@ -1,4 +1,5 @@
 /* Isolated import validation and persistence. No DOM, network or private-memory access. */
+import {validateLearningRecords} from './brain-learning-feedback.mjs';
 const record=x=>x!==null && typeof x==="object" && !Array.isArray(x);
 const id=x=>typeof x==="string" && x.length>0 && x.length<=200;
 const vec3=x=>Array.isArray(x) && x.length===3 && x.every(Number.isFinite);
@@ -44,6 +45,10 @@ export function validateBrainImport(s) {
     if(n.concepts!==undefined&&(!Array.isArray(n.concepts)||n.concepts.some(v=>typeof v!=="string")))
       return {ok:false,reason:"node_concepts_invalid"};
     if(n.media!=null&&!record(n.media))return {ok:false,reason:"node_media_invalid"};
+    // R11 only validates present feedback. Historical graphs without the
+    // optional field remain byte-for-byte compatible and are never upgraded.
+    if(n.learningRecords!==undefined&&!validateLearningRecords(n.learningRecords))
+      return {ok:false,reason:"node_learning_records_invalid"};
     nodes.set(n.id,n);
   }
   for(const n of s.nodes){
