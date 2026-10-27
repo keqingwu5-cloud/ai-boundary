@@ -65,3 +65,13 @@
 現階段不應先做自動主備切換、任務自動擴散或替換正式記憶，因為 **fencing／真 owner 授權與資料契約身分尚未落實**。可繼續在隔離環境設計：先為 `task/project/node/request/payload` 的完整唯一鍵建立版本化資料模型，並新增一個「備援未追上就要求人工對帳、不得自動升主」的負測，後由真正獨立 G2 逐條評估；若要正式授權測試 DB 或部署，須使用者另行分別核准。
 
 **結論：`PRE_R16_DATA_PROVENANCE_FIX=PASS_IN_G1`，`R16_CONTROLLED_PHYSICAL_STREAMING=PASS_IN_G1`；`AUTO_HA/FENCING=NOT_TESTED`，`PITR=NOT_TESTED`，`REAL_OWNER_TRUST=UNCONFIGURED`，`G2_ACK=WAITING`，`PRODUCTION=NO_GO`。歷史 PR #69 R9–R15 原始失敗、反例與成功 CI 全部保留，不覆寫。
+## 6. R16 第二輪「正常 streaming 卻存在實際資料落差」負例（追加，不覆蓋）
+
+第一輪 physical streaming [CI #40470990962](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40470990962) 成功，但**只看 streaming 已建立、再等待兩筆資料到達**，尚未實際誘發可見的資料落差。為避免未來有人把 `pg_stat_replication.state=streaming` 當「已同步可升主」，再增加一個真 PostgreSQL 16 反例：
+
+1. standby `pg_wal_replay_pause()`，用 `pg_get_wal_replay_pause_state()=paused` 核對實際暫停；
+2. primary 提交**基礎備份後新增的收據及金鑰撤銷**，在仍暫停重播的 standby 確認兩筆都不可見（`0:0`）。此時**不得 promote**；
+3. standby `pg_wal_replay_resume()`，直到直接查到新收據與 revoked key（`1:1`）才通過 Gate；
+4. 再先停止原 primary、確認 `Running=false`，才以 `pg_ctl promote` 進行受控升級。
+
+[Actions #40471545059](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40471545059) 原始 Runner 記錄 `R16 ASYNC_REPLAY_LAG_NEGATIVE: primary committed, standby has 0:0; promotion withheld`；隨後 `WAL_REPLAY`、`CONTROLLED_PROMOTION` 正常。新加 1 項負測後 **277/277 Node PASS**、無任何正式 side effect。這精確證明**只憑「streaming 有連線」不能宣稱無資料落差**。但此測試是主動暫停 WAL 的單主機容器實驗，仍**未**驗證網路分割時的自動分散式 fencing、真正異步 commit 在不經確認的 failover 中不遺失、跨主機 RPO/RTO 或 PITR。
