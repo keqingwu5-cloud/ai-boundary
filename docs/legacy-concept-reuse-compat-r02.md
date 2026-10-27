@@ -46,3 +46,10 @@
 - 明確保留的相容問題：舊 PR #4 需圖資料 `version`，而當前部分有效主腦資料沒有此欄；PR #28 對關係種類 `context_reference` 的校驗會拒絕，必須保守轉成 `related_to` 且不得假稱 `depends_on`／已證因果。
 - 新的 read-only Claim preview 與 TCVL 候選輸入確實可連，但即使構造出資料格式，PR #28 審核仍是 `hold`（因未提供證據、比較和可確認的研究上下文），**這是測試預期的安全結果**，不是待修錯誤。
 - 文件增補不更動已受測功能碼。PR #75 保持 Draft，無法取代獨立審查、真實 Safari／iOS、可信正式 Claim 版本庫／已核准記憶或真正跨 AI ACK。
+
+## R03 逆向查核：舊／新驗證規則與已確認競態風險
+- 採用 [Issue #32 R03 待辦](https://github.com/keqingwu5-cloud/ai-boundary/issues/32#issuecomment-6436892968)，不新建平行主腦工程。
+- 從舊 PR #4 與目前 PR #68 守門器的實際程式反推：新守門器原先對 brain-parent 只確認存在、不確認祖先循環；且顯式未支援的 `graph.version=999` 會先被接受再由 `migrate()` 改寫到 v2。已在 **PR #75 隔離分支**修補 `brain-import-guard.mjs`：拒絕 `brain_parent_cycle` 及 `unsupported_graph_version`。這不代表原 PR #68 branch/main 已修補，未授權合併。
+- 新舊 validator 差異矩陣 **17 組合成圖**：其中 5 類不同判定（缺 graph.version、缺 node.pos、缺 node.title、無效 media、同節點 self link）；新版不盲從舊版，舊版也不直接覆蓋新版。另以真正 Chromium 檢查未來版本／父腦循環是否被拒絕，且原資料不變。
+- **重要風險**：此前 Chromium 跨分頁測試曾在另一分頁 commit 後、此分頁還沒有收到更新通知時接受了更新（[run #40471786165](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40471786165) 的世界模型第 09 測試 FAIL）。這符合 `localStorage` 非原子同步的已知限制；未直接修改測試期待來假稱安全。後續將「已收到 `storage` 通知的過期寫入」列為可測的現有防護，另新增模擬延遲跨分頁可見性的**明確資料遺失反例**。這個反例測試即使通過也代表風險確實存在，**不代表已修復真正並發競態**。
+- **後續 Gate**：若要支持真正同時寫入而非單分頁或已有更新通知後寫入，需要具交易保證的單一權威保存協調機制（原子鎖／序列化後端等）及跨瀏覽器負向測試；採購、部署、合併都需另外審核。
