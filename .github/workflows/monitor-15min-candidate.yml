@@ -13,8 +13,10 @@ on:
     paths:
       - 'scripts/monitor-15min-candidate.cjs'
       - 'scripts/monitor-operational-baseline.cjs'
+      - 'scripts/monitor-task-evidence.cjs'
       - 'tests/monitor-15min-candidate.test.cjs'
       - 'tests/monitor-operational-baseline.test.cjs'
+      - 'tests/monitor-task-evidence.test.cjs'
       - 'docs/monitor-15min-candidate-20261027.md'
       - 'docs/monitor-15min-security-g2-handoff-20261027.md'
       - 'docs/monitor-purpose-baseline-r7-20261027.md'
