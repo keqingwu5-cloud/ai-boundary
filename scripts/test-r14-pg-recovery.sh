@@ -13,7 +13,8 @@ ready(){
   # then stop it before starting the real postmaster. pg_isready alone
   # may report a false positive during that phase.
   for _ in $(seq 1 90); do
-    if docker exec --user postgres "$cid" psql -X -q -t -A -U postgres \
+    if [[ "$(docker exec "$cid" sh -c 'cat /proc/1/comm' 2>/dev/null || true)" == "postgres" ]] \
+      && docker exec --user postgres "$cid" psql -X -q -t -A -U postgres \
       -v ON_ERROR_STOP=1 -c 'SELECT 1;' >/dev/null 2>&1; then
       sleep 0.4
       if docker exec --user postgres "$cid" psql -X -q -t -A -U postgres \
