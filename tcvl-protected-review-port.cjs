@@ -65,8 +65,13 @@ async function reserveForIndependentReview({port,receipt,expected,now}={}){
    trustedKeys:snapshot.trustedKeys,
    revocationSnapshot:snapshot.revocationSnapshot,
    consumedReceiptIds:snapshot.consumedReceiptIds});
-  if(cryptographic.status!=="CRYPTOGRAPHIC_SIGNATURE_VERIFIED_REVIEW_ONLY")
+  if(cryptographic.status!=="CRYPTOGRAPHIC_SIGNATURE_VERIFIED_REVIEW_ONLY"){
+   // Preserve meaningful security cause when the prior snapshot already
+   // identifies replay or revocation; never hide it under "bad signature".
+   if(["REPLAYED_RECEIPT","REVOKED_RECEIPT_OR_KEY"].includes(cryptographic.reason))
+     return response("BLOCKED_REPLAY_OR_REVOKED",cryptographic.reason);
    return response("BLOCKED_CRYPTO_OR_SOURCE",cryptographic.reason||"UNVERIFIED");
+  }
   // Deliberately expose a race between proof verification and commit to
   // assert that the final check-and-set rejects concurrent/revoked use.
   await Promise.resolve();
