@@ -20,6 +20,10 @@ function createIsolatedSignedReviewPort({syntheticAuthorities,syntheticClock}={}
   publicKey=crypto.createPublicKey(key.public_key_pem);
   if(publicKey.asymmetricKeyType!=="ed25519")throw Error("bad algorithm");
  }catch(_){throw Error("SYNTHETIC_CONFIG_REQUIRED");}
+ const originalAuthority=Object.freeze({
+  key_id:key.key_id,approver_id:key.approver_id,
+  public_key_pem:key.public_key_pem,status:key.status
+ });
  const used=new Set(),nonces=new Set(),revoked=new Set();
  function revokeForTest({kind,id}={}){revoked.add(kind+":"+id);return response("SYNTHETIC_TEST_REVOCATION_RECORDED_ONLY");}
  function reserveSignedReview({signed,expected}={}){
@@ -37,10 +41,24 @@ function createIsolatedSignedReviewPort({syntheticAuthorities,syntheticClock}={}
     !Number.isFinite(now)||new Date(now).toISOString()!==tick||
     now<Date.parse(e.issued_at)||now>=Date.parse(e.expires_at))
     return response("BLOCKED_TIME_WINDOW");
-   if(key.status!=="active"||key.key_id!==e.key_id||key.approver_id!==e.approver_id)
+   // Caller owns the input object. Its mutation must NOT rewrite our initial
+   // synthetic authority snapshot, reactivate a revoked signer, or silently
+   // change the key-to-approver binding used by this test fixture.
+   if(["key_id","approver_id","public_key_pem","status"].some(k=>
+      key[k]!==originalAuthority[k]))
+    return response("BLOCKED_SYNTHETIC_AUTHORITY_CONFIG_MUTATED");
+   if(originalAuthority.status!=="active"||originalAuthority.key_id!==e.key_id||
+      originalAuthority.approver_id!==e.approver_id)
     return response("BLOCKED_UNRECOGNIZED_SYNTHETIC_SIGNER");
    const bytes=Buffer.from("TCVL-R21-SYNTHETIC-REVIEW-V2\0"+JSON.stringify(Object.fromEntries(FIELDS.map(k=>[k,e[k]]))),"utf8");
-   if(!crypto.verify(null,bytes,publicKey,Buffer.from(signed.signature,"base64url")))
+   const signatureBytes=Buffer.from(signed.signature,"base64url");
+   // Ed25519 is exactly 64 bytes, and a 64-byte base64url string has only
+   // two significant bits in its last character. Reject textual aliases
+   // with nonzero unused bits before cryptographic verification.
+   if(signatureBytes.length!==64||
+      signatureBytes.toString("base64url")!==signed.signature)
+    return response("BLOCKED_NONCANONICAL_SIGNATURE_ENCODING");
+   if(!crypto.verify(null,bytes,publicKey,signatureBytes))
     return response("BLOCKED_SIGNATURE_MISMATCH");
    if(["key:"+e.key_id,"node:"+e.node_id,"receipt:"+e.receipt_id].some(x=>revoked.has(x)))
     return response("BLOCKED_SYNTHETIC_REVOKED");
