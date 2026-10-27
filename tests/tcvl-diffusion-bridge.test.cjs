@@ -84,3 +84,13 @@ test('R10: candidate proposal cannot be queued when its source direction was rev
  assert.throws(()=>bridge.planChildTask(w,{projectId:'p1',nodeId:d.node.id,requestId:'revoked',
  title:'revoked task',reason:'stop',owner:'human',at}),/proposal state/i);
 });
+
+test('R10: caller cannot spoof trusted reuse through proposed decision payload flags',()=>{
+ const w=workspace();
+ const result=bridge.applyCandidate(w,{action:'reuse_proposal',node_id:'spoofed',
+  requires_review:true,verified_approval:true,execution_allowed:true},{projectId:'p1',at});
+ assert.equal(result.result,'reuse_requires_review');
+ assert.equal(result.verified_approval,false);
+ assert.equal(result.execution_allowed,false);
+ assert.equal(result.workspace.tasks.length,0);
+});
