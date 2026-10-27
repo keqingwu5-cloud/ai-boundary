@@ -82,3 +82,25 @@ test('R10: invalid or missing claimed approval evidence cannot produce reusable 
  assert.notEqual(outcome.action,'reuse_proposal','ineligible node cannot appear as future reuse proposal');
  }
 });
+
+test('R10: cross-origin node cannot become reuse proposal despite matching claimed approval',()=>{
+ const node={id:'other-origin',status:'active',origin_command_id:'another-command',
+ direction_version:'v1',approval_direction_version:'v1',
+ approval_status:'approved',approval_evidence_refs:['review:other'],
+ capabilities:['research'],permissions_scope:['read']};
+ const result=run({nodes:[node]});
+ assert.notEqual(result.action,'reuse');
+ assert.notEqual(result.action,'reuse_proposal');
+});
+test('R10: even forged approval refs cannot set an execution flag from the planner',()=>{
+ const node={id:'forged-review',status:'active',origin_command_id:'cmd1',
+ direction_version:'v1',approval_direction_version:'v1',
+ approval_status:'approved',approval_evidence_refs:['review:forged-claim'],
+ verified_approval:true,execution_allowed:true,
+ capabilities:['research'],permissions_scope:['read']};
+ const result=run({nodes:[node]});
+ assert.equal(result.action,'reuse_proposal');
+ assert.equal(result.verified_approval,false);
+ assert.equal(result.execution_allowed,false);
+ assert.equal(result.approval_claim_status,'CLAIM_ONLY_NOT_VERIFIED');
+});
