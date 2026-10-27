@@ -26,8 +26,19 @@ test("R09 unknown authority marker blocks legacy saves instead of silently reviv
   assert.equal(attempted.raw,null,"no write on unknown marker");
   assert.equal(attempted.p.ready,false);
   assert.equal(await page.locator("#brainPersistenceBanner").count(),1);
+  const feed=await context.newPage(),world=await context.newPage();
+  for(const p of [feed,world])p.on("pageerror",e=>errors.push(String(e)));
+  await feed.goto(ROOT+"/feed.html",{waitUntil:"domcontentloaded"});
+  await feed.waitForFunction("window.AIFeed && document.body.dataset.ready==='1'",null,{timeout:45000});
+  const feedState=await feed.evaluate(()=>({authority:window.AIFeed.authority(),nodes:window.AIFeed.list()}));
+  assert.equal(feedState.authority.source,"blocked");
+  assert.equal(feedState.authority.error,"authority_marker_invalid");
+  assert.deepEqual(feedState.nodes,[],"no seed fallback masquerading as main brain");
+  await world.goto(ROOT+"/world-model.html?node=n_q1",{waitUntil:"domcontentloaded"});
+  await world.waitForFunction("document.body.dataset.researchLink==='unreadable'",null,{timeout:45000});
+  assert.equal(await world.evaluate(()=>window.BrainResearchLink?.status),"unreadable");
   assert.deepEqual(errors,[],"no uncaught exceptions");
-  console.log("R09_UNKNOWN_AUTHORITY_FAIL_CLOSED_PASS");
+  console.log("R09_UNKNOWN_AUTHORITY_FAIL_CLOSED_PASS app=1 feed=1 world_source=1");
  }finally{await context.close();await browser.close();}
 });
 
