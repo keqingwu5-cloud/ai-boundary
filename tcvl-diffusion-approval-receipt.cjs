@@ -27,7 +27,8 @@ function canonicalBytes(payload){
  return Buffer.from(JSON.stringify(Object.fromEntries(FIELDS.map(k=>[k,payload[k]]))),"utf8");
 }
 function validateSnapshot(snapshot,when,fields){
- if(!snapshot||typeof snapshot!=="object"||!fields.every(f=>Array.isArray(snapshot[f])))return false;
+ if(!snapshot||typeof snapshot!=="object"||!fields.every(f=>Array.isArray(snapshot[f])&&
+   snapshot[f].every(isId)&&new Set(snapshot[f]).size===snapshot[f].length))return false;
  const at=utc(snapshot.checked_at);
  return Number.isFinite(at)&&at<=when+60000&&when-at<=MAX_AGE;
 }
@@ -55,9 +56,15 @@ function assessReceipt({receipt,expected,trustRoot,revocations,replayLedger,now}
   if(!trustRoot||trustRoot.source!==TEST_TRUST_SOURCE||
     !Array.isArray(trustRoot.signers)||trustRoot.signers.length<1)
    return bad("NO_APPROVED_TRUST_ROOT");
+  // Ambiguous trust identities must be rejected, never let array order pick
+  // one of two conflicting public keys.
+  if(trustRoot.signers.some(x=>!x||!isId(x.id))||
+    new Set(trustRoot.signers.map(x=>x.id)).size!==trustRoot.signers.length)
+   return bad("SIGNER_REGISTRY_AMBIGUOUS");
   const signer=trustRoot.signers.find(x=>x.id===receipt.signer_id);
+  const from=utc(signer?.valid_from),until=utc(signer?.valid_until);
   if(!signer||signer.approver_id!==p.approver_id||signer.role!=="independent_reviewer"||
-     utc(signer.valid_from)>issued||utc(signer.valid_until)<expires)
+     !Number.isFinite(from)||!Number.isFinite(until)||from>issued||until<expires)
    return bad("SIGNER_IDENTITY_OR_LIFETIME_MISMATCH");
   if(!validateSnapshot(revocations,when,["revoked_receipt_ids","revoked_signer_ids","revoked_node_ids"]))
    return bad("REVOCATION_EVIDENCE_MISSING_OR_STALE");
