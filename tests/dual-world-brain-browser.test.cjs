@@ -66,3 +66,22 @@ test("05 mobile viewport can read both results and audit timeline",()=>withBrows
  assert.equal(errs.length,0,errs.join(";"));
  console.log("DUAL_WORLD_MOBILE_EMULATED_PASS");
 },390,844));
+
+test("06 existing world-model status edit loses old state: known version-chain GAP",()=>withBrowser(async(page,errs)=>{
+ await page.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await readyWorld(page);
+ await page.locator("#verifyHypothesis").fill("合成假設：X 必然導致 Y");
+ await page.locator("#verifyFalsifier").fill("若 X 發生而 Y 未發生則推翻");
+ await page.locator("#verifyDate").fill("2026-03-01");
+ await page.locator("#verifyDeadline").fill("2026-12-31");
+ await page.locator("#verifyForm button[type=submit]").click();
+ const first=await page.evaluate(()=>JSON.parse(localStorage.getItem("worldModel.verify.v1")));
+ assert.equal(first.length,1);assert.equal(first[0].status,"待驗證");
+ await page.locator("#verifyList select").selectOption("證據不足");
+ const second=await page.evaluate(()=>JSON.parse(localStorage.getItem("worldModel.verify.v1")));
+ assert.equal(second.length,1);assert.equal(second[0].id,first[0].id);
+ assert.equal(second[0].status,"證據不足");
+ assert.equal(Object.hasOwn(second[0],"events"),false);
+ assert.equal(Object.hasOwn(second[0],"versions"),false);
+ assert.equal(errs.length,0,errs.join(";"));
+ console.log("WORLD_MODEL_VERSION_HISTORY_GAP_CONFIRMED (current v1 mutates status; gate remains BLOCKED)");
+}));
