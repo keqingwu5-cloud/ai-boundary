@@ -33,6 +33,9 @@ test('01 3D selected node -> world reference -> same 3D and Feed ID, no mutation
   await page.waitForFunction(id=>window.AIFeed.current()===id,id);
   assert.equal(await page.evaluate(()=>window.AIFeed.current()),id);
   assert.equal(await page.locator('#toWorldModel').getAttribute('href'),'./world-model.html?node='+id);
+  await page.locator('#toBrain').click();await readyBrain(page);
+  await page.waitForFunction(id=>document.querySelector('#bWorldModel')?.getAttribute('href')==='./world-model.html?node='+id,id,{timeout:15000});
+  assert.equal(await page.evaluate(()=>location.hash),'#node='+id,'the same 3D node reopened');
   assert.equal(errors.length,0,'uncaught browser exceptions: '+errors.slice(0,4).join('|'));
   console.log('RESEARCH_BRIDGE_ROUNDTRIP_PASS id='+id);
  }finally{await ctx.close();await browser.close();}
