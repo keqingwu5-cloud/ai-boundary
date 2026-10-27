@@ -24,6 +24,9 @@ test('P1 negative: rejected proposal must never queue child task',()=>{
 test('P1 negative: proposal cannot authorize child task from a different project',()=>{
  const d=decision();
  const w=bridge.applyCandidate(workspace(),d,{projectId:'p1',at}).workspace;
- assert.throws(()=>bridge.planChildTask(w,{projectId:'different',nodeId:d.node.id,requestId:'r1',
+ // The target project must exist, otherwise the platform's generic
+ // "project missing" guard masks this bridge-specific ownership flaw.
+ const both=platform.addProject(w,{id:'p2',title:'Other project',goal:'isolation',at});
+ assert.throws(()=>bridge.planChildTask(both,{projectId:'p2',nodeId:d.node.id,requestId:'r1',
    title:'cross project task',reason:'wrong project',owner:'human',at}),/project|scope|proposal/i);
 });
