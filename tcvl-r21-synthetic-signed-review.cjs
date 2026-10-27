@@ -5,11 +5,21 @@ const {FIELDS,assessUnifiedReviewEnvelope}=require("./tcvl-r19-review-envelope.c
 function response(status,valid=false){
  return {status,synthetic_signature_valid:valid,execution_allowed:false,
   verified_owner_approval:false,trusted_signer_verified:false,
-  cross_process_replay_protection:false};
+  cross_process_replay_protection:false,requires_independent_g2:true,
+  verified_gpt2_ack:false,authority_source:"ISOLATED_SYNTHETIC_KEYSET_ONLY"};
 }
 function createIsolatedSignedReviewPort({syntheticAuthorities,syntheticClock}={}){
- const key=syntheticAuthorities&&syntheticAuthorities[0];
- if(!key||typeof syntheticClock!=="function")throw Error("SYNTHETIC_CONFIG_REQUIRED");
+ const key=Array.isArray(syntheticAuthorities)&&syntheticAuthorities.length===1?syntheticAuthorities[0]:null;
+ if(!key||typeof syntheticClock!=="function"||
+    !["active","revoked"].includes(key.status)||
+    !/^[A-Za-z0-9_.:-]{1,120}$/.test(key.key_id||"")||
+    !/^[A-Za-z0-9_.:-]{1,120}$/.test(key.approver_id||""))
+    throw Error("SYNTHETIC_CONFIG_REQUIRED");
+ let publicKey;
+ try{
+  publicKey=crypto.createPublicKey(key.public_key_pem);
+  if(publicKey.asymmetricKeyType!=="ed25519")throw Error("bad algorithm");
+ }catch(_){throw Error("SYNTHETIC_CONFIG_REQUIRED");}
  const used=new Set(),nonces=new Set(),revoked=new Set();
  function revokeForTest({kind,id}={}){revoked.add(kind+":"+id);return response("SYNTHETIC_TEST_REVOCATION_RECORDED_ONLY");}
  function reserveSignedReview({signed,expected}={}){
@@ -20,11 +30,15 @@ function createIsolatedSignedReviewPort({syntheticAuthorities,syntheticClock}={}
    const e=signed.envelope;
    const shape=assessUnifiedReviewEnvelope({envelope:e,expected});
    if(shape.status!=="READY_FOR_CONTRACT_REVIEW_NOT_AUTHORIZED")return response("BLOCKED_INVALID_SIGNED_INPUT");
-   if(Date.parse(syntheticClock())<Date.parse(e.issued_at)||Date.parse(syntheticClock())>=Date.parse(e.expires_at))
+   const tick=syntheticClock(),now=Date.parse(tick);
+   if(typeof tick!=="string"||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$/.test(tick)||
+    !Number.isFinite(now)||new Date(now).toISOString()!==tick||
+    now<Date.parse(e.issued_at)||now>=Date.parse(e.expires_at))
     return response("BLOCKED_TIME_WINDOW");
-   if(key.key_id!==e.key_id||key.approver_id!==e.approver_id)return response("BLOCKED_UNRECOGNIZED_SYNTHETIC_SIGNER");
+   if(key.status!=="active"||key.key_id!==e.key_id||key.approver_id!==e.approver_id)
+    return response("BLOCKED_UNRECOGNIZED_SYNTHETIC_SIGNER");
    const bytes=Buffer.from("TCVL-R21-SYNTHETIC-REVIEW-V2\0"+JSON.stringify(Object.fromEntries(FIELDS.map(k=>[k,e[k]]))),"utf8");
-   if(!crypto.verify(null,bytes,crypto.createPublicKey(key.public_key_pem),Buffer.from(signed.signature,"base64url")))
+   if(!crypto.verify(null,bytes,publicKey,Buffer.from(signed.signature,"base64url")))
     return response("BLOCKED_SIGNATURE_MISMATCH");
    if(["key:"+e.key_id,"node:"+e.node_id,"receipt:"+e.receipt_id].some(x=>revoked.has(x)))
     return response("BLOCKED_SYNTHETIC_REVOKED");
