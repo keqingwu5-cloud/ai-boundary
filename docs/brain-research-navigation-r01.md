@@ -37,3 +37,8 @@ world-model manual JSON export --research_reference--> node_id + brain_id + unve
 5. 本整合**疊加**在 `fix/brain-import-integrity-isolated-20261027` Draft PR #68 上。兩者未獲獨立審查前，不合併 `main` 或正式部署。
 
 **狀態：第一段跨頁研究來源連接「隔離整合 E2E PASS」，整體主腦正式連線／記憶體審查／部署仍未驗收。**
+
+## 最後的閉環回歸補充
+- [GitHub Actions #40459322156](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40459322156)／實測版次 `3e594fa75eeced91c042ba415bad2757ade108c7`：Node 22 **46/46 PASS**；Chromium **7/7 PASS**。
+- 在既有研究 roundtrip 案例末尾追加 **Feed → 3D 原節點真的點擊跳轉**，並等待原 3D 節點重建其世界模型連結；完整循環現在有真實瀏覽器行為證據，而非只檢查 href 文字。
+- 本次追加只修改 `tests/research-browser-smoke.test.cjs`；功能程式和上一版成功的連接方式沒有變更。
