@@ -8,7 +8,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,5 +22,11 @@ jobs:
           node --check tcvl-protected-review-port.cjs
       - name: P1/R10/R11/R12 gates, cryptographic receipt and sandbox race counterexamples
         run: node --test tests/tcvl-node-diffusion-core.test.cjs tests/tcvl-diffusion-bridge.test.cjs tests/tcvl-approval-receipt.test.cjs tests/tcvl-protected-review-port.test.cjs
+      - name: R13 review-only SQL contract and shell syntax
+        run: |
+          node --test tests/tcvl-r13-sql-contract.test.cjs
+          bash -n scripts/test-r13-pg-ephemeral.sh
+      - name: R13 disposable PostgreSQL multi-session transaction test
+        run: bash scripts/test-r13-pg-ephemeral.sh
       - name: All existing TCVL Node regressions
         run: node --test tests/*.test.cjs
