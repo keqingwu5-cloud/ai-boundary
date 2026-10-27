@@ -7,6 +7,7 @@ on:
       - brain-learning-feedback.mjs
       - brain-learning-ui.mjs
       - tests/brain-learning-feedback.test.mjs
+      - tests/ci-execution-contract.test.mjs
       - tests/first-brain-learning-browser.test.cjs
       - tests/brain-import-integrity.test.cjs
       - tests/brain-state-integrity.test.cjs
@@ -64,7 +65,7 @@ jobs:
           test "$(git rev-parse FETCH_HEAD)" = "b32c6aa8533b1a1bf1c5775b74ed75d4d119afd9"
           git show FETCH_HEAD:reliability/storage.mjs > tests/_legacy_pr_sources/storage.mjs
       - name: Run real Node.js regression suite
-        run: node --test tests/brain-import-integrity.test.cjs tests/brain-state-integrity.test.cjs tests/research-context-bridge.test.mjs tests/research-event-chain.test.mjs tests/world-verification-ledger.test.mjs tests/concept-reuse-compat.test.mjs tests/legacy-pr-contract.test.mjs tests/graph-validator-diff.test.mjs tests/brain-learning-feedback.test.mjs
+        run: node --test tests/brain-import-integrity.test.cjs tests/brain-state-integrity.test.cjs tests/research-context-bridge.test.mjs tests/research-event-chain.test.mjs tests/world-verification-ledger.test.mjs tests/concept-reuse-compat.test.mjs tests/legacy-pr-contract.test.mjs tests/graph-validator-diff.test.mjs tests/brain-learning-feedback.test.mjs tests/ci-execution-contract.test.mjs
   chromium-smoke:
     runs-on: ubuntu-latest
     permissions:
