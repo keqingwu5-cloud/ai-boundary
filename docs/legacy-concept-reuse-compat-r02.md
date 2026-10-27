@@ -283,3 +283,10 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 - `tests/first-brain-idb-browser.test.cjs` 使用真 Chromium 3D 頁面模擬 **已 stage 卻未設 authority 標記** 的中斷狀態，確認回到 UI 後經下載與人工確認才可恢復，revision 保持 1 不重寫、舊 raw bytes 不變；缺少確認或改動舊資料則拒絕。
 
 **驗收限制**：本輪提交在 Draft PR #75 隔離分支；完整 Chromium 新案例需以本次提交相對應的 GitHub Actions 判定。即使測試通過，仍不能宣稱任意崩潰、不同舊程式版本或真實 Apple 裝置都安全。真歷史資料、獨立 reviewer ACK、main／部署仍分別保留 Gate。
+
+
+### R14 最終回歸結果（已確認）
+
+[GitHub Actions #40598231245](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40598231245)，受測程式 SHA `8fa48b461ae8f1a51c833a5b20448c1a656e618a`：Node **133/133 PASS**、真 Chromium **30/30 PASS**、桌面 Linux WebKit **1/1 PASS**，全部三個 jobs success，0 FAIL。
+
+新 Chromium 3D UI 日誌 `FIRST_BRAIN_INTERRUPTED_STAGE_SAFE_RECOVERY_PASS explicit=1 no_overwrite=1 mismatch_reject=1`，確證在合成資料下「已寫入 IDB 但啟用未完成」可以使用原備份嚴格比對後安全續接；缺少確認、原備份改變或 IDB 內容不一致不得直接重寫。**仍不解除**真 Apple 實機、合法真歷史資料、跨版本舊 writer、完整 OS 突然中斷和正式發布 Gate。
