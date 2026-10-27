@@ -57,3 +57,30 @@ test('reuse advice is not a verified authorization or a new queued task',()=>{
  assert.equal(r.workspace.tasks.length,0);
  assert.equal(JSON.stringify(r.workspace),JSON.stringify(w));
 });
+
+test('R10: reuse proposal cannot create tasks or be mistaken for independent approval',()=>{
+ const w=workspace(),before=JSON.stringify(w);
+ const r=bridge.applyCandidate(w,{action:'reuse_proposal',node_id:'eligible',
+  verified_approval:false,execution_allowed:false,requires_review:true},{projectId:'p1',at});
+ assert.equal(r.result,'reuse_requires_review');
+ assert.equal(r.verified_approval,false);
+ assert.equal(r.execution_allowed,false);
+ assert.equal(r.workspace.tasks.length,0);
+ assert.equal(JSON.stringify(w),before);
+});
+test('R10: legacy reuse action cannot bypass the new advisory-only contract',()=>{
+ const w=workspace(),before=JSON.stringify(w);
+ const r=bridge.applyCandidate(w,{action:'reuse',node_id:'spoofed',
+  verified_approval:true,execution_allowed:true},{projectId:'p1',at});
+ assert.equal(r.result,'blocked_unverified_legacy_reuse');
+ assert.equal(r.verified_approval,false);
+ assert.equal(r.execution_allowed,false);
+ assert.equal(JSON.stringify(r.workspace),before);
+});
+test('R10: candidate proposal cannot be queued when its source direction was revoked',()=>{
+ const d=decision();
+ let w=bridge.applyCandidate(workspace(),d,{projectId:'p1',at}).workspace;
+ w.proposals[0].stage='revoked';
+ assert.throws(()=>bridge.planChildTask(w,{projectId:'p1',nodeId:d.node.id,requestId:'revoked',
+ title:'revoked task',reason:'stop',owner:'human',at}),/proposal state/i);
+});
