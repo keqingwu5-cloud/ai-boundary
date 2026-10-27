@@ -237,3 +237,27 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 - Node 增加 R12 反例：已審閱成功＋尚待查證失敗、雙方都已審閱、不同適用條件及經驗原文完整保留。
 - Chromium E2E 延伸 R11 真 3D UI 案例：先審閱失敗，再在相同條件新增成功觀察，應同時顯示雙方證據、禁止單向建議；撤銷該觀察後恢復原先單情境提示；須以本輪最新 Actions 實際日誌判斷。
 - **重要限制**：完全相同的文字條件也可能漏掉實際背景差異，衝突警告只提醒深入研究；不是 AI 自行判斷客觀真偽、推論因果或隱式更改模型權重。舊瀏覽器、正式用戶資料、Safari、獨立 reviewer 和 main 併入仍各自需要 Gate。
+
+
+## R13｜第一大腦正式驗收：備份一致性與桌面 WebKit（2026-10-28）
+
+**優先級**：第一大腦原 R03-01／A、R03-04／A、R03-05／E 的正式驗收依賴；沿用 PR #75／Issue #32，不擴張 BOT 或記憶服務，不合併、部署或讀取私人歷史原檔。
+
+### 1. 舊主腦備份 → 遷移來源一致性（隔離修補）
+
+- 舊流程可能在下載原始備份後、按下遷移前，從**已被另一分頁修改**的 localStorage 取得不同主圖或 Undo，造成「備份不是實際遷移來源」的隱性版本偏差。
+- \`first-brain-idb-adapter.mjs\` 的 \`stageLegacy3D\` 現接受可選的 \`expectedMainRaw／expectedUndoRaw\`；來源原始 bytes 不等於備份即拒絕，絕不覆寫已存在的 IDB 主圖。
+- \`app.js\` 僅在下載按鈕取得原始快照後記住該份 bytes，並在明確確認啟用交易權威時交給 staging 驗證。若 staging 非同步期間又**觀察到**不同版本，回 \`legacy_source_changed_during_stage\` 並停止啟用；先前暫存的候選副本保留以利審查，不擅自刪除、重寫或宣稱已完成。
+- \`tests/first-brain-idb-browser.test.cjs\` 補真 Chromium 負例：備份後主資料變更／Undo 變更；在 \`put\` 與交易完成之間注入外部變更；都必須拒絕錯誤完成，舊資料保持可回查。**此檢查不是跨版本/外部舊 Writer 的原子 CAS**。
+
+### 2. WebKit 驗收前置（不是實際 iOS Safari）
+
+- 新增 \`tests/first-brain-webkit-browser.test.cjs\`；以 Playwright **Linux 桌面 WebKit** 的另一引擎執行：舊 v1 原始位元組保存、無版本圖相容、明確複製授權、主圖/Undo 同交易、兩分頁 revision 競爭只允許一方成功、重新載入。
+- 現有 workflow 新增 \`webkit-isolated\` job，使用固定 Playwright 1.56.1 的 WebKit/runtime。更新 \`tests/ci-execution-contract.test.mjs\`，防止新增 WebKit 檔只進監看清單未真正執行。
+- Playwright 官方：[Browsers](https://playwright.dev/docs/browsers)、[Continuous Integration](https://playwright.dev/docs/ci)。官方明確：Playwright 的 WebKit **不是 Apple 品牌 Safari**，Linux WebKit 不能替代 macOS／iOS 平台差異。
+- MDN：[Storage quotas and eviction](https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria)；瀏覽器本機保存預設可能是 best-effort。**即使 WebKit 測試全綠，也不能宣稱資料永遠不會被清除或替代使用者定期備份**。
+
+### 驗收界線
+
+- **程式狀態**：隔離分支已提交修補與測試。請以本 R13 之後的 GitHub Actions 對應 SHA/Run 查驗 Node、Chromium、WebKit **三個 job**，不可沿用 R12 的兩 job 綠燈推定第三者。
+- **仍需人員與實體條件**：授權且匿名化的真實歷史快照、真 Safari/iPhone/iPad 實機、跨版本舊 app Writer 的安全切換、全斷電/程序崩潰/持久化政策、真正獨立 reviewer ACK、正式合併/部署及使用者驗收。以上都不能由合成資料與 Linux WebKit 取代，**正式 Gate 仍 BLOCKED**。
