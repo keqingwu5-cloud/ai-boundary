@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const {collectAnchors,buildBaseline} = require("./monitor-operational-baseline.cjs");
+const {reconcileTaskEvidence} = require("./monitor-task-evidence.cjs");
 
 const SCHEMA = "tcvl-monitor-15m-candidate/v1";
 const REPO = "keqingwu5-cloud/ai-boundary";
@@ -51,7 +52,8 @@ function normalizeIssue(x) {
   const kind = x.pull_request ? "pr" : "issue";
   // Classification reads title AND full body, but never persists either.
   const issueText = String(x.title||"")+"\n"+String(x.body||"");
-  return {key:kind+":"+x.number+":"+x.updated_at,kind,ref:safeGithubUrl("issue",x.number),
+  return {key:kind+":"+x.number+":"+x.updated_at,kind,ref:kind==="pr"?
+    "https://github.com/"+REPO+"/pull/"+x.number:safeGithubUrl("issue",x.number),
     at:x.updated_at,
     priority:/(?:\bP0\b|\bBLOCKED\b|資安|安全異常|安全風險|部署阻擋|RELEASE\s*=\s*NO_GO)/i.test(issueText)?"REVIEW_UNVERIFIED":"CHANGE",
     ack_status:/\bACK\b/i.test(issueText)?"CLAIM_ONLY_NOT_VERIFIED":"NOT_ASSESSED"};
@@ -232,6 +234,9 @@ async function main() {
     previousIntentFingerprint:checkpoint.intent_fingerprint,previousTaskSnapshot:checkpoint.task_anchor_snapshot});
   const {report,checkpoint:next}=evaluate({branch,now,checkpoint,github,notion});
   report.operational_baseline=operational;
+  // Task-to-evidence links are observations, never independent ACK or completion.
+  const taskEvidence=reconcileTaskEvidence({anchors,events:github.events,checkpoint,checkedAt:now});
+  report.task_evidence=taskEvidence;
   // Never silently accept a changed task purpose based on a new code version.
   next.intent_fingerprint=operational.intent_continuity==="POLICY_CHANGED_REVIEW"?
     checkpoint.intent_fingerprint:operational.intent_fingerprint;
@@ -247,6 +252,7 @@ async function main() {
     "- Task-aware baseline: "+operational.conclusion+"; intent "+operational.intent_continuity+"; stage "+(operational.intended_vs_observed.stage_match?"MATCH":"REVIEW")+"; source "+(operational.intended_vs_observed.source_scope_match?"MATCH":"REVIEW"),
     "- Purpose/phase and live anchor metadata: "+operational.task_anchors.length+" references; changed "+operational.task_anchor_delta_summary.metadata_changes+"; initial "+operational.task_anchor_delta_summary.first_observations+"; issue state does not prove task completion",
     "- New changes: "+report.observed_changes+"; review signals "+report.review_events.length,
+    "- Task evidence: "+taskEvidence.tasks.length+" anchors; new direct events "+taskEvidence.tasks.reduce((n,t)=>n+t.recent_unseen_count,0)+"; verified completion 0; verified recipient ACK 0",
     "- No automated delivery/ACK proof, approvals, merge, deploy or vault access",
     "- Evidence: monitor-output/report.json; checkpoint: state.json",
     // Show only canonical public GitHub references; never log Notion identifiers.
@@ -259,7 +265,7 @@ async function main() {
   // A candidate report can be green with incomplete Notion configuration, but never claims full coverage.
   if(report.action_required!=="NONE" || report.review_overflow || report.observed_overflow ||
      !operational.intended_vs_observed.stage_match || !operational.intended_vs_observed.source_scope_match ||
-     operational.intent_continuity==="POLICY_CHANGED_REVIEW") process.exitCode=3;
+     operational.intent_continuity==="POLICY_CHANGED_REVIEW" || taskEvidence.any_evidence_overflow) process.exitCode=3;
 }
 if(require.main===module)main().catch(err=>{
   const code=String(err&&err.message||"UNKNOWN_MONITOR_ERROR").replace(/[^A-Z0-9_]/gi,"_").slice(0,100);
