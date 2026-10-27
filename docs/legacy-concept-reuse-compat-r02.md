@@ -261,3 +261,11 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 
 - **程式狀態**：隔離分支已提交修補與測試。請以本 R13 之後的 GitHub Actions 對應 SHA/Run 查驗 Node、Chromium、WebKit **三個 job**，不可沿用 R12 的兩 job 綠燈推定第三者。
 - **仍需人員與實體條件**：授權且匿名化的真實歷史快照、真 Safari/iPhone/iPad 實機、跨版本舊 app Writer 的安全切換、全斷電/程序崩潰/持久化政策、真正獨立 reviewer ACK、正式合併/部署及使用者驗收。以上都不能由合成資料與 Linux WebKit 取代，**正式 Gate 仍 BLOCKED**。
+
+
+### R13 最終隔離 CI（已回讀確認）
+
+- [GitHub Actions #40544148733](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40544148733)；受測程式＋workflow SHA \`098ee2d08b9a48e42d66dead53418139a01706ba\`：\`node-regression\` **133/133 PASS**、\`chromium-smoke\` **29/29 PASS**、\`webkit-isolated\` **1/1 PASS**；全部三個 jobs success，0 FAIL。
+- 真 Chromium 新測試標記 \`FIRST_BRAIN_LEGACY_BACKUP_MATCH_GATE_PASS changed_main=1 changed_undo=1 during_stage=1\`：備份與搬移來源不一致、Undo 不一致、搬移中可觀察的新寫入均拒絕宣稱已完成；舊資料未被系統主動覆寫。
+- 桌面 WebKit 新測試標記 \`FIRST_BRAIN_DESKTOP_WEBKIT_TRANSACTION_PASS 2tabs=1 CAS=1 v1=1 unversioned=1 legacy_bytes=1 reload=1\`：兩頁同時提交單筆 IDB 修訂，過期交易被拒，v1/無版本舊圖可唯讀驗證且原始 bytes 不變，重新載入一致。
+- **正式 Gate 未解除**：本測試不是 iOS 原生 Safari／真 iPhone/iPad，未檢查使用者授權真歷史檔、跨版本未遵守標記的舊程式、作業系統強制退出與儲存清理後耐久性，也未取得獨立 reviewer ACK。正式合併/部署仍未執行。
