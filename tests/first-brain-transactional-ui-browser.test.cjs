@@ -58,6 +58,47 @@ test("First Brain 3D user UI: backup -> enable IDB -> edit/import/undo/reset -> 
   assert.ok([revision3,revision3b].includes(3));
   await a.reload({waitUntil:"domcontentloaded"});await waitReady(a);
   assert.equal((await a.evaluate(()=>window.AIBrain.persistence())).revision,3);
+  // Real First Brain operations beyond persistence: grow -> branch -> subbrain
+  // -> merge -> concept. Each must survive its own transaction.
+  const grown=await a.evaluate(async()=>{
+    const id=window.AIBrain.addQuestion({title:"IDB_SYNTHETIC_NEW_QUESTION",type:"其他",extensions:[]});
+    const ok=await window.AIBrain.whenIdle();
+    return {id,ok,present:window.AIBrain.getState().nodes.some(n=>n.id===id)};
+  });
+  assert.equal(grown.ok,true);assert.equal(grown.present,true);
+  const branched=await a.evaluate(async id=>{
+    const ids=window.AIBrain.splitNode(id,[{title:"IDB_SYNTHETIC_BRANCH",type:"其他"}]);
+    const ok=await window.AIBrain.whenIdle();
+    return {ids,ok,present:ids.every(child=>window.AIBrain.getState().nodes.some(n=>n.id===child))};
+  },grown.id);
+  assert.equal(branched.ok,true);assert.equal(branched.present,true);
+  const sub=await a.evaluate(async id=>{
+    const brainId=window.AIBrain.makeSubBrain(id);
+    const ok=await window.AIBrain.whenIdle();
+    return {brainId,ok,present:window.AIBrain.getState().brains.some(b=>b.id===brainId)};
+  },grown.id);
+  assert.equal(sub.ok,true);assert.equal(sub.present,true);
+  const merged=await a.evaluate(async id=>{
+    window.AIBrain.mergeBrain(id);
+    const ok=await window.AIBrain.whenIdle();
+    return {ok,removed:!window.AIBrain.getState().brains.some(b=>b.id===id)};
+  },sub.brainId);
+  assert.equal(merged.ok,true);assert.equal(merged.removed,true);
+  const conceptual=await a.evaluate(async id=>{
+    const accepted=window.AIBrain.addConcept(id,"合成推理");
+    const ok=await window.AIBrain.whenIdle();
+    return {accepted,ok,concept:window.AIBrain.getState().nodes.find(n=>n.id===id)?.concepts};
+  },grown.id);
+  assert.equal(conceptual.accepted,true);assert.equal(conceptual.ok,true);
+  assert.ok(conceptual.concept.includes("合成推理"));
+  const badSchema=await a.evaluate(async()=>{
+    const graph=window.AIBrain.getState();
+    graph.version=999;
+    const version=window.AIBrain.persistence().revision;
+    const accepted=window.AIBrain.importJSON(graph);
+    return {accepted,unchanged:version===window.AIBrain.persistence().revision};
+  });
+  assert.deepEqual(badSchema,{accepted:false,unchanged:true});
   const imported=await a.evaluate(async()=>{
    const graph=window.AIBrain.getState();
    graph.nodes[0].title="IDB_IMPORT_E2E";
@@ -90,6 +131,6 @@ test("First Brain 3D user UI: backup -> enable IDB -> edit/import/undo/reset -> 
   assert.equal(finished.main,original.main);
   assert.equal(finished.undo,original.undo);
   assert.deepEqual(errs,[],"no page exceptions");
-  console.log("FIRST_BRAIN_TX_UI_ROUNDTRIP_PASS native3D=1 old_tab_blocked=1 competing_tabs=2 import=1 undo=2 reset=1 feed_linked=1 world_source_linked=1 legacy_bytes_unchanged=1");
+  console.log("FIRST_BRAIN_TX_UI_ROUNDTRIP_PASS native3D=1 old_tab_blocked=1 competing_tabs=2 grow=1 branch=1 subbrain=1 merge=1 concept=1 import=1 undo=2 reset=1 feed_linked=1 world_source_linked=1 legacy_bytes_unchanged=1");
  }finally{await ctx.close();await browser.close();}
 });
