@@ -136,3 +136,61 @@ test("First Brain staging refuses changed backup bytes and detects a late legacy
   console.log("FIRST_BRAIN_LEGACY_BACKUP_MATCH_GATE_PASS changed_main=1 changed_undo=1 during_stage=1");
  }finally{await ctx.close();await browser.close();}
 });
+
+test("First Brain interrupted staging: exact-backup recovery only, no overwrite on mismatch",async()=>{
+ const browser=await chromium.launch({channel:"chrome",headless:true,args:["--no-sandbox","--disable-dev-shm-usage"]});
+ const ctx=await browser.newContext({acceptDownloads:true}),page=await ctx.newPage(),errors=[];
+ page.on("pageerror",e=>errors.push(String(e)));
+ try{
+  await page.goto(ROOT+"/index.html",{waitUntil:"domcontentloaded"});await ready(page);
+  const bytes=await page.evaluate(async()=>{
+    const adapter=await import("/first-brain-idb-adapter.mjs");
+    const db="aiBrain.firstBrain.transaction.r1";
+    const snapshot=adapter.inspectLegacy3D(localStorage);
+    const staged=await adapter.stageLegacy3D(db,localStorage,{confirmed:true,
+      expectedMainRaw:snapshot.mainRaw,expectedUndoRaw:snapshot.undoRaw});
+    const refused=await adapter.verifyStagedLegacy3D(db,localStorage,{
+      confirmed:false,expectedMainRaw:snapshot.mainRaw,expectedUndoRaw:snapshot.undoRaw});
+    const verified=await adapter.verifyStagedLegacy3D(db,localStorage,{confirmed:true,
+      expectedMainRaw:snapshot.mainRaw,expectedUndoRaw:snapshot.undoRaw});
+    const badBackup=await adapter.verifyStagedLegacy3D(db,localStorage,{confirmed:true,
+      expectedMainRaw:snapshot.mainRaw+"tampered",expectedUndoRaw:snapshot.undoRaw});
+    return {snapshot,staged,refused,verified,badBackup};
+  });
+  assert.equal(bytes.snapshot.ok,true);
+  assert.equal(bytes.staged.ok,true);
+  assert.equal(bytes.refused.reason,"explicit_confirmation_required");
+  assert.equal(bytes.verified.reason,"staged_snapshot_matches_backup");
+  assert.equal(bytes.badBackup.reason,"legacy_source_changed_since_backup");
+  await page.goto(ROOT+"/index.html?brainTx=1",{waitUntil:"domcontentloaded"});await ready(page);
+  assert.equal((await page.evaluate(()=>window.AIBrain.persistence())).ready,false);
+  assert.equal(await page.locator("#brainTxActivate").isEnabled(),false);
+  const [download]=await Promise.all([page.waitForEvent("download",{timeout:15000}),page.locator("#brainTxBackup").click()]);
+  assert.ok(download.suggestedFilename().includes("backup"));
+  page.once("dialog",d=>d.accept());
+  await page.locator("#brainTxActivate").click();
+  await page.waitForFunction("window.AIBrain?.persistence().ready===true",null,{timeout:30000});
+  const after=await page.evaluate(()=>({
+    authority:localStorage.getItem("aiBrain.v1.persistence.authority"),
+    raw:localStorage.getItem("aiBrain.v1"),
+    revision:window.AIBrain.persistence().revision
+  }));
+  assert.equal(after.authority,"idb");
+  assert.equal(after.raw,bytes.snapshot.mainRaw);
+  assert.equal(after.revision,1,"existing staged snapshot was reused, never replaced");
+  const changed=await page.evaluate(async()=>{
+    const a=await import("/first-brain-idb-adapter.mjs");
+    const prior=a.inspectLegacy3D(localStorage);
+    const graph=JSON.parse(prior.mainRaw);
+    graph.nodes[0].title="changed-after-stage";
+    const other=JSON.stringify(graph);
+    localStorage.setItem(a.MAIN_KEY,other);
+    const result=await a.verifyStagedLegacy3D("aiBrain.firstBrain.transaction.r1",
+      localStorage,{confirmed:true,expectedMainRaw:other,expectedUndoRaw:prior.undoRaw});
+    return {result,other};
+  });
+  assert.equal(changed.result.reason,"staged_snapshot_differs_from_backup");
+  assert.deepEqual(errors,[]);
+  console.log("FIRST_BRAIN_INTERRUPTED_STAGE_SAFE_RECOVERY_PASS explicit=1 no_overwrite=1 mismatch_reject=1");
+ }finally{await ctx.close();await browser.close();}
+});
