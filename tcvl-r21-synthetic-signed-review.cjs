@@ -29,6 +29,8 @@ function createIsolatedSignedReviewPort({syntheticAuthorities,syntheticClock}={}
     return response("BLOCKED_INVALID_SIGNED_INPUT");
    const e=signed.envelope;
    const shape=assessUnifiedReviewEnvelope({envelope:e,expected});
+   if(shape.status==="BLOCKED_TASK_OR_EVIDENCE_MISMATCH")
+    return response("BLOCKED_TASK_OR_EVIDENCE_MISMATCH");
    if(shape.status!=="READY_FOR_CONTRACT_REVIEW_NOT_AUTHORIZED")return response("BLOCKED_INVALID_SIGNED_INPUT");
    const tick=syntheticClock(),now=Date.parse(tick);
    if(typeof tick!=="string"||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$/.test(tick)||
