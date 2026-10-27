@@ -8,7 +8,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 23
+    timeout-minutes: 28
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,5 +47,12 @@ jobs:
           bash -n scripts/test-r16-pg-physical-standby.sh
       - name: R16 isolated physical WAL streaming and controlled promotion
         run: bash scripts/test-r16-pg-physical-standby.sh
+      - name: R17 split-brain / replay-gap review contract and syntax
+        run: |
+          node --check tcvl-promotion-review-gate.cjs
+          node --test tests/tcvl-r17-promotion-review.test.cjs tests/tcvl-r17-physical-risk-contract.test.cjs
+          bash -n scripts/test-r17-unsafe-asynchronous-failover.sh
+      - name: R17 disposable unsafe async failover counterexample
+        run: bash scripts/test-r17-unsafe-asynchronous-failover.sh
       - name: All existing TCVL Node regressions
         run: node --test tests/*.test.cjs
