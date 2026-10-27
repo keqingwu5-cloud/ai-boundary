@@ -60,18 +60,24 @@ test('R10: revoked approval cannot be reused with an otherwise active and approv
  const node={id:'revoked-node',status:'active',direction_version:'v1',approval_status:'approved',
   approval_evidence_refs:['review:revoked'],approval_revoked_at:'2026-10-27T03:10:00Z',
   capabilities:['research'],permissions_scope:['read']};
- assert.notEqual(run({nodes:[node]}).action,'reuse_proposal');
+ const outcome=run({nodes:[node]});
+ assert.notEqual(outcome.action,'reuse','ineligible node cannot appear as legacy reuse');
+ assert.notEqual(outcome.action,'reuse_proposal','ineligible node cannot appear as future reuse proposal');
 });
 test('R10: stale approval from another direction cannot authorize reuse',()=>{
  const node={id:'stale-approval',status:'active',direction_version:'v1',approval_direction_version:'v0',
   approval_status:'approved',approval_evidence_refs:['review:old'],
   capabilities:['research'],permissions_scope:['read']};
- assert.notEqual(run({nodes:[node]}).action,'reuse_proposal');
+ const outcome=run({nodes:[node]});
+ assert.notEqual(outcome.action,'reuse','ineligible node cannot appear as legacy reuse');
+ assert.notEqual(outcome.action,'reuse_proposal','ineligible node cannot appear as future reuse proposal');
 });
 test('R10: invalid or missing claimed approval evidence cannot produce reusable proposal',()=>{
  for(const refs of [[],[''],[null],['  '],null]){
  const node={id:'untrusted',status:'active',direction_version:'v1',
   approval_status:'approved',approval_evidence_refs:refs,capabilities:['research'],permissions_scope:['read']};
- assert.notEqual(run({nodes:[node]}).action,'reuse_proposal');
+ const outcome=run({nodes:[node]});
+ assert.notEqual(outcome.action,'reuse','ineligible node cannot appear as legacy reuse');
+ assert.notEqual(outcome.action,'reuse_proposal','ineligible node cannot appear as future reuse proposal');
  }
 });
