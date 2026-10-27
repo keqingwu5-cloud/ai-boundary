@@ -18,7 +18,8 @@ jobs:
         run: |
           node --check tcvl-node-diffusion-core.js
           node --check tcvl-diffusion-bridge.js
+          node --check tcvl-approval-receipt-core.cjs
       - name: P1 gates and replay counterexamples
-        run: node --test tests/tcvl-node-diffusion-core.test.cjs tests/tcvl-diffusion-bridge.test.cjs
+        run: node --test tests/tcvl-node-diffusion-core.test.cjs tests/tcvl-diffusion-bridge.test.cjs tests/tcvl-approval-receipt.test.cjs
       - name: All existing TCVL Node regressions
         run: node --test tests/*.test.cjs
