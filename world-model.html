@@ -20,6 +20,19 @@
 </style></head>
 <body><header><div><h1>🌐 世界模型 · 整合工作台</h1><small>AI 主腦內的單一研究入口 · 歷史重建版</small></div><a id="worldBackHeader" href="./index.html">← 回到 3D 主腦</a></header><main>
 <section class="panel" id="researchContextPanel" aria-labelledby="researchContextTitle"><h2 id="researchContextTitle">研究來源節點</h2><p id="researchLinkStatus" class="fine" role="status">檢查來源連結中…</p><p id="researchNodeTitle"></p><div class="row"><a class="button" id="researchToBrain" href="./index.html">返回 3D 節點</a><a class="button" id="researchToFeed" href="./feed.html">返回 Feed 節點</a></div><p class="fine">此區只讀取相同瀏覽器的主腦節點 ID。不自動新增世界模型研究結論、證據、中央記憶或遠端 AI 任務；來源連結不代表因果已證明。</p></section>
+<section class="panel" id="dual-system-diagnostics" aria-labelledby="dualSystemTitle">
+<div class="top"><h2 id="dualSystemTitle">第一大腦 × 世界模型｜雙系統分開驗證</h2><span class="pill">免費隔離測試 · 研究事件與版本鏈</span></div>
+<p class="fine">本區使用<strong>合成研究案例</strong>檢查來源節點、原始假設、觀察、修正、非線性分支及反例。這不是外部金融證據認證、收益預測或真實投資建議，也不會把事件寫入主腦或記憶庫。</p>
+<div class="grid" role="group" aria-label="雙系統測試結果">
+<div class="metric"><small>第一大腦｜節點來源</small><b id="dualBrainResult">尚未測試</b></div>
+<div class="metric"><small>世界模型｜事件與時間</small><b id="dualWorldResult">尚未測試</b></div>
+<div class="metric"><small>連接層｜來源一致性</small><b id="dualBridgeResult">尚未測試</b></div>
+</div>
+<p id="dualDiagnosticSummary" class="fine" role="status">等待檢測。</p>
+<div class="row"><button id="runDualAudit" class="button" type="button">執行雙系統隔離檢測</button><span id="dualSelfTestCount" class="pill">尚未執行</span></div>
+<details><summary>查看合成案例的研究事件／版本鏈</summary><ol id="dualEventTimeline"></ol><p class="fine">來源發布時間只表示「事後回溯時可能取得」，不等於當時模型真的存過這筆研究。修正與新分支不能覆寫原始事件。</p></details>
+<p class="fine">資金優先級：先跑免費自動負向測試，再進行免費模擬裝置；只有這兩階段通過才安排必要實機。付費服務與正式部署不在本輪授權。</p>
+</section>
 <section class="panel"><div class="top"><h2>歷史回溯</h2><span class="pill" id="dateTag">2026/09</span></div><label for="month">移動時間，還原當時已公布的資料（以每月月底為截止；2026/10 以 10/12 為截止）</label><input id="month" type="range" min="0" max="12" value="11" step="1" aria-label="月份時間回溯"><div class="top fine"><span>2025/10</span><span>2026/10</span></div><div class="row"><button class="button" id="prev">← 上個月</button><button class="button" id="next">下個月 →</button><span class="pill">當時可得資料視角</span></div><p class="warning">重要：本頁是根據歷史資料重建的觀察畫面，不是當年實際封存的 AI 模型快照；不使用未到發布時間的資料。歷史月度價不能代替事件後 15/60 分鐘行情。</p></section>
 <section class="grid" aria-label="當時觀察數據"><div class="metric"><small>最近已發布 CPI 年增</small><b id="cpi">—</b><small id="cpiMeta">—</small></div><div class="metric"><small>最近 FOMC 目標利率</small><b id="fed">—</b><small id="fedMeta">—</small></div><div class="metric"><small>最近已結束月份市場</small><b id="market">—</b><small id="marketMeta">—</small></div></section>
 <div class="cols"><section class="panel"><div class="top"><h2>傳導路徑與隱藏供應鏈</h2><span class="pill">按需展開</span></div><div class="steps"><span class="step">通膨 / 政策</span><span class="arrow">→</span><span class="step">利率預期</span><span class="arrow">→</span><span class="step">美元 / 信用</span><span class="arrow">→</span><span class="step">市場</span></div><p class="fine">箭頭是研究問題而非已證明的因果關係。台股、美股的基本面與定價兩條路徑應分別驗證。</p>
@@ -240,5 +253,54 @@ if(ref.status==="linked"){
 window.BrainResearchLink={status:ref.status,sourceNodeId:ref.node?.id||null,
   exportReference:exportResearchReference(ref)};
 document.body.dataset.researchLink=ref.status;
+</script>
+
+<script type="module">
+import { readNodeContext } from './research-context-bridge.mjs';
+import { syntheticResearchCase,validateEventChain,knowledgeAt,diagnoseTwoSystems } from './research-event-chain.mjs';
+const el=id=>document.getElementById(id);
+function runDualAudit(){
+  const fromLink=window.BrainResearchLink;
+  const candidate=fromLink?.status==='linked'?fromLink.sourceNodeId:null;
+  const brain=candidate?readNodeContext(localStorage,candidate):{status:fromLink?.status||'no_source',node:null};
+  const timeline=syntheticResearchCase(candidate||'n_q1');
+  const graph=validateEventChain(timeline);
+  const before=knowledgeAt(timeline,'2026-07-01');
+  const now=knowledgeAt(timeline,'2026-10-27');
+  const nativeAudit=el('auditResult').textContent.match(/(\d+)\/(\d+) 項通過；(\d+) 項失敗/);
+  const worldOK=graph.ok&&before.ok&&now.ok&&before.recordedEventIds.length===0&&
+    before.retrospectivelyAvailableEvidenceIds.length===1&&now.recordedEventIds.length===5&&
+    !!nativeAudit&&Number(nativeAudit[1])===Number(nativeAudit[2])&&Number(nativeAudit[3])===0;
+  const brainOK=brain.status==='linked'&&brain.node?.id===candidate;
+  // No source supplied is not evidence that the brain is broken.
+  const unavailable=fromLink?.status==='no_source';
+  const result=brainOK?diagnoseTwoSystems({brainRef:brain,chain:timeline,expectedNodeId:candidate}):null;
+  const bridgeOK=!!result&&result.integration==='PASS';
+  el('dualBrainResult').textContent=unavailable?'未接入來源':brainOK?'PASS（本機節點）':'未通過（'+brain.status+'）';
+  el('dualWorldResult').textContent=worldOK?'PASS（合成與程式）':'FAIL（查模型）';
+  el('dualBridgeResult').textContent=unavailable?'未測試':bridgeOK?'PASS（來源 ID）':'FAIL／未驗證';
+  el('dualDiagnosticSummary').textContent='第一大腦：'+(unavailable?'未提供節點，不計為故障':brainOK?'本機節點 ID 可回查':'來源失效或不可讀')+
+    '；世界模型：'+(worldOK?'版本／時間與內建自檢符合預期':'事件或時間檢查失敗')+
+    '；連接：'+(unavailable?'未建立研究來源':bridgeOK?'來源 ID 一致':'尚未通過')+
+    '。僅測試結構，不驗證外部原始資料、歷史真實性或金融預測。';
+  const root=el('dualEventTimeline');root.replaceChildren();
+  for(const e of timeline){
+    const li=document.createElement('li');
+    li.textContent='版本 '+e.version+'｜'+e.kind+'｜'+e.event_id+
+      '｜parent='+String(e.parent_event_id)+'｜branch='+e.branch_id+'｜'+e.statement+
+      '｜記錄 '+e.recorded_at+(e.published_at?'／資料發布 '+e.published_at:'');
+    root.append(li);
+  }
+  el('dualSelfTestCount').textContent=(graph.ok&&before.ok&&now.ok?'合成版本鏈 5 事件可回查':'合成版本鏈未通過');
+  const out={brain:unavailable?'NOT_TESTED':brainOK?'PASS':'FAIL',world:worldOK?'PASS':'FAIL',
+    integration:unavailable?'NOT_TESTED':bridgeOK?'PASS':'FAIL',
+    fixture:timeline.map(x=>x.event_id),historical:before,recorded:now,
+    noLiveMoneyOrMemoryWrites:true};
+  window.DualSystemResearchAudit={run:runDualAudit,last:out};
+  document.body.dataset.dualAuditReady='1';
+  return out;
+}
+el('runDualAudit').addEventListener('click',runDualAudit);
+runDualAudit();
 </script>
 </body></html>
