@@ -30,3 +30,30 @@ test('P1 negative: proposal cannot authorize child task from a different project
  assert.throws(()=>bridge.planChildTask(both,{projectId:'p2',nodeId:d.node.id,requestId:'r1',
    title:'cross project task',reason:'wrong project',owner:'human',at}),/project|scope|proposal/i);
 });
+
+test('P1 negative: duplicate child request after rejection must not return already_queued',()=>{
+ const d=decision();let w=bridge.applyCandidate(workspace(),d,{projectId:'p1',at}).workspace;
+ w=bridge.planChildTask(w,{projectId:'p1',nodeId:d.node.id,requestId:'r1',
+   title:'review',reason:'proposal review',owner:'human',at}).workspace;
+ w=platform.proposalDecision(w,{proposalId:'diffusion:'+d.node.id,
+   decision:'rejected',reason:'deny',impact:'stop progression',next:'re-evaluate',at,seq:'seq-reject-02'});
+ assert.throws(()=>bridge.planChildTask(w,{projectId:'p1',nodeId:d.node.id,requestId:'r1',
+  title:'review',reason:'retry after rejection',owner:'human',at}),/proposal.*state|rejected|approved/i);
+});
+test('P1 negative: re-applying a rejected proposal never pretends it is an active proposal',()=>{
+ const d=decision();
+ let w=bridge.applyCandidate(workspace(),d,{projectId:'p1',at}).workspace;
+ w=platform.proposalDecision(w,{proposalId:'diffusion:'+d.node.id,
+   decision:'rejected',reason:'denied',impact:'hold',next:'new proposal',at,seq:'seq-reject-03'});
+ const before=JSON.stringify(w),r=bridge.applyCandidate(w,d,{projectId:'p1',at});
+ assert.equal(r.result,'blocked_rejected_proposal');
+ assert.equal(JSON.stringify(r.workspace),before);
+});
+test('reuse advice is not a verified authorization or a new queued task',()=>{
+ const w=workspace();
+ const r=bridge.applyCandidate(w,{action:'reuse',node_id:'eligible'},{projectId:'p1',at});
+ assert.equal(r.result,'reuse_requires_review');
+ assert.equal(r.verified_approval,false);
+ assert.equal(r.workspace.tasks.length,0);
+ assert.equal(JSON.stringify(r.workspace),JSON.stringify(w));
+});
