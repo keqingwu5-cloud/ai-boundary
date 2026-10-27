@@ -1,4 +1,5 @@
 /* 短影音 feed — reads the same state as the 3D brain (localStorage aiBrain.v1, falling back to seed data). */
+import { worldModelHref } from './research-context-bridge.mjs';
 const KEY = 'aiBrain.v1', FKEY = 'aiBrain.feed.v1';
 /* giscus (GitHub Discussions). Works once the giscus GitHub App is installed on the repo. One discussion per node: term = "node:<id>". */
 const GISCUS = { repo:'keqingwu5-cloud/ai-boundary', repoId:'R_kgDOVDydcA', category:'Announcements', categoryId:'DIC_kwDOVDydcM4DHf-d' };
@@ -151,6 +152,7 @@ function activate(i){
   $('#cnt').textContent = `${i + 1} / ${list.length}`;
   const id = list[i].id;
   $('#toBrain').href = 'index.html#node=' + encodeURIComponent(id);
+  $('#toWorldModel').href = worldModelHref(id);
   history.replaceState(null, '', '#node=' + encodeURIComponent(id));
   feed.querySelector('.it.cur')?.classList.remove('cur'); itemEl(i)?.classList.add('cur');
   mount(i);

@@ -18,7 +18,8 @@
 .verify-dim{color:#9fb0c6}
 @media(max-width:720px){.verify-controls{grid-template-columns:1fr}.verify-full{grid-column:auto}}
 </style></head>
-<body><header><div><h1>🌐 世界模型 · 整合工作台</h1><small>AI 主腦內的單一研究入口 · 歷史重建版</small></div><a href="./index.html">← 回到 3D 主腦</a></header><main>
+<body><header><div><h1>🌐 世界模型 · 整合工作台</h1><small>AI 主腦內的單一研究入口 · 歷史重建版</small></div><a id="worldBackHeader" href="./index.html">← 回到 3D 主腦</a></header><main>
+<section class="panel" id="researchContextPanel" aria-labelledby="researchContextTitle"><h2 id="researchContextTitle">研究來源節點</h2><p id="researchLinkStatus" class="fine" role="status">檢查來源連結中…</p><p id="researchNodeTitle"></p><div class="row"><a class="button" id="researchToBrain" href="./index.html">返回 3D 節點</a><a class="button" id="researchToFeed" href="./feed.html">返回 Feed 節點</a></div><p class="fine">此區只讀取相同瀏覽器的主腦節點 ID。不自動新增世界模型研究結論、證據、中央記憶或遠端 AI 任務；來源連結不代表因果已證明。</p></section>
 <section class="panel"><div class="top"><h2>歷史回溯</h2><span class="pill" id="dateTag">2026/09</span></div><label for="month">移動時間，還原當時已公布的資料（以每月月底為截止；2026/10 以 10/12 為截止）</label><input id="month" type="range" min="0" max="12" value="11" step="1" aria-label="月份時間回溯"><div class="top fine"><span>2025/10</span><span>2026/10</span></div><div class="row"><button class="button" id="prev">← 上個月</button><button class="button" id="next">下個月 →</button><span class="pill">當時可得資料視角</span></div><p class="warning">重要：本頁是根據歷史資料重建的觀察畫面，不是當年實際封存的 AI 模型快照；不使用未到發布時間的資料。歷史月度價不能代替事件後 15/60 分鐘行情。</p></section>
 <section class="grid" aria-label="當時觀察數據"><div class="metric"><small>最近已發布 CPI 年增</small><b id="cpi">—</b><small id="cpiMeta">—</small></div><div class="metric"><small>最近 FOMC 目標利率</small><b id="fed">—</b><small id="fedMeta">—</small></div><div class="metric"><small>最近已結束月份市場</small><b id="market">—</b><small id="marketMeta">—</small></div></section>
 <div class="cols"><section class="panel"><div class="top"><h2>傳導路徑與隱藏供應鏈</h2><span class="pill">按需展開</span></div><div class="steps"><span class="step">通膨 / 政策</span><span class="arrow">→</span><span class="step">利率預期</span><span class="arrow">→</span><span class="step">美元 / 信用</span><span class="arrow">→</span><span class="step">市場</span></div><p class="fine">箭頭是研究問題而非已證明的因果關係。台股、美股的基本面與定價兩條路徑應分別驗證。</p>
@@ -115,7 +116,7 @@ $('#month').addEventListener('input',e=>{current=+e.target.value;render()});
 $('#prev').addEventListener('click',()=>{current=Math.max(0,current-1);$('#month').value=current;render()});
 $('#next').addEventListener('click',()=>{current=Math.min(12,current+1);$('#month').value=current;render()});
 ['capital','allocation','change','cost'].forEach(k=>$('#'+k).addEventListener('input',calculate));
-$('#export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({...model,simulation:{capital:$('#capital').value,allocationPct:$('#allocation').value,priceChangePct:$('#change').value,costPct:$('#cost').value,horizon:$('#horizon').value}},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='world-model-'+months[current].replace('/','-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
+$('#export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({...model,research_reference:window.BrainResearchLink?.exportReference||null,simulation:{capital:$('#capital').value,allocationPct:$('#allocation').value,priceChangePct:$('#change').value,costPct:$('#cost').value,horizon:$('#horizon').value}},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='world-model-'+months[current].replace('/','-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
 render();calculate();
 
 /* first-party verification case: dates and URLs audited; no prediction or profit claim */
@@ -211,4 +212,33 @@ $('#runAudit').addEventListener('click',runVerifyAudit);
 verifiedRender();renderVerifyRows();
 runVerifyAudit();
 
-</script></body></html>
+</script>
+
+<script type="module">
+import { fromWorldModelQuery, readNodeContext, brainHref, feedHref, exportResearchReference } from './research-context-bridge.mjs';
+const id=fromWorldModelQuery(location.search);
+const askedForNode=new URLSearchParams(location.search).has("node");
+const ref=id?readNodeContext(localStorage,id):{status:askedForNode?"invalid":"no_source",node:null};
+const status=document.getElementById('researchLinkStatus');
+const title=document.getElementById('researchNodeTitle');
+const toBrain=document.getElementById('researchToBrain');
+const toFeed=document.getElementById('researchToFeed');
+const back=document.getElementById('worldBackHeader');
+toBrain.href=brainHref(ref.status==="linked"?id:null);
+toFeed.href=feedHref(ref.status==="linked"?id:null);
+back.href=toBrain.href;
+if(ref.status==="linked"){
+  status.textContent='已對應本機主腦節點（唯讀；未驗證研究結論）';
+  title.textContent=ref.node.title+' · 節點 ID：'+ref.node.id;
+}else if(ref.status==="no_source"){
+  status.textContent='獨立研究模式：本次沒有從主腦帶入節點 ID';
+  title.textContent='可從 3D 主腦或 Feed 選擇一個節點，再開啟世界模型';
+}else{
+  status.textContent='來源未接通（'+ref.status+'）：本機找不到可安全對應的節點';
+  title.textContent='已保留研究工作台；不會猜測節點或自動修改資料';
+}
+window.BrainResearchLink={status:ref.status,sourceNodeId:ref.node?.id||null,
+  exportReference:exportResearchReference(ref)};
+document.body.dataset.researchLink=ref.status;
+</script>
+</body></html>

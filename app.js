@@ -1,6 +1,7 @@
 /* 3D 動態認知大腦 v1 — plain Three.js (ES modules, vendored), no build step. */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { worldModelHref } from './research-context-bridge.mjs';
 import { validateBrainImport, commitBrainImport } from './brain-import-guard.mjs';
 
 /* ================= constants ================= */
@@ -868,6 +869,7 @@ function flowHTML(f){
 function select(id){
   const n = N(id); if (!n) return; selected = id;
   $('#bFeed').href = 'feed.html#node=' + encodeURIComponent(id);
+  $('#bWorldModel').href = worldModelHref(id);
   if (n.brainId !== focusId && B(n.brainId)) focusBrain(n.brainId);
   const s = n.source || {}; const par = N(n.parentId); const ch = kids(id);
   const subQ = ch.filter(k => k.kind !== 'direction'), dirs = ch.filter(k => k.kind === 'direction');
