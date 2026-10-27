@@ -140,7 +140,7 @@ let txRevision = 0, txReady = false, txBusy = false, txLoadError = null, txCommi
 let txLastWrite = Promise.resolve(false);
 const txChannel=TX_MODE && typeof BroadcastChannel==='function'?new BroadcastChannel('first-brain-idb-r1'):null;
 function legacyMayWrite(){
-  try { return localStorage.getItem(TX_AUTH_KEY) !== 'idb'; }
+  try { return localStorage.getItem(TX_AUTH_KEY) === null; }
   catch(_) { return false; }
 }
 // Returns real persistence status. A partial localStorage write is not a successful save.
@@ -1183,14 +1183,18 @@ function frame(){
 }
 if(TX_MODE){
   const found = await readTransactional3D(TX_DB);
-  if(found.ok){
+  let declaredAuthority;
+  try{declaredAuthority=localStorage.getItem(TX_AUTH_KEY);}
+  catch(_){declaredAuthority='unreadable';}
+  // Never allow both a legacy writer and an IDB writer to be active.
+  if(found.ok && declaredAuthority === 'idb'){
     state=migrate(found.graph);
     undoStack=found.undo;
     txRevision=found.revision;
     txReady=true;
     blockedStoredState=false;
   }else{
-    txLoadError=found.reason;
+    txLoadError=found.ok?'transactional_authority_mismatch':found.reason;
     txReady=false;
   }
 }
