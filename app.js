@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { worldModelHref } from './research-context-bridge.mjs';
 import { validateBrainImport, commitBrainImport } from './brain-import-guard.mjs';
+import { readTransactional3D, commitTransactional3D, stageLegacy3D, inspectLegacy3D } from './first-brain-idb-adapter.mjs';
 
 /* ================= constants ================= */
 const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
@@ -132,8 +133,18 @@ try {
   if (Array.isArray(value) && value.length <= 12 && value.every(v => typeof v === 'string')) undoStack = value;
 } catch(e){ undoStack = []; }
 let saveT = 0;
+// Opt-in preview only. Existing First Brain remains in its legacy mode by default.
+const TX_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('brainTx') === '1';
+const TX_DB = 'aiBrain.firstBrain.transaction.r1', TX_AUTH_KEY = 'aiBrain.v1.persistence.authority';
+let txRevision = 0, txReady = false, txBusy = false, txLoadError = null;
+let txLastWrite = Promise.resolve(false);
+function legacyMayWrite(){
+  try { return localStorage.getItem(TX_AUTH_KEY) !== 'idb'; }
+  catch(_) { return false; }
+}
 // Returns real persistence status. A partial localStorage write is not a successful save.
 function save(now = false){
+  if (TX_MODE || !legacyMayWrite()) return false;
   if (blockedStoredState) return false; // UI warning is installed after startup.
   clearTimeout(saveT);
   const result = commitBrainImport(localStorage, KEY, UKEY, state, undoStack.slice(-12), expectedMainRaw);
@@ -149,6 +160,31 @@ save(true);
 const listeners = {};
 function emit(ev, data){ (listeners[ev] || []).forEach(f => { try { f(data); } catch(e){ console.error(e); } }); }
 function commitChange(proposed, nextUndo, successLabel){
+  if (TX_MODE){
+    if (!txReady || txBusy){ toast('⚠ 交易式保存尚未就緒，或仍有提交進行中'); return Promise.resolve(false); }
+    const checked = validateBrainImport(proposed);
+    if (!checked.ok){ toast('⚠ 變更未保存：' + checked.reason); return Promise.resolve(false); }
+    txBusy = true;
+    toast('◌ 第一大腦交易提交中…');
+    const write = commitTransactional3D(TX_DB, txRevision, proposed, nextUndo)
+      .then(result => {
+        if (!result.ok){
+          toast('⚠ 交易未完成：' + result.reason);
+          if(result.reason === 'stale_revision')showConcurrentWarning();
+          return false;
+        }
+        txRevision = result.revision;
+        state = proposed;
+        undoStack = nextUndo;
+        flashSaved();
+        if(successLabel)toast(successLabel);
+        return true;
+      }).catch(err => {toast('⚠ 交易失敗：' + (err?.message || 'unknown'));return false;})
+      .finally(() => {txBusy = false;});
+    txLastWrite = write;
+    return write;
+  }
+  if (!legacyMayWrite()){toast('⚠ 交易資料已成權威，請切換至交易模式');return false;}
   if (blockedStoredState){ toast('⚠ 舊存檔待保護，禁止自動覆寫'); return false; }
   const checked = validateBrainImport(proposed);
   if (!checked.ok){ toast('⚠ 變更未保存：' + checked.reason); return false; }
@@ -165,6 +201,27 @@ function commitChange(proposed, nextUndo, successLabel){
   return true;
 }
 function mutate(action, payload, fn){
+  if (TX_MODE){
+    if (!txReady || txBusy){toast('⚠ 提交尚未完成或交易模式未啟動');return Promise.resolve(false);}
+    let previous;
+    try{previous = JSON.stringify(state); fn();state.history.push({ts:Date.now(),action,payload});}
+    catch(e){
+      if(previous)state=JSON.parse(previous);
+      toast('⚠ 變更失敗：' + (e?.message || 'invalid_operation'));
+      sync();renderHistory();renderCrumbs();return Promise.resolve(false);
+    }
+    const proposed = JSON.parse(JSON.stringify(state));
+    state = JSON.parse(previous); // No uncommitted graph can be shown as saved.
+    const nextUndo = [...undoStack,previous].slice(-12);
+    const operation = commitChange(proposed,nextUndo).then(ok=>{
+      if(ok){sync();renderHistory();renderCrumbs();emit('change',{action,payload});}
+      else{sync();renderHistory();renderCrumbs();}
+      return ok;
+    });
+    txLastWrite = operation;
+    return operation;
+  }
+  if (!legacyMayWrite()){toast('⚠ 交易資料已成權威，禁止舊版寫入');return false;}
   if (blockedStoredState){ toast('⚠ 舊存檔待保護，暫停修改'); return false; }
   let previous;
   try { previous = JSON.stringify(state); }
@@ -352,6 +409,15 @@ function undo(){
   try { proposed = JSON.parse(undoStack[undoStack.length - 1]); }
   catch(e){ toast('⚠ 復原快照無法讀取'); return false; }
   const nextUndo = undoStack.slice(0, -1);
+  if(TX_MODE){
+    const p = commitChange(proposed,nextUndo).then(ok=>{
+      if(!ok)return false;
+      sync();renderHistory();renderCrumbs();closePanel();toast('↶ 已復原');
+      if(!B(focusId))focusBrain('main');
+      emit('change',{action:'undo'});return true;
+    });
+    txLastWrite=p;return p;
+  }
   if (!commitChange(proposed, nextUndo)) return false;
   sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已復原');
   if (!B(focusId)) focusBrain('main');
@@ -367,6 +433,14 @@ function resetAll(){
     proposed.history.push({ ts:Date.now(), action:'reset', payload:{} });
   } catch(e){ toast('⚠ 重置資料建立失敗'); return false; }
   const nextUndo = [...undoStack, JSON.stringify(state)].slice(-12);
+  if(TX_MODE){
+    const p=commitChange(proposed,nextUndo).then(ok=>{
+      if(!ok)return false;
+      sync();renderHistory();renderCrumbs();closePanel();focusBrain('main');
+      emit('change',{action:'reset'});return true;
+    });
+    txLastWrite=p;return p;
+  }
   if (!commitChange(proposed, nextUndo)) return false;
   sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main');
   emit('change', { action:'reset' });
@@ -379,6 +453,7 @@ function exportJSON(){
   toast('⇩ 已匯出 JSON');
 }
 function importJSON(obj){
+  if (!TX_MODE && !legacyMayWrite()){toast('⚠ 請使用交易模式匯入');return false;}
   if (blockedStoredState){ toast('⚠ 舊存檔待保護；請先下載備份後處理'); return false; }
   const checked = validateBrainImport(obj);
   if (!checked.ok){ toast('⚠ 匯入資料檢查失敗：' + checked.reason); return false; }
@@ -394,6 +469,15 @@ function importJSON(obj){
     return false;
   }
   const nextUndo = [...undoStack, JSON.stringify(state)].slice(-12);
+  if(typeof TX_MODE !== 'undefined' && TX_MODE){
+    const p=commitChange(proposed,nextUndo).then(ok=>{
+      if(!ok)return false;
+      clearTimeout(saveT);sync();renderHistory();renderCrumbs();closePanel();
+      focusBrain('main');toast('⇧ 已匯入並驗證交易保存');
+      emit('change',{action:'import'});return true;
+    });
+    txLastWrite=p;return p;
+  }
   const written = commitBrainImport(localStorage, KEY, UKEY, proposed, nextUndo, expectedMainRaw);
   if (!written.ok){
     toast('⚠ 匯入未完成：' + written.reason + (written.rollbackOk ? '（原資料未變或已回復）' : '（回復失敗，請保留備份）'));
@@ -1086,6 +1170,19 @@ function frame(){
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
+if(TX_MODE){
+  const found = await readTransactional3D(TX_DB);
+  if(found.ok){
+    state=migrate(found.graph);
+    undoStack=found.undo;
+    txRevision=found.revision;
+    txReady=true;
+    blockedStoredState=false;
+  }else{
+    txLoadError=found.reason;
+    txReady=false;
+  }
+}
 sync(); initDone = true; renderHistory(); renderCrumbs();
 camera.position.set(0, 2.6, 0).add(new THREE.Vector3(0, 0.22, 1).normalize().multiplyScalar(fitDist(WORLD * 0.85)));
 $('#bHome').classList.add('hide');
@@ -1123,7 +1220,10 @@ window.AIBrain = {
   addConcept, removeConcept, setProcessPattern, getConcepts, getConceptThreads:() => JSON.parse(JSON.stringify(threads)), getConceptLinks:() => conceptLinks.map(l => ({ from:l.from, to:l.to, kind:'concept', concept:l.concept, threadKind:l.threadKind })),
   suggestConcepts, focusConcept, showConcepts, _debug:debug, mergeBrain, crossLink, setStatus, addCounterEvidence, setCollapsed, setMedia, deleteNode,
   focusBrain, focusNode, overview, select, undo, exportJSON, importJSON, reset:resetAll,
-  on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); }
+  on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); },
+  persistence:()=>({mode:TX_MODE?'transactional':'legacy',ready:TX_MODE?txReady:legacyMayWrite(),revision:TX_MODE?txRevision:null,
+    pending:txBusy,reason:txLoadError}),
+  whenIdle:()=>txLastWrite
 };
 document.body.dataset.ready = '1';
 // If another tab writes while this tab is open, stop silent lost updates.
