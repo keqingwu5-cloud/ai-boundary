@@ -138,3 +138,27 @@ test("R11: changing the claimed trust root source cannot turn synthetic proof in
  assert.equal(r.independent_authority_verified,false);
  assert.equal(r.execution_allowed,false);
 });
+
+test("R11 negative: unknown signer validity timestamps cannot silently pass",()=>{
+ for(const signer of [
+  {...trustRoot.signers[0],valid_from:"not-a-time"},
+  {...trustRoot.signers[0],valid_until:"not-a-time"},
+  {...trustRoot.signers[0],valid_from:undefined},
+  {...trustRoot.signers[0],valid_until:undefined}
+ ]){
+  const r=check({trustRoot:{...trustRoot,signers:[signer]}});
+  assert.equal(r.reason,"SIGNER_IDENTITY_OR_LIFETIME_MISMATCH");
+ }
+});
+test("R11 negative: ambiguous duplicate signer IDs invalidate the trust snapshot",()=>{
+ const dup={...trustRoot.signers[0],public_key_pem:attacker.publicKey.export({type:"spki",format:"pem"})};
+ const r=check({trustRoot:{...trustRoot,signers:[trustRoot.signers[0],dup]}});
+ assert.equal(r.status,"REJECTED");
+ assert.equal(r.reason,"SIGNER_REGISTRY_AMBIGUOUS");
+});
+test("R11 negative: malformed revocation/replay arrays are not healthy empty ledgers",()=>{
+ const r1=check({revocations:{...revocations,revoked_receipt_ids:[null]}});
+ const r2=check({replayLedger:{...replayLedger,consumed_nonces:[null]}});
+ assert.equal(r1.reason,"REVOCATION_EVIDENCE_MISSING_OR_STALE");
+ assert.equal(r2.reason,"REPLAY_EVIDENCE_MISSING_OR_STALE");
+});
