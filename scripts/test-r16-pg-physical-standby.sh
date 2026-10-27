@@ -73,11 +73,22 @@ done
 assert_eq "$(sq "SELECT count(*) FROM tcvl_r13_candidate.review_reservations WHERE receipt_id='seed-r16';")" "1" "base backup seed visible"
 echo "R16 PHYSICAL_REPLICATION: base backup and active WAL streaming verified"
 
-# Generate NEW WAL after the physical backup, then prove the standby has
-# replayed both a receipt and a revocation before planned failover.
+# R16 deliberate negative: an active streaming connection can still have
+# a lagging WAL replay position. Never promote on "streaming" alone.
+sq 'SELECT pg_wal_replay_pause();' >/dev/null
+paused=0
+for _ in $(seq 1 100);do
+ if [[ "$(sq "SELECT pg_get_wal_replay_pause_state();" 2>/dev/null || true)" == "paused" ]];then paused=1;break;fi
+ sleep 0.1
+done
+[[ "$paused" == "1" ]] || { echo R16_COULD_NOT_PAUSE_REPLAY;exit 1; }
 assert_eq "$(pq "$(reserve 'after-backup-r16' 'live-key-r16')")" "REVIEW_RESERVED_ONLY" "post-basebackup change"
 assert_eq "$(pq "SELECT tcvl_r13_candidate.revoke_key_for_review('revoked-r16');")" \
  "REVIEW_KEY_REVOKED" "post-basebackup revocation"
+stale="$(sq "SELECT (SELECT count(*) FROM tcvl_r13_candidate.review_reservations WHERE receipt_id='after-backup-r16')::text || ':' || (SELECT count(*) FROM tcvl_r13_candidate.revocations WHERE kind='key' AND ref_id='revoked-r16')::text;")"
+assert_eq "$stale" "0:0" "streaming but replay-paused standby must remain behind"
+echo "R16 ASYNC_REPLAY_LAG_NEGATIVE: primary committed, standby has 0:0; promotion withheld"
+sq 'SELECT pg_wal_replay_resume();' >/dev/null
 replayed=0
 for _ in $(seq 1 100);do
  s="$(sq "SELECT (SELECT count(*) FROM tcvl_r13_candidate.review_reservations WHERE receipt_id='after-backup-r16')::text || ':' || (SELECT count(*) FROM tcvl_r13_candidate.revocations WHERE kind='key' AND ref_id='revoked-r16')::text;" 2>/dev/null || true)"
