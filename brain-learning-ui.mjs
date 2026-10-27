@@ -17,7 +17,7 @@ function field(parent,label,key,max,required=false){
  input.style.cssText="display:block;width:100%;box-sizing:border-box;padding:7px;margin-top:3px;border:1px solid #526477;border-radius:6px;background:#14263a;color:#fff";
  wrap.append(input);parent.append(wrap);return input;
 }
-export function bindLearningPanel(parent,{nodeId,entries=[],onRecord,onReview,onSearch,onRefresh}){
+export function bindLearningPanel(parent,{nodeId,entries=[],onRecord,onReview,onSearch,onAnalyze,onRefresh}){
  const details=el("details");details.id="learnPanel";details.className="fl";
  const summary=el("summary","🧠 成功與失敗的經驗");details.append(summary);
  const expl=el("p","每筆經驗都記下適用條件與證據。人工審閱只表示曾核對，不等於獨立證實或永遠正確。");
@@ -72,6 +72,19 @@ export function bindLearningPanel(parent,{nodeId,entries=[],onRecord,onReview,on
  const results=el("div");results.id="learningMatches";results.setAttribute("role","status");
  lookup.onsubmit=event=>{
   event.preventDefault();results.replaceChildren();
+  const analysis=onAnalyze?.(findInput.value);
+  if(analysis?.status==="conflicted"){
+   const warning=el("p","⚠ 相同條件同時有成功與失敗紀錄（成功 "+analysis.worked+" 筆、失敗 "+analysis.failed+" 筆）。目前不能推薦單一做法；請先確認版本、時間、證據與真正差異。");
+   warning.id="learningConflictWarning";
+   warning.setAttribute("role","alert");
+   results.append(warning);
+   for(const record of analysis.conflicts){
+    results.append(el("p",(record.outcome==="worked"?"✓ 成功":"↯ 失敗")+
+      "｜"+record.observation+"｜證據："+(record.evidence||"待補")+
+      "｜"+(record.stage==="person_reviewed"?"已審閱":"待查證")));
+   }
+   return;
+  }
   const found=onSearch(findInput.value);
   if(!found.length){results.append(el("p","沒有相同條件、附證據且已人工審閱的經驗。"));return;}
   for(const item of found){
