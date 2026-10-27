@@ -269,3 +269,17 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 - 真 Chromium 新測試標記 \`FIRST_BRAIN_LEGACY_BACKUP_MATCH_GATE_PASS changed_main=1 changed_undo=1 during_stage=1\`：備份與搬移來源不一致、Undo 不一致、搬移中可觀察的新寫入均拒絕宣稱已完成；舊資料未被系統主動覆寫。
 - 桌面 WebKit 新測試標記 \`FIRST_BRAIN_DESKTOP_WEBKIT_TRANSACTION_PASS 2tabs=1 CAS=1 v1=1 unversioned=1 legacy_bytes=1 reload=1\`：兩頁同時提交單筆 IDB 修訂，過期交易被拒，v1/無版本舊圖可唯讀驗證且原始 bytes 不變，重新載入一致。
 - **正式 Gate 未解除**：本測試不是 iOS 原生 Safari／真 iPhone/iPad，未檢查使用者授權真歷史檔、跨版本未遵守標記的舊程式、作業系統強制退出與儲存清理後耐久性，也未取得獨立 reviewer ACK。正式合併/部署仍未執行。
+
+
+## R14｜遷移已暫存但未完成啟用的安全恢復（2026-10-28）
+
+**問題分類**：原 R03-01／A（交易保存、狀態恢復），關聯 R03-05／E（新舊權威切換），不是新增平行工程。
+
+**本次辨識的缺口**：原有 UI 在明確備份並進行 `stageLegacy3D()` 時，若 IndexedDB 已成功寫入第一版，但頁面中途未完成啟用，下一次可能只得到 `transactional_snapshot_exists`；在備份及暫存資料完全相同的情況下，本來可以安全完成啟用，卻可能一直卡在阻塞畫面。直接忽略「快照已存在」並強制覆蓋則更危險。
+
+**隔離修補**：
+- `first-brain-idb-adapter.mjs` 新增明確確認的 `verifyStagedLegacy3D()`，要求舊 main／Undo 的 raw bytes 仍等於使用者下載的原始備份，且 IndexedDB 中同一筆快照 **revision === 1**、main／Undo 都逐位元組相等；任何差異或舊圖無法解析都拒絕恢復，不會重寫已有 IDB 值。
+- `app.js` 在啟用前立即檢查備份是否已過期；若 stage 回傳 `transactional_snapshot_exists`，只嘗試上述明確比對，完全符合才重新載入並讀取既有權威。仍保留現有 `idb` 標記及舊資料，不能假裝跨版本舊 writer 已解決。
+- `tests/first-brain-idb-browser.test.cjs` 使用真 Chromium 3D 頁面模擬 **已 stage 卻未設 authority 標記** 的中斷狀態，確認回到 UI 後經下載與人工確認才可恢復，revision 保持 1 不重寫、舊 raw bytes 不變；缺少確認或改動舊資料則拒絕。
+
+**驗收限制**：本輪提交在 Draft PR #75 隔離分支；完整 Chromium 新案例需以本次提交相對應的 GitHub Actions 判定。即使測試通過，仍不能宣稱任意崩潰、不同舊程式版本或真實 Apple 裝置都安全。真歷史資料、獨立 reviewer ACK、main／部署仍分別保留 Gate。
