@@ -8,7 +8,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 23
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,5 +41,11 @@ jobs:
           bash -n scripts/test-r15-pg-network-restore.sh
       - name: R15 disposable private TCP network and independent PostgreSQL restore
         run: bash scripts/test-r15-pg-network-restore.sh
+      - name: R16 physical standby safety contract
+        run: |
+          node --test tests/tcvl-r16-physical-standby-contract.test.cjs
+          bash -n scripts/test-r16-pg-physical-standby.sh
+      - name: R16 isolated physical WAL streaming and controlled promotion
+        run: bash scripts/test-r16-pg-physical-standby.sh
       - name: All existing TCVL Node regressions
         run: node --test tests/*.test.cjs
