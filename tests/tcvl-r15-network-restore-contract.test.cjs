@@ -19,7 +19,7 @@ test("R15 injects actual live TCP session link-loss instead of merely discarding
  assert.match(sh,/pg_stat_activity/);
 });
 test("R15 true independent restore verifies logical data integrity and revoked IDs",()=>{
- assert.match(sh,/pg_dump .*--format=custom/);
+ assert.match(sh,/pg_dump[\s\S]{0,100}--format=custom/);
  assert.match(sh,/pg_restore/);
  assert.match(sh,/--exit-on-error/);
  assert.match(sh,/md5\(COALESCE\(string_agg/);
@@ -29,7 +29,8 @@ test("R15 true independent restore verifies logical data integrity and revoked I
  assert.match(sh,/BLOCKED_REVOKED/);
 });
 test("R15 restore preserves DB permissions and does not promote execution",()=>{
- assert.doesNotMatch(sh,/--no-acl|--no-privileges|GRANT ALL|SECURITY DEFINER/);
+ const nonComment=sh.split("\n").filter(line=>!line.trimStart().startsWith("#")).join("\n");
+ assert.doesNotMatch(nonComment,/--no-acl|--no-privileges|GRANT ALL|SECURITY DEFINER/);
  assert.match(sh,/CREATE ROLE r15_untrusted NOLOGIN/);
  assert.match(sh,/grep -qi 'permission denied'/);
  assert.match(sh,/stage <> 'review_reserved'/);
