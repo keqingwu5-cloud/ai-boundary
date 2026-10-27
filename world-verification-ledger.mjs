@@ -126,6 +126,6 @@ export function appendWorldLedger(storage,expectedRawV2,change){
     return {ok:false,reason:'stale_tab_conflict'};
   storage.setItem(JOURNAL_KEY,value);
   if(storage.getItem(JOURNAL_KEY)!==value)return {ok:false,reason:'readback_mismatch'};
- }catch(_){return {ok:false,reason:'storage_write_failed'};
+ }catch(_){return {ok:false,reason:'storage_write_failed'};}
  return {ok:true,reason:'ok',rows:after,events:payload.events,rawV1:before.rawV1,rawV2:value,event};
 }
