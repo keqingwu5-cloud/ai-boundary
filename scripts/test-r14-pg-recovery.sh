@@ -9,11 +9,19 @@ cleanup(){ docker rm -f "$cid" >/dev/null 2>&1 || true; rm -rf "$tmp"; }
 trap cleanup EXIT
 docker run --name "$cid" -d --env POSTGRES_PASSWORD=R14_EPHEMERAL_TEST_ONLY postgres:16-alpine >/dev/null
 ready(){
-  for _ in $(seq 1 60); do
-    if docker exec "$cid" pg_isready -U postgres >/dev/null 2>&1; then return 0; fi
+  # postgres image can briefly open a temporary initialization server
+  # then stop it before starting the real postmaster. pg_isready alone
+  # may report a false positive during that phase.
+  for _ in $(seq 1 90); do
+    if docker exec --user postgres "$cid" psql -X -q -t -A -U postgres \
+      -v ON_ERROR_STOP=1 -c 'SELECT 1;' >/dev/null 2>&1; then
+      sleep 0.4
+      if docker exec --user postgres "$cid" psql -X -q -t -A -U postgres \
+        -v ON_ERROR_STOP=1 -c 'SELECT 1;' >/dev/null 2>&1; then return 0; fi
+    fi
     sleep 0.2
   done
-  echo "R14_NOT_READY"; return 1
+  echo "R14_SQL_NOT_STABLY_READY"; return 1
 }
 ready
 docker cp sql/r13_candidate_review_reservation.sql "$cid":/tmp/r13.sql >/dev/null
