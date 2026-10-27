@@ -73,3 +73,36 @@ test("R21 synthetic signature is never owner or G2 authority",()=>{
  assert.equal(x.authority_source,"ISOLATED_SYNTHETIC_KEYSET_ONLY");
  assert.equal(x.verified_owner_approval,false);
 });
+
+test("R21 second pass: alternate noncanonical base64url spelling of same Ed25519 bytes is rejected",()=>{
+ const e=claims(),s=signed(e);
+ // 64 bytes encode to 86 base64url characters. The final sextet uses only
+ // its two highest bits; four low bits are padding and MUST be zero.
+ const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+ const last=s.signature.slice(-1),position=alphabet.indexOf(last);
+ assert.ok(position>=0);
+ const variant=alphabet[(position&~15)|((position+1)&15)];
+ assert.notEqual(variant,last);
+ const nonCanonical=s.signature.slice(0,-1)+variant;
+ assert.equal(Buffer.from(nonCanonical,"base64url").equals(Buffer.from(s.signature,"base64url")),true);
+ const result=port().reserveSignedReview({
+  signed:{envelope:e,signature:nonCanonical},expected:expected(e)
+ });
+ assert.equal(result.status,"BLOCKED_NONCANONICAL_SIGNATURE_ENCODING");
+ assert.equal(result.synthetic_signature_valid,false);
+ assert.equal(result.execution_allowed,false);
+});
+
+test("R21 second pass: signer setup cannot gain approval flags through caller object mutation",()=>{
+ const record={key_id:"key1",approver_id:"fixture1",
+   public_key_pem:fixture.publicKey.export({type:"spki",format:"pem"}),status:"active"};
+ const p=createIsolatedSignedReviewPort({syntheticAuthorities:[record],syntheticClock:()=>now});
+ record.status="revoked";
+ // A changed configuration object is not a trusted revocation event.
+ // For now, fail closed rather than silently claiming it checked live revoke.
+ const result=call(p);
+ assert.equal(result.trusted_signer_verified,false);
+ assert.equal(result.verified_owner_approval,false);
+ assert.equal(result.execution_allowed,false);
+ assert.equal(result.status,"BLOCKED_SYNTHETIC_AUTHORITY_CONFIG_MUTATED");
+});
