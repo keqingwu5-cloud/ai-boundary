@@ -4,7 +4,7 @@ const parent=()=>({id:'root',origin_command_id:'cmd1',direction_version:'v1',dep
 const request=()=>({id:'r1',reason:'evidence requires specialized research',capabilities:['research'],evidence_refs:['issue:65']});
 const run=(o={})=>decide({parent:parent(),request:request(),nodes:[],tasks:[],...o});
 test('positive: creates candidate without inheriting permissions',()=>{const x=run();assert.equal(x.action,'candidate');assert.equal(x.node.status,'candidate');assert.deepEqual(x.node.permissions_scope,[]);assert.equal(x.node.origin_command_id,'cmd1');});
-test('positive: reuse compatible existing node',()=>{const x=run({nodes:[{id:'research1',capabilities:['research'],permissions_scope:['read'],status:'active',direction_version:'v1',approval_status:'approved',approval_evidence_refs:['review:research1']}]});assert.equal(x.action,'reuse');assert.equal(x.node_id,'research1');});
+test('positive: reuse compatible existing node',()=>{const x=run({nodes:[{id:'research1',capabilities:['research'],permissions_scope:['read'],status:'active',origin_command_id:'cmd1',direction_version:'v1',approval_direction_version:'v1',approval_status:'approved',approval_evidence_refs:['review:research1']}]});assert.equal(x.action,'reuse_proposal');assert.equal(x.node_id,'research1');assert.equal(x.execution_allowed,false);});
 test('negative: duplicate request rejected',()=>assert.equal(run({tasks:[{diffusion_request_id:'r1'}]}).reason,'duplicate_request'));
 test('negative: permission escalation rejected',()=>assert.equal(run({request:{...request(),permissions_scope:['admin']}}).reason,'permission_escalation'));
 test('negative: max depth blocks expansion',()=>assert.equal(run({parent:{...parent(),depth:3}}).reason,'depth_limit'));
@@ -48,7 +48,8 @@ test('P1 negative: invalid requested permission shape is rejected instead of ign
 
 test('R10: eligible approved-looking node is only a reuse proposal, never execution approval',()=>{
  const candidate={id:'research1',capabilities:['research'],permissions_scope:['read'],status:'active',
-  direction_version:'v1',approval_status:'approved',approval_evidence_refs:['review:research1']};
+  origin_command_id:'cmd1',direction_version:'v1',approval_direction_version:'v1',
+  approval_status:'approved',approval_evidence_refs:['review:research1']};
  const result=run({nodes:[candidate]});
  assert.equal(result.action,'reuse_proposal');
  assert.equal(result.requires_review,true);
@@ -57,7 +58,7 @@ test('R10: eligible approved-looking node is only a reuse proposal, never execut
  assert.equal(JSON.stringify(result).includes('review:research1'),false,'untrusted approval string not echoed as evidence');
 });
 test('R10: revoked approval cannot be reused with an otherwise active and approved-looking node',()=>{
- const node={id:'revoked-node',status:'active',direction_version:'v1',approval_status:'approved',
+ const node={id:'revoked-node',status:'active',origin_command_id:'cmd1',direction_version:'v1',approval_direction_version:'v1',approval_status:'approved',
   approval_evidence_refs:['review:revoked'],approval_revoked_at:'2026-10-27T03:10:00Z',
   capabilities:['research'],permissions_scope:['read']};
  const outcome=run({nodes:[node]});
@@ -65,7 +66,7 @@ test('R10: revoked approval cannot be reused with an otherwise active and approv
  assert.notEqual(outcome.action,'reuse_proposal','ineligible node cannot appear as future reuse proposal');
 });
 test('R10: stale approval from another direction cannot authorize reuse',()=>{
- const node={id:'stale-approval',status:'active',direction_version:'v1',approval_direction_version:'v0',
+ const node={id:'stale-approval',status:'active',origin_command_id:'cmd1',direction_version:'v1',approval_direction_version:'v0',
   approval_status:'approved',approval_evidence_refs:['review:old'],
   capabilities:['research'],permissions_scope:['read']};
  const outcome=run({nodes:[node]});
@@ -74,7 +75,7 @@ test('R10: stale approval from another direction cannot authorize reuse',()=>{
 });
 test('R10: invalid or missing claimed approval evidence cannot produce reusable proposal',()=>{
  for(const refs of [[],[''],[null],['  '],null]){
- const node={id:'untrusted',status:'active',direction_version:'v1',
+ const node={id:'untrusted',status:'active',origin_command_id:'cmd1',direction_version:'v1',approval_direction_version:'v1',
   approval_status:'approved',approval_evidence_refs:refs,capabilities:['research'],permissions_scope:['read']};
  const outcome=run({nodes:[node]});
  assert.notEqual(outcome.action,'reuse','ineligible node cannot appear as legacy reuse');
