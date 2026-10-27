@@ -32,3 +32,15 @@ test("R16 does not advertise asynchronous replication as lossless/fenced HA",()=
  assert.match(shell,/no cross-host failover, PITR/);
  assert.doesNotMatch(shell,/execution_allowed\s*=\s*true/);
 });
+
+test("R16 adversarial pause proves streaming != replayed and blocks early promotion",()=>{
+ assert.match(shell,/pg_wal_replay_pause/);
+ assert.match(shell,/pg_get_wal_replay_pause_state/);
+ assert.match(shell,/ASYNC_REPLAY_LAG_NEGATIVE/);
+ assert.match(shell,/assert_eq "\$stale" "0:0"/);
+ assert.match(shell,/pg_wal_replay_resume/);
+ const pause=shell.indexOf("pg_wal_replay_pause");
+ const resume=shell.indexOf("pg_wal_replay_resume");
+ const promote=shell.indexOf("pg_ctl -D /tmp/r16_data promote -w");
+ assert.ok(pause>0&&resume>pause&&promote>resume);
+});
