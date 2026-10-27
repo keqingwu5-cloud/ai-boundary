@@ -99,4 +99,4 @@ assert_eq "$(sq "$(reserve 'disconnected-r17' 'live-key-r16')")" "REVIEW_RESERVE
 assert_eq "$(sq "$(reserve 'after-unsafe-r17' 'revoked-offline-r17')")" "REVIEW_RESERVED_ONLY" "unsafe new primary accepted formerly revoked key"
 echo "R17 EXPECTED_UNSAFE_ASYNC_FAILOVER: unreceived committed receipt/revocation missing; duplicates were accepted in throwaway DB"
 echo "R17 SPLIT_BRAIN_NOT_SIMULATED: old primary stopped; real independent fencing and quorum remain unverified"
-echo "R17 PRODUCTION_NO_GO: never auto-promote without trusted fencing, replay confirmation and independent owner/G2 authority"
+echo "R17 PRODUCTION_NO_GO: no trusted fencing, replay-guarantee or independent owner/G2 authority is configured"
