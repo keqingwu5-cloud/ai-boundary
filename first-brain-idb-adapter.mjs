@@ -79,6 +79,30 @@ export async function stageLegacy3D(databaseName,storage,{confirmed=false,expect
     return fail('legacy_source_changed_during_stage');
   return {ok:true,revision:outcome.revision,reason:'copy_staged_legacy_untouched'};
 }
+
+// Recover an interrupted, explicitly approved migration ONLY when the staged
+// single-transaction snapshot still exactly matches the exported legacy bytes.
+// Never discard an existing transactional graph or auto-promote later revisions.
+export async function verifyStagedLegacy3D(databaseName,storage,
+  {confirmed=false,expectedMainRaw,expectedUndoRaw}={}){
+  if(confirmed!==true)return fail('explicit_confirmation_required');
+  if(typeof expectedMainRaw!=='string'||typeof expectedUndoRaw!=='string')
+    return fail('backup_snapshot_required');
+  const source=inspectLegacy3D(storage);
+  if(!source.ok)return source;
+  if(source.mainRaw!==expectedMainRaw||source.undoRaw!==expectedUndoRaw)
+    return fail('legacy_source_changed_since_backup');
+  const staged=await readTransactional3D(databaseName);
+  if(!staged.ok)return staged;
+  if(staged.revision!==1)return fail('staged_revision_not_initial');
+  if(staged.mainRaw!==expectedMainRaw||staged.undoRaw!==expectedUndoRaw)
+    return fail('staged_snapshot_differs_from_backup');
+  const after=inspectLegacy3D(storage);
+  if(!after.ok||after.mainRaw!==expectedMainRaw||after.undoRaw!==expectedUndoRaw)
+    return fail('legacy_source_changed_during_recovery');
+  return {ok:true,reason:'staged_snapshot_matches_backup',revision:1};
+}
+
 // Candidate Graph edits are committed atomically with their Undo stack.
 // Existing app.js and world-model UI continue to use their old authority until
 // a future switch covers ALL readers and writers and completes migration Gates.
