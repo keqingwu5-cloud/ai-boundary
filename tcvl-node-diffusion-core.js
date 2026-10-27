@@ -8,6 +8,8 @@ function decide({parent,request,nodes=[],tasks=[],limits={}}){
  if(!parent||!id(parent.id)||!id(parent.origin_command_id)||!id(parent.direction_version))throw Error('parent provenance missing');
  if(!request||!id(request.id)||!nonempty(request.reason)||!Array.isArray(request.capabilities)||!request.capabilities.length||request.capabilities.some(x=>!id(x)))throw Error('invalid request');
  if(!Array.isArray(nodes)||!Array.isArray(tasks))throw Error('invalid registry');
+ if(request.permissions_scope!==undefined&&(!Array.isArray(request.permissions_scope)||
+     request.permissions_scope.some(x=>!id(x))))throw Error('invalid request permission scope');
  const depth=Number.isInteger(parent.depth)?parent.depth:0;
  const maxDepth=Number.isInteger(limits.maxDepth)?limits.maxDepth:3;
  const maxChildren=Number.isInteger(limits.maxChildren)?limits.maxChildren:5;
@@ -16,7 +18,18 @@ function decide({parent,request,nodes=[],tasks=[],limits={}}){
  if(request.target_parent_id&&request.target_parent_id!==parent.id)return {action:'stop',reason:'parent_mismatch',parent_id:parent.id};
  if(request.permissions_scope&&request.permissions_scope.some(x=>!Array.isArray(parent.permissions_scope)||!parent.permissions_scope.includes(x)))return {action:'stop',reason:'permission_escalation',parent_id:parent.id};
  const seen=new Set([parent.id]);let cursor=parent;while(cursor&&cursor.parent_node_id){if(seen.has(cursor.parent_node_id))return {action:'stop',reason:'cycle',parent_id:parent.id};seen.add(cursor.parent_node_id);cursor=nodes.find(n=>n.id===cursor.parent_node_id);}
- const compatible=nodes.find(n=>n.id!==parent.id&&n.status!=='stopped'&&request.capabilities.every(c=>(n.capabilities||[]).includes(c))&&(n.permissions_scope||[]).every(p=>(parent.permissions_scope||[]).includes(p)));
+ // Reuse remains an advisory decision requiring independent review. Never
+ // interpret matching capabilities as authority or an approval receipt.
+ // Fail closed for missing origin direction, approval evidence or permissions.
+ const needed=request.permissions_scope||[];
+ const compatible=nodes.find(n=>n.id!==parent.id&&
+   n.status==='active'&&n.approval_status==='approved'&&
+   Array.isArray(n.approval_evidence_refs)&&n.approval_evidence_refs.length>0&&
+   n.approval_evidence_refs.every(x=>typeof x==='string'&&x.trim().length>0)&&
+   n.direction_version===parent.direction_version&&
+   Array.isArray(n.capabilities)&&request.capabilities.every(c=>n.capabilities.includes(c))&&
+   Array.isArray(n.permissions_scope)&&needed.every(p=>n.permissions_scope.includes(p))&&
+   n.permissions_scope.every(p=>Array.isArray(parent.permissions_scope)&&parent.permissions_scope.includes(p)));
  if(compatible)return {action:'reuse',node_id:compatible.id,parent_id:parent.id,request_id:request.id,requires_review:true};
  const childCount=nodes.filter(n=>n.parent_node_id===parent.id&&n.status!=='stopped').length;
  if(childCount>=maxChildren)return {action:'stop',reason:'child_limit',parent_id:parent.id};
