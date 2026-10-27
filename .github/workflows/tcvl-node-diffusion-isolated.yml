@@ -1,7 +1,7 @@
 name: Node diffusion isolated tests
 on:
   push:
-    branches: [test/node-diffusion-p0-20261026]
+    branches: [fix/node-diffusion-p1-gates-20261027]
   workflow_dispatch:
 permissions:
   contents: read
@@ -14,4 +14,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/tcvl-node-diffusion-core.test.cjs
+      - run: node --test tests/tcvl-node-diffusion-core.test.cjs tests/tcvl-diffusion-bridge.test.cjs
