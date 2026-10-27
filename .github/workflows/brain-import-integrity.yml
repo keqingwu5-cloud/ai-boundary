@@ -14,6 +14,9 @@ on:
       - research-event-chain.mjs
       - world-verification-ledger.mjs
       - world-verification-ui.mjs
+      - concept-reuse-compat.mjs
+      - tests/concept-reuse-compat.test.mjs
+      - tests/legacy-pr-contract.test.mjs
       - tests/world-verification-ledger.test.mjs
       - research-context-bridge.mjs
       - index.html
@@ -33,8 +36,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Stage pinned legacy Draft modules for compatibility only
+        run: |
+          mkdir -p tests/_legacy_pr_sources
+          git fetch --no-tags --depth=1 origin refs/pull/28/head
+          test "$(git rev-parse FETCH_HEAD)" = "75e93c6dd7a073dbb39fc8ad882ffc5760b4f025"
+          git show FETCH_HEAD:tcvl-candidate-core.js > tests/_legacy_pr_sources/tcvl-candidate-core.js
+          git show FETCH_HEAD:tcvl-traceback-core.js > tests/_legacy_pr_sources/tcvl-traceback-core.js
+          git fetch --no-tags --depth=1 origin refs/pull/13/head
+          test "$(git rev-parse FETCH_HEAD)" = "671079abf91dc6b398b9685b094eb00ee4828b21"
+          git show FETCH_HEAD:question-gate-v2.js > tests/_legacy_pr_sources/question-gate-v2.js
+          git fetch --no-tags --depth=1 origin refs/pull/4/head
+          test "$(git rev-parse FETCH_HEAD)" = "b32c6aa8533b1a1bf1c5775b74ed75d4d119afd9"
+          git show FETCH_HEAD:reliability/storage.mjs > tests/_legacy_pr_sources/storage.mjs
       - name: Run real Node.js regression suite
-        run: node --test tests/brain-import-integrity.test.cjs tests/brain-state-integrity.test.cjs tests/research-context-bridge.test.mjs tests/research-event-chain.test.mjs tests/world-verification-ledger.test.mjs
+        run: node --test tests/brain-import-integrity.test.cjs tests/brain-state-integrity.test.cjs tests/research-context-bridge.test.mjs tests/research-event-chain.test.mjs tests/world-verification-ledger.test.mjs tests/concept-reuse-compat.test.mjs tests/legacy-pr-contract.test.mjs
   chromium-smoke:
     runs-on: ubuntu-latest
     permissions:
