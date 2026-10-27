@@ -40,3 +40,16 @@ test("R15 explicitly states backup/restore does not establish PITR, HA or owner 
  assert.match(sh,/NOT PITR or HA failover/);
  assert.match(sh,/real G2 ACK/);
 });
+
+test("R15 audit negative: restore equality covers every durable receipt field and all revocations",()=>{
+ assert.match(sh,/expires_at/);
+ assert.match(sh,/reserved_at/);
+ assert.match(sh,/revoked_at/);
+ assert.match(sh,/FROM tcvl_r13_candidate\.revocations/);
+ assert.match(sh,/before_revocations_hash/);
+ assert.match(sh,/after_revocations_hash/);
+});
+test("R15 audit negative: TCP absent row must not be labeled proven post-disconnect commit",()=>{
+ assert.match(sh,/R15_INCONCLUSIVE_COMMIT_CASE/);
+ assert.match(sh,/exit 2/);
+});
