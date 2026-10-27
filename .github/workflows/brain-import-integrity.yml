@@ -18,7 +18,10 @@ on:
       - tests/concept-reuse-compat.test.mjs
       - tests/legacy-pr-contract.test.mjs
       - tests/graph-validator-diff.test.mjs
-      - tests/graph-validator-browser.test.cjs
+      - tests/graph-validator-browser.test.cjs tests/transactional-brain-store-browser.test.cjs
+      - tests/transactional-brain-store-browser.test.cjs
+      - tests/fixtures/transactional-store.html
+      - transactional-brain-store.mjs
       - tests/world-verification-ledger.test.mjs
       - research-context-bridge.mjs
       - index.html
