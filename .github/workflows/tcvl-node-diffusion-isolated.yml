@@ -23,6 +23,7 @@ jobs:
           node --check tcvl-review-reconcile.cjs
           node --check tcvl-r19-review-envelope.cjs
           node --check tcvl-r20-review-persistence.cjs
+          node --check tcvl-r21-synthetic-signed-review.cjs
       - name: P1/R10/R11/R12 gates, cryptographic receipt and sandbox race counterexamples
         run: node --test tests/tcvl-node-diffusion-core.test.cjs tests/tcvl-diffusion-bridge.test.cjs tests/tcvl-approval-receipt.test.cjs tests/tcvl-protected-review-port.test.cjs
       - name: R13 review-only SQL contract and shell syntax
@@ -64,5 +65,7 @@ jobs:
           bash -n scripts/test-r20-pg-untrusted-review-ledger.sh
       - name: R20 disposable PostgreSQL untrusted full-claim and nonce replay ledger
         run: bash scripts/test-r20-pg-untrusted-review-ledger.sh
+      - name: R21 synthetic signer integrity and canonical encoding replay negatives
+        run: node --test tests/tcvl-r21-synthetic-signed-review.test.cjs
       - name: All existing TCVL Node regressions
         run: node --test tests/*.test.cjs
