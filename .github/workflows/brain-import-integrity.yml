@@ -30,7 +30,7 @@ on:
       - tests/first-brain-idb-browser.test.cjs
       - tests/first-brain-transactional-ui-browser.test.cjs
       - tests/first-brain-failure-gates-browser.test.cjs
-      - tests/first-brain-transactional-failure-browser.test.cjs tests/first-brain-learning-browser.test.cjs
+      - tests/first-brain-transactional-failure-browser.test.cjs
       - tests/world-verification-ledger.test.mjs
       - research-context-bridge.mjs
       - index.html
