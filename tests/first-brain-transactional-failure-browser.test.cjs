@@ -54,7 +54,7 @@ test("First Brain IDB transaction abort: no false commit, no data loss, reload s
   assert.equal(backup.mainRaw,rawBefore);
   page.once("dialog",d=>d.accept());
   await page.locator("#brainTxActivate").click();
-  await page.waitForFunction("window.AIBrain.persistence().ready===true",null,{timeout:30000});
+  await page.waitForFunction("window.AIBrain?.persistence().ready===true",null,{timeout:30000});
   const snapshot=await page.evaluate(()=>({graph:window.AIBrain.getState(),
     revision:window.AIBrain.persistence().revision,raw:localStorage.getItem("aiBrain.v1")}));
   const result=await page.evaluate(async()=>{
