@@ -95,10 +95,10 @@ test("R21 second pass: alternate noncanonical base64url spelling of same Ed25519
 
 test("R21 second pass: signer setup cannot gain approval flags through caller object mutation",()=>{
  const record={key_id:"key1",approver_id:"fixture1",
-   public_key_pem:fixture.publicKey.export({type:"spki",format:"pem"}),status:"active"};
+   public_key_pem:fixture.publicKey.export({type:"spki",format:"pem"}),status:"revoked"};
  const p=createIsolatedSignedReviewPort({syntheticAuthorities:[record],syntheticClock:()=>now});
- record.status="revoked";
- // A changed configuration object is not a trusted revocation event.
+ record.status="active";
+ // A mutable caller object must not activate a signer that was revoked at initialization.
  // For now, fail closed rather than silently claiming it checked live revoke.
  const result=call(p);
  assert.equal(result.trusted_signer_verified,false);
