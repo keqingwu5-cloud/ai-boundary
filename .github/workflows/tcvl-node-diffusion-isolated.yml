@@ -8,7 +8,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,5 +35,11 @@ jobs:
           bash -n scripts/test-r14-pg-recovery.sh
       - name: R14 disposable PostgreSQL SIGKILL recovery + unknown commit test
         run: bash scripts/test-r14-pg-recovery.sh
+      - name: R15 TCP interruption, backup/restore and privilege contract
+        run: |
+          node --test tests/tcvl-r15-network-restore-contract.test.cjs
+          bash -n scripts/test-r15-pg-network-restore.sh
+      - name: R15 disposable private TCP network and independent PostgreSQL restore
+        run: bash scripts/test-r15-pg-network-restore.sh
       - name: All existing TCVL Node regressions
         run: node --test tests/*.test.cjs
