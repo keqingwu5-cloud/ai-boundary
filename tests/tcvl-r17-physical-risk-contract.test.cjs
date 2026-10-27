@@ -8,15 +8,15 @@ test("R17 unsafe-lag demonstration is throwaway Docker-only without host publica
  assert.doesNotMatch(sh,/--network host|--publish|--privileged/);
  assert.match(sh,/R17 PRODUCTION_NO_GO/);
 });
-test("R17 proves committed primary receipt and revocation are MISSING on paused replay",()=>{
- assert.match(sh,/pg_wal_replay_pause/);
- assert.match(sh,/R16 ASYNC_REPLAY_LAG_NEGATIVE/);
- assert.match(sh,/previously committed receipt LOST after premature promotion/);
- assert.match(sh,/previously committed revocation LOST after premature promotion/);
+test("R17 proves committed primary receipt and revocation are absent after network partition",()=>{
+ assert.match(sh,/docker network disconnect --force/);
+ assert.match(sh,/R17 WAL_TRANSPORT_PARTITION/);
+ assert.match(sh,/previously committed receipt LOST after promotion without WAL transport/);
+ assert.match(sh,/previously committed key revocation LOST after promotion without WAL transport/);
 });
 test("R17 expects dangerous duplicate/revoked-key acceptance as a failure counterexample",()=>{
- assert.match(sh,/unsafe promoted node accepted already-used receipt ID/);
- assert.match(sh,/unsafe promoted node accepted previously revoked key/);
+ assert.match(sh,/unsafe new primary reaccepted previously committed receipt/);
+ assert.match(sh,/unsafe new primary accepted formerly revoked key/);
  assert.match(sh,/R17 EXPECTED_UNSAFE_ASYNC_FAILOVER/);
 });
 test("R17 never operates two simultaneously active primaries or claims split-brain fencing",()=>{
