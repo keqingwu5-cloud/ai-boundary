@@ -74,3 +74,30 @@
 **真實 CI**：程式修補提交 `6620116eedaa203f043098656762a9e917998566`，測試提交 `a1f5944c67d39574da86aea47dd3cf34a209817b`；[GitHub Actions #40509586613](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40509586613) Node **129/129 PASS**、Chromium **20/20 PASS**，兩個 job 均 success。**Chromium 20 項為既有整合回歸，新增的 #21/#22 是 Node 合成競態注入，並非 Chromium 真正同時寫入安全驗收。**
 
 **未解除 Gate**：`localStorage` 沒有跨分頁原子 CAS；世界模型真正競爭寫入、崩潰/回復及多裝置的原子一致性仍 **BLOCKED**。PR #75 Draft、未合併 main；PR #68 上游分支沒有本修補；GPT②/BOT③ 獨立 reviewer ACK、Safari 實機及授權舊資料相容 Gate 未證實。不得把局部補償修正標成全平台並發修復。
+
+
+## R06｜交易式單一權威保存候選：IndexedDB 兩分頁競爭（2026-10-27）
+
+**歸類**：R03-05／E 並發一致性（P0）；涉及 R03-01／A 保存一致性。此版本只有**隔離基礎能力證明**，不是 3D／世界模型正式接線或合併授權。
+
+- 新增 `transactional-brain-store.mjs`：每筆 `snapshots` 資料使用**同一個 IndexedDB readwrite transaction** 讀取目前 `revision`、比對 `expectedRevision`、寫入同一物件中的 `mainRaw + undoRaw + revision`。只有交易 `oncomplete` 才回傳成功；`onabort` 返回失敗。版本過期返回 `stale_revision` 並不覆寫已提交內容。
+- 新增 `tests/fixtures/transactional-store.html` 與 `tests/transactional-brain-store-browser.test.cjs`：真 Chromium 兩分頁、同一 origin、分別在 revision 0 和 1 發起兩輪競爭；各只有一方成功，主資料和 Undo 的 owner 相同；另外測過期寫入拒絕、**原生 IndexedDB 寫入後 abort**、刷新後回查、舊 localStorage 主資料及 Undo 原始 bytes 未被動到。
+- GitHub Actions workflow 將新瀏覽器案例納入原隔離回歸；沒有另開部署或第二套驗證室。
+
+### 實際證據及完成分級
+
+- 被測提交：`4aca865d69e7722414b851fbda18ca3354b9a761`。
+- [GitHub Actions #40512209070](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40512209070) 的兩個工作均 `success`：Node **129/129 PASS**；真 Chromium **21/21 PASS**。
+- 新增 log：`R03_IDB_TRANSACTION_CANDIDATE_PASS two_tabs=2 collisions=2 aborted=1 revision=2 legacy_bytes_preserved=1`。
+- **已證**：隔離 IndexedDB 單筆主資料/Undo 原子版本更新，在已測雙分頁條件下不允許兩個過期寫入一起成功；中止回復、重載保持資料。
+- **未證／仍 BLOCKED**：目前 `app.js` 和 `world-verification-ledger.mjs` 還在同步使用 localStorage，並沒有轉接交易式來源。原本真並發遺失風險因此**仍存在於正式入口**；本次不可宣稱整體 R03-05 修復。
+
+### 下一階段最小安全接線 Gate（未執行）
+
+1. 定義單一權威：所有 3D 的 import／mutate／undo／reset／load，以及世界模型 create／status／delete／import／restore，必須要麼全走交易接口，要麼維持阻塞；不得讓部分舊 localStorage 寫入和新 IndexedDB 權威同時競爭。
+2. 將同步 UI 函式調整成明確的非同步確認流程；只有 IndexedDB `transaction.oncomplete` 才可更新畫面成功狀態，並支援在 `stale_revision` 時回載／比對或拒絕變更。
+3. 先做合法舊快照格式分類、原始 bytes 備份、唯讀預覽與可逆遷移；不自動覆寫、不自行以新版 schema 拒絕歷史有效資料。不可依賴真實私人檔案而未經授權。
+4. 補瀏覽器意外關閉、quota、資料庫不可用、版本衝突、並行交易排隊、儲存讀回及 Safari／行動實機。交易原子不等於跨裝置同步、備份、不可竄改或外部資料庫交易。
+5. 仍需獨立 reviewer、授權正式合併與部署。只有隔離 proof-of-concept 通過；**正式 Gate 保持 BLOCKED**。
+
+與前一輪 `restoreIfOwned()` 互補：R05 只是局部避免錯誤回復再覆寫別人；R06 的真正交易候選消除單一 IndexedDB 記錄內的讀寫競爭。兩者均不代表未改造的既有 localStorage 流程已具交易保證。
