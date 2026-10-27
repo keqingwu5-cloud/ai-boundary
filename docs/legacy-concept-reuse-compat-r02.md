@@ -101,3 +101,35 @@
 5. 仍需獨立 reviewer、授權正式合併與部署。只有隔離 proof-of-concept 通過；**正式 Gate 保持 BLOCKED**。
 
 與前一輪 `restoreIfOwned()` 互補：R05 只是局部避免錯誤回復再覆寫別人；R06 的真正交易候選消除單一 IndexedDB 記錄內的讀寫競爭。兩者均不代表未改造的既有 localStorage 流程已具交易保證。
+
+
+## R07｜第一大腦 3D 真實資料接入：從純交易原型進到現有主腦格式（2026-10-27）
+
+**問題：R03-05/E 並發一致性；R03-04/A 舊資料格式相容（相鄰），不是整個主腦已上線。**
+
+R06 已以合成快照證明 IndexedDB 在相同 object store 的交易式版本比對有效。本輪增加 `first-brain-idb-adapter.mjs`，將既有 `aiBrain.v1` 的**真 3D 圖資料、Node ID、History 與 Undo 字串陣列**驗證、無損複製進隔離 IndexedDB 的原子記錄，而不是自建另一個圖 schema。
+
+### 最小安全工程
+
+- `inspectLegacy3D(storage)`：唯讀檢查既有 main 與 Undo 原始 bytes；以原 `validateBrainImport()` 驗證節點及拓樸，拒絕壞 JSON、未知未來版本、壞 Undo。**不自動 seed、不替錯誤資料補版本、不覆寫**。
+- `stageLegacy3D(databaseName,storage,{confirmed:true})`：沒有明確 `confirmed` 直接拒絕；如果新交易快照已存在也拒絕重蓋。成功後保留舊 localStorage 逐位元組原值；目前只在隔離測試明示確認，並非使用者對真實舊資料的正式遷移授權。
+- `readTransactional3D()`、`commitTransactional3D()`：完整圖及 Undo 驗證後，將 mainRaw、undoRaw、revision 送入 R06 的**同一筆 IndexedDB readwrite 交易**。版本過期拒絕而不是最後寫入者覆蓋。
+
+### 真 3D 瀏覽器整合證據
+
+[GitHub Actions #40519811581](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40519811581)，測試提交 `61c0498ae906a147dc945a65c437a884627b6f12`：Node **129/129 PASS**、Chromium **22/22 PASS**，0 FAIL。
+
+新增 `tests/first-brain-idb-browser.test.cjs` 直接開啟兩個真實 `index.html` + `window.AIBrain.getState()`，以隔離合成/seeded 3D 資料：
+1. 未明確確認的複製拒絕；新 DB 保持空；壞 JSON 與 version=999 拒絕。
+2. 對現有 3D graph／Node ID 的 legacy bytes 完全保留，不自動重建；重複 stage 不可覆寫既存交易版本。
+3. 兩分頁同時從 revision 1 編輯實際 3D graph，只有一筆 commit；另一筆回 `stale_revision`。Undo 保存之前真圖、同版本提交。
+4. Reload 後 IDB revision/圖仍一致；舊正式 UI 的 localStorage main/Undo 原始 bytes 不變。
+
+日誌標記：`R03_FIRST_BRAIN_IDB_ADAPTER_PASS real3D=1 concurrent_edits=2 committed=1 stale=1 undo=1 legacy_preserved=1`。
+
+### 接下來的第一大腦實作（尚未完成）
+
+- `app.js` 中 `save()`、`commitChange()`、`mutate()`、`undo()`、`resetAll()`、`importJSON()` 仍直接同步呼叫 localStorage，且多處 UI 事件假設同步返回；**此輪沒有改造成異步 IndexedDB writer，也沒有啟用 transaction authority**。
+- 真正遷移必須先給使用者非破壞式備份、預覽差異、授權開關；後續選定單一權威後，全入口 read/write/Undo/reset/import 及渲染成功提示要依交易 commit 結果同步改造。
+- 必須補新舊格式歷史樣本、失敗回滾、崩潰恢復、真 Safari/行動裝置與獨立審查。舊世界模型仍獨立，本輪不動 GPT② 記憶體。
+- **Gate：3D 真實格式的交易接入層候選 PASS；第一大腦正式 UI/持久化切換 BLOCKED，main 未合併、未部署。**
