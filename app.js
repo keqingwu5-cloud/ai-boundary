@@ -138,6 +138,7 @@ const TX_MODE = typeof location !== 'undefined' && new URLSearchParams(location.
 const TX_DB = 'aiBrain.firstBrain.transaction.r1', TX_AUTH_KEY = 'aiBrain.v1.persistence.authority';
 let txRevision = 0, txReady = false, txBusy = false, txLoadError = null, txCommitConfirmed = false;
 let txLastWrite = Promise.resolve(false);
+const txChannel=TX_MODE && typeof BroadcastChannel==='function'?new BroadcastChannel('first-brain-idb-r1'):null;
 function legacyMayWrite(){
   try { return localStorage.getItem(TX_AUTH_KEY) !== 'idb'; }
   catch(_) { return false; }
@@ -175,6 +176,7 @@ function commitChange(proposed, nextUndo, successLabel){
           return false;
         }
         txRevision = result.revision;
+        txChannel?.postMessage({schema:'firstBrain:idb:updated',revision:txRevision});
         txCommitConfirmed = true;
         state = proposed;
         undoStack = nextUndo;
@@ -1232,6 +1234,9 @@ window.AIBrain = {
   whenIdle:()=>txLastWrite
 };
 document.body.dataset.ready = '1';
+if(txChannel)txChannel.onmessage=event=>{
+  if(event.data?.schema==='firstBrain:idb:updated'&&event.data.revision>txRevision)showConcurrentWarning();
+};
 // If another tab writes while this tab is open, stop silent lost updates.
 function showConcurrentWarning(){
   if(document.getElementById('brainConcurrentWarning'))return;
