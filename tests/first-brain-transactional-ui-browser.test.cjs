@@ -7,8 +7,8 @@ const waitReady=page=>page.waitForFunction("window.AIBrain && document.body.data
 test("First Brain 3D user UI: backup -> enable IDB -> edit/import/undo/reset -> two tabs",async()=>{
  const browser=await chromium.launch({channel:"chrome",headless:true,args:["--no-sandbox","--enable-unsafe-swiftshader","--use-gl=angle","--disable-dev-shm-usage"]});
  const ctx=await browser.newContext({acceptDownloads:true});
- const legacy=await ctx.newPage(),a=await ctx.newPage(),b=await ctx.newPage();
- const errs=[];for(const p of [legacy,a,b])p.on("pageerror",e=>errs.push(String(e)));
+ const legacy=await ctx.newPage(),a=await ctx.newPage(),b=await ctx.newPage(),feed=await ctx.newPage(),world=await ctx.newPage();
+ const errs=[];for(const p of [legacy,a,b,feed,world])p.on("pageerror",e=>errs.push(String(e)));
  try{
   await legacy.goto(ROOT+"/index.html",{waitUntil:"domcontentloaded"});await waitReady(legacy);
   const original=await legacy.evaluate(()=>({main:localStorage.getItem("aiBrain.v1"),undo:localStorage.getItem("aiBrain.v1.undo"),graph:window.AIBrain.getState()}));
@@ -65,7 +65,21 @@ test("First Brain 3D user UI: backup -> enable IDB -> edit/import/undo/reset -> 
    return {result,title:window.AIBrain.getState().nodes[0].title};
   });
   assert.deepEqual(imported,{result:true,title:"IDB_IMPORT_E2E"});
+  // The actual existing Feed and world-model read-only source must follow
+  // the active First Brain IDB authority, never its preserved legacy bytes.
+  await feed.goto(ROOT+"/feed.html#node="+encodeURIComponent(id),{waitUntil:"domcontentloaded"});
+  await feed.waitForFunction("window.AIFeed && document.body.dataset.ready==='1'",null,{timeout:45000});
+  const linkedFeed=await feed.evaluate(id=>({source:window.AIFeed.authority(),node:window.AIFeed.getNode(id)}),id);
+  assert.equal(linkedFeed.source.source,"idb");
+  assert.equal(linkedFeed.node.title,"IDB_IMPORT_E2E");
+  await world.goto(ROOT+"/world-model.html?node="+encodeURIComponent(id),{waitUntil:"domcontentloaded"});
+  await world.waitForFunction("document.body.dataset.researchLink==='linked' && document.body.dataset.dualAuditReady==='1'",null,{timeout:45000});
+  assert.equal(await world.evaluate(()=>window.BrainResearchLink.sourceNodeId),id);
+  assert.match(await world.locator("#researchNodeTitle").innerText(),/IDB_IMPORT_E2E/);
+  assert.match(await world.locator("#researchToBrain").getAttribute("href"),/brainTx=1/);
   assert.equal(await a.evaluate(()=>window.AIBrain.undo()),true,"real undo commits transaction");
+  // Existing open Feed updates after transaction broadcast.
+  await feed.waitForFunction(id=>window.AIFeed.getNode(id)?.title!=="IDB_IMPORT_E2E",id,{timeout:15000});
   assert.equal(await a.evaluate(()=>window.AIBrain.reset()),true,"real reset commits transaction");
   assert.equal(await a.evaluate(()=>window.AIBrain.undo()),true,"reset restored through transaction");
   await a.reload({waitUntil:"domcontentloaded"});await waitReady(a);
@@ -76,6 +90,6 @@ test("First Brain 3D user UI: backup -> enable IDB -> edit/import/undo/reset -> 
   assert.equal(finished.main,original.main);
   assert.equal(finished.undo,original.undo);
   assert.deepEqual(errs,[],"no page exceptions");
-  console.log("FIRST_BRAIN_TX_UI_ROUNDTRIP_PASS native3D=1 old_tab_blocked=1 competing_tabs=2 import=1 undo=2 reset=1 legacy_bytes_unchanged=1");
+  console.log("FIRST_BRAIN_TX_UI_ROUNDTRIP_PASS native3D=1 old_tab_blocked=1 competing_tabs=2 import=1 undo=2 reset=1 feed_linked=1 world_source_linked=1 legacy_bytes_unchanged=1");
  }finally{await ctx.close();await browser.close();}
 });
