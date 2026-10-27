@@ -217,7 +217,8 @@ runVerifyAudit();
 <script type="module">
 import { fromWorldModelQuery, readNodeContext, brainHref, feedHref, exportResearchReference } from './research-context-bridge.mjs';
 const id=fromWorldModelQuery(location.search);
-const ref=id?readNodeContext(localStorage,id):{status:"no_source",node:null};
+const askedForNode=new URLSearchParams(location.search).has("node");
+const ref=id?readNodeContext(localStorage,id):{status:askedForNode?"invalid":"no_source",node:null};
 const status=document.getElementById('researchLinkStatus');
 const title=document.getElementById('researchNodeTitle');
 const toBrain=document.getElementById('researchToBrain');
