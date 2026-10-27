@@ -74,9 +74,13 @@ export function validateBrainImport(s) {
   if(s.history.some(x=>!record(x)))return {ok:false,reason:"history_event_invalid"};
   return {ok:true,reason:"ok"};
 }
-function restore(storage,key,value){
-  if(value===null)storage.removeItem(key);
-  else storage.setItem(key,value);
+// Best-effort rollback: never intentionally replace a different writer's value.
+// The read-and-restore check is NOT atomic and does not make localStorage CAS-safe.
+function restoreIfOwned(storage,key,ours,previous){
+  if(storage.getItem(key)!==ours)return false;
+  if(previous===null)storage.removeItem(key);
+  else storage.setItem(key,previous);
+  return storage.getItem(key)===previous;
 }
 export function commitBrainImport(storage,mainKey,undoKey,nextState,nextUndo,expectedMainRaw){
   let oldMain,oldUndo;
@@ -85,9 +89,9 @@ export function commitBrainImport(storage,mainKey,undoKey,nextState,nextUndo,exp
   // Optimistic revision check: never overwrite another tab's newer snapshot.
   if(expectedMainRaw!==undefined && oldMain!==expectedMainRaw)
     return {ok:false,reason:"stale_write_conflict",rollbackOk:true};
-  let undoWritten=false,mainWritten=false;
+  let undoWritten=false,mainWritten=false,undoJSON,mainJSON;
   try{
-    const undoJSON=JSON.stringify(nextUndo),mainJSON=JSON.stringify(nextState);
+    undoJSON=JSON.stringify(nextUndo);mainJSON=JSON.stringify(nextState);
     if(typeof undoJSON!=="string"||typeof mainJSON!=="string")throw Error("serialize_failed");
     // A failed main setItem leaves main unchanged; undo is restored below.
     storage.setItem(undoKey,undoJSON);undoWritten=true;
@@ -97,8 +101,10 @@ export function commitBrainImport(storage,mainKey,undoKey,nextState,nextUndo,exp
     return {ok:true,reason:"ok",rollbackOk:true};
   }catch(e){
     let rollbackOk=true;
-    if(mainWritten){try{restore(storage,mainKey,oldMain);}catch(_){rollbackOk=false;}}
-    if(undoWritten){try{restore(storage,undoKey,oldUndo);}catch(_){rollbackOk=false;}}
+    // If a newer value appeared during this write, do not deliberately
+    // overwrite it with our old snapshot. Leave the conflict visible.
+    if(mainWritten){try{if(!restoreIfOwned(storage,mainKey,mainJSON,oldMain))rollbackOk=false;}catch(_){rollbackOk=false;}}
+    if(undoWritten){try{if(!restoreIfOwned(storage,undoKey,undoJSON,oldUndo))rollbackOk=false;}catch(_){rollbackOk=false;}}
     return {ok:false,reason:e&&e.message==="readback_mismatch"?"readback_mismatch":"write_failed",rollbackOk};
   }
 }
