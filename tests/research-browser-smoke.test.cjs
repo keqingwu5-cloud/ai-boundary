@@ -41,6 +41,7 @@ test('02 missing or malformed IDs remain explicitly unlinked',async()=>{
  const browser=await launch(),ctx=await browser.newContext({viewport:{width:1200,height:840}});
  const page=await ctx.newPage();
  try{
+  await page.goto(root+'/index.html',{waitUntil:'domcontentloaded'});await readyBrain(page);
   await page.goto(root+'/world-model.html?node=n_does_not_exist',{waitUntil:'domcontentloaded'});
   await readyWorld(page);
   assert.equal(await page.evaluate(()=>window.BrainResearchLink.status),'missing');
@@ -52,6 +53,7 @@ test('02 missing or malformed IDs remain explicitly unlinked',async()=>{
   await page.goto(root+'/world-model.html?node=%3Cscript%3E',{waitUntil:'domcontentloaded'});
   await readyWorld(page);
   assert.equal(await page.evaluate(()=>window.BrainResearchLink.sourceNodeId),null);
+  assert.equal(await page.evaluate(()=>window.BrainResearchLink.status),'invalid');
   console.log('RESEARCH_BRIDGE_MISSING_SOURCE_PASS');
  }finally{await ctx.close();await browser.close();}
 });
