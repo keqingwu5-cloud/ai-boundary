@@ -54,16 +54,29 @@ export async function readTransactional3D(databaseName){
 }
 // The caller must explicitly opt in. Copy is non-destructive and not activated
 // as an authority in the main UI; only tests or an approved migration flow call this.
-export async function stageLegacy3D(databaseName,storage,{confirmed=false}={}){
+export async function stageLegacy3D(databaseName,storage,{confirmed=false,expectedMainRaw,expectedUndoRaw}={}){
   if(confirmed!==true)return fail('explicit_confirmation_required');
   const source=inspectLegacy3D(storage);
   if(!source.ok)return source;
+  // The person may have downloaded a backup before another tab updated the
+  // legacy graph. Reject a staged copy that differs from those exported bytes.
+  if(expectedMainRaw!==undefined&&source.mainRaw!==expectedMainRaw)
+    return fail('legacy_source_changed_since_backup');
+  if(expectedUndoRaw!==undefined&&source.undoRaw!==expectedUndoRaw)
+    return fail('legacy_undo_changed_since_backup');
   // An existing transactional snapshot is never replaced by an old legacy copy.
   const previous=await readSnapshot(databaseName,MAIN_KEY);
   if(!previous.ok)return previous;
   if(previous.snapshot!==null)return fail('transactional_snapshot_exists');
   const outcome=await writeSnapshot(databaseName,MAIN_KEY,0,source.mainRaw,source.undoRaw);
   if(!outcome.ok)return outcome;
+  // Check for an observable external legacy edit during the async stage. If
+  // detected, do not switch the UI authority; preserve both snapshots for
+  // explicit review. This is a risk-reduction check, not cross-version CAS.
+  const after=inspectLegacy3D(storage);
+  if(!after.ok)return fail('legacy_source_unreadable_after_stage');
+  if(after.mainRaw!==source.mainRaw||after.undoRaw!==source.undoRaw)
+    return fail('legacy_source_changed_during_stage');
   return {ok:true,revision:outcome.revision,reason:'copy_staged_legacy_untouched'};
 }
 // Candidate Graph edits are committed atomically with their Undo stack.
