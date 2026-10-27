@@ -109,3 +109,20 @@ test('R15 audit negative: cross-project same request ID cannot be reported alrea
   /task.*identity.*conflict|request.*conflict|project.*conflict/i);
  assert.equal(JSON.stringify(w),before,'failed dedup must not mutate original evidence');
 });
+
+test('R17: same project + same request ID + different node stays origin-unverified',()=>{
+ let w=workspace(),d=decision();
+ w=bridge.applyCandidate(w,d,{projectId:'p1',at}).workspace;
+ w=bridge.planChildTask(w,{projectId:'p1',nodeId:d.node.id,requestId:'r1',
+  title:'Original P1',reason:'initial',owner:'human',at}).workspace;
+ const other=decision();other.node.id='root.another';
+ w=bridge.applyCandidate(w,other,{projectId:'p1',at}).workspace;
+ const old=JSON.stringify(w);
+ const x=bridge.planChildTask(w,{projectId:'p1',nodeId:other.node.id,requestId:'r1',
+  title:'Same ID different node',reason:'collision',owner:'human',at});
+ assert.equal(x.result,'already_queued_requires_origin_review');
+ assert.equal(x.verified_same_node,false);
+ assert.equal(x.execution_allowed,false);
+ assert.equal(x.workspace.tasks.length,1);
+ assert.equal(JSON.stringify(w),old);
+});
