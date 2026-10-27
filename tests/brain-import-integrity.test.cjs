@@ -140,3 +140,43 @@ test("20 stale authoritative snapshot refuses to overwrite a newer tab",async()=
  assert.equal(storage.getItem("main"),"revision-new");assert.equal(storage.getItem("undo"),"[]");
  assert.equal(storage.log.length,0,"no writes allowed on stale revision");
 });
+
+
+test("21 rollback never clobbers foreign main and undo snapshots after readback conflict",async()=>{
+  const g=await guardPromise,storage=memoryStorage();
+  storage.data.set("main","baseline-main");storage.data.set("undo","baseline-undo");
+  const set=storage.setItem;
+  storage.setItem=(key,value)=>{
+    set(key,value);
+    if(key==="main"){
+      // Another tab changed both keys before this tab's readback.
+      storage.data.set("main","foreign-main");
+      storage.data.set("undo","foreign-undo");
+    }
+  };
+  const result=g.commitBrainImport(storage,"main","undo",sample("new"),["new"],"baseline-main");
+  assert.equal(result.ok,false);
+  assert.equal(result.reason,"readback_mismatch");
+  assert.equal(result.rollbackOk,false,"a changed external value cannot be rolled back safely");
+  assert.equal(storage.getItem("main"),"foreign-main");
+  assert.equal(storage.getItem("undo"),"foreign-undo");
+});
+
+test("22 rollback of failed main write preserves a foreign undo update",async()=>{
+  const g=await guardPromise,storage=memoryStorage();
+  storage.data.set("main","baseline-main");storage.data.set("undo","baseline-undo");
+  const set=storage.setItem;
+  storage.setItem=(key,value)=>{
+    if(key==="main"){
+      storage.data.set("undo","foreign-undo");
+      throw Error("synthetic main failure");
+    }
+    set(key,value);
+  };
+  const result=g.commitBrainImport(storage,"main","undo",sample("new"),["new"],"baseline-main");
+  assert.equal(result.ok,false);
+  assert.equal(result.reason,"write_failed");
+  assert.equal(result.rollbackOk,false);
+  assert.equal(storage.getItem("main"),"baseline-main");
+  assert.equal(storage.getItem("undo"),"foreign-undo");
+});
