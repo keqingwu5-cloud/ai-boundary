@@ -5,9 +5,17 @@
 const clone=x=>JSON.parse(JSON.stringify(x));
 function applyCandidate(workspace,decision,{projectId,at}){
  if(!workspace||!Array.isArray(workspace.projects)||!workspace.projects.some(p=>p.id===projectId))throw Error('project missing');
- if(!decision||!['candidate','reuse','stop'].includes(decision.action))throw Error('invalid diffusion decision');
+ if(!decision||!['candidate','reuse','reuse_proposal','stop'].includes(decision.action))throw Error('invalid diffusion decision');
  if(decision.action==='stop')return {workspace:clone(workspace),result:'stopped'};
- if(decision.action==='reuse')return {workspace:clone(workspace),result:'reuse_requires_review',node_id:decision.node_id,verified_approval:false};
+ // Legacy 'reuse' had ambiguous semantics. Reject rather than silently
+ // presenting it as approval, even when the caller claims verified_approval.
+ if(decision.action==='reuse')return {workspace:clone(workspace),
+   result:'blocked_unverified_legacy_reuse',verified_approval:false,execution_allowed:false};
+ if(decision.action==='reuse_proposal'){
+   if(!decision.node_id||!decision.requires_review)throw Error('reuse proposal provenance missing');
+   return {workspace:clone(workspace),result:'reuse_requires_review',node_id:decision.node_id,
+     verified_approval:false,execution_allowed:false,approval_claim_status:'CLAIM_ONLY_NOT_VERIFIED'};
+ }
  const n=decision.node;
  if(!n||n.status!=='candidate'||(n.permissions_scope||[]).length||!n.origin_command_id||!n.direction_version)throw Error('candidate provenance or permissions invalid');
  if(!/^[A-Za-z0-9_.:-]+$/.test(n.id))throw Error('invalid candidate ID');
