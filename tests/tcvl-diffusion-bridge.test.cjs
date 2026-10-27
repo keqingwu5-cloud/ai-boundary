@@ -94,3 +94,18 @@ test('R10: caller cannot spoof trusted reuse through proposed decision payload f
  assert.equal(result.execution_allowed,false);
  assert.equal(result.workspace.tasks.length,0);
 });
+
+test('R15 audit negative: cross-project same request ID cannot be reported already_queued',()=>{
+ const d=decision();
+ let w=bridge.applyCandidate(workspace(),d,{projectId:'p1',at}).workspace;
+ w=bridge.planChildTask(w,{projectId:'p1',nodeId:d.node.id,requestId:'r1',
+  title:'P1 original review',reason:'original',owner:'human',at}).workspace;
+ w=platform.addProject(w,{id:'p2',title:'Second',goal:'different scope',at});
+ const d2=decision();d2.node.id='root.r2';d2.node.diffusion_request_id='r2';
+ w=bridge.applyCandidate(w,d2,{projectId:'p2',at}).workspace;
+ const before=JSON.stringify(w);
+ assert.throws(()=>bridge.planChildTask(w,{projectId:'p2',nodeId:d2.node.id,
+  requestId:'r1',title:'P2 should not inherit P1',reason:'unrelated',owner:'human',at}),
+  /task.*identity.*conflict|request.*conflict|project.*conflict/i);
+ assert.equal(JSON.stringify(w),before,'failed dedup must not mutate original evidence');
+});
