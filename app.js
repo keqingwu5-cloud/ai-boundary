@@ -453,7 +453,7 @@ function exportJSON(){
   toast('⇩ 已匯出 JSON');
 }
 function importJSON(obj){
-  if (!TX_MODE && !legacyMayWrite()){toast('⚠ 請使用交易模式匯入');return false;}
+  if (typeof TX_MODE !== 'undefined' && !TX_MODE && typeof legacyMayWrite === 'function' && !legacyMayWrite()){toast('⚠ 請使用交易模式匯入');return false;}
   if (blockedStoredState){ toast('⚠ 舊存檔待保護；請先下載備份後處理'); return false; }
   const checked = validateBrainImport(obj);
   if (!checked.ok){ toast('⚠ 匯入資料檢查失敗：' + checked.reason); return false; }
@@ -1274,3 +1274,70 @@ if (blockedStoredState){
   }
   document.body.append(banner);
 }
+
+
+/* Transactional First Brain activation is explicit and non-destructive.
+ * This page continues to be a self-contained 3D main brain, not a second UI.
+ */
+function installFirstBrainPersistenceBanner(){
+  const banner=document.createElement('aside');
+  banner.id='brainPersistenceBanner';
+  banner.setAttribute('role','status');
+  banner.style.cssText='position:fixed;z-index:100002;top:12px;right:12px;max-width:440px;padding:12px 14px;border:1px solid #88c8dc;border-radius:12px;background:#162633;color:#f0fbff;font:13px/1.6 system-ui;box-shadow:0 8px 26px #0009';
+  const message=document.createElement('div');
+  message.textContent=TX_MODE
+    ? (txReady?'第一大腦交易式儲存（隔離候選）｜版本 '+txRevision+'。主圖與 Undo 同步交易；舊 localStorage 保留備份。'
+      :'交易式儲存尚未啟用（'+(txLoadError||'no_snapshot')+'）。目前是原主腦唯讀預覽，任何編輯均不保存。')
+    :'第一大腦交易資料已成權威，此舊版頁面禁止修改。請切換至交易模式。';
+  banner.append(message);
+  if(!TX_MODE){
+    const link=document.createElement('a');
+    link.href='index.html?brainTx=1'+location.hash;
+    link.textContent='切換交易模式';
+    link.style.cssText='color:#a7eafa;text-decoration:underline';
+    banner.append(link);
+  }else if(!txReady){
+    let backupDownloaded=false;
+    const backup=document.createElement('button');
+    backup.id='brainTxBackup';
+    backup.textContent='① 下載舊主腦原始備份';
+    backup.style.cssText='margin-top:8px;padding:5px 9px;border:1px solid #88c8dc;border-radius:6px;background:#224356;color:#fff;cursor:pointer';
+    const activate=document.createElement('button');
+    activate.id='brainTxActivate';
+    activate.textContent='② 確認切換到交易式保存';
+    activate.disabled=true;
+    activate.style.cssText='margin:8px 0 0 6px;padding:5px 9px;border:1px solid #88c8dc;border-radius:6px;background:#224356;color:#fff;cursor:pointer';
+    backup.onclick=()=>{
+      // Preserve raw bytes, not a regenerated or potentially corrupted in-memory graph.
+      let mainRaw,undoRaw;
+      try{mainRaw=localStorage.getItem(KEY);undoRaw=localStorage.getItem(UKEY);}
+      catch(e){toast('⚠ 舊資料無法讀取，不能產生備份');return;}
+      if(mainRaw===null){toast('⚠ 無舊主腦快照；禁止無來源自動啟動');return;}
+      const blob=new Blob([JSON.stringify({schema:'aiBrain.legacy.raw.backup.v1',mainRaw,undoRaw,
+        exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+      a.download='first-brain-legacy-raw-backup.json';document.body.append(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1200);
+      backupDownloaded=true;activate.disabled=false;
+      toast('舊主腦備份已準備，可自行保存到安全位置');
+    };
+    activate.onclick=async()=>{
+      if(!backupDownloaded||txBusy)return;
+      if(!confirm('已確認備份原始資料，將在隔離版啟用交易式保存？不刪除舊檔，但舊寫入入口會禁止使用。'))return;
+      const inspected=inspectLegacy3D(localStorage);
+      if(!inspected.ok){toast('⚠ 舊資料無法安全接入：'+inspected.reason);return;}
+      activate.disabled=true;
+      try{
+        // Block updated legacy-mode tabs before staging. If a failure occurs,
+        // retain the marker and the original data for safe manual recovery.
+        localStorage.setItem(TX_AUTH_KEY,'idb');
+        const result=await stageLegacy3D(TX_DB,localStorage,{confirmed:true});
+        if(!result.ok){toast('⚠ 交易初始化失敗：'+result.reason+'；原始備份與停止寫入標記仍保留');return;}
+        location.reload();
+      }catch(e){toast('⚠ 初始化失敗，未允許舊資料被覆寫：'+(e?.message||'unknown'));}
+    };
+    banner.append(backup,activate);
+  }
+  document.body.append(banner);
+}
+if(TX_MODE||!legacyMayWrite())installFirstBrainPersistenceBanner();
