@@ -24,13 +24,22 @@ function decide({parent,request,nodes=[],tasks=[],limits={}}){
  const needed=request.permissions_scope||[];
  const compatible=nodes.find(n=>n.id!==parent.id&&
    n.status==='active'&&n.approval_status==='approved'&&
+   n.origin_command_id===parent.origin_command_id&&
+   n.direction_version===parent.direction_version&&
+   n.approval_direction_version===parent.direction_version&&
+   n.approval_revoked!==true&&
+   n.approval_revoked_at==null&&n.revoked_at==null&&
    Array.isArray(n.approval_evidence_refs)&&n.approval_evidence_refs.length>0&&
    n.approval_evidence_refs.every(x=>typeof x==='string'&&x.trim().length>0)&&
-   n.direction_version===parent.direction_version&&
    Array.isArray(n.capabilities)&&request.capabilities.every(c=>n.capabilities.includes(c))&&
    Array.isArray(n.permissions_scope)&&needed.every(p=>n.permissions_scope.includes(p))&&
    n.permissions_scope.every(p=>Array.isArray(parent.permissions_scope)&&parent.permissions_scope.includes(p)));
- if(compatible)return {action:'reuse',node_id:compatible.id,parent_id:parent.id,request_id:request.id,requires_review:true};
+ // This only proposes reuse. All approval fields come from an untrusted
+ // candidate registry: actual authorization must be checked by a separately
+ // approved trusted endpoint before ANY worker starts or permissions change.
+ if(compatible)return {action:'reuse_proposal',node_id:compatible.id,parent_id:parent.id,
+   request_id:request.id,requires_review:true,verified_approval:false,
+   execution_allowed:false,approval_claim_status:'CLAIM_ONLY_NOT_VERIFIED'};
  const childCount=nodes.filter(n=>n.parent_node_id===parent.id&&n.status!=='stopped').length;
  if(childCount>=maxChildren)return {action:'stop',reason:'child_limit',parent_id:parent.id};
  return {action:'candidate',node:{id:parent.id+'.'+request.id,parent_node_id:parent.id,diffusion_request_id:request.id,origin_command_id:parent.origin_command_id,direction_version:parent.direction_version,depth:depth+1,capabilities:safe(request.capabilities),permissions_scope:[],status:'candidate',reason:request.reason,evidence_refs:safe(request.evidence_refs||[])},requires_review:true};
