@@ -1,4 +1,5 @@
 /* Read-only cross-page research reference (NOT a memory store or AI delivery service). */
+import {validateBrainImport} from './brain-import-guard.mjs';
 const NODE_ID=/^[A-Za-z0-9_.:-]{1,160}$/;
 export const RESEARCH_REF_VERSION="brain.research-link.v1";
 export function checkedNodeId(raw){
@@ -32,7 +33,11 @@ export function readNodeContext(storage,raw){
   if(!source||!Array.isArray(source.nodes)||source.nodes.length>25000)
     return {status:"unreadable",node:null};
   const matches=source.nodes.filter(n=>n&&typeof n==="object"&&n.id===id);
-  if(matches.length!==1)return {status:matches.length?"ambiguous":"missing",node:null};
+  if(matches.length>1)return {status:"ambiguous",node:null};
+  // A node alone does not make a corrupt graph an authoritative research source.
+  const integrity=validateBrainImport(source);
+  if(!integrity.ok)return {status:"unreadable",node:null};
+  if(matches.length!==1)return {status:"missing",node:null};
   const n=matches[0];
   if(typeof n.title!=="string")return {status:"unreadable",node:null};
   // Only a compact locator, not the private graph, evidence or full research text.
