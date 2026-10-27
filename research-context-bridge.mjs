@@ -54,7 +54,8 @@ export async function readAuthoritativeNodeContext(storage,raw){
   let authority;
   try{authority=storage.getItem('aiBrain.v1.persistence.authority');}
   catch(_){return {status:'unreadable',node:null};}
-  if(authority!=='idb')return readNodeContext(storage,raw);
+  if(authority===null)return readNodeContext(storage,raw);
+  if(authority!=='idb')return {status:'unreadable',node:null};
   let current;
   try{
     const {readTransactional3D}=await import('./first-brain-idb-adapter.mjs');
