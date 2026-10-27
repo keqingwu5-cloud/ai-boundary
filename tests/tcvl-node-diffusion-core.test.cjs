@@ -45,3 +45,33 @@ test('P1 negative: different direction version cannot be reused',()=>{
 test('P1 negative: invalid requested permission shape is rejected instead of ignored',()=>{
  assert.throws(()=>run({request:{...request(),permissions_scope:'read'}}),/permission|request/i);
 });
+
+test('R10: eligible approved-looking node is only a reuse proposal, never execution approval',()=>{
+ const candidate={id:'research1',capabilities:['research'],permissions_scope:['read'],status:'active',
+  direction_version:'v1',approval_status:'approved',approval_evidence_refs:['review:research1']};
+ const result=run({nodes:[candidate]});
+ assert.equal(result.action,'reuse_proposal');
+ assert.equal(result.requires_review,true);
+ assert.equal(result.verified_approval,false);
+ assert.equal(result.execution_allowed,false);
+ assert.equal(JSON.stringify(result).includes('review:research1'),false,'untrusted approval string not echoed as evidence');
+});
+test('R10: revoked approval cannot be reused with an otherwise active and approved-looking node',()=>{
+ const node={id:'revoked-node',status:'active',direction_version:'v1',approval_status:'approved',
+  approval_evidence_refs:['review:revoked'],approval_revoked_at:'2026-10-27T03:10:00Z',
+  capabilities:['research'],permissions_scope:['read']};
+ assert.notEqual(run({nodes:[node]}).action,'reuse_proposal');
+});
+test('R10: stale approval from another direction cannot authorize reuse',()=>{
+ const node={id:'stale-approval',status:'active',direction_version:'v1',approval_direction_version:'v0',
+  approval_status:'approved',approval_evidence_refs:['review:old'],
+  capabilities:['research'],permissions_scope:['read']};
+ assert.notEqual(run({nodes:[node]}).action,'reuse_proposal');
+});
+test('R10: invalid or missing claimed approval evidence cannot produce reusable proposal',()=>{
+ for(const refs of [[],[''],[null],['  '],null]){
+ const node={id:'untrusted',status:'active',direction_version:'v1',
+  approval_status:'approved',approval_evidence_refs:refs,capabilities:['research'],permissions_scope:['read']};
+ assert.notEqual(run({nodes:[node]}).action,'reuse_proposal');
+ }
+});
