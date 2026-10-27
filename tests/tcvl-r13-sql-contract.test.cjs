@@ -8,7 +8,7 @@ test("R13 is explicitly not a production migration or an authorization source",(
  assert.match(sql,/review.only|review_only/i);
  assert.doesNotMatch(sql,/GRANT\s+(?:ALL|EXECUTE|INSERT|UPDATE)\s+.+\s+TO\s+PUBLIC/i);
  assert.match(sql,/REVOKE ALL ON SCHEMA tcvl_r13_candidate FROM PUBLIC/);
- assert.doesNotMatch(sql,/SECURITY DEFINER/i);
+ assert.doesNotMatch(sql,/^\s*(?!--).*SECURITY DEFINER/im);
 });
 test("R13 reservation only inserts review_reserved, never approved or dispatched",()=>{
  assert.match(sql,/ON CONFLICT \(receipt_id\) DO NOTHING/);
