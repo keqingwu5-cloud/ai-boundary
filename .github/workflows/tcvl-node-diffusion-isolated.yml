@@ -21,6 +21,7 @@ jobs:
           node --check tcvl-approval-receipt-core.cjs
           node --check tcvl-protected-review-port.cjs
           node --check tcvl-review-reconcile.cjs
+          node --check tcvl-r19-review-envelope.cjs
       - name: P1/R10/R11/R12 gates, cryptographic receipt and sandbox race counterexamples
         run: node --test tests/tcvl-node-diffusion-core.test.cjs tests/tcvl-diffusion-bridge.test.cjs tests/tcvl-approval-receipt.test.cjs tests/tcvl-protected-review-port.test.cjs
       - name: R13 review-only SQL contract and shell syntax
@@ -54,5 +55,7 @@ jobs:
           bash -n scripts/test-r17-unsafe-asynchronous-failover.sh
       - name: R17 disposable unsafe async failover counterexample
         run: bash scripts/test-r17-unsafe-asynchronous-failover.sh
+      - name: R19 legacy receipt incompatibility and identity-bound review contract
+        run: node --test tests/tcvl-r19-review-envelope.test.cjs
       - name: All existing TCVL Node regressions
         run: node --test tests/*.test.cjs
