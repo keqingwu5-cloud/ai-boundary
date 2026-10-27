@@ -125,7 +125,7 @@ test("R12 result redacts raw key, signature and original task evidence",async()=
  noExecution(x);
 });
 test("R12 invalid snapshot type and forged consumption adapter fail closed",async()=>{
- const x=await submit({kind:"ISOLATED_SIMULATOR",snapshot(){return {}}},
-   reserve(){return {ok:true}});noExecution(x);
+ const x=await submit({kind:"ISOLATED_SIMULATOR",snapshot(){return {}},
+   reserve(){return {ok:true}}});noExecution(x);
  assert.notEqual(x.status,"ISOLATED_REVIEW_RESERVATION_ONLY");
 });
