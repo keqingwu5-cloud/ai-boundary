@@ -50,6 +50,7 @@ reserve(){
 }
 assert_eq "$(query "$(reserve 'tcp-known-r15' 'key-r15')")" "REVIEW_RESERVED_ONLY" "initial durable record"
 assert_eq "$(query "SELECT tcvl_r13_candidate.revoke_key_for_review('revoked-key-r15');")" "REVIEW_KEY_REVOKED" "initial durable key revocation"
+assert_eq "$(query "SELECT tcvl_r13_candidate.revoke_receipt_for_review('revoked-receipt-r15');")" "REVIEW_RECEIPT_REVOKED" "initial independent receipt revocation"
 
 # CLIENT RUNS A REAL TCP CONNECTION THROUGH A PRIVATE DOCKER NETWORK.
 docker run -d --name "$client" --network "$net" --entrypoint sh \
@@ -84,7 +85,8 @@ case "$observed" in
   echo "R15 REAL_TCP_INTERRUPTION: DB committed after client disconnected; replay blocked"
   ;;
  "0")
-  echo "R15 REAL_TCP_INTERRUPTION: DB row absent at readback; outcome remains manual-review-only"
+  echo "R15_INCONCLUSIVE_COMMIT_CASE: row absent after real TCP break; cannot claim committed-after-disconnect proof"
+  exit 2
   ;;
  *) echo "R15_UNEXPECTED_DB_READBACK_COUNT: $observed"; exit 1;;
 esac
@@ -95,7 +97,8 @@ echo "R15 NO_BLIND_RETRY: observed persistent DB state, no automatic replay"
 docker exec --user postgres "$primary" pg_dump -U postgres \
   --format=custom --schema=tcvl_r13_candidate --dbname=postgres >"$tmp/r15_backup.dump"
 [[ -s "$tmp/r15_backup.dump" ]] || { echo "R15_BACKUP_EMPTY"; exit 1; }
-before="$(query "SELECT md5(COALESCE(string_agg(receipt_id||'|'||key_id||'|'||project_id||'|'||direction_version||'|'||evidence_digest||'|'||stage,';' ORDER BY receipt_id),'')) FROM tcvl_r13_candidate.review_reservations;")"
+before="$(query "SELECT md5(COALESCE(string_agg(row_to_json(t)::text, ';' ORDER BY t.receipt_id),'')) FROM (SELECT receipt_id,key_id,project_id,direction_version,evidence_digest,expires_at,reserved_at,stage FROM tcvl_r13_candidate.review_reservations) t;")"
+before_revocations_hash="$(query "SELECT md5(COALESCE(string_agg(row_to_json(v)::text, ';' ORDER BY v.kind,v.ref_id),'')) FROM (SELECT kind,ref_id,revoked_at FROM tcvl_r13_candidate.revocations) v;")"
 before_count="$(query "SELECT count(*) FROM tcvl_r13_candidate.review_reservations;")"
 before_revoke="$(query "SELECT count(*) FROM tcvl_r13_candidate.revocations WHERE kind='key' AND ref_id='revoked-key-r15';")"
 assert_eq "$before_revoke" "1" "expected key revocation in backup source"
@@ -105,11 +108,13 @@ docker run -d --name "$restored" --network "$net" \
 ready "$restored"
 docker exec -i --user postgres "$restored" pg_restore \
  --exit-on-error --username=postgres --dbname=postgres <"$tmp/r15_backup.dump" >/dev/null
-after="$(restored_query "SELECT md5(COALESCE(string_agg(receipt_id||'|'||key_id||'|'||project_id||'|'||direction_version||'|'||evidence_digest||'|'||stage,';' ORDER BY receipt_id),'')) FROM tcvl_r13_candidate.review_reservations;")"
+after="$(restored_query "SELECT md5(COALESCE(string_agg(row_to_json(t)::text, ';' ORDER BY t.receipt_id),'')) FROM (SELECT receipt_id,key_id,project_id,direction_version,evidence_digest,expires_at,reserved_at,stage FROM tcvl_r13_candidate.review_reservations) t;")"
+after_revocations_hash="$(restored_query "SELECT md5(COALESCE(string_agg(row_to_json(v)::text, ';' ORDER BY v.kind,v.ref_id),'')) FROM (SELECT kind,ref_id,revoked_at FROM tcvl_r13_candidate.revocations) v;")"
 after_count="$(restored_query "SELECT count(*) FROM tcvl_r13_candidate.review_reservations;")"
 after_revoke="$(restored_query "SELECT count(*) FROM tcvl_r13_candidate.revocations WHERE kind='key' AND ref_id='revoked-key-r15';")"
 assert_eq "$after" "$before" "independent restore exact row hash"
 assert_eq "$after_count" "$before_count" "independent restore row count"
+assert_eq "$after_revocations_hash" "$before_revocations_hash" "every revoked key/receipt identity AND timestamp recovered"
 assert_eq "$after_revoke" "$before_revoke" "independent restore revoked key"
 assert_eq "$(restored_query "$(reserve 'tcp-known-r15' 'key-r15')")" \
  "BLOCKED_REPLAY_OR_CONFLICT" "restored backup refuses replay"
@@ -130,4 +135,15 @@ grep -qi 'permission denied' "$tmp/restricted.out" || {
 }
 assert_eq "$(restored_query "SELECT count(*) FROM tcvl_r13_candidate.review_reservations WHERE stage <> 'review_reserved';")" "0" "restored remains review-only"
 echo "R15 RESTORED_ACL: untrusted DB role denied; no privileged execution stage"
+# Adversarial drift probes occur ONLY in the disposable restored test DB.
+# Confirm full-field receipt and all revocation checks would actually notice
+# changes that earlier R15's partial digest/count completely missed.
+restored_query "UPDATE tcvl_r13_candidate.review_reservations SET expires_at=expires_at+interval '1 minute' WHERE receipt_id='tcp-known-r15';" >/dev/null
+drifted_receipts="$(restored_query "SELECT md5(COALESCE(string_agg(row_to_json(t)::text, ';' ORDER BY t.receipt_id),'')) FROM (SELECT receipt_id,key_id,project_id,direction_version,evidence_digest,expires_at,reserved_at,stage FROM tcvl_r13_candidate.review_reservations) t;")"
+[[ "$drifted_receipts" != "$before" ]] || { echo "R15_EXPIRY_DRIFT_NOT_DETECTED"; exit 1; }
+restored_query "DELETE FROM tcvl_r13_candidate.revocations WHERE kind='receipt' AND ref_id='revoked-receipt-r15';" >/dev/null
+drifted_revocations="$(restored_query "SELECT md5(COALESCE(string_agg(row_to_json(v)::text, ';' ORDER BY v.kind,v.ref_id),'')) FROM (SELECT kind,ref_id,revoked_at FROM tcvl_r13_candidate.revocations) v;")"
+[[ "$drifted_revocations" != "$before_revocations_hash" ]] || { echo "R15_REVOCATION_DRIFT_NOT_DETECTED"; exit 1; }
+echo "R15 INDUCED_DRIFT_DETECTION: changed expires_at and deleted a receipt revocation; both detected in isolated restore"
+
 echo "R15 LIMITATION: logical backup/restore test is NOT PITR or HA failover, independent authorization or real G2 ACK"
