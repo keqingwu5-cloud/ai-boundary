@@ -159,3 +159,18 @@ R06 已以合成快照證明 IndexedDB 在相同 object store 的交易式版本
 - **旁支仍阻塞**：世界模型的 `worldModel.verify.events.v2` 仍使用 localStorage，沒有自動升級為交易式保存；R03-05 不能全域結案。Node ID 一致不能當 Claim、因果或記憶已核准。
 
 **結論**：第一大腦 3D 主要功能及單機交易候選已完成可驗證的隔離實作，但「第一大腦所有工作正式完成」仍不成立，不能替使用者跳過真實資料與正式發布的 Gate。
+
+## R09｜第一大腦交易故障注入：IDB 禁用與原生 Abort（2026-10-27）
+
+**分類**：R03-01/A 保存失敗假成功、R03-05/E 並發與交易安全；R03-12/D 測試替身／證據歸因。沿用原 #09/#12/#15，只有隔離分支的合成資料，主線、私人歷史、GPT② 記憶和世界模型 journal 未改。
+
+- 新增 `tests/first-brain-transactional-failure-browser.test.cjs`，並納入既有 `.github/workflows/brain-import-integrity.yml` 的真 Chromium 套件。
+- **負例 1：資料庫無法開啟**。在真瀏覽器攔截 IndexedDB open 並擲出 `SecurityError`，確認 `?brainTx=1` 沒有可讀交易快照時 `persistence.ready=false`、只能唯讀、修改被拒、不寫 legacy raw，也不宣告保存成功。標記 `FIRST_BRAIN_IDB_UNAVAILABLE_READONLY_PASS`。
+- **負例 2：原生 IDB 交易中途 Abort**。從已備份並明確切換的合成主腦副本，在 object store put 時觸發原生 transaction.abort()，驗證 `setStatus` 提交失敗、畫面不冒稱成功、graph/Undo 交易版本不變、原 legacy bytes 不變，頁面刷新後仍讀回舊版本。標記 `FIRST_BRAIN_IDB_NATIVE_ABORT_ROLLBACK_PASS revision_unchanged=1 legacy_unchanged=1`。
+- **測試資料兩次修正有保留失敗證據**：
+  1. [#40530078531](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40530078531) Node PASS、Chromium **24/25**，新案例未先建立 legacy 快照，備份按鈕正確拒絕，測試等待下載超時。主責 `test_fixture`。
+  2. [#40530573498](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40530573498) Node PASS、Chromium **24/25**，新案例在切換頁面 reload 的瞬間提早讀取 `window.AIBrain.persistence`，測試自身 throw。主責 `test_fixture`／等待條件。
+  3. 修正為先從既有 legacy 3D 畫面建立合成快照，並用 optional-chain 等待 reload 後的 API，未關掉故障注入、未放寬原有安全斷言。
+- **最後隔離 CI 證據**：[Actions #40531000448](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40531000448)，受測提交 `c63a1880dad083b322479890eaece028e58f6848`：Node **129/129 PASS**、Chromium **25/25 PASS**、0 FAIL。R08 真 3D UI 閉環同時重跑 PASS。
+
+**已證範圍**：現有第一大腦選用的 IndexedDB 保存模式可在這兩種真瀏覽器異常下拒絕錯誤成功、保留資料與原版本。**未證**：不同程式版本同時寫入、停電/程序崩潰的完整耐久性、Safari/iOS 真機、儲存空間壓力長期矩陣、法定/真實舊資料授權遷移、獨立 reviewer、main 合併與部署。仍不可宣稱第一大腦已正式完成或 R03-05 全域解除。
