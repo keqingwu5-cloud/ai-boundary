@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { worldModelHref } from './research-context-bridge.mjs';
 import { validateBrainImport, commitBrainImport } from './brain-import-guard.mjs';
+import {prepareLearningObservation,markLearningReviewed,findReusableLessons} from './brain-learning-feedback.mjs';
 import { readTransactional3D, commitTransactional3D, stageLegacy3D, inspectLegacy3D } from './first-brain-idb-adapter.mjs';
 
 /* ================= constants ================= */
@@ -399,6 +400,35 @@ function crossLink(a, b){
 }
 function setCollapsed(id, v){ const n = N(id); if (!n) return; mutate(v ? 'collapse' : 'expand', { nodeId:id, title:n.title }, () => { n.collapsed = v; }); }
 function setStatus(id, s){ const n = N(id); if (!n || !STATUS[s]) return; mutate('status', { nodeId:id, title:n.title, status:s }, () => { n.status = s; }); }
+
+/* R11: A success/failure report is a contextual observation, not a truth claim.
+ * Keep its revision lineage in the existing graph and Undo/transaction path.
+ */
+function recordLearningFeedback(nodeId,input){
+ const node=N(nodeId);
+ if(!node)return false;
+ const item=prepareLearningObservation(input,uid('learn'),Date.now());
+ if(!item){toast('⚠ 經驗記錄不完整或超過欄位限制');return false;}
+ if((node.learningRecords||[]).length>=40){toast('⚠ 此節點經驗已達上限，請整理後再新增');return false;}
+ return mutate('learning_observed',{nodeId,feedbackId:item.id,outcome:item.outcome,conditions:item.conditions},()=>{
+   const target=N(nodeId);
+   target.learningRecords=Array.isArray(target.learningRecords)?target.learningRecords:[];
+   target.learningRecords.push(item);
+ });
+}
+function reviewLearningFeedback(nodeId,feedbackId){
+ const node=N(nodeId),item=node?.learningRecords?.find(x=>x.id===feedbackId);
+ if(!item)return false;
+ const reviewed=markLearningReviewed(item,Date.now());
+ if(!reviewed){toast('⚠ 需先附上可追溯證據，再進行人工審閱');return false;}
+ return mutate('learning_review',{nodeId,feedbackId},()=>{
+   const list=N(nodeId).learningRecords,at=list.findIndex(x=>x.id===feedbackId);
+   if(at<0)throw Error('learning_record_missing');
+   list[at]=reviewed;
+ });
+}
+function findLearningLessons(conditions){return findReusableLessons(state,conditions);}
+
 function addCounterEvidence(id, text, createdBy = 'merlin', source = ''){ const n = N(id); if (!n || !text) return;
   mutate('counter', { nodeId:id, title:n.title, text }, () => n.counterEvidence.push({ id:uid('c'), text, source, createdBy, ts:Date.now() })); }
 function setMedia(id, kind, url){ const n = N(id); if (!n) return false; url = String(url || '').trim(); if (!safeUrl(url)) return false; mutate('media', { nodeId:id, kind, url }, () => { n.media[kind] = url; }); return true; }
@@ -1236,6 +1266,7 @@ window.AIBrain = {
   suggestConcepts, focusConcept, showConcepts, _debug:debug, mergeBrain, crossLink, setStatus, addCounterEvidence, setCollapsed, setMedia, deleteNode,
   focusBrain, focusNode, overview, select, undo, exportJSON, importJSON, reset:resetAll,
   on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); },
+  recordLearningFeedback,reviewLearningFeedback,findLearningLessons,
   persistence:()=>({mode:TX_MODE?'transactional':'legacy',ready:TX_MODE?txReady:legacyMayWrite(),revision:TX_MODE?txRevision:null,
     pending:txBusy,reason:txLoadError}),
   whenIdle:()=>txLastWrite
