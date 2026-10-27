@@ -25,6 +25,7 @@ on:
       - first-brain-idb-adapter.mjs
       - tests/first-brain-idb-browser.test.cjs
       - tests/first-brain-transactional-ui-browser.test.cjs
+      - tests/first-brain-failure-gates-browser.test.cjs
       - tests/first-brain-transactional-failure-browser.test.cjs
       - tests/world-verification-ledger.test.mjs
       - research-context-bridge.mjs
@@ -83,4 +84,4 @@ jobs:
           done
           exit 1
       - name: Test real browser 3D and Feed workflows
-        run: node --test tests/brain-browser-smoke.test.cjs tests/research-browser-smoke.test.cjs tests/dual-world-brain-browser.test.cjs tests/graph-validator-browser.test.cjs tests/transactional-brain-store-browser.test.cjs tests/first-brain-idb-browser.test.cjs tests/first-brain-transactional-ui-browser.test.cjs tests/first-brain-transactional-failure-browser.test.cjs
+        run: node --test tests/brain-browser-smoke.test.cjs tests/research-browser-smoke.test.cjs tests/dual-world-brain-browser.test.cjs tests/graph-validator-browser.test.cjs tests/transactional-brain-store-browser.test.cjs tests/first-brain-idb-browser.test.cjs tests/first-brain-transactional-ui-browser.test.cjs tests/first-brain-failure-gates-browser.test.cjs tests/first-brain-transactional-failure-browser.test.cjs
