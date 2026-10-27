@@ -74,6 +74,8 @@ async function loadAuthoritativeState(){
   return loadState();
 }
 let state = await loadAuthoritativeState();
+const feedTxChannel=typeof BroadcastChannel==='function'?new BroadcastChannel('first-brain-idb-r1'):null;
+if(feedTxChannel)feedTxChannel.onmessage=()=>{void reloadAuthoritativeFeed();};
 async function reloadAuthoritativeFeed(){
   state=await loadAuthoritativeState();
   render(list[cur]&&list[cur].id);
@@ -406,7 +408,8 @@ addEventListener('resize', () => go(cur, true));
   if (h0 && N(h0) && !buildList().some(n => n.id === h0)){ set.types = []; set.concepts = []; set.onlyVideo = false; set.onlySaved = false; savePrefs(); }
   render(h0); }
 feed.focus({ preventScroll:true });
-window.AIFeed = { list:() => list.map(n => n.id), current:() => list[cur] && list[cur].id, index:() => cur, go, reload:reloadAuthoritativeFeed, settings:set, giscus:GISCUS, bots:BOTS, openComments,
+window.AIFeed = { list:() => list.map(n => n.id), current:() => list[cur] && list[cur].id, getNode:id=>{const node=state.nodes.find(n=>n.id===id);return node?JSON.parse(JSON.stringify(node)):null;},
+  authority:()=>({error:feedAuthorityError,source:feedAuthorityError?'blocked':(localStorage.getItem('aiBrain.v1.persistence.authority')==='idb'?'idb':'legacy')}), index:() => cur, go, reload:reloadAuthoritativeFeed, settings:set, giscus:GISCUS, bots:BOTS, openComments,
   player, sound:() => ({ wantSound, unlocked, muted:player.muted }), blocked:() => !!itemEl(cur)?.classList.contains('blocked') };
 if(feedAuthorityError)showFeedAuthorityWarning();
 document.body.dataset.ready = '1';
