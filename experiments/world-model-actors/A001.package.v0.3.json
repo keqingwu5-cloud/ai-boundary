@@ -1,0 +1,133 @@
+{
+  "schema": "wm.actor.bundle.v0.3",
+  "bundle_id": "wm-a001-13th-frame",
+  "actor_id": "A001",
+  "status": "integrated_in_world_model_ui_on_isolated_branch_not_deployed",
+  "source": {
+    "provenance": "User-provided creative materials from conversation; fictional extensions",
+    "image": "NOT included in public repository",
+    "identity_claims": "visual reference only; no psychological inference"
+  },
+  "assets": {
+    "actor": "./A001.actor.json",
+    "stage": "./actor-sandbox.html",
+    "full_plan_and_script": "./A001-plan-script-v0.3.md",
+    "host": "../../world-model.html#world-actor-a001"
+  },
+  "story": {
+    "title": "原本只是要整理筆記",
+    "setting": "房間",
+    "lead_role": "普通居民",
+    "goal": "整理昨天的筆記",
+    "scenes": [
+      {
+        "id": "B01",
+        "event": "從床邊起身走到書桌",
+        "effects": [
+          "枕頭壓痕可能逐漸恢復",
+          "衣服摺痕變化"
+        ]
+      },
+      {
+        "id": "B02",
+        "event": "拿起水杯喝水並放回",
+        "effects": [
+          "水杯位置更新"
+        ]
+      },
+      {
+        "id": "B03",
+        "event": "閱讀筆記",
+        "effects": [
+          "筆記本打開"
+        ]
+      },
+      {
+        "id": "B04",
+        "event": "補寫幾行字",
+        "effects": [
+          "內頁內容更新"
+        ]
+      },
+      {
+        "id": "B05",
+        "event": "合上筆記並伸展肩膀",
+        "effects": [
+          "筆記本合上",
+          "文字痕跡保留"
+        ]
+      }
+    ]
+  },
+  "scenario_events": [
+    {
+      "type": "notification",
+      "observed": "手機螢幕亮起",
+      "unknown": [
+        "發信人",
+        "內容",
+        "心理動機"
+      ],
+      "interrupts_script": true
+    },
+    {
+      "type": "door_sound",
+      "observed": "門外有聲響",
+      "unknown": [
+        "聲源身分",
+        "意圖"
+      ],
+      "interrupts_script": true
+    },
+    {
+      "type": "cup_moved",
+      "observed": "水杯位置改變",
+      "unknown": [
+        "不曾觀察到的原因"
+      ],
+      "interrupts_script": true
+    }
+  ],
+  "evidence_model": {
+    "types": [
+      "script",
+      "environment",
+      "observation",
+      "inference",
+      "unknown"
+    ],
+    "guardrails": [
+      "不能將劇本目標當作已完成事件",
+      "未知內容不能自動補全",
+      "環境物件狀態不得憑空重設",
+      "同一輸入序列應可重播"
+    ]
+  },
+  "integration": {
+    "type": "sandboxed_iframe",
+    "access": "read-only-isolated-host",
+    "persists": false,
+    "writes_to": [
+      "none"
+    ],
+    "compatibility": [
+      "aiBrain.v1 unchanged",
+      "worldModel.verify.v1 unchanged"
+    ],
+    "runtime_bridge": "not implemented",
+    "deployment": "none"
+  },
+  "acceptance": {
+    "expected": [
+      "完整劇本與文案可從世界模型入口閱讀",
+      "互動行為運行於隔離 sandbox",
+      "操作後事件來源及結果可見",
+      "原 world-model 資料與邏輯未變"
+    ],
+    "needs": [
+      "瀏覽器手機端正式 E2E",
+      "正式圖譜角色事件契約驗證",
+      "正式合併和部署授權"
+    ]
+  }
+}
