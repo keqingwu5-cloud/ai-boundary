@@ -10,3 +10,20 @@ test('cross-module: candidate task queues without remote ACK',()=>{const d=decis
 test('negative: no task without proposal',()=>assert.throws(()=>bridge.planChildTask(workspace(),{projectId:'p1',nodeId:'unknown',requestId:'r1',title:'x',reason:'x',owner:'human',at}),/candidate/));
 test('negative: permission-bearing candidate rejected',()=>{const d=decision();d.node.permissions_scope=['admin'];assert.throws(()=>bridge.applyCandidate(workspace(),d,{projectId:'p1',at}),/permissions/);});
 test('legacy: stopped decision leaves workspace unchanged',()=>{const w=workspace(),s=JSON.stringify(w);const x=bridge.applyCandidate(w,{action:'stop'},{projectId:'p1',at});assert.equal(JSON.stringify(x.workspace),s);});
+
+test('P1 negative: rejected proposal must never queue child task',()=>{
+ const d=decision();
+ const proposed=bridge.applyCandidate(workspace(),d,{projectId:'p1',at}).workspace;
+ const rejected=platform.proposalDecision(proposed,{proposalId:'diffusion:'+d.node.id,
+   decision:'rejected',reason:'failed review',impact:'no queue allowed',next:'revise proposal',at,seq:'seq-reject-01'});
+ const before=JSON.stringify(rejected);
+ assert.throws(()=>bridge.planChildTask(rejected,{projectId:'p1',nodeId:d.node.id,requestId:'r1',
+   title:'must not queue',reason:'denied',owner:'human',at}),/rejected|approved|not approved|proposal.*state/i);
+ assert.equal(JSON.stringify(rejected),before,'failed gate must leave original registry unchanged');
+});
+test('P1 negative: proposal cannot authorize child task from a different project',()=>{
+ const d=decision();
+ const w=bridge.applyCandidate(workspace(),d,{projectId:'p1',at}).workspace;
+ assert.throws(()=>bridge.planChildTask(w,{projectId:'different',nodeId:d.node.id,requestId:'r1',
+   title:'cross project task',reason:'wrong project',owner:'human',at}),/project|scope|proposal/i);
+});
