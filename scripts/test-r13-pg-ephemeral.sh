@@ -64,6 +64,29 @@ rollback_output="$(query "BEGIN; $txn ROLLBACK;")"
 [[ "$rollback_output" == *REVIEW_RESERVED_ONLY* ]] || { echo "R13 ROLLBACK_SETUP_FAILED"; exit 1; }
 assert_eq "$(query "$txn")" "REVIEW_RESERVED_ONLY" "rollback recovered"
 
+# Deterministic cross-session revocation race: hold the SAME key lock in
+# transaction A; transaction B's reservation must wait until A revokes/commits.
+docker exec -i --user postgres "$cid" psql -X -A -t -q -U postgres -v ON_ERROR_STOP=1 \
+ >"$tmp/revocation-transaction.out" 2>&1 <<'R13_TXN' &
+BEGIN;
+SELECT pg_advisory_xact_lock(hashtextextended('tcvl_r13_key:key-race', 0));
+\echo LOCK_ACQUIRED
+SELECT pg_sleep(1.5);
+SELECT tcvl_r13_candidate.revoke_key_for_review('key-race');
+COMMIT;
+R13_TXN
+lock_holder=$!
+locked=0
+for i in $(seq 1 40); do
+ if grep -q 'LOCK_ACQUIRED' "$tmp/revocation-transaction.out"; then locked=1; break; fi
+ sleep 0.1
+done
+[[ "$locked" -eq 1 ]] || { echo "R13 RACE_SETUP_LOCK_FAILED"; exit 1; }
+race_result="$(query "$(reservation_sql 'race-after-revocation' 'key-race')")"
+wait "$lock_holder"
+assert_eq "$race_result" "BLOCKED_REVOKED" "reservation races with key revocation"
+echo "R13 CROSS_SESSION_REVOKE_RACE: blocked after lock holder commits"
+
 # A restricted/untrusted role must not be able to invoke candidate reservation.
 query "CREATE ROLE r13_untrusted NOLOGIN;" >/dev/null
 if docker exec --user postgres "$cid" psql -X -U postgres -v ON_ERROR_STOP=1 \
