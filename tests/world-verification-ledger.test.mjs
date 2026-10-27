@@ -121,3 +121,22 @@ test('18 invalid rollback destination does not replace records',()=>{
  const b=put(s,a.rawV2,{type:'restore',rows:[{bad:1}]});
  assert.equal(b.ok,false);assert.equal(readWorldLedger(s).rows.length,1);
 });
+
+test('19 KNOWN LIMIT: delayed cross-tab visibility can overwrite a concurrent journal',()=>{
+ const shared=new Map(),localA=new Map(),localB=new Map();
+ function lagged(local){
+  return {getItem(k){return local.has(k)?local.get(k):null},
+   setItem(k,v){const raw=String(v);shared.set(k,raw);local.set(k,raw);},
+   removeItem(k){shared.delete(k);local.delete(k);}};
+ }
+ const a=lagged(localA),b=lagged(localB);
+ const first=appendWorldLedger(a,null,{type:'create',row:record('A'),reason:'A'});
+ const second=appendWorldLedger(b,null,{type:'create',row:record('B'),reason:'B'});
+ assert.equal(first.ok,true);assert.equal(second.ok,true,
+  'second tab still thinks the shared journal is empty');
+ const persisted=JSON.parse(shared.get(JOURNAL_KEY));
+ assert.equal(persisted.events.length,1);
+ assert.equal(persisted.events[0].after.id,'B');
+ assert.equal(persisted.events.some(x=>x.after?.id==='A'),false);
+ console.log('KNOWN_CROSS_TAB_RACE_UNPROTECTED: localStorage not atomic CAS; BLOCKED for concurrent same-time edits');
+});
