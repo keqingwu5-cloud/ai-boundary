@@ -1356,7 +1356,7 @@ function installFirstBrainPersistenceBanner(){
     link.style.cssText='color:#a7eafa;text-decoration:underline';
     banner.append(link);
   }else if(!txReady){
-    let backupDownloaded=false;
+    let backupDownloaded=false,exportedLegacy=null;
     const backup=document.createElement('button');
     backup.id='brainTxBackup';
     backup.textContent='① 下載舊主腦原始備份';
@@ -1377,11 +1377,12 @@ function installFirstBrainPersistenceBanner(){
       const a=document.createElement('a');a.href=URL.createObjectURL(blob);
       a.download='first-brain-legacy-raw-backup.json';document.body.append(a);a.click();a.remove();
       setTimeout(()=>URL.revokeObjectURL(a.href),1200);
+      exportedLegacy={mainRaw,undoRaw:undoRaw===null?'[]':undoRaw};
       backupDownloaded=true;activate.disabled=false;
       toast('舊主腦備份已準備，可自行保存到安全位置');
     };
     activate.onclick=async()=>{
-      if(!backupDownloaded||txBusy)return;
+      if(!backupDownloaded||!exportedLegacy||txBusy)return;
       if(!confirm('已確認備份原始資料，將在隔離版啟用交易式保存？不刪除舊檔，但舊寫入入口會禁止使用。'))return;
       const inspected=inspectLegacy3D(localStorage);
       if(!inspected.ok){toast('⚠ 舊資料無法安全接入：'+inspected.reason);return;}
@@ -1390,7 +1391,8 @@ function installFirstBrainPersistenceBanner(){
         // Block updated legacy-mode tabs before staging. If a failure occurs,
         // retain the marker and the original data for safe manual recovery.
         localStorage.setItem(TX_AUTH_KEY,'idb');
-        const result=await stageLegacy3D(TX_DB,localStorage,{confirmed:true});
+        const result=await stageLegacy3D(TX_DB,localStorage,{confirmed:true,
+          expectedMainRaw:exportedLegacy.mainRaw,expectedUndoRaw:exportedLegacy.undoRaw});
         if(!result.ok){toast('⚠ 交易初始化失敗：'+result.reason+'；原始備份與停止寫入標記仍保留');return;}
         location.reload();
       }catch(e){toast('⚠ 初始化失敗，未允許舊資料被覆寫：'+(e?.message||'unknown'));}
