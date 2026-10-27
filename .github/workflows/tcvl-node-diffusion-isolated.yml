@@ -14,4 +14,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/tcvl-node-diffusion-core.test.cjs tests/tcvl-diffusion-bridge.test.cjs
+      - name: Check candidate syntax
+        run: |
+          node --check tcvl-node-diffusion-core.js
+          node --check tcvl-diffusion-bridge.js
+      - name: P1 gates and replay counterexamples
+        run: node --test tests/tcvl-node-diffusion-core.test.cjs tests/tcvl-diffusion-bridge.test.cjs
+      - name: All existing TCVL Node regressions
+        run: node --test tests/*.test.cjs
