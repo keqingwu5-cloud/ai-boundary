@@ -46,3 +46,30 @@ test("R21 missing signature or injected approval flag fails closed",()=>{
   assert.equal(x.status,"BLOCKED_INVALID_SIGNED_INPUT");
  }
 });
+
+test("R21 malformed synthetic clock must fail closed",()=>{
+ const p=createIsolatedSignedReviewPort({syntheticAuthorities:[{key_id:"key1",approver_id:"fixture1",public_key_pem:fixture.publicKey.export({type:"spki",format:"pem"}),status:"active"}],syntheticClock:()=>"-invalid-"});
+ const e=claims(),x=p.reserveSignedReview({signed:signed(e),expected:expected(e)});
+ assert.equal(x.status,"BLOCKED_TIME_WINDOW");assert.equal(x.execution_allowed,false);
+});
+test("R21 inactive synthetic key cannot verify any receipt",()=>{
+ const p=createIsolatedSignedReviewPort({syntheticAuthorities:[{key_id:"key1",approver_id:"fixture1",public_key_pem:fixture.publicKey.export({type:"spki",format:"pem"}),status:"revoked"}],syntheticClock:()=>now});
+ const x=call(p);assert.equal(x.status,"BLOCKED_UNRECOGNIZED_SYNTHETIC_SIGNER");
+});
+test("R21 invalid or missing test key registry cannot silently fall back",()=>{
+ assert.throws(()=>createIsolatedSignedReviewPort({syntheticAuthorities:[],syntheticClock:()=>now}));
+ assert.throws(()=>createIsolatedSignedReviewPort({syntheticAuthorities:[{key_id:"key1",approver_id:"fixture1",public_key_pem:"not-pem",status:"active"}],syntheticClock:()=>now}));
+});
+test("R21 signature passes only if the claimed task contract matches",()=>{
+ const p=port(),e=claims(),diff={...expected(e),project_id:"wrong-project"};
+ const r=p.reserveSignedReview({signed:signed(e),expected:diff});
+ assert.equal(r.status,"BLOCKED_TASK_OR_EVIDENCE_MISMATCH");
+ assert.equal(r.execution_allowed,false);
+});
+test("R21 synthetic signature is never owner or G2 authority",()=>{
+ const x=call(port());
+ assert.equal(x.requires_independent_g2,true);
+ assert.equal(x.verified_gpt2_ack,false);
+ assert.equal(x.authority_source,"ISOLATED_SYNTHETIC_KEYSET_ONLY");
+ assert.equal(x.verified_owner_approval,false);
+});
