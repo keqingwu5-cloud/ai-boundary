@@ -37,9 +37,14 @@ test("First Brain IDB unavailable: readonly preview, no legacy write or false su
 
 test("First Brain IDB transaction abort: no false commit, no data loss, reload stable",async()=>{
  const browser=await launch(),ctx=await browser.newContext({acceptDownloads:true});
- const page=await ctx.newPage(),errs=[];
+ const page=await ctx.newPage(),legacy=await ctx.newPage(),errs=[];
  page.on("pageerror",e=>errs.push(String(e)));
+ legacy.on("pageerror",e=>errs.push(String(e)));
  try{
+  // A first-ever ?brainTx=1 view intentionally does NOT seed localStorage.
+  // Seed the historical legacy page first, as real migrations require.
+  await legacy.goto(ROOT+"/index.html",{waitUntil:"domcontentloaded"});await ready(legacy);
+  assert.ok(await legacy.evaluate(()=>localStorage.getItem("aiBrain.v1")));
   await page.goto(ROOT+"/index.html?brainTx=1",{waitUntil:"domcontentloaded"});await ready(page);
   const rawBefore=await page.evaluate(()=>localStorage.getItem("aiBrain.v1"));
   const [download]=await Promise.all([
