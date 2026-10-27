@@ -44,7 +44,8 @@
 <section class="panel"><div class="top"><h2>本金 · 收益與風險試算</h2><span class="pill">假設情境</span></div><div class="controls"><label>總本金（新台幣）<input id="capital" type="number" min="0" max="100000000" value="100000" step="1000"></label><label>投入比例（%）<input id="allocation" type="number" min="0" max="100" value="30" step="5"></label><label>情境價格變動（%）<input id="change" type="number" min="-100" max="1000" value="8" step="1"></label><label>估計來回交易成本（%）<input id="cost" type="number" min="0" max="20" value="0.4" step="0.1"></label><label>預設研究期限<select id="horizon"><option>1 週</option><option selected>1 個月</option><option>3 個月</option></select></label><label>貨幣單位<select id="currency"><option>新台幣 TWD</option></select></label></div><div class="grid" style="margin-top:12px"><div class="metric"><small>投入本金</small><b id="deployed">—</b></div><div class="metric"><small>情境淨損益</small><b id="pnl">—</b></div><div class="metric"><small>總本金報酬率</small><b id="roi">—</b></div></div><p class="fine">以不使用槓桿的線性單次買入賣出為假設；總資金未投入部分保持現金。尚未計入股息、台美市場不同稅制、換匯差額和滑價。這是計算而非收益預測。</p></section>
 
 <section class="panel" id="verification-center">
- <div class="top"><h2>反驗證中心 · V1</h2><span class="pill">研究原型／非商業認證</span></div>
+ <div class="top"><h2>反驗證中心 · V2 版本紀錄</h2><span class="pill">本機追加事件｜舊版保留</span></div>
+<p id="worldHistoryStatus" class="fine" role="status">正在檢查既有 v1 來源與版本紀錄…</p>
  <p class="fine">1997–2026 為台股研究的目標範圍，<strong>不是已驗證的歷史覆蓋率</strong>。本中心先對可核對的事件做邏輯反證，建立往後長期回測的紀錄結構。</p>
  <details open><summary>已核對案例：通膨升高必然立即升息？</summary>
   <div id="verifiedExample"></div>
@@ -60,8 +61,14 @@
   <div class="verify-full verify-actions"><button class="button" type="submit">保存待驗證假設</button><span class="fine" id="verifyFormStatus" role="status"></span></div>
  </form></details>
  <details><summary>本機研究紀錄 <span id="verifyCount" class="pill">0</span></summary><p class="verify-note">以下狀態由研究者自行標註，並未由系統獨立核對；「事件事實已確認」不代表整條因果規則已證明。</p>
- <div id="verifyList"></div><div class="verify-actions"><button class="button" type="button" id="verifyExport">匯出反驗證 JSON</button><button class="button" type="button" id="verifyImportButton">匯入先前匯出的 JSON</button><input id="verifyImport" type="file" accept=".json,application/json" hidden></div>
- <p class="fine">單獨使用 worldModel.verify.v1 儲存，不變更 aiBrain.v1。清除瀏覽器資料可能使本機紀錄遺失，請定期匯出。GitHub Pages 為公開網站，請勿填入未公開資訊。</p></details>
+ <div id="verifyList"></div>
+<details id="worldHistoryPanel"><summary>保存版本歷史 <span class="pill" id="worldHistoryCount">尚未讀取</span></summary>
+<p class="fine">不修改原始 v1。每次研究修改都作為新事件；恢復歷史也會新增版本。這是瀏覽器本機操作紀錄，尚非外部獨立認證。</p>
+<ol id="worldHistoryList"></ol>
+<div class="verify-actions"><button id="worldHistoryVersionZero" class="button" type="button">以新版本恢復原始基線</button>
+<button id="worldHistoryExport" class="button" type="button">下載原始及版本完整備份</button></div>
+</details><div class="verify-actions"><button class="button" type="button" id="verifyExport">匯出反驗證 JSON</button><button class="button" type="button" id="verifyImportButton">匯入先前匯出的 JSON</button><input id="verifyImport" type="file" accept=".json,application/json" hidden></div>
+ <p class="fine">原有 worldModel.verify.v1 僅作不可覆寫基線，新操作寫入 worldModel.verify.events.v2；不更動 aiBrain.v1。舊版格式匯出不包含完整歷史，需另按「下載原始及版本完整備份」。清除瀏覽器資料可能遺失本機紀錄；公開網站請勿填入未公開資訊。</p></details>
  <details open><summary>系統反驗證自檢 <span id="auditBadge" class="pill">等待執行</span></summary><p class="fine">執行確定性的程式邊界測試：歷史發布日、未完成月份、月份有效日期、計算公式及快照標示。來源網址實際內容、因果關係、完整歷史回測必須另行獨立核驗。</p><div class="row"><button class="button" id="runAudit" type="button">立即執行稽核</button><span id="auditResult" role="status" class="fine"></span></div><div id="auditDetails" class="fine"></div></details><details><summary>反驗證方法與合格條件</summary><ol>
  <li>先定義假設、測量方式、可推翻條件及預測期限，再觀察結果。</li>
  <li>來源需記錄<strong>觀測時間、官方發布時間、讀取時間</strong>，禁止用未來發布資料回填當時模型。</li>
@@ -148,58 +155,10 @@ const verificationCase={
 };
 const verifyEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const verifySafeUrl=url=>{try{const u=new URL(url);return u.protocol==='https:'?u.href:null}catch{return null}};
-function getVerifyRows(){try{const data=JSON.parse(localStorage.getItem(VERIFY_KEY));return Array.isArray(data)?data.filter(x=>x&&typeof x==='object').slice(0,500):[]}catch{return []}}
-function saveVerifyRows(rows){try{localStorage.setItem(VERIFY_KEY,JSON.stringify(rows));return true}catch{return false}}
 function verifiedRender(){
  const x=verificationCase;
  $('#verifiedExample').innerHTML='<div class="verify-case"><h3>'+verifyEsc(x.hypothesis)+'</h3><p>2026/03 CPI 年增率 <strong>'+x.cpi+'%</strong>（2026/04/10 發布），相較 2026/02 的 '+x.previousCpi+'% 上升。下一次 FOMC 在 <strong>'+x.fomcDate+'</strong> 維持 '+x.rate+'。</p><p class="verify-good"><strong>判定：</strong>'+verifyEsc(x.outcome)+'</p><p class="fine">'+verifyEsc(x.scope)+'</p><p class="fine">來源：'+x.evidence.map(e=>'<a target="_blank" rel="noopener noreferrer" href="'+e.url+'">'+verifyEsc(e.label)+'</a>').join(' · ')+'</p></div>';
 }
-function renderVerifyRows(){
- const rows=getVerifyRows();$('#verifyCount').textContent=rows.length;
- const root=$('#verifyList');root.replaceChildren();
- if(!rows.length){const p=document.createElement('p');p.className='fine';p.textContent='目前沒有自行建立的假設。';root.append(p);return}
- rows.slice().reverse().forEach(r=>{
-  const item=document.createElement('div');item.className='verify-case';
-  const title=document.createElement('h3');title.textContent=r.hypothesis;
-  const falsifier=document.createElement('p');falsifier.textContent='推翻條件：'+r.falsifier;
-  const date=document.createElement('p');date.className='fine';date.textContent='提出 '+r.createdOn+' · 截止 '+r.deadline+' · 狀態：'+r.status;
-  item.append(title,falsifier,date);
-  if(r.metric){const metric=document.createElement('p');metric.className='fine';metric.textContent='測量：'+r.metric;item.append(metric)}
-  if(r.source){const a=document.createElement('a');a.href=r.source;a.rel='noopener noreferrer';a.target='_blank';a.textContent='來源連結';item.append(a)}
-  const buttons=document.createElement('div');buttons.className='verify-actions';
-  const status=document.createElement('select');status.setAttribute('aria-label','研究狀態');
-  VERIFY_STATUSES.forEach(s=>{let o=document.createElement('option');o.value=s;o.textContent=s;status.append(o)});status.value=VERIFY_STATUSES.includes(r.status)?r.status:'待驗證';
-  status.addEventListener('change',()=>{const now=getVerifyRows(),target=now.find(x=>x.id===r.id);if(target){target.status=status.value;if(saveVerifyRows(now))renderVerifyRows()}});
-  const del=document.createElement('button');del.className='button';del.type='button';del.textContent='刪除';del.addEventListener('click',()=>{if(confirm('刪除此筆本機研究紀錄？')){saveVerifyRows(getVerifyRows().filter(x=>x.id!==r.id));renderVerifyRows()}});
-  buttons.append(status,del);item.append(buttons);root.append(item);
- });
-}
-$('#verifyDate').value=new Date().toLocaleDateString('en-CA');
-$('#verifyForm').addEventListener('submit',e=>{
- e.preventDefault();
- const hypothesis=$('#verifyHypothesis').value.trim(),falsifier=$('#verifyFalsifier').value.trim(),createdOn=$('#verifyDate').value,deadline=$('#verifyDeadline').value;
- const sourceRaw=$('#verifySource').value.trim(),source=sourceRaw?verifySafeUrl(sourceRaw):'';
- if(!hypothesis||!falsifier||!createdOn||!deadline||deadline<createdOn||(sourceRaw&&!source)){ $('#verifyFormStatus').textContent='請檢查日期、必填欄位或 https 來源網址。';return}
- const rows=getVerifyRows();if(rows.length>=500){$('#verifyFormStatus').textContent='本機最多儲存 500 筆；請先匯出並清理。';return}
- rows.push({id:'v'+Date.now()+'-'+Math.random().toString(36).slice(2,8),hypothesis,falsifier,createdOn,deadline,source,metric:$('#verifyMetric').value.trim(),status:'待驗證',createdAt:new Date().toISOString()});
- if(!saveVerifyRows(rows)){ $('#verifyFormStatus').textContent='儲存失敗，請檢查瀏覽器儲存權限。';return}
- $('#verifyForm').reset();$('#verifyDate').value=new Date().toLocaleDateString('en-CA');$('#verifyFormStatus').textContent='已儲存在此裝置；請定期匯出備份。';renderVerifyRows();
-});
-$('#verifyExport').addEventListener('click',()=>{
- const blob=new Blob([JSON.stringify({schema:'worldModel.verify.v1',exportedAt:new Date().toISOString(),verifiedReference:verificationCase,records:getVerifyRows()},null,2)],{type:'application/json'});
- const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='world-model-verification-v1.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-});
-$('#verifyImportButton').addEventListener('click',()=>$('#verifyImport').click());
-$('#verifyImport').addEventListener('change',async e=>{
- const f=e.target.files?.[0];if(!f)return;
- if(f.size>1024*1024){alert('匯入檔案超過 1MB');return}
- try{const d=JSON.parse(await f.text());if(d.schema!=='worldModel.verify.v1'||!Array.isArray(d.records)||d.records.length>500)throw Error('格式不符');
- const clean=d.records.filter(r=>r&&typeof r.hypothesis==='string'&&typeof r.falsifier==='string'&&typeof r.createdOn==='string'&&typeof r.deadline==='string').map((r,i)=>({id:'import-'+Date.now()+'-'+i,hypothesis:r.hypothesis.slice(0,800),falsifier:r.falsifier.slice(0,800),createdOn:r.createdOn.slice(0,10),deadline:r.deadline.slice(0,10),source:r.source?verifySafeUrl(r.source):'',metric:String(r.metric||'').slice(0,800),status:VERIFY_STATUSES.includes(r.status)?r.status:'待驗證',createdAt:new Date().toISOString()}));
- if(!confirm('匯入 '+clean.length+' 筆紀錄？將取代此裝置的反驗證紀錄（不影響 3D 主腦）。'))return;
- if(!saveVerifyRows(clean))throw Error('無法寫入本機儲存');renderVerifyRows();
- }catch(err){alert('無法匯入：'+err.message)}finally{e.target.value=''}
-});
-
 function runVerifyAudit(){
  const tests=[];const check=(name,pass)=>tests.push({name,pass:Boolean(pass)});
  check('日期截點：2026/02 為 2/28，而非無效的 2/31',cutoff(4)==='2026-02-28');
@@ -222,11 +181,13 @@ function runVerifyAudit(){
 }
 $('#runAudit').addEventListener('click',runVerifyAudit);
 
-verifiedRender();renderVerifyRows();
+window.worldVerificationExample=verificationCase;
+verifiedRender();
 runVerifyAudit();
 
 </script>
 
+<script type="module" src="./world-verification-ui.mjs"></script>
 <script type="module">
 import { fromWorldModelQuery, readNodeContext, brainHref, feedHref, exportResearchReference } from './research-context-bridge.mjs';
 const id=fromWorldModelQuery(location.search);

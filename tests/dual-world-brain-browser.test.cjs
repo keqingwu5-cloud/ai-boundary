@@ -67,23 +67,166 @@ test("05 mobile viewport can read both results and audit timeline",()=>withBrows
  console.log("DUAL_WORLD_MOBILE_EMULATED_PASS");
 },390,844));
 
-test("06 existing world-model status edit loses old state: known version-chain GAP",()=>withBrowser(async(page,errs)=>{
+test("06 new world-model v2 status edit preserves complete prior history",()=>withBrowser(async(page,errs)=>{
  await page.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await readyWorld(page);
+ await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
  await page.locator("details:has(#verifyForm) > summary").click();
  await page.locator("#verifyHypothesis").fill("合成假設：X 必然導致 Y");
  await page.locator("#verifyFalsifier").fill("若 X 發生而 Y 未發生則推翻");
  await page.locator("#verifyDate").fill("2026-03-01");
  await page.locator("#verifyDeadline").fill("2026-12-31");
  await page.locator("#verifyForm button[type=submit]").click();
- const first=await page.evaluate(()=>JSON.parse(localStorage.getItem("worldModel.verify.v1")));
- assert.equal(first.length,1);assert.equal(first[0].status,"待驗證");
+ const first=await page.evaluate(()=>window.WorldVerifyHistory.view());
+ assert.equal(first.ok,true);assert.equal(first.rows.length,1);
+ assert.equal(first.rows[0].status,"待驗證");assert.equal(first.events.length,1);
  await page.locator("details:has(#verifyList) > summary").click();
  await page.locator("#verifyList select").selectOption("證據不足");
- const second=await page.evaluate(()=>JSON.parse(localStorage.getItem("worldModel.verify.v1")));
- assert.equal(second.length,1);assert.equal(second[0].id,first[0].id);
- assert.equal(second[0].status,"證據不足");
- assert.equal(Object.hasOwn(second[0],"events"),false);
- assert.equal(Object.hasOwn(second[0],"versions"),false);
+ const second=await page.evaluate(()=>window.WorldVerifyHistory.view());
+ assert.equal(second.ok,true);assert.equal(second.rows[0].status,"證據不足");
+ assert.equal(second.events.length,2);
+ assert.equal(second.events[1].before.status,"待驗證");
+ assert.equal(second.events[1].after.status,"證據不足");
+ assert.equal(await page.evaluate(()=>localStorage.getItem("worldModel.verify.v1")),null,"v1 never overwritten");
+ await page.reload({waitUntil:"domcontentloaded"});
+ await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
+ assert.equal(await page.evaluate(()=>window.WorldVerifyHistory.view().events.length),2);
+ assert.equal(await page.evaluate(()=>window.WorldVerifyHistory.at(1).rows[0].status),"待驗證");
+ assert.equal(await page.evaluate(()=>window.WorldVerifyHistory.at(2).rows[0].status),"證據不足");
  assert.equal(errs.length,0,errs.join(";"));
- console.log("WORLD_MODEL_VERSION_HISTORY_GAP_CONFIRMED (current v1 mutates status; gate remains BLOCKED)");
+ console.log("WORLD_MODEL_VERSION_HISTORY_FIXED_AND_RELOADED");
+}));
+test("07 legacy v1 remains untouched after v2 edit and version rollback",()=>withBrowser(async(page,errs)=>{
+ await page.addInitScript(()=>{
+  if(sessionStorage.getItem("v1seeded"))return;sessionStorage.setItem("v1seeded","yes");
+  localStorage.setItem("worldModel.verify.v1",JSON.stringify([{
+    id:"legacy1",hypothesis:"舊假設",falsifier:"舊反例",createdOn:"2026-04-01",
+    deadline:"2026-12-31",source:"",metric:"",status:"待驗證"
+  }]));
+ });
+ await page.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await readyWorld(page);
+ await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
+ const initial=await page.evaluate(()=>localStorage.getItem("worldModel.verify.v1"));
+ await page.locator("details:has(#verifyList) > summary").click();
+ await page.locator("#verifyList select").selectOption("證據不足");
+ assert.equal(await page.evaluate(()=>window.WorldVerifyHistory.view().rows[0].status),"證據不足");
+ assert.equal(await page.evaluate(()=>localStorage.getItem("worldModel.verify.v1")),initial);
+ await page.locator("#worldHistoryPanel > summary").click();
+ page.once("dialog",d=>d.accept());
+ await page.locator("#worldHistoryVersionZero").click();
+ const after=await page.evaluate(()=>window.WorldVerifyHistory.view());
+ assert.equal(after.rows[0].status,"待驗證");
+ assert.equal(after.events.length,2);
+ assert.equal(after.events[1].type,"restore");
+ assert.equal(await page.evaluate(()=>localStorage.getItem("worldModel.verify.v1")),initial);
+ assert.equal(errs.length,0,errs.join(";"));
+ console.log("WORLD_MODEL_LEGACY_RESTORE_PASS");
+}));
+test("08 corrupt v1 blocks edits and retains original damaged bytes",()=>withBrowser(async(page,errs)=>{
+ await page.addInitScript(()=>localStorage.setItem("worldModel.verify.v1","{bad v1"));
+ await page.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await readyWorld(page);
+ await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
+ assert.equal(await page.evaluate(()=>window.WorldVerifyHistory.view().reason),"legacy_corrupt");
+ const result=await page.evaluate(()=>window.WorldVerifyHistory.append({
+   type:"create",row:{id:"v1",hypothesis:"new",falsifier:"bad",createdOn:"2026-10-01",
+   deadline:"2026-12-31",status:"待驗證"},reason:"test"}));
+ assert.equal(result,false);
+ assert.equal(await page.evaluate(()=>localStorage.getItem("worldModel.verify.v1")),"{bad v1");
+ assert.equal(await page.evaluate(()=>localStorage.getItem("worldModel.verify.events.v2")),null);
+ assert.equal(errs.length,0,errs.join(";"));
+ console.log("WORLD_MODEL_CORRUPT_V1_PRESERVED");
+}));
+test("09 two tabs reject stale history edits instead of replacing events",async()=>{
+ const browser=await chromium.launch({channel:"chrome",headless:true,args:["--no-sandbox","--enable-unsafe-swiftshader","--use-gl=angle","--disable-dev-shm-usage"]});
+ const context=await browser.newContext();
+ const a=await context.newPage(),b=await context.newPage();
+ const ready=p=>p.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'",null,{timeout:45000});
+ const row=id=>({id,hypothesis:"hyp",falsifier:"falsifier",createdOn:"2026-10-01",deadline:"2026-12-31",status:"待驗證"});
+ try{
+  await a.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await ready(a);
+  await b.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await ready(b);
+  assert.equal(await a.evaluate(r=>window.WorldVerifyHistory.append({type:"create",row:r,reason:"A creates"}),row("a")),true);
+  assert.equal(await b.evaluate(r=>window.WorldVerifyHistory.append({type:"create",row:r,reason:"B old tab"}),row("b")),false);
+  assert.equal(await a.evaluate(()=>window.WorldVerifyHistory.view().rows[0].id),"a");
+  await b.reload({waitUntil:"domcontentloaded"});await ready(b);
+  assert.equal(await b.evaluate(r=>window.WorldVerifyHistory.append({type:"create",row:r,reason:"B after reload"}),row("b")),true);
+  const ledger=await b.evaluate(()=>window.WorldVerifyHistory.view());
+  assert.equal(ledger.events.length,2);assert.deepEqual(ledger.rows.map(x=>x.id),["a","b"]);
+  console.log("WORLD_MODEL_STALE_TAB_REFUSED");
+ }finally{await context.close();await browser.close();}
+});
+
+test("10 delete from list, restore as new event, then export full backup",()=>withBrowser(async(page,errs)=>{
+ await page.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await readyWorld(page);
+ await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
+ const row={id:"hyp-del",hypothesis:"合成舊假設",falsifier:"反例",
+   createdOn:"2026-10-01",deadline:"2026-11-01",status:"待驗證"};
+ assert.equal(await page.evaluate(r=>window.WorldVerifyHistory.append({type:"create",row:r,reason:"合成測試"}),row),true);
+ await page.locator("details:has(#verifyList) > summary").click();
+ page.once("dialog",d=>d.accept());
+ await page.locator("#verifyList button").click();
+ const deleted=await page.evaluate(()=>window.WorldVerifyHistory.view());
+ assert.equal(deleted.rows.length,0);assert.equal(deleted.events.length,2);
+ assert.equal(deleted.events[1].type,"delete");
+ await page.locator("#worldHistoryPanel > summary").click();
+ page.once("dialog",d=>d.accept());
+ await page.locator("#worldHistoryList button").last().click();
+ const restored=await page.evaluate(()=>window.WorldVerifyHistory.view());
+ assert.equal(restored.rows[0].id,"hyp-del");
+ assert.equal(restored.events.length,3);assert.equal(restored.events.at(-1).type,"restore");
+ const [download]=await Promise.all([
+  page.waitForEvent("download",{timeout:20000}),
+  page.locator("#worldHistoryExport").click()
+ ]);
+ const backup=JSON.parse(require("node:fs").readFileSync(await download.path(),"utf8"));
+ assert.equal(backup.legacyRaw,null);
+ assert.equal(JSON.parse(backup.ledgerRaw).events.length,3);
+ assert.equal(errs.length,0,errs.join(";"));
+ console.log("WORLD_MODEL_DELETE_RESTORE_BACKUP_PASS");
+}));
+test("11 import old compatible JSON into version history without touching original v1",()=>withBrowser(async(page,errs)=>{
+ await page.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await readyWorld(page);
+ await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
+ const data={schema:"worldModel.verify.v1",records:[{
+  id:"external1",hypothesis:"合成匯入假設",falsifier:"合成反例",createdOn:"2026-01-01",
+  deadline:"2026-12-31",source:"",metric:"",status:"待驗證"
+ }]};
+ await page.locator("details:has(#verifyList) > summary").click();
+ page.once("dialog",d=>d.accept());
+ await page.locator("#verifyImport").setInputFiles({
+  name:"test-export.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(data),"utf8")
+ });
+ await page.waitForFunction("window.WorldVerifyHistory?.view().events.length === 1");
+ const now=await page.evaluate(()=>window.WorldVerifyHistory.view());
+ assert.equal(now.ok,true);assert.equal(now.rows.length,1);assert.equal(now.events[0].type,"import");
+ assert.equal(now.rows[0].hypothesis,"合成匯入假設");
+ assert.equal(await page.evaluate(()=>localStorage.getItem("worldModel.verify.v1")),null);
+ await page.reload({waitUntil:"domcontentloaded"});
+ await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
+ assert.equal(await page.evaluate(()=>window.WorldVerifyHistory.view().rows[0].hypothesis),"合成匯入假設");
+ assert.equal(errs.length,0,errs.join(";"));
+ console.log("WORLD_MODEL_IMPORT_HISTORY_RELOAD_PASS");
+}));
+test("12 real browser quota injection does not report a successful journal write",()=>withBrowser(async(page,errs)=>{
+ await page.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await readyWorld(page);
+ await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
+ const outcome=await page.evaluate(()=>{
+  const previous=Storage.prototype.setItem;
+  Storage.prototype.setItem=function(k,v){
+   if(k==="worldModel.verify.events.v2")throw new DOMException("full","QuotaExceededError");
+   return previous.call(this,k,v);
+  };
+  try{
+   const success=window.WorldVerifyHistory.append({
+    type:"create",row:{id:"quota",hypothesis:"合成",falsifier:"反例",
+      createdOn:"2026-10-01",deadline:"2026-12-31",status:"待驗證"},
+    reason:"配額測試"});
+   return {success,legacy:localStorage.getItem("worldModel.verify.v1"),
+     journal:localStorage.getItem("worldModel.verify.events.v2")};
+  }finally{Storage.prototype.setItem=previous;}
+ });
+ assert.equal(outcome.success,false);
+ assert.equal(outcome.legacy,null);assert.equal(outcome.journal,null);
+ assert.match(await page.locator("#worldHistoryStatus").innerText(),/storage_write_failed/);
+ assert.equal(errs.length,0,errs.join(";"));
+ console.log("WORLD_MODEL_QUOTA_NEGATIVE_PASS");
 }));

@@ -12,6 +12,9 @@ on:
       - tests/dual-world-brain-browser.test.cjs
       - tests/research-event-chain.test.mjs
       - research-event-chain.mjs
+      - world-verification-ledger.mjs
+      - world-verification-ui.mjs
+      - tests/world-verification-ledger.test.mjs
       - research-context-bridge.mjs
       - index.html
       - feed.html
@@ -31,7 +34,7 @@ jobs:
         with:
           node-version: "22"
       - name: Run real Node.js regression suite
-        run: node --test tests/brain-import-integrity.test.cjs tests/brain-state-integrity.test.cjs tests/research-context-bridge.test.mjs tests/research-event-chain.test.mjs
+        run: node --test tests/brain-import-integrity.test.cjs tests/brain-state-integrity.test.cjs tests/research-context-bridge.test.mjs tests/research-event-chain.test.mjs tests/world-verification-ledger.test.mjs
   chromium-smoke:
     runs-on: ubuntu-latest
     permissions:
