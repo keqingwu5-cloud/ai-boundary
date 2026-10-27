@@ -1,17 +1,71 @@
 name: Node diffusion isolated tests
 on:
   push:
-    branches: [test/node-diffusion-p0-20261026]
+    branches: [fix/node-diffusion-p1-gates-20261027]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 32
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/tcvl-node-diffusion-core.test.cjs
+      - name: Check candidate syntax
+        run: |
+          node --check tcvl-node-diffusion-core.js
+          node --check tcvl-diffusion-bridge.js
+          node --check tcvl-approval-receipt-core.cjs
+          node --check tcvl-protected-review-port.cjs
+          node --check tcvl-review-reconcile.cjs
+          node --check tcvl-r19-review-envelope.cjs
+          node --check tcvl-r20-review-persistence.cjs
+          node --check tcvl-r21-synthetic-signed-review.cjs
+      - name: P1/R10/R11/R12 gates, cryptographic receipt and sandbox race counterexamples
+        run: node --test tests/tcvl-node-diffusion-core.test.cjs tests/tcvl-diffusion-bridge.test.cjs tests/tcvl-approval-receipt.test.cjs tests/tcvl-protected-review-port.test.cjs
+      - name: R13 review-only SQL contract and shell syntax
+        run: |
+          node --test tests/tcvl-r13-sql-contract.test.cjs
+          bash -n scripts/test-r13-pg-ephemeral.sh
+      - name: R13 disposable PostgreSQL multi-session transaction test
+        run: bash scripts/test-r13-pg-ephemeral.sh
+      - name: R14 recovery and uncertain-result contract checks
+        run: |
+          node --test tests/tcvl-r14-reconcile.test.cjs tests/tcvl-r14-recovery-contract.test.cjs
+          bash -n scripts/test-r14-pg-recovery.sh
+      - name: R14 disposable PostgreSQL SIGKILL recovery + unknown commit test
+        run: bash scripts/test-r14-pg-recovery.sh
+      - name: R15 TCP interruption, backup/restore and privilege contract
+        run: |
+          node --test tests/tcvl-r15-network-restore-contract.test.cjs
+          bash -n scripts/test-r15-pg-network-restore.sh
+      - name: R15 disposable private TCP network and independent PostgreSQL restore
+        run: bash scripts/test-r15-pg-network-restore.sh
+      - name: R16 physical standby safety contract
+        run: |
+          node --test tests/tcvl-r16-physical-standby-contract.test.cjs
+          bash -n scripts/test-r16-pg-physical-standby.sh
+      - name: R16 isolated physical WAL streaming and controlled promotion
+        run: bash scripts/test-r16-pg-physical-standby.sh
+      - name: R17 split-brain / replay-gap review contract and syntax
+        run: |
+          node --check tcvl-promotion-review-gate.cjs
+          node --test tests/tcvl-r17-promotion-review.test.cjs tests/tcvl-r17-physical-risk-contract.test.cjs
+          bash -n scripts/test-r17-unsafe-asynchronous-failover.sh
+      - name: R17 disposable unsafe async failover counterexample
+        run: bash scripts/test-r17-unsafe-asynchronous-failover.sh
+      - name: R19 legacy receipt incompatibility and identity-bound review contract
+        run: node --test tests/tcvl-r19-review-envelope.test.cjs
+      - name: R20 complete task metadata and strict expiry contract
+        run: |
+          node --test tests/tcvl-r20-review-persistence.test.cjs tests/tcvl-r20-sql-contract.test.cjs
+          bash -n scripts/test-r20-pg-untrusted-review-ledger.sh
+      - name: R20 disposable PostgreSQL untrusted full-claim and nonce replay ledger
+        run: bash scripts/test-r20-pg-untrusted-review-ledger.sh
+      - name: R21 synthetic signer integrity and canonical encoding replay negatives
+        run: node --test tests/tcvl-r21-synthetic-signed-review.test.cjs
+      - name: All existing TCVL Node regressions
+        run: node --test tests/*.test.cjs
