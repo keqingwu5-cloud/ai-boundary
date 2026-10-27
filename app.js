@@ -272,7 +272,7 @@ function addQuestion(d){
     pos: jitter(isMain ? (REGION[d.type] || REGION['其他']) : [0, 0.08, 0], isMain ? 0.12 : 0.35) });
   const exts = (d.extensions || []).filter(e => e && e.title);
   n.concepts = [...new Set((d.concepts || []).map(c => String(c).trim()).filter(Boolean))];
-  mutate('add', { nodeId:n.id, title:n.title, brainId:brain }, () => {
+  const pendingAdd = mutate('add', { nodeId:n.id, title:n.title, brainId:brain }, () => {
     n.concepts.forEach(c => ensureConcept(c, n.createdBy));
     state.nodes.push(n);
     if (n.parentId){ n.kind = 'extension'; state.links.push({ id:uid('l'), from:n.parentId, to:n.id, kind:'derived', createdAt:Date.now() }); }
@@ -280,6 +280,7 @@ function addQuestion(d){
       state.nodes.push(c); state.links.push({ id:uid('l'), from:n.id, to:c.id, kind:'derived', createdAt:Date.now() }); });
   });
   pendingBursts.push(n.id);
+  if(TX_MODE && pendingAdd?.then)void pendingAdd.then(ok=>{if(ok)select(n.id);});
   return n.id;
 }
 function splitNode(id, items, createdBy = 'merlin', kind = 'extension'){
@@ -360,7 +361,7 @@ function makeSubBrain(id){
   }
   const bid = uid('b');
   const sub = descendants(id, true);
-  mutate('subbrain', { nodeId:id, title:n.title, brainId:bid, from:parent.id }, () => {
+  const pendingSubbrain = mutate('subbrain', { nodeId:id, title:n.title, brainId:bid, from:parent.id }, () => {
     state.brains.push({ id:bid, name:n.title, parentBrainId:parent.id, position:pos, scale:parent.scale * 0.5, regionColor:nodeColor(n), rootNodeId:id, createdAt:Date.now() });
     n.brainId = bid; n.pos = [0, 0.1, 0]; n.collapsed = false;
     // radial re-layout of the subtree inside the new brain
@@ -370,7 +371,9 @@ function makeSubBrain(id){
       s.brainId = bid; s.pos = clampInside([Math.sin(a) * 0.2 * d, 0.1 + (i % 2 ? 0.12 : -0.1) * Math.min(d, 2), Math.cos(a) * 0.3 * d]); }); });
   });
   pendingFly.set(bid, id);
-  focusBrain(bid, 1400);
+  if(TX_MODE && pendingSubbrain?.then){
+    void pendingSubbrain.then(ok=>{if(ok)focusBrain(bid,1400);else pendingFly.delete(bid);});
+  }else focusBrain(bid,1400);
   return bid;
 }
 function mergeBrain(bid){
