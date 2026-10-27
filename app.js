@@ -5,7 +5,7 @@ import { worldModelHref } from './research-context-bridge.mjs';
 import { validateBrainImport, commitBrainImport } from './brain-import-guard.mjs';
 import {prepareLearningObservation,markLearningReviewed,findReusableLessons,analyzeLearningEvidence} from './brain-learning-feedback.mjs';
 import {bindLearningPanel} from './brain-learning-ui.mjs';
-import { readTransactional3D, commitTransactional3D, stageLegacy3D, inspectLegacy3D } from './first-brain-idb-adapter.mjs';
+import { readTransactional3D, commitTransactional3D, stageLegacy3D, inspectLegacy3D, verifyStagedLegacy3D } from './first-brain-idb-adapter.mjs';
 
 /* ================= constants ================= */
 const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
@@ -1386,13 +1386,23 @@ function installFirstBrainPersistenceBanner(){
       if(!confirm('已確認備份原始資料，將在隔離版啟用交易式保存？不刪除舊檔，但舊寫入入口會禁止使用。'))return;
       const inspected=inspectLegacy3D(localStorage);
       if(!inspected.ok){toast('⚠ 舊資料無法安全接入：'+inspected.reason);return;}
+      if(inspected.mainRaw!==exportedLegacy.mainRaw||inspected.undoRaw!==exportedLegacy.undoRaw){
+        toast('⚠ 備份後的舊主腦已改變，請先重新下載並審查新的備份');
+        return;
+      }
       activate.disabled=true;
       try{
         // Block updated legacy-mode tabs before staging. If a failure occurs,
         // retain the marker and the original data for safe manual recovery.
         localStorage.setItem(TX_AUTH_KEY,'idb');
-        const result=await stageLegacy3D(TX_DB,localStorage,{confirmed:true,
+        let result=await stageLegacy3D(TX_DB,localStorage,{confirmed:true,
           expectedMainRaw:exportedLegacy.mainRaw,expectedUndoRaw:exportedLegacy.undoRaw});
+        if(!result.ok&&result.reason==='transactional_snapshot_exists'){
+          // Only resume an interrupted initial copy that EXACTLY matches the
+          // reviewed exported bytes; never overwrite the existing IDB authority.
+          result=await verifyStagedLegacy3D(TX_DB,localStorage,{confirmed:true,
+            expectedMainRaw:exportedLegacy.mainRaw,expectedUndoRaw:exportedLegacy.undoRaw});
+        }
         if(!result.ok){toast('⚠ 交易初始化失敗：'+result.reason+'；原始備份與停止寫入標記仍保留');return;}
         location.reload();
       }catch(e){toast('⚠ 初始化失敗，未允許舊資料被覆寫：'+(e?.message||'unknown'));}
