@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { worldModelHref } from './research-context-bridge.mjs';
 import { validateBrainImport, commitBrainImport } from './brain-import-guard.mjs';
-import {prepareLearningObservation,markLearningReviewed,findReusableLessons} from './brain-learning-feedback.mjs';
+import {prepareLearningObservation,markLearningReviewed,findReusableLessons,analyzeLearningEvidence} from './brain-learning-feedback.mjs';
 import {bindLearningPanel} from './brain-learning-ui.mjs';
 import { readTransactional3D, commitTransactional3D, stageLegacy3D, inspectLegacy3D } from './first-brain-idb-adapter.mjs';
 
@@ -429,6 +429,7 @@ function reviewLearningFeedback(nodeId,feedbackId){
  });
 }
 function findLearningLessons(conditions){return findReusableLessons(state,conditions);}
+function analyzeLearningLessons(conditions){return analyzeLearningEvidence(state,conditions);}
 
 function addCounterEvidence(id, text, createdBy = 'merlin', source = ''){ const n = N(id); if (!n || !text) return;
   mutate('counter', { nodeId:id, title:n.title, text }, () => n.counterEvidence.push({ id:uid('c'), text, source, createdBy, ts:Date.now() })); }
@@ -1042,6 +1043,7 @@ function select(id){
     onRecord:input=>recordLearningFeedback(id,input),
     onReview:feedbackId=>reviewLearningFeedback(id,feedbackId),
     onSearch:conditions=>findLearningLessons(conditions),
+    onAnalyze:conditions=>analyzeLearningLessons(conditions),
     onRefresh:()=>{select(id);const panel=document.getElementById('learnPanel');if(panel)panel.open=true;}
   });
   pBody.querySelectorAll('.nl').forEach(a => a.onclick = ev => { ev.preventDefault(); select(a.dataset.n); });
@@ -1274,7 +1276,7 @@ window.AIBrain = {
   suggestConcepts, focusConcept, showConcepts, _debug:debug, mergeBrain, crossLink, setStatus, addCounterEvidence, setCollapsed, setMedia, deleteNode,
   focusBrain, focusNode, overview, select, undo, exportJSON, importJSON, reset:resetAll,
   on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); },
-  recordLearningFeedback,reviewLearningFeedback,findLearningLessons,
+  recordLearningFeedback,reviewLearningFeedback,findLearningLessons,analyzeLearningLessons,
   persistence:()=>({mode:TX_MODE?'transactional':'legacy',ready:TX_MODE?txReady:legacyMayWrite(),revision:TX_MODE?txRevision:null,
     pending:txBusy,reason:txLoadError}),
   whenIdle:()=>txLastWrite
