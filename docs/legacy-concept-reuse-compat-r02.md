@@ -133,3 +133,29 @@ R06 已以合成快照證明 IndexedDB 在相同 object store 的交易式版本
 - 真正遷移必須先給使用者非破壞式備份、預覽差異、授權開關；後續選定單一權威後，全入口 read/write/Undo/reset/import 及渲染成功提示要依交易 commit 結果同步改造。
 - 必須補新舊格式歷史樣本、失敗回滾、崩潰恢復、真 Safari/行動裝置與獨立審查。舊世界模型仍獨立，本輪不動 GPT② 記憶體。
 - **Gate：3D 真實格式的交易接入層候選 PASS；第一大腦正式 UI/持久化切換 BLOCKED，main 未合併、未部署。**
+
+## R08｜第一大腦實際 3D 操作介面交易化與跨頁驗收（2026-10-27）
+
+**定位**：優先完成現有第一大腦（3D 主腦、Feed 唯讀對照、世界模型唯讀來源）的隔離工程，不是新增第二套主腦、資料庫或 Bot 規則。延續 R03-01/03/04/05 與原 #09/#12/#15；正式 main/部署/真實用戶資料遷移仍未獲批准。
+
+### 真正整合到現有 3D 介面（僅隔離分支）
+
+- `app.js` 新增**明確選用**的 `index.html?brainTx=1` 交易模式。無 IndexedDB 快照時只顯示舊資料唯讀預覽；必須先按「下載舊主腦原始備份」，再人工確認，才允許在本機隔離複製並設置舊寫入阻擋標記。不自動重置、刪除或偷遷舊資料。
+- 交易模式由 `readTransactional3D()` 取得真正的圖／Undo／revision，並透過 `commitTransactional3D()` 在同一 IndexedDB readwrite 交易完成後才更新 state／Undo 並提示已保存。現有 `mutate`、`undo`、`resetAll`、`importJSON` 入口已處理非同步保存和 stale revision；提交中會拒絕重疊寫入，抑制舊 UI 的提前成功提示。預設 legacy 模式沒有擅自改成新版。
+- 開始啟用後，**本候選程式版本**的 legacy writer 讀到 authority 標記會拒絕更新；已打開的交易分頁若收到版本廣播也會提示刷新。注意：任何*舊程式版本*或未遵守標記的其他 writer 仍可能寫 localStorage，不能宣稱跨版本、跨裝置達成同一個全域交易權威。
+- `feed.js` 在 authority 已切至 IDB 時只讀交易資料，不能以過期 localStorage 假裝來源正常；BroadcastChannel 通知更新；`research-context-bridge.mjs` 與 `world-model.html` 的**主腦來源參照**同樣從有效交易圖查 node ID，且會連回 `?brainTx=1` 3D 頁面。這**沒有**更改世界模型自身的研究日誌權威或獨立的因果/記憶 Gate。
+- 功能回歸檢查真實 3D 存檔格式的新增問題、子分支、子腦分裂/併回、概念、研究進度、匯入、復原、重置、重置後復原、刷新；兩個交易分頁同時以相同 revision 修改時一方成功一方 `stale_revision`，老式分頁被阻擋。所有新增案例使用**合成/seed 圖資料**，並未讀取私人歷史檔案。
+
+### 最終實測證據（隔離候選）
+
+- [GitHub Actions #40527834817](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40527834817)，測試程式 SHA `3be88972f2216e5f3263d6c249070061a8dabeb6`：Node.js **129/129 PASS**，真 Chromium **23/23 PASS**，各 0 FAIL。
+- 日誌：`FIRST_BRAIN_TX_UI_ROUNDTRIP_PASS native3D=1 old_tab_blocked=1 competing_tabs=2 grow=1 branch=1 subbrain=1 merge=1 concept=1 import=1 undo=2 reset=1 feed_linked=1 world_source_linked=1 legacy_bytes_unchanged=1`。
+- 原有兩項交易式 adapter/純儲存 Chromium 案例仍持續通過，測試並非僅文字報告；本次 docs 提交在程式測試後，不改變受測 SHA。
+
+### 狀態與不能冒稱完成的事
+
+- **完成（隔離）**：第一大腦的現有 3D 操作介面到 IDB 交易的主要通道、跨分頁競爭、Feed／研究來源唯讀一致性及 Chrome E2E。
+- **未完成（正式 Gate）**：授權真實舊資料樣本相容與備份/回退演練、真實 iOS/Safari 裝置、IDB quota 與突然關閉全失敗矩陣、不同程式版本共存過渡期的單一權威切換、獨立 reviewer ACK、PR 疊接整理、正式合併／部署／使用者驗收、長期備份及多裝置同步。
+- **旁支仍阻塞**：世界模型的 `worldModel.verify.events.v2` 仍使用 localStorage，沒有自動升級為交易式保存；R03-05 不能全域結案。Node ID 一致不能當 Claim、因果或記憶已核准。
+
+**結論**：第一大腦 3D 主要功能及單機交易候選已完成可驗證的隔離實作，但「第一大腦所有工作正式完成」仍不成立，不能替使用者跳過真實資料與正式發布的 Gate。
