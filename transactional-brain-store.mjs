@@ -79,8 +79,16 @@ export async function writeSnapshot(databaseName,key,expectedRevision,mainRaw,un
    }
    const next={key,revision:revision+1,mainRaw,undoRaw};
    // Success is ONLY reported by transaction.oncomplete; abort is failure.
-   store.put(next);
-   setResult({ok:true,reason:"ok",revision:next.revision});
+   try {
+    store.put(next);
+    setResult({ok:true,reason:"ok",revision:next.revision});
+   } catch (_) {
+    // A synchronous IDB request failure (e.g. DataCloneError/QuotaExceededError)
+    // occurs inside an asynchronous onsuccess callback. Explicitly abort the
+    // transaction rather than letting a pageerror escape or claiming success.
+    setResult(failed("transaction_write_failed"));
+    try { tx.abort(); } catch (_) {}
+   }
   };
  });
 }
