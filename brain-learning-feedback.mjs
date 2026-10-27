@@ -38,7 +38,44 @@ export function markLearningReviewed(record,at){
  return {...record,stage:"person_reviewed",reviewedAt:at};
 }
 const normalize=s=>String(s??"").trim().toLocaleLowerCase();
+/**
+ * Conservative outcome comparison. A reviewed success and any valid opposing
+ * failure (even pending human review) means the same conditions are contested.
+ * No automated choice is made between contradictory reports.
+ */
+export function analyzeLearningEvidence(graph,conditions){
+ const key=normalize(conditions);
+ const empty={status:"none",reviewed:0,observed:0,worked:0,failed:0,conflicts:[],contextOnly:true};
+ if(!key||key.length>160||!object(graph)||!Array.isArray(graph.nodes))return empty;
+ const matching=[];
+ for(const node of graph.nodes){
+  if(!object(node)||!Array.isArray(node.learningRecords))continue;
+  for(const r of node.learningRecords){
+   if(!validateLearningRecord(r)||normalize(r.conditions)!==key)continue;
+   matching.push({nodeId:String(node.id??""),id:r.id,stage:r.stage,
+     outcome:r.outcome,evidence:r.evidence||"",conditions:r.conditions,
+     observation:r.observation,lesson:r.lesson});
+  }
+ }
+ if(!matching.length)return empty;
+ const worked=matching.filter(r=>r.outcome==="worked"),
+   failed=matching.filter(r=>r.outcome==="failed");
+ const reviewed=matching.filter(r=>r.stage==="person_reviewed").length;
+ const observed=matching.length-reviewed;
+ const contradicted=worked.length>0&&failed.length>0;
+ return {
+  status:contradicted?"conflicted":reviewed>0?"contextual_candidate":"pending_review",
+  reviewed,observed,worked:worked.length,failed:failed.length,
+  // Return short provenance summaries for human reconciliation; avoid losing
+  // the original records, changing their status, or selecting a winner.
+  conflicts:contradicted?matching.slice(0,20):[],
+  contextOnly:true
+ };
+}
 export function findReusableLessons(graph,conditions){
+ const analysis=analyzeLearningEvidence(graph,conditions);
+ if(analysis.status!=="contextual_candidate")return [];
+
  const c=normalize(conditions);
  if(!c||c.length>160||!object(graph)||!Array.isArray(graph.nodes))return [];
  const found=[];
