@@ -4,7 +4,7 @@ const parent=()=>({id:'root',origin_command_id:'cmd1',direction_version:'v1',dep
 const request=()=>({id:'r1',reason:'evidence requires specialized research',capabilities:['research'],evidence_refs:['issue:65']});
 const run=(o={})=>decide({parent:parent(),request:request(),nodes:[],tasks:[],...o});
 test('positive: creates candidate without inheriting permissions',()=>{const x=run();assert.equal(x.action,'candidate');assert.equal(x.node.status,'candidate');assert.deepEqual(x.node.permissions_scope,[]);assert.equal(x.node.origin_command_id,'cmd1');});
-test('positive: reuse compatible existing node',()=>{const x=run({nodes:[{id:'research1',capabilities:['research'],permissions_scope:['read'],status:'active'}]});assert.equal(x.action,'reuse');assert.equal(x.node_id,'research1');});
+test('positive: reuse compatible existing node',()=>{const x=run({nodes:[{id:'research1',capabilities:['research'],permissions_scope:['read'],status:'active',direction_version:'v1',approval_status:'approved',approval_evidence_refs:['review:research1']}]});assert.equal(x.action,'reuse');assert.equal(x.node_id,'research1');});
 test('negative: duplicate request rejected',()=>assert.equal(run({tasks:[{diffusion_request_id:'r1'}]}).reason,'duplicate_request'));
 test('negative: permission escalation rejected',()=>assert.equal(run({request:{...request(),permissions_scope:['admin']}}).reason,'permission_escalation'));
 test('negative: max depth blocks expansion',()=>assert.equal(run({parent:{...parent(),depth:3}}).reason,'depth_limit'));
@@ -29,4 +29,19 @@ test('P1 negative: stopped or rejected nodes must not become reuse targets',()=>
   const r=run({nodes:[{id:'former',status,capabilities:['research'],permissions_scope:['read']}]});
   assert.notEqual(r.action,'reuse','unavailable state: '+status);
  }
+});
+
+test('P1 negative: active alone cannot provide a provenance-backed approval',()=>{
+ const r=run({nodes:[{id:'unknown-approval',status:'active',direction_version:'v1',
+ capabilities:['research'],permissions_scope:['read']}]});
+ assert.notEqual(r.action,'reuse');
+});
+test('P1 negative: different direction version cannot be reused',()=>{
+ const r=run({nodes:[{id:'old-direction',status:'active',direction_version:'v0',
+ approval_status:'approved',approval_evidence_refs:['review:old'],
+ capabilities:['research'],permissions_scope:['read']}]});
+ assert.notEqual(r.action,'reuse');
+});
+test('P1 negative: invalid requested permission shape is rejected instead of ignored',()=>{
+ assert.throws(()=>run({request:{...request(),permissions_scope:'read'}}),/permission|request/i);
 });
