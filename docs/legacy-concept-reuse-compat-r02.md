@@ -61,3 +61,16 @@
 - **真跨分頁競態未修復（BLOCKED）**：早期 Actions [#40471786165](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40471786165) 實際 Chrome 測到 world-model 分頁在尚未收到另一分頁最新狀態時，過期寫入未被攔截；後續 Node 模擬 `KNOWN_CROSS_TAB_RACE_UNPROTECTED` 也明確再現資料被覆蓋。現成功的 `WORLD_MODEL_STALE_TAB_REFUSED` 只證明**另一分頁的 storage 通知已送達**後能拒絕過期寫入，不能充作同時寫入有交易保證。
 - 關聯原待辦 R03-05、#09/#12/#15：要真正容許同時編輯，需另外驗證一種原子序列化保存機制（有完整鎖或後端交易）及 crash/reload/回滾 E2E，不在本次 Draft 安全聲明範圍。
 - **本次完整測試綠燈不能解讀為所有問題已解決**；其中有明確的「缺陷成功重現」測試。正式 main/原 PR #68 尚未收到這個 PR #75 的修補，也沒有合併、部署、實機 Safari 或獨立審查 ACK。
+
+
+## R05｜並發寫入時失敗回復的最小保護（2026-10-27；原 R03-01／05）
+
+**問題分類**：E／concurrency_integrity（主要 R03-05）；A／persistence_failure（關聯 R03-01）。在 `commitBrainImport()` 發生主/Undo 雙鍵寫入後的讀回失敗時，舊版 rollback 無條件用先前快照還原鍵值。如果另一分頁在此期間已寫入新值，回復操作本身可能再次覆寫他人的新資料。
+
+**隔離修補**：PR #75 的 `brain-import-guard.mjs` 改用 `restoreIfOwned()`。嘗試回復前先讀取鍵值：只有仍等於本次寫入內容才可進行補償還原；若內容不同，保持新值不動、傳回 `ok:false, rollbackOk:false`，由既有 UI 顯示未回復及備份警告。這是**盡力降低額外覆寫**，不是原子比較與交換。若檢查與還原之間再有另一寫入，仍有競態。
+
+**新增負向測試**：`tests/brain-import-integrity.test.cjs` 的 #21 模擬主資料及 Undo 寫完後被另一寫入者取代，再引發讀回不一致；#22 模擬主資料寫入例外、另一寫入者已更新 Undo。兩項均要求「不再覆寫他人的值」並回報 rollback 未能安全完成。
+
+**真實 CI**：程式修補提交 `6620116eedaa203f043098656762a9e917998566`，測試提交 `a1f5944c67d39574da86aea47dd3cf34a209817b`；[GitHub Actions #40509586613](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40509586613) Node **129/129 PASS**、Chromium **20/20 PASS**，兩個 job 均 success。**Chromium 20 項為既有整合回歸，新增的 #21/#22 是 Node 合成競態注入，並非 Chromium 真正同時寫入安全驗收。**
+
+**未解除 Gate**：`localStorage` 沒有跨分頁原子 CAS；世界模型真正競爭寫入、崩潰/回復及多裝置的原子一致性仍 **BLOCKED**。PR #75 Draft、未合併 main；PR #68 上游分支沒有本修補；GPT②/BOT③ 獨立 reviewer ACK、Safari 實機及授權舊資料相容 Gate 未證實。不得把局部補償修正標成全平台並發修復。
