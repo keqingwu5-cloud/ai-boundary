@@ -154,3 +154,79 @@ test("09 two tabs reject stale history edits instead of replacing events",async(
   console.log("WORLD_MODEL_STALE_TAB_REFUSED");
  }finally{await context.close();await browser.close();}
 });
+
+test("10 delete from list, restore as new event, then export full backup",()=>withBrowser(async(page,errs)=>{
+ await page.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await readyWorld(page);
+ await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
+ const row={id:"hyp-del",hypothesis:"合成舊假設",falsifier:"反例",
+   createdOn:"2026-10-01",deadline:"2026-11-01",status:"待驗證"};
+ assert.equal(await page.evaluate(r=>window.WorldVerifyHistory.append({type:"create",row:r,reason:"合成測試"}),row),true);
+ await page.locator("details:has(#verifyList) > summary").click();
+ page.once("dialog",d=>d.accept());
+ await page.locator("#verifyList button").click();
+ const deleted=await page.evaluate(()=>window.WorldVerifyHistory.view());
+ assert.equal(deleted.rows.length,0);assert.equal(deleted.events.length,2);
+ assert.equal(deleted.events[1].type,"delete");
+ await page.locator("#worldHistoryPanel > summary").click();
+ page.once("dialog",d=>d.accept());
+ await page.locator("#worldHistoryList button").last().click();
+ const restored=await page.evaluate(()=>window.WorldVerifyHistory.view());
+ assert.equal(restored.rows[0].id,"hyp-del");
+ assert.equal(restored.events.length,3);assert.equal(restored.events.at(-1).type,"restore");
+ const [download]=await Promise.all([
+  page.waitForEvent("download",{timeout:20000}),
+  page.locator("#worldHistoryExport").click()
+ ]);
+ const backup=JSON.parse(require("node:fs").readFileSync(await download.path(),"utf8"));
+ assert.equal(backup.legacyRaw,null);
+ assert.equal(JSON.parse(backup.ledgerRaw).events.length,3);
+ assert.equal(errs.length,0,errs.join(";"));
+ console.log("WORLD_MODEL_DELETE_RESTORE_BACKUP_PASS");
+}));
+test("11 import old compatible JSON into version history without touching original v1",()=>withBrowser(async(page,errs)=>{
+ await page.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await readyWorld(page);
+ await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
+ const data={schema:"worldModel.verify.v1",records:[{
+  id:"external1",hypothesis:"合成匯入假設",falsifier:"合成反例",createdOn:"2026-01-01",
+  deadline:"2026-12-31",source:"",metric:"",status:"待驗證"
+ }]};
+ await page.locator("details:has(#verifyList) > summary").click();
+ page.once("dialog",d=>d.accept());
+ await page.locator("#verifyImport").setInputFiles({
+  name:"test-export.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(data),"utf8")
+ });
+ await page.waitForFunction("window.WorldVerifyHistory?.view().events.length === 1");
+ const now=await page.evaluate(()=>window.WorldVerifyHistory.view());
+ assert.equal(now.ok,true);assert.equal(now.rows.length,1);assert.equal(now.events[0].type,"import");
+ assert.equal(now.rows[0].hypothesis,"合成匯入假設");
+ assert.equal(await page.evaluate(()=>localStorage.getItem("worldModel.verify.v1")),null);
+ await page.reload({waitUntil:"domcontentloaded"});
+ await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
+ assert.equal(await page.evaluate(()=>window.WorldVerifyHistory.view().rows[0].hypothesis),"合成匯入假設");
+ assert.equal(errs.length,0,errs.join(";"));
+ console.log("WORLD_MODEL_IMPORT_HISTORY_RELOAD_PASS");
+}));
+test("12 real browser quota injection does not report a successful journal write",()=>withBrowser(async(page,errs)=>{
+ await page.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await readyWorld(page);
+ await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
+ const outcome=await page.evaluate(()=>{
+  const previous=Storage.prototype.setItem;
+  Storage.prototype.setItem=function(k,v){
+   if(k==="worldModel.verify.events.v2")throw new DOMException("full","QuotaExceededError");
+   return previous.call(this,k,v);
+  };
+  try{
+   const success=window.WorldVerifyHistory.append({
+    type:"create",row:{id:"quota",hypothesis:"合成",falsifier:"反例",
+      createdOn:"2026-10-01",deadline:"2026-12-31",status:"待驗證"},
+    reason:"配額測試"});
+   return {success,legacy:localStorage.getItem("worldModel.verify.v1"),
+     journal:localStorage.getItem("worldModel.verify.events.v2")};
+  }finally{Storage.prototype.setItem=previous;}
+ });
+ assert.equal(outcome.success,false);
+ assert.equal(outcome.legacy,null);assert.equal(outcome.journal,null);
+ assert.match(await page.locator("#worldHistoryStatus").innerText(),/storage_write_failed/);
+ assert.equal(errs.length,0,errs.join(";"));
+ console.log("WORLD_MODEL_QUOTA_NEGATIVE_PASS");
+}));
