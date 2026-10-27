@@ -51,7 +51,7 @@ test('P1 negative: re-applying a rejected proposal never pretends it is an activ
 });
 test('reuse advice is not a verified authorization or a new queued task',()=>{
  const w=workspace();
- const r=bridge.applyCandidate(w,{action:'reuse',node_id:'eligible'},{projectId:'p1',at});
+ const r=bridge.applyCandidate(w,{action:'reuse_proposal',node_id:'eligible',requires_review:true,verified_approval:false},{projectId:'p1',at});
  assert.equal(r.result,'reuse_requires_review');
  assert.equal(r.verified_approval,false);
  assert.equal(r.workspace.tasks.length,0);
