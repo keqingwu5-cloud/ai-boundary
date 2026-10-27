@@ -42,7 +42,16 @@ function planChildTask(workspace,{projectId,nodeId,requestId,title,reason,owner,
  if(!['candidate','review','approved_plan'].includes(proposal.stage))
    throw Error('proposal state not approved for review queue: '+String(proposal.stage));
  const id='task:diffusion:'+requestId;
- if(workspace.tasks.some(t=>t.id===id))return {workspace:clone(workspace),result:'already_queued',task_id:id};
+ const priorTask=workspace.tasks.find(t=>t.id===id);
+ if(priorTask){
+   // Idempotency is scoped to the original project. A global request ID
+   // collision cannot be misreported as this project's completed queue step.
+   if(priorTask.projectId!==projectId)throw Error('task_identity_conflict_cross_project');
+   // Existing workspace tasks do not preserve the original node ID, so an
+   // exact per-node idempotency claim cannot yet be independently established.
+   return {workspace:clone(workspace),result:'already_queued_requires_origin_review',
+     task_id:id,verified_same_node:false,execution_allowed:false};
+ }
  const w=platform.addTask(workspace,{id,projectId,title,owner,reason,at});
  return {workspace:w,result:'queued_for_review',task_id:id};
 }
