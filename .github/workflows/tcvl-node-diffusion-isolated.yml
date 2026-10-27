@@ -8,7 +8,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 28
+    timeout-minutes: 32
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,6 +22,7 @@ jobs:
           node --check tcvl-protected-review-port.cjs
           node --check tcvl-review-reconcile.cjs
           node --check tcvl-r19-review-envelope.cjs
+          node --check tcvl-r20-review-persistence.cjs
       - name: P1/R10/R11/R12 gates, cryptographic receipt and sandbox race counterexamples
         run: node --test tests/tcvl-node-diffusion-core.test.cjs tests/tcvl-diffusion-bridge.test.cjs tests/tcvl-approval-receipt.test.cjs tests/tcvl-protected-review-port.test.cjs
       - name: R13 review-only SQL contract and shell syntax
@@ -57,5 +58,11 @@ jobs:
         run: bash scripts/test-r17-unsafe-asynchronous-failover.sh
       - name: R19 legacy receipt incompatibility and identity-bound review contract
         run: node --test tests/tcvl-r19-review-envelope.test.cjs
+      - name: R20 complete task metadata and strict expiry contract
+        run: |
+          node --test tests/tcvl-r20-review-persistence.test.cjs tests/tcvl-r20-sql-contract.test.cjs
+          bash -n scripts/test-r20-pg-untrusted-review-ledger.sh
+      - name: R20 disposable PostgreSQL untrusted full-claim and nonce replay ledger
+        run: bash scripts/test-r20-pg-untrusted-review-ledger.sh
       - name: All existing TCVL Node regressions
         run: node --test tests/*.test.cjs
