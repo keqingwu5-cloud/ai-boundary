@@ -24,9 +24,11 @@ function parseReference(event){
   if(event.kind==="issue" && m[1]!=="issues")return null;
   if(event.kind==="pr" && m[1]!=="pull")return null;
   if(event.kind==="comment" && m[1]!=="issues" && m[1]!=="pull")return null;
-  if(event.kind==="issue" && !/^issue:\d+:/.test(event.key||""))return null;
-  if(event.kind==="pr" && !/^pr:\d+:/.test(event.key||""))return null;
-  if(event.kind==="comment" && !/^comment:\d+:/.test(event.key||""))return null;
+  // The event identity and the canonical URL must agree, otherwise an
+  // event with a swapped reference could be attributed to the wrong task.
+  if(event.kind==="issue" && !(typeof event.key==="string" && event.key.startsWith("issue:"+number+":")))return null;
+  if(event.kind==="pr" && !(typeof event.key==="string" && event.key.startsWith("pr:"+number+":")))return null;
+  if(event.kind==="comment" && !(typeof event.key==="string" && event.key.startsWith("comment:"+m[4]+":")))return null;
   return {number,kind:event.kind,ref:event.ref,at:event.at,
     ack_claim:event.ack_status==="CLAIM_ONLY_NOT_VERIFIED",
     review_signal:event.priority!=="CHANGE",
