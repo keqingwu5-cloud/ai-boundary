@@ -45,6 +45,24 @@ test("First Brain 3D user UI: backup -> enable IDB -> edit/import/undo/reset -> 
   assert.equal(first.success,true);
   assert.equal(first.status,"researching");
   assert.equal(first.p.revision,2);
+  // Inject a synchronous native request failure from the real 3D UI.
+  // In-memory status and revision must stay unchanged; no false success.
+  const quota=await a.evaluate(async id=>{
+    const pre={state:window.AIBrain.getState(),rev:window.AIBrain.persistence().revision};
+    const oldPut=IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put=function(...args){
+      if(this.name==="snapshots")throw new DOMException("synthetic","QuotaExceededError");
+      return oldPut.apply(this,args);
+    };
+    let accepted;
+    try{
+      window.AIBrain.setStatus(id,"resolved");
+      accepted=await window.AIBrain.whenIdle();
+    }finally{IDBObjectStore.prototype.put=oldPut;}
+    return {accepted,pre,post:{state:window.AIBrain.getState(),rev:window.AIBrain.persistence().revision}};
+  },id);
+  assert.equal(quota.accepted,false,"quota injection must not report a successful UI edit");
+  assert.deepEqual(quota.post,quota.pre,"transaction abort preserves real UI state and revision");
   assert.equal(await a.evaluate(()=>localStorage.getItem("aiBrain.v1")),original.main,"legacy unchanged after IDB edit");
   await b.goto(ROOT+"/index.html?brainTx=1",{waitUntil:"domcontentloaded"});await waitReady(b);
   assert.equal((await b.evaluate(()=>window.AIBrain.persistence())).revision,2);
@@ -131,6 +149,6 @@ test("First Brain 3D user UI: backup -> enable IDB -> edit/import/undo/reset -> 
   assert.equal(finished.main,original.main);
   assert.equal(finished.undo,original.undo);
   assert.deepEqual(errs,[],"no page exceptions");
-  console.log("FIRST_BRAIN_TX_UI_ROUNDTRIP_PASS native3D=1 old_tab_blocked=1 competing_tabs=2 grow=1 branch=1 subbrain=1 merge=1 concept=1 import=1 undo=2 reset=1 feed_linked=1 world_source_linked=1 legacy_bytes_unchanged=1");
+  console.log("FIRST_BRAIN_TX_UI_ROUNDTRIP_PASS native3D=1 old_tab_blocked=1 idb_quota_failed_safe=1 competing_tabs=2 grow=1 branch=1 subbrain=1 merge=1 concept=1 import=1 undo=2 reset=1 feed_linked=1 world_source_linked=1 legacy_bytes_unchanged=1");
  }finally{await ctx.close();await browser.close();}
 });
