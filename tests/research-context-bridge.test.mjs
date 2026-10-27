@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {checkedNodeId,fromWorldModelQuery,worldModelHref,brainHref,feedHref,readNodeContext,exportResearchReference} from '../research-context-bridge.mjs';
 const storage=(v)=>({getItem:(key)=>key==='aiBrain.v1'?v:null});
-const saved=()=>JSON.stringify({brains:[{id:'main'}],nodes:[{id:'n_q1',title:'研究問題',brainId:'main',status:'open',kind:'question'}],links:[],history:[]});
+const saved=()=>JSON.stringify({brains:[{id:'main'}],nodes:[{id:'n_q1',title:'研究問題',brainId:'main',status:'open',kind:'question',pos:[0,0,0]}],links:[],history:[]});
 test('01 node ID is bounded, never a URL or HTML payload',()=>{
  assert.equal(checkedNodeId('n_q1'),'n_q1');
  for(const v of ['','/external','<script>','foo bar','x'.repeat(200),null,'https://evil.example/'])assert.equal(checkedNodeId(v),null);
@@ -40,4 +40,13 @@ test('08 read-only bridge never writes to the browser store',()=>{
 });
 test('09 unknown node cannot generate a credible reference',()=>{
  assert.equal(exportResearchReference(readNodeContext(storage(saved()),'n_missing')),null);
+});
+
+test('10 graph corruption cannot masquerade as a single valid linked node',()=>{
+ const graph=JSON.parse(saved());graph.nodes.push(null);
+ assert.equal(readNodeContext(storage(JSON.stringify(graph)),'n_q1').status,'unreadable');
+});
+test('11 orphan graph cannot masquerade as a linked node',()=>{
+ const graph=JSON.parse(saved());graph.nodes[0].parentId='n_nonexistent';
+ assert.equal(readNodeContext(storage(JSON.stringify(graph)),'n_q1').status,'unreadable');
 });
