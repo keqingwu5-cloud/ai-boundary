@@ -174,3 +174,22 @@ R06 已以合成快照證明 IndexedDB 在相同 object store 的交易式版本
 - **最後隔離 CI 證據**：[Actions #40531000448](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40531000448)，受測提交 `c63a1880dad083b322479890eaece028e58f6848`：Node **129/129 PASS**、Chromium **25/25 PASS**、0 FAIL。R08 真 3D UI 閉環同時重跑 PASS。
 
 **已證範圍**：現有第一大腦選用的 IndexedDB 保存模式可在這兩種真瀏覽器異常下拒絕錯誤成功、保留資料與原版本。**未證**：不同程式版本同時寫入、停電/程序崩潰的完整耐久性、Safari/iOS 真機、儲存空間壓力長期矩陣、法定/真實舊資料授權遷移、獨立 reviewer、main 合併與部署。仍不可宣稱第一大腦已正式完成或 R03-05 全域解除。
+
+## R10｜權威標記失效與同步寫入例外防護（2026-10-27）
+
+**歸屬**：R03-01/A 保存失敗不冒稱成功、R03-05/E 單一保存權威、R03-12/D 異常證據。接續 R09，不另造並行工作室。僅測試既有 PR #75 隔離程式及合成瀏覽器資料。
+
+### 程式風險與修正
+1. 舊 `legacyMayWrite()` 曾以「權威標記不是 `idb`」決定允許舊寫入，對意外標記如 `unexpected_migration_state` 仍可能產生錯誤雙權威。現改為**必須標記嚴格缺席（null）**才允許舊版寫入，其他值 fail-closed。
+2. 交易模式即使讀到有效 IndexedDB 快照，也必須**同時看到 `idb` authority marker** 才視為可修改；否則顯示不可用並禁止交易寫入。這不代表能保護尚在執行、根本不遵守該標記的過時程式版本。
+3. `transactional-brain-store.mjs` 的原生 `IDBObjectStore.put()` 在 request callback 中同步擲出錯誤時，現在明確 `abort`，回報失敗，而非冒泡未捕捉例外或顯示成功。
+4. `feed.js` 與 `research-context-bridge.mjs` 的主腦**唯讀來源**一律拒絕未知 marker，不得把舊 `localStorage` 的節點偽裝成 IDB 權威。這不修改世界模型研究事件 journal。
+
+### 原生瀏覽器測試
+- 新增 `tests/first-brain-failure-gates-browser.test.cjs`：未知權威不准 legacy 寫入、Feed 不顯示舊節點、世界模型來源返回 unreadable；模擬 `QuotaExceededError` 觸發 IDB put 中止、已提交快照仍一致；模擬 IndexedDB open `SecurityError` 回報不可用。
+- 擴充 `tests/first-brain-transactional-ui-browser.test.cjs`：從真 3D 介面進行已啟動交易模式的修改，向 IDB put 注入配額例外，確認 UI 狀態與 revision 原封不動、未冒稱提交成功。
+- **最新已確認**：[Actions #40531796812](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40531796812)，受測 SHA `12077d347d547472a97f7a984cccf3a61ea047b0`，Node **129/129 PASS**、真 Chromium **27/27 PASS**，0 失敗。測試標記：
+  - `R09_UNKNOWN_AUTHORITY_FAIL_CLOSED_PASS app=1 feed=1 world_source=1`
+  - `R09_IDB_WRITE_FAILURE_ABORT_PASS revision=1 legacy_unchanged=1`
+  - `FIRST_BRAIN_TX_UI_ROUNDTRIP_PASS ... idb_quota_failed_safe=1 ...`
+- **完成定義**：R10 的隔離負向矩陣已通過；未授權真歷史資料遷移、真實 Safari/iOS、跨版本仍未更新的 legacy writer、持久容量/崩潰與長期備份、獨立 reviewer / main 合併 / 部署仍需獨立 Gate。世界模型自身 journal 並發仍非本輪完成。
