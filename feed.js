@@ -60,6 +60,10 @@ async function loadAuthoritativeState(){
   let authority;
   try{authority=localStorage.getItem('aiBrain.v1.persistence.authority');}
   catch(_){feedAuthorityError='localStorage_read_failed';return {brains:[{id:'main',parentBrainId:null}],nodes:[],concepts:{}};}
+  if(authority !== null && authority !== 'idb'){
+    feedAuthorityError='authority_marker_invalid';
+    return {brains:[{id:'main',parentBrainId:null}],nodes:[],concepts:{}};
+  }
   if(authority === 'idb'){
     const result=await readTransactional3D('aiBrain.firstBrain.transaction.r1');
     if(!result.ok){
