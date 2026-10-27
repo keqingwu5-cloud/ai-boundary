@@ -12,3 +12,21 @@ test('negative: max children blocks expansion',()=>assert.equal(run({nodes:[{id:
 test('negative: ancestry cycle blocked',()=>assert.equal(run({parent:{...parent(),parent_node_id:'x'},nodes:[{id:'x',parent_node_id:'root'}]}).reason,'cycle'));
 test('legacy: parent and registry remain unchanged',()=>{const p=parent(),n=[{id:'old',capabilities:[],status:'active'}],before=JSON.stringify([p,n]);run({parent:p,nodes:n});assert.equal(JSON.stringify([p,n]),before);});
 test('cross-module: output is a proposal, not task or ACK',()=>{const x=run();assert.equal(x.requires_review,true);assert.equal(x.node.status,'candidate');assert.equal('verified_ack' in x.node,false);});
+
+test('P1 negative: never reuse an unapproved candidate even when capabilities match',()=>{
+ const node={id:'research-candidate',status:'candidate',capabilities:['research'],permissions_scope:['read']};
+ const r=run({nodes:[node]});
+ assert.notEqual(r.action,'reuse','candidate has no verified activation authority');
+ assert.equal(node.status,'candidate','decision must not mutate registry');
+});
+test('P1 negative: active node missing requested permissions cannot be reused',()=>{
+ const node={id:'research-no-read',status:'active',capabilities:['research'],permissions_scope:[]};
+ const r=run({nodes:[node],request:{...request(),permissions_scope:['read']}});
+ assert.notEqual(r.action,'reuse','parent scope cannot substitute for target node permission');
+});
+test('P1 negative: stopped or rejected nodes must not become reuse targets',()=>{
+ for(const status of ['stopped','rejected','paused','revoked']){
+  const r=run({nodes:[{id:'former',status,capabilities:['research'],permissions_scope:['read']}]});
+  assert.notEqual(r.action,'reuse','unavailable state: '+status);
+ }
+});
