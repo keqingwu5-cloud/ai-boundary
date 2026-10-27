@@ -5,6 +5,11 @@ const vec3=x=>Array.isArray(x) && x.length===3 && x.every(Number.isFinite);
 export function validateBrainImport(s) {
   if(!record(s)||!Array.isArray(s.brains)||!Array.isArray(s.nodes)||
      !Array.isArray(s.links)||!Array.isArray(s.history))return {ok:false,reason:"top_level_invalid"};
+  // Explicit future versions must not be silently migrated back to v2.
+  // Unversioned legacy snapshots remain accepted for compatibility pending a
+  // separately reviewed migration policy and real historic sample coverage.
+  if(s.version!==undefined&&s.version!==1&&s.version!==2)
+    return {ok:false,reason:"unsupported_graph_version"};
   if(s.brains.length>1000||s.nodes.length>25000||s.links.length>60000||
      s.history.length>200000)return {ok:false,reason:"collection_too_large"};
   const brains=new Map(),nodes=new Map(),linkIds=new Set();
@@ -16,6 +21,20 @@ export function validateBrainImport(s) {
   if(!brains.has("main"))return {ok:false,reason:"main_brain_missing"};
   for(const b of s.brains){
     if(b.parentBrainId!=null&&!brains.has(b.parentBrainId))return {ok:false,reason:"brain_parent_missing"};
+  }
+  // The old PR #4 validator already checked brain ancestry cycles; rejecting
+  // them here closes the divergence without touching valid legacy snapshots.
+  const visitedBrains=new Set();
+  for(const b of s.brains){
+    if(visitedBrains.has(b.id))continue;
+    const local=new Set(),line=[];
+    let cur=b;
+    while(cur&&!visitedBrains.has(cur.id)){
+      if(local.has(cur.id))return {ok:false,reason:"brain_parent_cycle"};
+      local.add(cur.id);line.push(cur.id);
+      cur=cur.parentBrainId==null?null:brains.get(cur.parentBrainId);
+    }
+    for(const x of line)visitedBrains.add(x);
   }
   for(const n of s.nodes){
     if(!record(n)||!id(n.id)||nodes.has(n.id))return {ok:false,reason:"node_id_invalid_or_duplicate"};
