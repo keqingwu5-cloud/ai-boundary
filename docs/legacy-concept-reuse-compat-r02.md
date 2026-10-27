@@ -53,3 +53,11 @@
 - 新舊 validator 差異矩陣 **17 組合成圖**：其中 5 類不同判定（缺 graph.version、缺 node.pos、缺 node.title、無效 media、同節點 self link）；新版不盲從舊版，舊版也不直接覆蓋新版。另以真正 Chromium 檢查未來版本／父腦循環是否被拒絕，且原資料不變。
 - **重要風險**：此前 Chromium 跨分頁測試曾在另一分頁 commit 後、此分頁還沒有收到更新通知時接受了更新（[run #40471786165](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40471786165) 的世界模型第 09 測試 FAIL）。這符合 `localStorage` 非原子同步的已知限制；未直接修改測試期待來假稱安全。後續將「已收到 `storage` 通知的過期寫入」列為可測的現有防護，另新增模擬延遲跨分頁可見性的**明確資料遺失反例**。這個反例測試即使通過也代表風險確實存在，**不代表已修復真正並發競態**。
 - **後續 Gate**：若要支持真正同時寫入而非單分頁或已有更新通知後寫入，需要具交易保證的單一權威保存協調機制（原子鎖／序列化後端等）及跨瀏覽器負向測試；採購、部署、合併都需另外審核。
+
+## R03 隔離驗收補證與仍未修正的高優先風險（2026-10-27）
+- [Actions #40472181215](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40472181215)，程式 commit **`0fc59cf5580a59dff9b41a5d8312dd444cc6d1df`**：Node.js **127/127 PASS**、真實 Chromium **20/20 PASS**。
+- 新增 PR #4 與 PR #68 guard 的 **17 組合成圖差異比較**，發現 5 種判定不同：舊圖沒有 version、沒有節點 pos/title、無效 media、self link。原因是舊版與新版 schema 的寬鬆程度不同，不可視為彼此可直接替換。
+- 新守門器的 **brain-parent cycle** 與顯式 **未來 graph.version=999** 已在 PR #75 隔離程式修補；原始 Chrome 導入反例拒絕後、localStorage 與記憶體主圖保持不變（`GRAPH_FUTURE_SCHEMA_AND_BRAIN_CYCLE_BROWSER_REJECTED`）。缺 version 的歷史候選暫維持兼容，若要改政策需先有授權舊資料樣本和人工批准。
+- **真跨分頁競態未修復（BLOCKED）**：早期 Actions [#40471786165](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40471786165) 實際 Chrome 測到 world-model 分頁在尚未收到另一分頁最新狀態時，過期寫入未被攔截；後續 Node 模擬 `KNOWN_CROSS_TAB_RACE_UNPROTECTED` 也明確再現資料被覆蓋。現成功的 `WORLD_MODEL_STALE_TAB_REFUSED` 只證明**另一分頁的 storage 通知已送達**後能拒絕過期寫入，不能充作同時寫入有交易保證。
+- 關聯原待辦 R03-05、#09/#12/#15：要真正容許同時編輯，需另外驗證一種原子序列化保存機制（有完整鎖或後端交易）及 crash/reload/回滾 E2E，不在本次 Draft 安全聲明範圍。
+- **本次完整測試綠燈不能解讀為所有問題已解決**；其中有明確的「缺陷成功重現」測試。正式 main/原 PR #68 尚未收到這個 PR #75 的修補，也沒有合併、部署、實機 Safari 或獨立審查 ACK。
