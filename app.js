@@ -136,7 +136,7 @@ let saveT = 0;
 // Opt-in preview only. Existing First Brain remains in its legacy mode by default.
 const TX_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('brainTx') === '1';
 const TX_DB = 'aiBrain.firstBrain.transaction.r1', TX_AUTH_KEY = 'aiBrain.v1.persistence.authority';
-let txRevision = 0, txReady = false, txBusy = false, txLoadError = null;
+let txRevision = 0, txReady = false, txBusy = false, txLoadError = null, txCommitConfirmed = false;
 let txLastWrite = Promise.resolve(false);
 function legacyMayWrite(){
   try { return localStorage.getItem(TX_AUTH_KEY) !== 'idb'; }
@@ -165,6 +165,7 @@ function commitChange(proposed, nextUndo, successLabel){
     const checked = validateBrainImport(proposed);
     if (!checked.ok){ toast('⚠ 變更未保存：' + checked.reason); return Promise.resolve(false); }
     txBusy = true;
+    txCommitConfirmed = false;
     toast('◌ 第一大腦交易提交中…');
     const write = commitTransactional3D(TX_DB, txRevision, proposed, nextUndo)
       .then(result => {
@@ -174,13 +175,14 @@ function commitChange(proposed, nextUndo, successLabel){
           return false;
         }
         txRevision = result.revision;
+        txCommitConfirmed = true;
         state = proposed;
         undoStack = nextUndo;
         flashSaved();
         if(successLabel)toast(successLabel);
         return true;
       }).catch(err => {toast('⚠ 交易失敗：' + (err?.message || 'unknown'));return false;})
-      .finally(() => {txBusy = false;});
+      .finally(() => {txBusy = false;txCommitConfirmed = false;});
     txLastWrite = write;
     return write;
   }
@@ -915,7 +917,11 @@ canvas.addEventListener('pointermove', e => {
 /* ================= UI ================= */
 const panel = $('#panel'), pBody = $('#pBody');
 let toastT = 0;
-function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200); }
+function toast(msg){
+  // Legacy UI handlers sometimes optimistically announce success before an IDB commit.
+  // Do not display those messages until the actual transaction is confirmed.
+  if(TX_MODE && txBusy && !txCommitConfirmed && !String(msg).startsWith('⚠') && !String(msg).startsWith('◌'))return;
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200); }
 function flashSaved(){ const s = $('#saved'); s.classList.add('on'); clearTimeout(flashSaved.t); flashSaved.t = setTimeout(() => s.classList.remove('on'), 1200); }
 const tag = t => `<span class="tag" style="--c:${colorOf(t)}">${iconOf(t)} ${esc(t)}</span>`;
 const nodeLink = n => n ? `<a href="#" class="nl" data-n="${esc(n.id)}" style="--c:${colorOf(n.type)}">${esc(n.title)}</a>` : '';
