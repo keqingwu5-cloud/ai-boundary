@@ -1,5 +1,6 @@
 /* 短影音 feed — reads the same state as the 3D brain (localStorage aiBrain.v1, falling back to seed data). */
 import { worldModelHref } from './research-context-bridge.mjs';
+import { readTransactional3D } from './first-brain-idb-adapter.mjs';
 const KEY = 'aiBrain.v1', FKEY = 'aiBrain.feed.v1';
 /* giscus (GitHub Discussions). Works once the giscus GitHub App is installed on the repo. One discussion per node: term = "node:<id>". */
 const GISCUS = { repo:'keqingwu5-cloud/ai-boundary', repoId:'R_kgDOVDydcA', category:'Announcements', categoryId:'DIC_kwDOVDydcM4DHf-d' };
@@ -35,8 +36,8 @@ function seedLite(){
   return { brains:[{ id:'main', name:'AI 認知邊界', parentBrainId:null }], nodes, concepts:{} };
 }
 function seedKey(id){ const m = /^n_(q\d+)(?:_e(\d+))?$/.exec(id); return m ? (m[2] != null ? m[1] + ':e' + m[2] : m[1]) : null; }
-function loadState(){
-  let s = null; try { s = JSON.parse(localStorage.getItem(KEY)); } catch(e){}
+function loadState(source=null){
+  let s = source; if(!s){try { s = JSON.parse(localStorage.getItem(KEY)); } catch(e){}}
   if (!s || !Array.isArray(s.nodes) || !Array.isArray(s.brains)) s = seedLite();
   const done = Array.isArray(s.seedExtras) ? s.seedExtras : [];
   (typeof SEED_EXTRAS !== 'undefined' ? SEED_EXTRAS : []).forEach(x => {
@@ -54,7 +55,40 @@ function loadState(){
   s.concepts = s.concepts || {};
   return s;
 }
-let state = loadState();
+let feedAuthorityError = null;
+async function loadAuthoritativeState(){
+  let authority;
+  try{authority=localStorage.getItem('aiBrain.v1.persistence.authority');}
+  catch(_){feedAuthorityError='localStorage_read_failed';return {brains:[{id:'main',parentBrainId:null}],nodes:[],concepts:{}};}
+  if(authority === 'idb'){
+    const result=await readTransactional3D('aiBrain.firstBrain.transaction.r1');
+    if(!result.ok){
+      // Never silently display a stale legacy snapshot as if it were authoritative.
+      feedAuthorityError=result.reason;
+      return {brains:[{id:'main',parentBrainId:null}],nodes:[],concepts:{}};
+    }
+    feedAuthorityError=null;
+    return loadState(result.graph);
+  }
+  feedAuthorityError=null;
+  return loadState();
+}
+let state = await loadAuthoritativeState();
+async function reloadAuthoritativeFeed(){
+  state=await loadAuthoritativeState();
+  render(list[cur]&&list[cur].id);
+  if(feedAuthorityError)showFeedAuthorityWarning();
+  return !feedAuthorityError;
+}
+function showFeedAuthorityWarning(){
+  if(!feedAuthorityError)return;
+  const current=document.querySelector('#feedAuthorityWarning');
+  if(current){current.textContent='⚠ 交易式主腦資料不可讀：'+feedAuthorityError+'。已停止顯示過期舊資料。';return;}
+  const note=document.createElement('aside');note.id='feedAuthorityWarning';note.setAttribute('role','alert');
+  note.style.cssText='position:fixed;z-index:10010;top:12px;left:12px;right:12px;padding:10px 14px;background:#30271e;color:#fff3db;border:1px solid #d5a971;border-radius:9px;font:13px/1.5 system-ui';
+  note.textContent='⚠ 交易式主腦資料不可讀：'+feedAuthorityError+'。已停止顯示過期舊資料。';
+  document.body.append(note);
+}
 const N = id => state.nodes.find(n => n.id === id);
 const kids = id => state.nodes.filter(n => n.parentId === id);
 
@@ -363,8 +397,8 @@ function openHash(){
   render(id);
 }
 addEventListener('hashchange', openHash);
-addEventListener('storage', e => { if (e.key === KEY){ state = loadState(); render(list[cur] && list[cur].id); } });
-addEventListener('pageshow', e => { if (e.persisted){ state = loadState(); render(list[cur] && list[cur].id); } });
+addEventListener('storage', e => { if (e.key === KEY || e.key === 'aiBrain.v1.persistence.authority'){ void reloadAuthoritativeFeed(); } });
+addEventListener('pageshow', e => { if (e.persisted){ void reloadAuthoritativeFeed(); } });
 document.addEventListener('visibilitychange', () => { if (!player.parentNode) return; if (document.hidden) player.pause(); else if (!userPaused) tryPlay(); });
 addEventListener('resize', () => go(cur, true));
 
@@ -372,6 +406,7 @@ addEventListener('resize', () => go(cur, true));
   if (h0 && N(h0) && !buildList().some(n => n.id === h0)){ set.types = []; set.concepts = []; set.onlyVideo = false; set.onlySaved = false; savePrefs(); }
   render(h0); }
 feed.focus({ preventScroll:true });
-window.AIFeed = { list:() => list.map(n => n.id), current:() => list[cur] && list[cur].id, index:() => cur, go, reload:() => { state = loadState(); render(list[cur] && list[cur].id); }, settings:set, giscus:GISCUS, bots:BOTS, openComments,
+window.AIFeed = { list:() => list.map(n => n.id), current:() => list[cur] && list[cur].id, index:() => cur, go, reload:reloadAuthoritativeFeed, settings:set, giscus:GISCUS, bots:BOTS, openComments,
   player, sound:() => ({ wantSound, unlocked, muted:player.muted }), blocked:() => !!itemEl(cur)?.classList.contains('blocked') };
+if(feedAuthorityError)showFeedAuthorityWarning();
 document.body.dataset.ready = '1';
