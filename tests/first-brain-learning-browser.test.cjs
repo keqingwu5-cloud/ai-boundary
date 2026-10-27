@@ -51,20 +51,30 @@ test("First Brain learns from both failed and successful observations without un
   const idbVersion=await page.evaluate(()=>window.AIBrain.persistence().revision);
   await page.evaluate(id=>window.AIBrain.select(id),id);
   await page.locator("#learnPanel summary").click();
-  await send({outcome:"worked",conditions:"R11 修復已通過",observation:"Node 回歸全部通過",
-    lesson:"保存負例及提交版本",evidence:"CI-R11-pos-002"});
+  await send({outcome:"worked",conditions:"R11 舊版匯入",observation:"另一次合成案例可匯入",
+    lesson:"可先跑正向樣本",evidence:"CI-R11-pos-002"});
   await page.waitForFunction(id=>(window.AIBrain.getState().nodes.find(n=>n.id===id).learningRecords||[]).length===2,id);
   assert.equal(await page.evaluate(()=>window.AIBrain.persistence().revision),idbVersion+1);
-  assert.equal((await page.evaluate(()=>window.AIBrain.findLearningLessons("R11 修復已通過"))).length,0,
-    "positive feedback also cannot auto-promote without review");
+  assert.equal(await page.evaluate(()=>window.AIBrain.analyzeLearningLessons("R11 舊版匯入").status),
+    "conflicted","one reviewed failure and one unreviewed success must trigger a conflict");
+  assert.deepEqual(await page.evaluate(()=>window.AIBrain.findLearningLessons("R11 舊版匯入")),[],
+    "conflicting evidence must never produce a recommendation");
+  await page.locator("#learningFindForm [name=conditions]").fill("R11 舊版匯入");
+  await page.locator("#learningFindForm button[type=submit]").click();
+  assert.match(await page.locator("#learningConflictWarning").innerText(),/同時有成功與失敗/);
+  assert.match(await page.locator("#learningMatches").innerText(),/CI-R11-neg-001/);
+  assert.match(await page.locator("#learningMatches").innerText(),/CI-R11-pos-002/);
   const outcome=await page.evaluate(()=>window.AIBrain.undo());
   assert.equal(await Promise.resolve(outcome),true);
   assert.equal((await page.evaluate(id=>window.AIBrain.getState().nodes.find(n=>n.id===id).learningRecords.length,id)),1);
+  assert.equal(await page.evaluate(()=>window.AIBrain.analyzeLearningLessons("R11 舊版匯入").status),"contextual_candidate");
+  assert.equal((await page.evaluate(()=>window.AIBrain.findLearningLessons("R11 舊版匯入"))).length,1,
+    "undo of conflicting observation restores previous contextual candidate");
   await page.reload({waitUntil:"domcontentloaded"});await ready(page);
   assert.equal((await page.evaluate(id=>window.AIBrain.getState().nodes.find(n=>n.id===id).learningRecords.length,id)),1);
   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBrain.v1")),originalRaw,
     "original legacy bytes remain untouched even after learning and undo");
   assert.deepEqual(errors,[]);
-  console.log("FIRST_BRAIN_LEARNING_FEEDBACK_PASS legacy_record=1 evidence_review=1 exact_match=1 idb_roundtrip=1 undo=1 no_false_truth=1");
+  console.log("FIRST_BRAIN_LEARNING_FEEDBACK_PASS legacy_record=1 evidence_review=1 exact_match=1 idb_roundtrip=1 undo=1 contradiction_blocked=1 undo_conflict=1 no_false_truth=1");
  }finally{await ctx.close();await browser.close();}
 });
