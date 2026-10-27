@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { worldModelHref } from './research-context-bridge.mjs';
 import { validateBrainImport, commitBrainImport } from './brain-import-guard.mjs';
 import {prepareLearningObservation,markLearningReviewed,findReusableLessons} from './brain-learning-feedback.mjs';
+import {bindLearningPanel} from './brain-learning-ui.mjs';
 import { readTransactional3D, commitTransactional3D, stageLegacy3D, inspectLegacy3D } from './first-brain-idb-adapter.mjs';
 
 /* ================= constants ================= */
@@ -1036,6 +1037,13 @@ function select(id){
       <form id="ceF"><input id="ceI" placeholder="新增反證…" maxlength="200"><button>＋</button></form></div>
     <div class="lbl">🎞 媒體</div>${videoBox(n)}<div class="media">${slot('image', n.media.image)}</div>
     ${hist.length ? `<div class="lbl">🕘 紀錄</div><div class="mh">${hist.map(h => `<div>${fmt(h.ts)} ${ACT[h.action] || h.action}</div>`).join('')}</div>` : ''}`;
+  bindLearningPanel(pBody,{
+    nodeId:id,entries:Array.isArray(n.learningRecords)?n.learningRecords:[],
+    onRecord:input=>recordLearningFeedback(id,input),
+    onReview:feedbackId=>reviewLearningFeedback(id,feedbackId),
+    onSearch:conditions=>findLearningLessons(conditions),
+    onRefresh:()=>{select(id);const panel=document.getElementById('learnPanel');if(panel)panel.open=true;}
+  });
   pBody.querySelectorAll('.nl').forEach(a => a.onclick = ev => { ev.preventDefault(); select(a.dataset.n); });
   pBody.querySelectorAll('[data-cf]').forEach(b => b.onclick = () => { focusConcept('c:' + b.dataset.cf); select(id); });
   pBody.querySelectorAll('[data-pf]').forEach(b => b.onclick = () => { focusConcept('p:' + b.dataset.pf); select(id); });
