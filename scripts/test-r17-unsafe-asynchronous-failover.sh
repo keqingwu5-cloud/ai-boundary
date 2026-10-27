@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# R17 G1: deliberately unsafe promotion of LAGGED physical standby to reproduce data loss.
+# R17 G1: intentionally unsafe PROMOTION after loss of WAL TRANSPORT in disposable PostgreSQL.
 # Standby MUST have replayed the receipt+revocation evidence before takeover.
 # NO AUTO FAILOVER / NO DUAL PRIMARY / NO REAL AUTHORITY / NO PUBLIC PORTS.
 set -Eeuo pipefail
@@ -73,35 +73,30 @@ done
 assert_eq "$(sq "SELECT count(*) FROM tcvl_r13_candidate.review_reservations WHERE receipt_id='seed-r16';")" "1" "base backup seed visible"
 echo "R16 PHYSICAL_REPLICATION: base backup and active WAL streaming verified"
 
-# R16 deliberate negative: an active streaming connection can still have
-# a lagging WAL replay position. Never promote on "streaming" alone.
-sq 'SELECT pg_wal_replay_pause();' >/dev/null
-paused=0
-for _ in $(seq 1 100);do
- if [[ "$(sq "SELECT pg_get_wal_replay_pause_state();" 2>/dev/null || true)" == "paused" ]];then paused=1;break;fi
- sleep 0.1
-done
-[[ "$paused" == "1" ]] || { echo R16_COULD_NOT_PAUSE_REPLAY;exit 1; }
-assert_eq "$(pq "$(reserve 'after-backup-r16' 'live-key-r16')")" "REVIEW_RESERVED_ONLY" "post-basebackup change"
-assert_eq "$(pq "SELECT tcvl_r13_candidate.revoke_key_for_review('revoked-r16');")" \
- "REVIEW_KEY_REVOKED" "post-basebackup revocation"
-stale="$(sq "SELECT (SELECT count(*) FROM tcvl_r13_candidate.review_reservations WHERE receipt_id='after-backup-r16')::text || ':' || (SELECT count(*) FROM tcvl_r13_candidate.revocations WHERE kind='key' AND ref_id='revoked-r16')::text;")"
-assert_eq "$stale" "0:0" "streaming but replay-paused standby must remain behind"
-echo "R16 ASYNC_REPLAY_LAG_NEGATIVE: primary committed, standby has 0:0; promotion withheld"
+# R17 high-fidelity negative: disconnect the standby's NETWORK before the
+# primary commits anything new. That prevents WAL from being RECEIVED at all.
+# Pausing replay only is NOT sufficient: promotion can replay already-received
+# WAL and the first R17 test incorrectly expected missing records.
+docker network disconnect --force "$net" "$standby"
+assert_eq "$(docker inspect -f '{{len .NetworkSettings.Networks}}' "$standby")" "0" "standby network physically disconnected before primary commit"
+assert_eq "$(sq 'SELECT pg_is_in_recovery();')" "t" "isolated standby still recovery mode"
+assert_eq "$(pq "$(reserve 'disconnected-r17' 'live-key-r16')")" "REVIEW_RESERVED_ONLY" "primary committed after replication link loss"
+assert_eq "$(pq "SELECT tcvl_r13_candidate.revoke_key_for_review('revoked-offline-r17');")" "REVIEW_KEY_REVOKED" "primary revoked key after replication link loss"
+assert_eq "$(sq "SELECT count(*) FROM tcvl_r13_candidate.review_reservations WHERE receipt_id='disconnected-r17';")" "0" "unreceived committed receipt missing on isolated standby"
+assert_eq "$(sq "SELECT count(*) FROM tcvl_r13_candidate.revocations WHERE kind='key' AND ref_id='revoked-offline-r17';")" "0" "unreceived committed revocation missing on isolated standby"
+echo "R17 WAL_TRANSPORT_PARTITION: committed primary receipt and revocation were never received by standby"
 
-# R17 intentionally perform the UNSAFE alternative, but only in disposable
-# synthetic containers: stop old primary FIRST (no actual simultaneous
-# primaries), then promote an UNCAUGHT-UP standby to prove missing evidence.
+# Demonstrate the UNSAFE choice ONLY inside disposable PostgreSQL containers.
+# Stop the old primary FIRST to prevent any dual active writers in the test,
+# then show that a lagged standby cannot reconstruct missing unreceived WAL.
 docker stop -t 3 "$primary" >/dev/null
-assert_eq "$(docker inspect -f '{{.State.Running}}' "$primary")" "false" "old primary stopped before isolated unsafe-case promotion"
+assert_eq "$(docker inspect -f '{{.State.Running}}' "$primary")" "false" "old primary stopped before destructive isolated promotion"
 docker exec --user postgres "$standby" pg_ctl -D /tmp/r16_data promote -w >/dev/null
-assert_eq "$(sq 'SELECT pg_is_in_recovery();')" "f" "lagging standby promoted for destructive negative test"
-assert_eq "$(sq "SELECT count(*) FROM tcvl_r13_candidate.review_reservations WHERE receipt_id='after-backup-r16';")" "0" "previously committed receipt LOST after premature promotion"
-assert_eq "$(sq "SELECT count(*) FROM tcvl_r13_candidate.revocations WHERE kind='key' AND ref_id='revoked-r16';")" "0" "previously committed revocation LOST after premature promotion"
-# This synthetic failure REPRODUCES dangerous replay if an operator trusted
-# streaming status alone. It is NOT an acceptable/authorized failover.
-assert_eq "$(sq "$(reserve 'after-backup-r16' 'live-key-r16')")" "REVIEW_RESERVED_ONLY" "unsafe promoted node accepted already-used receipt ID"
-assert_eq "$(sq "$(reserve 'after-premature-promotion-r17' 'revoked-r16')")" "REVIEW_RESERVED_ONLY" "unsafe promoted node accepted previously revoked key"
-echo "R17 EXPECTED_UNSAFE_ASYNC_FAILOVER: committed receipt/revocation absent; replay and revoked-key bypass reproduced in throwaway PostgreSQL"
-echo "R17 SPLIT_BRAIN_NOT_SIMULATED: old primary was stopped; this test shows unsynced WAL loss, not dual-writer safety"
-echo "R17 PRODUCTION_NO_GO: no automatic promotion, no trusted fencing, no worker or owner approval"
+assert_eq "$(sq 'SELECT pg_is_in_recovery();')" "f" "partitioned lagging standby promoted for negative test"
+assert_eq "$(sq "SELECT count(*) FROM tcvl_r13_candidate.review_reservations WHERE receipt_id='disconnected-r17';")" "0" "previously committed receipt LOST after promotion without WAL transport"
+assert_eq "$(sq "SELECT count(*) FROM tcvl_r13_candidate.revocations WHERE kind='key' AND ref_id='revoked-offline-r17';")" "0" "previously committed key revocation LOST after promotion without WAL transport"
+assert_eq "$(sq "$(reserve 'disconnected-r17' 'live-key-r16')")" "REVIEW_RESERVED_ONLY" "unsafe new primary reaccepted previously committed receipt"
+assert_eq "$(sq "$(reserve 'after-unsafe-r17' 'revoked-offline-r17')")" "REVIEW_RESERVED_ONLY" "unsafe new primary accepted formerly revoked key"
+echo "R17 EXPECTED_UNSAFE_ASYNC_FAILOVER: unreceived committed receipt/revocation missing; duplicates were accepted in throwaway DB"
+echo "R17 SPLIT_BRAIN_NOT_SIMULATED: old primary stopped; real independent fencing and quorum remain unverified"
+echo "R17 PRODUCTION_NO_GO: never auto-promote without trusted fencing, replay confirmation and independent owner/G2 authority"
