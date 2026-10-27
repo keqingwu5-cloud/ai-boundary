@@ -193,3 +193,28 @@ R06 已以合成快照證明 IndexedDB 在相同 object store 的交易式版本
   - `R09_IDB_WRITE_FAILURE_ABORT_PASS revision=1 legacy_unchanged=1`
   - `FIRST_BRAIN_TX_UI_ROUNDTRIP_PASS ... idb_quota_failed_safe=1 ...`
 - **完成定義**：R10 的隔離負向矩陣已通過；未授權真歷史資料遷移、真實 Safari/iOS、跨版本仍未更新的 legacy writer、持久容量/崩潰與長期備份、獨立 reviewer / main 合併 / 部署仍需獨立 Gate。世界模型自身 journal 並發仍非本輪完成。
+
+
+## R11｜成功與失敗都形成可追溯經驗：第一大腦回饋閉環（2026-10-28）
+
+**分類**：延續 R03-12／D 測試和反覆修復歸因；R03-09／C 將「觀察、人工審閱、具體證據、結論」分層，避免測試 PASS／個人認可變成普遍真理。不是新增第四個大腦、平行資料庫或 GPT② 記憶體。仍歸第一大腦 3D 主腦與原有 #09/#12/#15。
+
+### 核心方案（隔離 PR #75）
+
+- 新增 \`brain-learning-feedback.mjs\`：同時接受 worked／failed **結果觀察**。每筆記錄保存 nodeId（由所屬 Node 歸屬）、適用條件、觀察、成功關鍵／失敗原因（可能性）、下次做法、證據索引、建立時間、審閱階段。輸入及集合長度有上限；舊版沒有 \`learningRecords\` 的 Node 不被要求補欄位或重寫原始檔。
+- \`brain-import-guard.mjs\` 驗證可選 \`node.learningRecords\` 的欄位、ID 去重、資料大小及審閱依據。缺少證據者只准停留在 \`observed\`，不可成為 \`person_reviewed\`。
+- \`app.js\` 繼續使用原 \`mutate()\`、Node history、Undo 和已實作 IDB 交易通道，不另建記憶庫；公開 API \`recordLearningFeedback\`、\`reviewLearningFeedback\`、\`findLearningLessons\`。附 \`brain-learning-ui.mjs\` 顯示於原節點面板，使用者可手動記錄、核對、搜尋。
+- **保守重用**：只回傳**完全相同的標準化適用條件**、已人工審閱、附證據的紀錄；成功／失敗都可顯示為參考，不自動執行、不自稱證實或訓練模型權重。不同時間、尺度、背景必須重新判斷，並可另保留反例。
+
+### 本輪吸收的真實流程錯誤
+
+一開始新瀏覽器測試檔案雖列入 GitHub Actions 監看路徑，執行指令**沒有**納入，導致先前 CI 27/27 PASS 不能視為新 UI 測試完成。工程把原因分類為 **test_fixture／ci_wiring**，修正後新 Chromium 28/28 PASS，並新增 \`tests/ci-execution-contract.test.mjs\`，以明確斷言確保 workflow 監控的各個 browser test 都存在於實際執行清單。這是從錯誤產生可重用預防規則的工程例證。
+
+### 測試證據與限制
+
+- [GitHub Actions #40539872062](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40539872062)（加入新 Browser E2E）：Node **131/131 PASS**、Chromium **28/28 PASS**，新增 log \`FIRST_BRAIN_LEARNING_FEEDBACK_PASS legacy_record=1 evidence_review=1 exact_match=1 idb_roundtrip=1 undo=1 no_false_truth=1\`。
+- 後續 \`tests/ci-execution-contract.test.mjs\` 已在另一筆提交納入 Node 套件，最新單獨測試結果需以對應最後 SHA / CI 判定，不拿先前 PASS 遮蓋尚未執行的改動。
+- **已證**：合成 3D 頁面可紀錄正反經驗、條件與證據、明確人工審閱、拒絕無證據提升；相同條件檢索，Legacy→IDB 無損複製、保存及 Undo 均可用。
+- **未證**：AI 自動客觀判斷對錯、跨情境泛化、外部證據真偽檢查、GPT② 自動收件、真實個人資料、Safari 實機與正式 main 部署。使用者仍是最終研究判斷者。
+
+**第一大腦實作方向**：從「每次出錯只修局部」走向「結果分類 → 條件及證據 → 根因 → 人工審閱 → 預防性回歸／同條件提醒」。獨立的模型與研究真理 Gate 保留，不能因主腦出現經驗提示就省略驗證。
