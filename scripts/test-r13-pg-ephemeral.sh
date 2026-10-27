@@ -9,11 +9,15 @@ trap cleanup EXIT
 docker run --name "$cid" --detach --env POSTGRES_PASSWORD=TEST_ONLY_EPHEMERAL_R13 \
   postgres:16-alpine >/dev/null
 healthy=0
-for i in $(seq 1 40); do
- if docker exec "$cid" pg_isready -U postgres >/dev/null 2>&1; then healthy=1; break; fi
- sleep 1
+# Official postgres image starts a TEMPORARY init server, then execs its
+# final postgres process as PID 1. pg_isready alone can falsely pass early.
+for i in $(seq 1 80); do
+ if [[ "$(docker exec "$cid" sh -c 'cat /proc/1/comm' 2>/dev/null || true)" == "postgres" ]] \
+   && docker exec --user postgres "$cid" psql -X -qAt -U postgres -v ON_ERROR_STOP=1 \
+      -c 'SELECT 1;' >/dev/null 2>&1; then healthy=1; break; fi
+ sleep 0.25
 done
-[[ "$healthy" -eq 1 ]] || { echo "R13 POSTGRES_NOT_READY"; exit 1; }
+[[ "$healthy" -eq 1 ]] || { echo "R13 POSTGRES_FINAL_SERVER_NOT_READY"; exit 1; }
 docker cp sql/r13_candidate_review_reservation.sql "$cid":/tmp/r13.sql >/dev/null
 docker exec --user postgres "$cid" psql -X -U postgres -v ON_ERROR_STOP=1 \
   --file /tmp/r13.sql >/dev/null
