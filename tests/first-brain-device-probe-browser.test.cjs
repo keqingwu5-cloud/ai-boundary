@@ -62,7 +62,7 @@ test("R17 isolated device probe: explicit synthetic writes, rollback, reopen, re
    const probe=await import("/first-brain-device-probe.mjs");
    return probe.verifyProbe(id);
   },firstId);
-  assert.equal(deleted.reason,"synthetic_receipt_missing_or_modified");
+  assert.equal(deleted.reason,"probe_not_found","verifying a deleted probe must not recreate it");
   const after=await page.evaluate(()=>({
    main:localStorage.getItem("aiBrain.v1"),undo:localStorage.getItem("aiBrain.v1.undo"),
    authority:localStorage.getItem("aiBrain.v1.persistence.authority")}));
