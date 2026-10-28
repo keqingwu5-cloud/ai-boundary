@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第一大腦 R17｜實機儲存診斷（合成資料）</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif;background:#0e1c2a;color:#ecf4fa}
+*{box-sizing:border-box}main{max-width:700px;margin:auto;padding:22px 16px 50px;line-height:1.6}
+section{padding:16px;border:1px solid #385169;border-radius:14px;margin:16px 0;background:#172a3c}
+h1{font-size:1.4rem;line-height:1.35}h2{font-size:1.12rem}p,small{color:#cedae4}
+button{font:inherit;min-height:44px;border-radius:9px;border:1px solid #7eaac7;background:#233f57;color:white;padding:8px 12px;margin:5px 4px 5px 0}
+button:disabled{opacity:.45}button:focus-visible{outline:3px solid #ffdb70}
+output,pre{display:block;white-space:pre-wrap;word-break:break-word;border-radius:8px;padding:10px;background:#0b1926;color:#e9f2fa}
+label{display:block;padding:7px 0}input[type=checkbox]{width:20px;height:20px;vertical-align:middle}
+.warning{border-left:3px solid #f6c76b;padding-left:12px}
+</style></head><body><main>
+<h1>第一大腦 R17｜Safari／iPad 實機診斷</h1>
+<p class="warning">這是<strong>獨立的合成資料測試</strong>，不是正式主腦。此頁不會讀取或修改第一大腦的圖、Undo、記憶體與 localStorage；不會上傳資料。請勿在此貼入真實主腦內容。</p>
+<section>
+<h2>① 建立隔離儲存測試</h2>
+<p>按下按鈕才會建立只屬於本次測試的 IndexedDB，寫入一組合成圖與 Undo，並測試中止交易後的資料是否完整。</p>
+<button id="start">開始合成資料測試</button>
+<output id="startResult" aria-live="polite">尚未執行</output>
+</section>
+<section>
+<h2>② 背景／重新開啟後核對</h2>
+<p>在實機操作：切換到其他 App、鎖定螢幕、回到 Safari，或重新開啟此頁，然後按「重新讀取驗證」。測試識別碼僅保存在本頁網址的 # 後；不會自動判定你已完成實機操作。</p>
+<button id="verify">重新讀取驗證</button>
+<output id="verifyResult" aria-live="polite">尚未執行</output>
+<label><input id="background" type="checkbox"> 我在實體裝置上做過背景切換或鎖屏測試（人工確認）</label>
+<label><input id="reopen" type="checkbox"> 我在實體裝置上重新開啟此頁後核對（人工確認）</label>
+</section>
+<section>
+<h2>③ 儲存政策與驗收報告</h2>
+<p>儲存配額是瀏覽器估計值，不代表資料能永久保存。測試結果與裝置型號資訊需經人工審核；此頁不會自動標記 R17 正式通過。</p>
+<button id="hints">查詢儲存狀態（唯讀）</button>
+<output id="hintsResult">尚未查詢</output>
+<label>裝置與系統版本（選填，不要輸入個人資料）
+<input id="device" maxlength="100" placeholder="例如：iPadOS／Safari 版本" style="width:100%;padding:8px"></label>
+<button id="export">下載本地測試報告（JSON）</button>
+<button id="clear">刪除本次隔離測試資料</button>
+<output id="clearResult">尚未清除</output>
+</section>
+<p><small>判定規則：通過合成讀寫與重載檢查 ≠ 真實主腦無損驗收；此頁不能模擬作業系統清理儲存資料，也不會產生獨立 reviewer 簽核。</small></p>
+</main>
+<script type="module">
+import {newProbeId,startProbe,verifyProbe,clearProbe,readStorageHints} from '../../first-brain-device-probe.mjs';
+const $=id=>document.getElementById(id);
+const token=()=>/^#r17=([a-f0-9]{32})$/.exec(location.hash)?.[1]||null;
+let lastRun=null,lastVerify=null,lastHints=null;
+const show=(id,result)=>$(id).textContent=JSON.stringify(result,null,2);
+$('start').onclick=async()=>{
+ const id=newProbeId();
+ const result=await startProbe(id);
+ lastRun={at:new Date().toISOString(),...result};
+ if(result.ok)location.hash='r17='+id;
+ show('startResult',result);
+};
+$('verify').onclick=async()=>{
+ const id=token();
+ const result=id?await verifyProbe(id):{ok:false,reason:'no_test_started'};
+ lastVerify={at:new Date().toISOString(),...result};
+ show('verifyResult',result);
+};
+$('hints').onclick=async()=>{
+ lastHints=await readStorageHints();
+ show('hintsResult',lastHints);
+};
+$('clear').onclick=async()=>{
+ const id=token();
+ const result=id?await clearProbe(id):{ok:false,reason:'no_test_started'};
+ if(result.ok){history.replaceState(null,'',location.pathname+location.search);lastRun=null;lastVerify=null;}
+ show('clearResult',result);
+};
+$('export').onclick=()=>{
+ const report={schema:'first-brain-r17-device-manual-v1',generatedAt:new Date().toISOString(),
+   source:'user-triggered-isolated-synthetic-probe',deviceNote:$('device').value.trim(),
+   initial:lastRun,recheck:lastVerify,storageHints:lastHints,
+   manuallyReported:{backgroundOrLock:$('background').checked,reopen:$('reopen').checked},
+   reviewerAcknowledged:false,realFirstBrainDataTested:false,
+   note:'Manual device evidence, not proof of production or real data acceptance'};
+ const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));
+ const a=document.createElement('a');a.href=url;a.download='first-brain-r17-device-diagnostic.json';
+ document.body.append(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),2000);
+};
+</script></body></html>
