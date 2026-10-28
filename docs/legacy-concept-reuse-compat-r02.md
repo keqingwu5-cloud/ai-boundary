@@ -367,3 +367,16 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 **重要歷史**：初次 Chrome 31/33、2 FAIL → 找出啟動無條件 `save(true)` 導致舊資料自動改寫，以及 `persistence().ready` 對已封鎖損毀資料誤報可用；修正後 33/33。不可刪除失敗 Run，因為此證據說明 R16 真有找到並修復既存缺陷。
 
 **Gate 判定**：**R16「合成歷史格式＋真 Chromium 3D 往返」PASS**；**R16「使用者真實歷史檔案」仍 BLOCKED**（尚未取得明確授權與可驗證原始材料）。此結果不代表歷史所有 schema 都被覆蓋，不代表 main 已合併、部署或 Safari/iOS 實機驗收。若後續使用真歷史檔，須先備份、明示授權及去識別化，逐份分類例外，而非擅自使用。
+
+## R17｜實體 Safari／iPad 驗收前置：安全隔離診斷（2026-10-29）
+
+**原本 Gate 不變**：R03-01（儲存）、R03-04（相容）與 R03-05（跨版本）。本次只有**R17 診斷工程與跨引擎自動測試**，不是實體 Apple 裝置通過，也不是正式第一大腦已上線。
+
+- 新增 `first-brain-device-probe.mjs` 及 `tests/fixtures/first-brain-device-diagnostics.html`：使用者按下按鈕後才以專用 `first-brain-r17-isolated-probe-<id>` IndexedDB 寫入合成 graph/Undo；檢查同筆交易、故意中止的回復、重新開啟驗證與隔離資料清除。**不讀取或修改主腦 `aiBrain.v1`、Undo 或 authority 標記、不自動上傳**。自願匯出的 JSON 標明未經 reviewer ACK、未使用真實主腦資料。
+- 新增 `tests/first-brain-device-probe-browser.test.cjs`，分別在 Chromium 與 Linux 桌面 WebKit **實際執行** UI，測試啟用前無儲存動作、合成寫入、abort、重載、報告匯出、刪除後驗證不得建立新資料庫、舊主腦 namespace 不變。現有 CI 契約測試仍保證監看的 browser test 有真正 run 指令。
+- 建立 `docs/first-brain-r17-device-acceptance.md`：實體裝置必須執行的 Safari 背景切換／鎖屏／重啟操作與核對、HTTPS 受控預覽條件、人工報告、獨立審查與正式 Gate 項目。隔離候選**尚無經核准、可供真機開啟的正式預覽 URL**，沒有擅自部署。
+- **本次真實糾錯**：首輪 [Run #40780663287](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40780663287) 的新增 WebKit 診斷 FAIL，因將一個特定的 IndexedDB abort 錯誤代碼當成唯一成功條件；修正為「abort 後重新讀回 graph 與 Undo 的值均與中止前一致、且交易沒有意外提交」才可通過。保留首次紅燈，不能冒稱先前成功。
+- **最新驗證**：[Actions #40781090542](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40781090542)，受測程式與測試設定 SHA `4857f798813ce745b3c5430a68234b5d85dda9a5`：Node **137/137 PASS**、Chrome **34/34 PASS**、Linux desktop WebKit **2/2 PASS**，全部三個 jobs success、0 FAIL；新案例標記 `R17_ISOLATED_DEVICE_PROBE_PASS engine=chromium` 和 `engine=webkit`。
+- **絕不提前升級的 Gate**：實體 iPhone/iPad、真 Apple Safari、背景暫停與作業系統刪除、授權真歷史資料、實際跨版本舊 Writer 整體淘汰、獨立 reviewer ACK、PR 疊接合併與正式部署。Chrome/WebKit 合成預檢 PASS，不等於完整 R17 實機驗收。
+
+**結論**：R17「隔離實機診斷工具與 Chrome/WebKit 前置 CI」PASS；R17「Apple 真機與真歷史資料／正式發行」BLOCKED。保留相依 Gate，下一個可直接推進的工程工作是 R18 獨立 PR 依賴與 reviewer 檢查，不藉此跳過實機測試。
