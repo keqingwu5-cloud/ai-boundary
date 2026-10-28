@@ -13,7 +13,7 @@ test("Every monitored browser test has an explicit executable entry in its brows
   .map(x=>x.trim().slice(2));
  const browserTests=paths.filter(x=>x.includes("browser"));
  const run=yaml.split("\n").find(x=>/^\s+run: node --test tests\/brain-browser-smoke/.test(x));
- const webkitRun=yaml.split("\n").find(x=>/^\s+run: node --test tests\/first-brain-webkit-browser/.test(x));
+ const webkitRun=yaml.split("\n").find(x=>/^\s+run: (?:R17_BROWSER=webkit )?node --test tests\/first-brain-webkit-browser/.test(x));
  assert.ok(run,"Chromium test command is missing");
  assert.ok(webkitRun,"WebKit test command is missing");
  assert.ok(browserTests.length>=6,"browser test discovery unexpectedly shrank");
