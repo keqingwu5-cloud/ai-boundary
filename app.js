@@ -173,6 +173,11 @@ function commitChange(proposed, nextUndo, successLabel){
     const write = commitTransactional3D(TX_DB, txRevision, proposed, nextUndo)
       .then(result => {
         if (!result.ok){
+          if(result.reason?.startsWith('legacy_writer_detected')||
+             result.reason==='legacy_fence_missing_or_invalid'){
+            txReady=false;txLoadError=result.reason;
+            document.querySelector('#brainPersistenceBanner')?.setAttribute('data-legacy-conflict','blocked');
+          }
           toast('⚠ 交易未完成：' + result.reason);
           if(result.reason === 'stale_revision')showConcurrentWarning();
           return false;
@@ -1410,5 +1415,22 @@ function installFirstBrainPersistenceBanner(){
     banner.append(backup,activate);
   }
   document.body.append(banner);
+}
+// R15: legacy applications from old code may ignore the new authority marker.
+// A storage event is an early warning, not a transactional lock. The IDB seal
+// is checked again in read/commit, including after reload and before writes.
+if(TX_MODE){
+  window.addEventListener('storage',async ev=>{
+    if(!['aiBrain.v1','aiBrain.v1.undo'].includes(ev.key))return;
+    const check=await readTransactional3D(TX_DB);
+    if(check.ok)return;
+    txReady=false;txLoadError=check.reason;
+    const banner=document.querySelector('#brainPersistenceBanner');
+    if(banner){
+      banner.setAttribute('data-legacy-conflict','blocked');
+      banner.firstElementChild.textContent='⚠ 舊版本可能已改動主腦資料（'+check.reason+'）。交易編輯已停止，請保存兩份版本供人工核對。';
+    }
+    toast('⚠ 舊版寫入衝突：已停止交易編輯，禁止自動覆寫');
+  });
 }
 if(TX_MODE||!legacyMayWrite())installFirstBrainPersistenceBanner();
