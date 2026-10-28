@@ -3,6 +3,7 @@
  */
 import {validateBrainImport} from './brain-import-guard.mjs';
 import {readSnapshot,writeSnapshot} from './transactional-brain-store.mjs';
+import {makeLegacyFence,verifyLegacyFence} from './first-brain-legacy-fence.mjs';
 
 export const MAIN_KEY='aiBrain.v1',UNDO_KEY='aiBrain.v1.undo';
 const fail=reason=>({ok:false,reason});
@@ -45,6 +46,12 @@ export async function readTransactional3D(databaseName){
   const result=await readSnapshot(databaseName,MAIN_KEY);
   if(!result.ok)return result;
   if(result.snapshot===null)return fail('transactional_snapshot_missing');
+  // Fail closed on old/uncooperative writers modifying legacy localStorage.
+  // This detects divergence; it cannot prevent the old writer's own write.
+  if(typeof localStorage!=='undefined'){
+    const protection=await verifyLegacyFence(localStorage,result.snapshot.legacyFence);
+    if(!protection.ok)return protection;
+  }
   const main=readGraph(result.snapshot.mainRaw);
   if(!main.ok)return main;
   const undo=readUndo(result.snapshot.undoRaw);
@@ -68,7 +75,10 @@ export async function stageLegacy3D(databaseName,storage,{confirmed=false,expect
   const previous=await readSnapshot(databaseName,MAIN_KEY);
   if(!previous.ok)return previous;
   if(previous.snapshot!==null)return fail('transactional_snapshot_exists');
-  const outcome=await writeSnapshot(databaseName,MAIN_KEY,0,source.mainRaw,source.undoRaw);
+  const seal=await makeLegacyFence(storage,source.mainRaw,source.undoRaw);
+  if(!seal.ok)return seal;
+  const outcome=await writeSnapshot(databaseName,MAIN_KEY,0,source.mainRaw,source.undoRaw,
+    {legacyFence:seal.fence});
   if(!outcome.ok)return outcome;
   // Check for an observable external legacy edit during the async stage. If
   // detected, do not switch the UI authority; preserve both snapshots for
@@ -115,5 +125,18 @@ export async function commitTransactional3D(databaseName,expectedRevision,graph,
   catch(_){return fail('serialization_failed');}
   const history=readUndo(undoRaw);
   if(!history.ok)return history;
-  return writeSnapshot(databaseName,MAIN_KEY,expectedRevision,mainRaw,undoRaw);
+  const current=await readSnapshot(databaseName,MAIN_KEY);
+  if(!current.ok)return current;
+  if(!current.snapshot)return fail('transactional_snapshot_missing');
+  if(typeof localStorage==='undefined')return fail('legacy_fence_storage_unavailable');
+  const prior=await verifyLegacyFence(localStorage,current.snapshot.legacyFence);
+  if(!prior.ok)return prior;
+  const written=await writeSnapshot(databaseName,MAIN_KEY,expectedRevision,mainRaw,undoRaw);
+  if(!written.ok)return written;
+  // The legacy namespace is not atomic with IDB. If the old writer raced
+  // during the transaction, stop claiming safety; require manual resolution.
+  const after=await verifyLegacyFence(localStorage,current.snapshot.legacyFence);
+  if(!after.ok)return {ok:false,reason:'legacy_writer_detected_after_commit',
+    committedRevision:written.revision};
+  return written;
 }
