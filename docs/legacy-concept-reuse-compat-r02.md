@@ -290,3 +290,27 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 [GitHub Actions #40598231245](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40598231245)，受測程式 SHA `8fa48b461ae8f1a51c833a5b20448c1a656e618a`：Node **133/133 PASS**、真 Chromium **30/30 PASS**、桌面 Linux WebKit **1/1 PASS**，全部三個 jobs success，0 FAIL。
 
 新 Chromium 3D UI 日誌 `FIRST_BRAIN_INTERRUPTED_STAGE_SAFE_RECOVERY_PASS explicit=1 no_overwrite=1 mismatch_reject=1`，確證在合成資料下「已寫入 IDB 但啟用未完成」可以使用原備份嚴格比對後安全續接；缺少確認、原備份改變或 IDB 內容不一致不得直接重寫。**仍不解除**真 Apple 實機、合法真歷史資料、跨版本舊 writer、完整 OS 突然中斷和正式發布 Gate。
+
+
+## R15｜跨版本舊寫入者的來源指紋偵測與安全停止（2026-10-28）
+
+**原始分類**：R03-05／E 並發一致性，關聯 R03-01／A 保存與回復安全。保留原 Issue #32、Draft PR #75，不另開平行問題。
+
+### 缺口及根因
+
+即使新版 `app.js` 讀取了 `aiBrain.v1.persistence.authority=idb` 而拒絕本地寫入，已開啟、未升級的**舊程式版本**可能根本不認識這個標記，繼續直接寫 `localStorage`。IndexedDB 原子交易只能序列化**有進入同一 IndexedDB 交易的 writer**，無法替不合作的舊 JS 加鎖。任何純前端切換都不能把「偵測得到舊資料變動」冒充為「能絕對禁止舊版本寫入」。
+
+### 本次隔離實作
+
+- `first-brain-legacy-fence.mjs`：遷移時對舊 main/Undo **原始 bytes** 做 SHA-256，取得不可變的基準指紋（不儲存另一份巨大的原圖）。
+- `transactional-brain-store.mjs`：第一筆 IndexedDB stage 將指紋與 graph、Undo、revision **置於同一原子記錄**，每次更新版次都保留原指紋；不認可沒有原指紋的舊候選資料直接寫入。
+- `first-brain-idb-adapter.mjs`：載入與每次提交前比對當前舊 namespace 是否仍等於基準，無法確認或內容變更則 fail closed `legacy_writer_detected`。提交後再次比對，若在非原子 IDB/localStorage 空隙發現變動則報 `legacy_writer_detected_after_commit`，**不能宣稱該次沒有 IDB commit**，必須停止使用並人工核對。
+- `app.js`：開啟中的交易版收到舊 `localStorage` storage event，立即重新核對指紋；不匹配則停用修改，提示保留兩套資料。重新載入也不能自動解除阻擋。
+- `tests/first-brain-old-writer-browser.test.cjs`：在真 Chromium 兩個分頁，一頁走明確備份/啟用交易，另一頁使用**不遵守新標記**的舊版本原始 `localStorage.setItem`。應驗證：舊位元組保留、IDB 版本不被改寫、交易編輯拒絕、Feed 來源阻擋、重新開啟後仍停用，不讓新舊版本產生無提示分叉。
+- 此修補也收緊 R13/R14 的舊檔來源競爭測試：發現舊 namespace 被改變後，直接 `readTransactional3D` 不可把暫存快照宣稱為有效權威，但可透過低階 `readSnapshot` **僅供稽核**保留原 IDB bytes。
+
+### 完成與阻塞邊界
+
+- **隔離候選**已提交到 Draft PR #75。以 R15 對應 SHA/Run 的 Node、真 Chromium 與桌面 WebKit 三 job 為可接受證據，未跑/失敗就不能打 PASS。
+- **重要限制**：此機制只能偵測已發生的資料分歧並停止新版的危險操作，不能阻止真正未更新的舊 JS 對 `localStorage` 的寫入，亦無法為不同儲存引擎創造跨庫原子交易。正式切換必須停用/升級舊版本 writer、明確授權核對分叉並確認回退措施。遇到同版本寫入造成相同 bytes，也不能推斷曾否發生歷史競態。
+- 尚缺真實授權舊資料、物理 iOS/Safari、實際 OS 強制中斷、獨立 reviewer 及經批准的主線合併/部署。**正式 Gate 持續 BLOCKED。**
