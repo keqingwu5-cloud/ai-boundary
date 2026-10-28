@@ -401,6 +401,8 @@ $("backupInput").addEventListener("change",async e=>{
    const impactDetails="\n覆蓋前預演（只讀，不自動合併）：" +
      "\n可能失去的記憶主題 "+risk.lostMemories+"；原始版本 "+risk.lostVersions+
      "；候選 "+risk.lostCandidates+"；稽核事件 "+risk.lostAuditEvents+
+     "。\n同 ID 但內容不同：記憶主題 "+risk.modifiedMemories+
+     "；候選 "+risk.modifiedCandidates+"；稽核事件 "+risk.modifiedAuditEvents+
      "。\n檢查碼："+(restoreImpact.warnings.join("、")||"無已知差異")+
      "。\n即使沒有已知差異也不能保證跨裝置內容相同。";
    const older=decoded.data.vaultId===state.vaultId&&Number.isSafeInteger(decoded.data.revision)&&decoded.data.revision<=state.revision;
