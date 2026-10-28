@@ -79,6 +79,14 @@
      const keep=ids(incoming[key]);
      return current[key].filter(x=>x&&typeof x.id==="string"&&!keep.has(x.id)).length;
    };
+   // Same IDs and revisions can hide changed payloads; preview only, no mutations.
+   const stable=x=>JSON.stringify(x,(_k,v)=>v&&typeof v==="object"&&!Array.isArray(v)
+     ?Object.keys(v).sort().reduce((o,k)=>{o[k]=v[k];return o;},{}):v);
+   const altered=key=>{
+     const byId=new Map(incoming[key].filter(x=>x&&typeof x.id==="string").map(x=>[x.id,x]));
+     return current[key].filter(x=>x&&typeof x.id==="string"&&
+       byId.has(x.id)&&stable(x)!==stable(byId.get(x.id))).length;
+   };
    let lostVersions=0;
    const map=new Map(incoming.memories.filter(x=>x&&typeof x.id==="string").map(x=>[x.id,x]));
    for(const m of current.memories){
@@ -93,14 +101,17 @@
    const controlRollback=["direction","threshold"].filter(k=>
      (incoming.memoryControls?.[k]?.version??0)<(current.memoryControls?.[k]?.version??0));
    const counts={lostMemories:delta("memories"),lostCandidates:delta("candidates"),
-     lostAuditEvents:delta("audit"),lostVersions};
+     lostAuditEvents:delta("audit"),lostVersions,
+     modifiedMemories:altered("memories"),modifiedCandidates:altered("candidates"),
+     modifiedAuditEvents:altered("audit")};
    const warnings=[];
    if(differentVault)warnings.push("DIFFERENT_VAULT");
    if(current.vaultId&&!incoming.vaultId)warnings.push("UNKNOWN_BACKUP_VAULT_ID");
    if(current.revision!==undefined&&!Number.isSafeInteger(incoming.revision))warnings.push("UNKNOWN_BACKUP_REVISION");
    if(older)warnings.push("OLDER_REVISION");
    if(controlRollback.length)warnings.push("CONTROL_VERSION_ROLLBACK");
-   if(Object.values(counts).some(x=>x>0))warnings.push("HISTORY_REMOVAL");
+   if([counts.lostMemories,counts.lostCandidates,counts.lostAuditEvents,counts.lostVersions].some(x=>x>0))warnings.push("HISTORY_REMOVAL");
+   if([counts.modifiedMemories,counts.modifiedCandidates,counts.modifiedAuditEvents].some(x=>x>0))warnings.push("EXISTING_RECORD_CHANGED");
    return {schema:"ai-boundary.memory-restore-preview.v1",operation:"restore",
      requiresHumanApproval:true,willMerge:false,
      currentVaultId:current.vaultId||null,incomingVaultId:incoming.vaultId||null,
