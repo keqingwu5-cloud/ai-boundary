@@ -314,3 +314,17 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 - **隔離候選**已提交到 Draft PR #75。以 R15 對應 SHA/Run 的 Node、真 Chromium 與桌面 WebKit 三 job 為可接受證據，未跑/失敗就不能打 PASS。
 - **重要限制**：此機制只能偵測已發生的資料分歧並停止新版的危險操作，不能阻止真正未更新的舊 JS 對 `localStorage` 的寫入，亦無法為不同儲存引擎創造跨庫原子交易。正式切換必須停用/升級舊版本 writer、明確授權核對分叉並確認回退措施。遇到同版本寫入造成相同 bytes，也不能推斷曾否發生歷史競態。
 - 尚缺真實授權舊資料、物理 iOS/Safari、實際 OS 強制中斷、獨立 reviewer 及經批准的主線合併/部署。**正式 Gate 持續 BLOCKED。**
+
+
+### R15 最終 CI 回歸證據
+
+[GitHub Actions #40661986827](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40661986827)，受測工程／workflow SHA `13a0432936dbd994b3b8bb2ea284dd1e9fb9708a`：
+
+- Node **133/133 PASS**（0 fail）
+- 原生 Chromium **31/31 PASS**（0 fail），新案例標記 `FIRST_BRAIN_R15_OBSOLETE_WRITER_DETECTED_PASS legacy_write=1 idb_frozen=1 feed_blocked=1 reload_blocked=1 no_data_overwrite=1`
+- Linux 桌面 WebKit **1/1 PASS**（0 fail）
+- 三個 jobs 全部 success。新案例確實列入 browser job 的實際執行指令，並被 CI 契約測試追蹤。
+
+**可聲明**：隔離候選在合成資料下能偵測不合作的舊版本寫入，停止新版 IDB UI 修改及 Feed 過期來源、重新載入仍保持阻塞，IDB 原子版本未被舊寫入覆蓋，舊 localStorage 位元組留待人工核對。
+
+**不可聲明**：對所有舊程式實施寫入阻止、完全無資料遺失、跨儲存庫原子切換、真 iOS Safari 完成、真用戶資料遷移成功或正式部署。獨立 reviewer ACK 與主線合併仍未完成，R03-05 全域 Gate 保持 BLOCKED。
