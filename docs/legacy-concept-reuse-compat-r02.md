@@ -345,3 +345,12 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 
 - [GitHub Actions #40702890669](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40702890669)；受測程式與 workflow SHA `97820ec71b55dcbf8d79c85fedea64ac9151efee`。Node 已確認 **137/137 PASS（0 fail）**。Chrome 與 Linux desktop WebKit 的最終結果以同一 run 的 completed conclusion 為準；未實際完成前不得標全綠。
 - **尚不能宣稱**真實使用者歷史資料全面相容、跨版本自動清理或 Safari/iPad 真機通過。未知的真歷史 schema 需要經使用者授權、去識別化、備份及獨立審查才能驗證；有合成測試不代表已取得這項授權。保持 R03-04 的歷史樣本 Gate **BLOCKED**。
+
+
+### R16 自動修正循環找到的真實缺陷（保留失敗證據）
+
+本輪不是只有新測試：首次 [Actions #40702890669](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40702890669) 的 Node **137/137 PASS**，但真 Chromium **31/33 PASS，2 FAIL**。此失敗是有效發現，不得將首次 Run 說成成功：
+1. 現有 `app.js` 在進入 3D 頁面時無條件呼叫 `save(true)`，將**合法歷史圖的原始 JSON 重新序列化**成現行 compact/升版形式並可能更動 Undo。這會破壞原始 bytes／證據版本，先前只測 API 而未測「舊圖實際開頁」未能發現。已改成**只在 localStorage 主快照確實不存在且存檔未阻擋時，才能初始化 seed 存檔**；舊圖可以用新 UI 檢視但只有明確修改才允許提交新版。
+2. 損壞歷史版本（如 `version=999`）的資料實際已阻擋保存，卻被 `window.AIBrain.persistence().ready` 誤報為 `true`。已修正「legacy 標記允許寫入且不存在 `blockedStoredState`」才回報 ready，避免前端看見錯誤綠燈。
+
+兩項修正均在原 Draft PR #75 隔離 `app.js`；重新觸發 [Actions #40703412901](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40703412901) 做 Node／真 Chromium／desktop WebKit 全套回歸。**此重跑未 completed 前不可標為 R16 完成。**
