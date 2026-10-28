@@ -57,7 +57,7 @@ export async function readSnapshot(databaseName,key){
   };
  });
 }
-export async function writeSnapshot(databaseName,key,expectedRevision,mainRaw,undoRaw){
+export async function writeSnapshot(databaseName,key,expectedRevision,mainRaw,undoRaw,options={}){
  if(!validId(key)||!Number.isSafeInteger(expectedRevision)||expectedRevision<0||
     !validRaw(mainRaw)||!validRaw(undoRaw))
   return failed("write_arguments_invalid");
@@ -77,7 +77,13 @@ export async function writeSnapshot(databaseName,key,expectedRevision,mainRaw,un
    if(revision!==expectedRevision){
     setResult({ok:false,reason:"stale_revision",revision});return;
    }
+   // Initial migration records the immutable legacy byte fingerprints.
+   // Subsequent revisions carry them forward in the SAME atomic snapshot.
+   // Old direct IDB tests can still operate without a fence, but the First
+   // Brain adapter refuses an unfenced legacy migration for activation.
    const next={key,revision:revision+1,mainRaw,undoRaw};
+   if(current?.legacyFence)next.legacyFence=current.legacyFence;
+   else if(revision===0&&options.legacyFence)next.legacyFence=options.legacyFence;
    // Success is ONLY reported by transaction.oncomplete; abort is failure.
    try {
     store.put(next);
