@@ -354,3 +354,16 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 2. 損壞歷史版本（如 `version=999`）的資料實際已阻擋保存，卻被 `window.AIBrain.persistence().ready` 誤報為 `true`。已修正「legacy 標記允許寫入且不存在 `blockedStoredState`」才回報 ready，避免前端看見錯誤綠燈。
 
 兩項修正均在原 Draft PR #75 隔離 `app.js`；重新觸發 [Actions #40703412901](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40703412901) 做 Node／真 Chromium／desktop WebKit 全套回歸。**此重跑未 completed 前不可標為 R16 完成。**
+
+
+### R16 最終回歸驗證（修復後）
+
+**受測程式 SHA**：`5dfa1c3180778b40265f49e87bcafaf3d02773fd`；[GitHub Actions #40703412901](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40703412901) 完成三個 jobs，全部 success：
+
+- Node.js **137/137 PASS，0 FAIL**：12 個合成合法格式案例、8 個損毀圖分類、5 個不合法 Undo／復原格式案例及未支援版本拒絕；原先 133 個回歸仍通過。
+- 真 Chromium **33/33 PASS，0 FAIL**：新增 R16 兩個 3D 案例，含無版本原始 JSON（含空白／換行）、來源自訂欄位、節點 ID/關聯、歷史事件和 Undo 原始 bytes 保留；`legacy → backup → IDB → modify → Undo → reload` 往返完成；不合法未來版本被阻擋且原始資料不被覆蓋。日誌標記 `FIRST_BRAIN_R16_HISTORICAL_ROUNDTRIP_PASS unversioned=1 source_bytes=1 undo_bytes=1 lineage=1 idb=1 undo=1 reload=1`。
+- 桌面 Linux WebKit **1/1 PASS，0 FAIL**：既有獨立儲存引擎的原子交易回歸仍通過。
+
+**重要歷史**：初次 Chrome 31/33、2 FAIL → 找出啟動無條件 `save(true)` 導致舊資料自動改寫，以及 `persistence().ready` 對已封鎖損毀資料誤報可用；修正後 33/33。不可刪除失敗 Run，因為此證據說明 R16 真有找到並修復既存缺陷。
+
+**Gate 判定**：**R16「合成歷史格式＋真 Chromium 3D 往返」PASS**；**R16「使用者真實歷史檔案」仍 BLOCKED**（尚未取得明確授權與可驗證原始材料）。此結果不代表歷史所有 schema 都被覆蓋，不代表 main 已合併、部署或 Safari/iOS 實機驗收。若後續使用真歷史檔，須先備份、明示授權及去識別化，逐份分類例外，而非擅自使用。
