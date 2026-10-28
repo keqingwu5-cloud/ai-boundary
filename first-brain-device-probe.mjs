@@ -80,12 +80,14 @@ export async function startProbe(id){
   if(!initial.ok||initial.graph!==target.graph||initial.undo!==target.undo)
     return denied('initial_synthetic_readback_failed');
   const aborted=await transactionWrite(db,[['graph','unsafe-r17-graph'],['undo','unsafe-r17-undo']],true);
-  if(aborted.ok||aborted.reason!=='transaction_aborted')
-    return denied('abort_test_failed');
+  // Browser engines may surface an explicit abort through either onabort
+  // or onerror. Acceptance depends on the durable state remaining unchanged.
+  if(aborted.ok)return denied('abort_test_unexpectedly_committed');
   const after=await transactionRead(db);
   if(!after.ok||after.graph!==target.graph||after.undo!==target.undo)
     return denied('abort_leaked_partial_state');
-  return {ok:true,reason:'atomic_graph_undo_and_abort_verified'};
+  return {ok:true,reason:'atomic_graph_undo_and_abort_verified',
+    abortSignal:aborted.reason};
  }finally{db.close();}
 }
 export async function clearProbe(id){
