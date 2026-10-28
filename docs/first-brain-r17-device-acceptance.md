@@ -46,3 +46,9 @@
 - Safari 實體裝置：**未執行／BLOCKED**。
 - 使用者真實歷史資料：**未獲驗收授權／BLOCKED**。
 - Reviewer ACK：**未取得／BLOCKED**。
+
+## 開發過程中的真實錯誤（R17 回饋紀錄）
+
+首次包含診斷 UI 的 [CI #40780663287](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40780663287)：原 Node 137/137 PASS，**新增的 WebKit 診斷案例 FAIL**（保留第一次紅燈證據）；原 WebKit R13 交易案例仍 PASS。診斷原因是 `startProbe()` 在主動 abort 後硬性要求特定 `transaction_aborted` 錯誤代碼，但 WebKit 可能走不同錯誤事件／回傳結果。
+
+已修正診斷判定：**交易中止後從 IndexedDB 重新讀出的 graph 和 Undo 必須與中止前完全一致**，才可通過；若兩筆有任何變動，或交易意外完成，仍 FAIL。這比比較單一瀏覽器的錯誤代碼更能證明實際儲存安全。修復仍需以新 Run 全部實測通過為證，不能用之前的失敗 Run 冒充成功。
