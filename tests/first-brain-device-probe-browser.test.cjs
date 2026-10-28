@@ -26,7 +26,14 @@ test("R17 isolated device probe: explicit synthetic writes, rollback, reopen, re
   });
   assert.equal(prior.reason,"invalid_probe_id");
   await page.locator("#start").click();
-  await page.waitForFunction("location.hash.startsWith('#r17=') && document.getElementById('startResult').textContent.includes('atomic_graph_undo_and_abort_verified')",null,{timeout:20000});
+  try{
+   await page.waitForFunction("location.hash.startsWith('#r17=') && document.getElementById('startResult').textContent.includes('atomic_graph_undo_and_abort_verified')",null,{timeout:9000});
+  }catch(e){
+   const debug=await page.evaluate(()=>({hash:location.hash,start:document.getElementById('startResult')?.textContent,
+     loaded:!!document.getElementById('start'),secure:isSecureContext}));
+   console.log("R17_DEVICE_PROBE_START_FAILURE_DIAG",JSON.stringify({debug,errors,engine:browserEngine}));
+   throw e;
+  }
   const originalUrl=page.url(),firstId=new URL(originalUrl).hash.slice(5);
   assert.match(firstId,/^[a-f0-9]{32}$/);
   const before=await page.evaluate(()=>{
