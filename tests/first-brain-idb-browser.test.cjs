@@ -122,15 +122,16 @@ test("First Brain staging refuses changed backup bytes and detects a late legacy
     });
    }finally{IDBObjectStore.prototype.put=put;}
    const copy=await a.readTransactional3D(db2);
-   return {stale,unchangedDb,undoStale,late,copy,now:localStorage.getItem(a.MAIN_KEY),
+   const persisted=await (await import("/transactional-brain-store.mjs")).readSnapshot(db2,a.MAIN_KEY);
+   return {stale,unchangedDb,undoStale,late,copy,persisted,now:localStorage.getItem(a.MAIN_KEY),
     authority:localStorage.getItem("aiBrain.v1.persistence.authority"),mainRaw,newRaw};
   },{db,db2});
   assert.equal(result.stale.reason,"legacy_source_changed_since_backup");
   assert.equal(result.unchangedDb.reason,"transactional_snapshot_missing");
   assert.equal(result.undoStale.reason,"legacy_undo_changed_since_backup");
   assert.equal(result.late.reason,"legacy_source_changed_during_stage");
-  assert.equal(result.copy.ok,true,"staged earlier bytes remain safely available for review");
-  assert.equal(result.copy.mainRaw,result.mainRaw);
+  assert.equal(result.copy.reason,"legacy_writer_detected","unsafe staged data must not become active");
+  assert.equal(result.persisted.snapshot.mainRaw,result.mainRaw,"staged original bytes stay available for review");
   assert.equal(result.now,result.newRaw,"external edit remains untouched");
   assert.equal(result.authority,null,"staging test never claims a completed cutover");
   console.log("FIRST_BRAIN_LEGACY_BACKUP_MATCH_GATE_PASS changed_main=1 changed_undo=1 during_stage=1");
@@ -189,7 +190,7 @@ test("First Brain interrupted staging: exact-backup recovery only, no overwrite 
       localStorage,{confirmed:true,expectedMainRaw:other,expectedUndoRaw:prior.undoRaw});
     return {result,other};
   });
-  assert.equal(changed.result.reason,"staged_snapshot_differs_from_backup");
+  assert.equal(changed.result.reason,"legacy_writer_detected");
   assert.deepEqual(errors,[]);
   console.log("FIRST_BRAIN_INTERRUPTED_STAGE_SAFE_RECOVERY_PASS explicit=1 no_overwrite=1 mismatch_reject=1");
  }finally{await ctx.close();await browser.close();}
