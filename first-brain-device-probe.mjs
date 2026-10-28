@@ -10,19 +10,21 @@ export function newProbeId(){
  crypto.getRandomValues(bytes);
  return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
 }
-function openDatabase(id){
+function openDatabase(id,{create=true}={}){
  const name=probeName(id);
  if(!name)return Promise.resolve(denied('invalid_probe_id'));
  return new Promise(resolve=>{
   let request;
   try{request=indexedDB.open(name,1);}
   catch(_){resolve(denied('indexeddb_open_exception'));return;}
+  let missing=false;
   request.onupgradeneeded=()=>{
+   if(!create){missing=true;try{request.transaction.abort();}catch(_){}return;}
    const db=request.result;
    if(!db.objectStoreNames.contains('receipts'))db.createObjectStore('receipts',{keyPath:'key'});
   };
   request.onsuccess=()=>resolve({ok:true,db:request.result});
-  request.onerror=()=>resolve(denied('indexeddb_open_failed'));
+  request.onerror=()=>resolve(denied(missing?'probe_not_found':'indexeddb_open_failed'));
   request.onblocked=()=>resolve(denied('indexeddb_open_blocked'));
  });
 }
@@ -55,7 +57,7 @@ function transactionRead(db){
 }
 const expected=id=>({graph:'synthetic-r17-graph-'+id,undo:'synthetic-r17-undo-'+id});
 export async function verifyProbe(id){
- const opened=await openDatabase(id);
+ const opened=await openDatabase(id,{create:false});
  if(!opened.ok)return opened;
  try{
   const read=await transactionRead(opened.db);
