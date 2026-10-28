@@ -53,7 +53,8 @@ test("direction/threshold rollback identified independently",()=>{
 });
 test("same preserved synthetic vault has zero known loss but still requires manual approval",()=>{
  const old=state(),r=core.previewRestore(old,JSON.parse(JSON.stringify(old)));
- assert.deepEqual(r.counts,{lostMemories:0,lostCandidates:0,lostAuditEvents:0,lostVersions:0});
+ assert.deepEqual(r.counts,{lostMemories:0,lostCandidates:0,lostAuditEvents:0,lostVersions:0,
+   modifiedMemories:0,modifiedCandidates:0,modifiedAuditEvents:0});
  assert.deepEqual(r.warnings,[]);
  assert.equal(r.requiresHumanApproval,true);
 });
@@ -73,4 +74,29 @@ test("legacy backup with no vault ID or revision is explicitly warned before any
  assert.ok(r.warnings.includes("UNKNOWN_BACKUP_VAULT_ID"));
  assert.ok(r.warnings.includes("UNKNOWN_BACKUP_REVISION"));
  assert.equal(r.requiresHumanApproval,true);
+});
+
+test("restore detects same-ID candidate and audit tampering",()=>{
+ const old=state(),fresh=JSON.parse(JSON.stringify(old));
+ old.audit=[{id:"EV1",summary:"拒絕原由"}];fresh.audit=[{id:"EV1",summary:"拒絕被改寫"}];
+ fresh.candidates[0].content="改寫的候選";
+ const before=JSON.stringify({old,fresh}),r=core.previewRestore(old,fresh);
+ assert.equal(r.counts.lostCandidates,0);assert.equal(r.counts.lostAuditEvents,0);
+ assert.equal(r.counts.modifiedCandidates,1);assert.equal(r.counts.modifiedAuditEvents,1);
+ assert.ok(r.warnings.includes("EXISTING_RECORD_CHANGED"));
+ assert.equal(r.requiresHumanApproval,true);assert.equal(r.willMerge,false);
+ assert.equal(JSON.stringify({old,fresh}),before);
+});
+test("restore flags same-ID memory title rewrite even with identical versions",()=>{
+ const old=state(),fresh=JSON.parse(JSON.stringify(old));fresh.memories[0].question="改寫的原問題";
+ const r=core.previewRestore(old,fresh);
+ assert.equal(r.counts.lostVersions,0);assert.equal(r.counts.modifiedMemories,1);
+ assert.ok(r.warnings.includes("EXISTING_RECORD_CHANGED"));
+});
+test("restore ignores property order only",()=>{
+ const old=state(),fresh=JSON.parse(JSON.stringify(old)),c=fresh.candidates[0];
+ fresh.candidates[0]={content:c.content,status:c.status,question:c.question,originId:c.originId,id:c.id};
+ const r=core.previewRestore(old,fresh);
+ assert.equal(r.counts.modifiedCandidates,0);
+ assert.ok(!r.warnings.includes("EXISTING_RECORD_CHANGED"));
 });
