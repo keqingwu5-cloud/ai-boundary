@@ -81,11 +81,11 @@ test("R16 bad historical graph is classified and rejected without a write",()=>{
 test("R16 bad historical Undo is rejected; no silent truncated or repaired history",()=>{
  const main=JSON.stringify(legacy());
  const cases=[
-  ["bad JSON","{broken","undo_undo_json_invalid"],
-  ["wrong Undo type",'{"unexpected":1}',"undo_undo_shape_invalid"],
-  ["bad snapshot",JSON.stringify(["{bad"]),"undo_undo_graph_json_invalid"],
-  ["unsupported future snapshot",JSON.stringify([JSON.stringify(legacy(500))]),"undo_undo_graph_unsupported_graph_version"],
-  ["13 exceeds limit",JSON.stringify(Array(13).fill(main)),"undo_undo_shape_invalid"]
+  ["bad JSON","{broken","undo_json_invalid"],
+  ["wrong Undo type",'{"unexpected":1}',"undo_shape_invalid"],
+  ["bad snapshot",JSON.stringify(["{bad"]),"undo_graph_json_invalid"],
+  ["unsupported future snapshot",JSON.stringify([JSON.stringify(legacy(500))]),"undo_graph_unsupported_graph_version"],
+  ["13 exceeds limit",JSON.stringify(Array(13).fill(main)),"undo_shape_invalid"]
  ];
  for(const [label,raw,reason] of cases){
   const s=storage(main,raw),res=inspectLegacy3D(s);
