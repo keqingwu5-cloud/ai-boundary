@@ -159,7 +159,10 @@ function save(now = false){
   flashSaved();
   return true;
 }
-save(true);
+// R16: opening a valid historical snapshot MUST NOT rewrite its raw bytes,
+// format, custom fields, Undo, or version. Persist seed only on a genuinely
+// empty legacy store; subsequent explicit user actions do normal validation.
+if(expectedMainRaw===null && !blockedStoredState)save(true);
 const listeners = {};
 function emit(ev, data){ (listeners[ev] || []).forEach(f => { try { f(data); } catch(e){ console.error(e); } }); }
 function commitChange(proposed, nextUndo, successLabel){
@@ -1282,7 +1285,7 @@ window.AIBrain = {
   focusBrain, focusNode, overview, select, undo, exportJSON, importJSON, reset:resetAll,
   on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); },
   recordLearningFeedback,reviewLearningFeedback,findLearningLessons,analyzeLearningLessons,
-  persistence:()=>({mode:TX_MODE?'transactional':'legacy',ready:TX_MODE?txReady:legacyMayWrite(),revision:TX_MODE?txRevision:null,
+  persistence:()=>({mode:TX_MODE?'transactional':'legacy',ready:TX_MODE?txReady:(legacyMayWrite()&&!blockedStoredState),revision:TX_MODE?txRevision:null,
     pending:txBusy,reason:txLoadError}),
   whenIdle:()=>txLastWrite
 };
