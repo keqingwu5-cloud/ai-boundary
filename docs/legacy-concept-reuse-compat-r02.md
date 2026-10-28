@@ -328,3 +328,20 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 **可聲明**：隔離候選在合成資料下能偵測不合作的舊版本寫入，停止新版 IDB UI 修改及 Feed 過期來源、重新載入仍保持阻塞，IDB 原子版本未被舊寫入覆蓋，舊 localStorage 位元組留待人工核對。
 
 **不可聲明**：對所有舊程式實施寫入阻止、完全無資料遺失、跨儲存庫原子切換、真 iOS Safari 完成、真用戶資料遷移成功或正式部署。獨立 reviewer ACK 與主線合併仍未完成，R03-05 全域 Gate 保持 BLOCKED。
+
+
+## R16｜歷史版本圖與 Undo 的無損相容驗收（2026-10-28）
+
+**分類**：R03-04／A 舊資料相容、R03-01／A 保存恢復，關聯 R03-05／E 交易權威。沿用 Issue #32 / Draft PR #75，僅限第一大腦工程，不另設資料庫或 BOT。
+
+### 必須區分的證據層級
+
+- **合成合法舊格式**：在 `tests/first-brain-historical-compat.test.mjs` 建立 12 個無真人資料的情境（v1、缺版本、v2、可選節點欄位缺席、舊歷史紀錄／來源自訂欄位、Unicode、跨子腦父子與衍生連結等），對 `inspectLegacy3D` 檢查原 main 和 Undo 的 **raw bytes 完全相同**、圖與節點關係未改、沒有隱式 `setItem/removeItem`。
+- **不合法歷史資料**：測試未支援的未來版、重複 Node ID、節點或腦關聯循環、缺失父節點／連結端點、不合法位置；Undo 另檢查壞 JSON、非陣列、損毀快照、超出容量與不支援未來快照。所有資料必須**拒絕並保留舊 bytes**，不偷偷補欄位後當成功。
+- **真 Chrome 3D 介面往返**：`tests/first-brain-historical-browser.test.cjs` 使用公開 seed 圖建立無版本合成舊圖，保留未知歷史欄位、節點／子腦關係及 Undo；透過實際 3D 頁面 `legacy → backup → opt-in IDB → 修改 → Undo → reload` 驗證原始主圖/Undo 及節點 lineage，另加損毀未來版本不自動修復測試。
+- 所有新測試已加入現有 workflow 的**實際 run 指令**，由先前 R11 CI 契約確認受監看且執行。沒有使用者授權真歷史檔被讀取、上傳或改寫。
+
+### 結果與正式 Gate
+
+- [GitHub Actions #40702890669](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40702890669)；受測程式與 workflow SHA `97820ec71b55dcbf8d79c85fedea64ac9151efee`。Node 已確認 **137/137 PASS（0 fail）**。Chrome 與 Linux desktop WebKit 的最終結果以同一 run 的 completed conclusion 為準；未實際完成前不得標全綠。
+- **尚不能宣稱**真實使用者歷史資料全面相容、跨版本自動清理或 Safari/iPad 真機通過。未知的真歷史 schema 需要經使用者授權、去識別化、備份及獨立審查才能驗證；有合成測試不代表已取得這項授權。保持 R03-04 的歷史樣本 Gate **BLOCKED**。
