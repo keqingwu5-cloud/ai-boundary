@@ -6,6 +6,7 @@ import { validateBrainImport, commitBrainImport } from './brain-import-guard.mjs
 import {prepareLearningObservation,markLearningReviewed,findReusableLessons,analyzeLearningEvidence} from './brain-learning-feedback.mjs';
 import {bindLearningPanel} from './brain-learning-ui.mjs';
 import { readTransactional3D, commitTransactional3D, stageLegacy3D, inspectLegacy3D, verifyStagedLegacy3D } from './first-brain-idb-adapter.mjs';
+import {exportVerifiedTransactionalBackup} from './first-brain-transactional-backup.mjs';
 
 /* ================= constants ================= */
 const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
@@ -1359,6 +1360,42 @@ function installFirstBrainPersistenceBanner(){
         :'交易式儲存尚未啟用（'+(txLoadError||'no_snapshot')+'）。目前是原主腦唯讀預覽，任何編輯均不保存。'))
     :'第一大腦交易資料已成權威，此舊版頁面禁止修改。請切換至交易模式。';
   banner.append(message);
+  if(TX_MODE&&txReady){
+    // R21 explicit user-initiated export of the CURRENT authoritative IDB
+    // graph and Undo. Do not fall back to the pre-cutover legacy backup.
+    const currentBackup=document.createElement('button');
+    currentBackup.id='brainTxCurrentBackup';
+    currentBackup.type='button';
+    currentBackup.textContent='下載目前交易版本備份（主圖＋Undo）';
+    currentBackup.style.cssText='display:block;margin-top:8px;padding:5px 9px;border:1px solid #88c8dc;border-radius:6px;background:#224356;color:#fff;cursor:pointer';
+    currentBackup.onclick=async()=>{
+      if(!txReady||txBusy){toast('⚠ 交易尚未就緒，不能匯出權威備份');return;}
+      currentBackup.disabled=true;
+      try{
+        const result=await exportVerifiedTransactionalBackup(TX_DB,localStorage,
+          {expectedRevision:txRevision});
+        if(!result.ok){
+          if(result.reason==='transactional_snapshot_missing'||
+             result.reason==='stored_snapshot_invalid'||
+             result.reason?.startsWith('legacy_writer_detected')){
+            txReady=false;txLoadError=result.reason;
+            message.textContent='⚠ 交易資料無法安全備份（'+result.reason+'）；已停止編輯。不得以舊備份取代目前版本。';
+          }
+          toast('⚠ 目前交易備份未建立：'+result.reason);return;
+        }
+        const blob=new Blob([JSON.stringify(result.backup,null,2)],
+          {type:'application/json'});
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download='first-brain-idb-revision-'+result.backup.revision+'-verified.json';
+        document.body.append(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(a.href),1200);
+        toast('已產生版本 '+result.backup.revision+' 的驗證備份。內含主腦資料，請自行安全保存；尚未進行還原。');
+      }catch(_){toast('⚠ 交易備份失敗，沒有將舊資料冒充新版本');}
+      finally{currentBackup.disabled=!txReady;}
+    };
+    banner.append(currentBackup);
+  }
   if(!TX_MODE){
     const link=document.createElement('a');
     link.href='index.html?brainTx=1'+location.hash;
