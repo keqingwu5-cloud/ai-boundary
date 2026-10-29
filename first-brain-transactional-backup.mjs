@@ -12,6 +12,12 @@ const AUTH_KEY='aiBrain.v1.persistence.authority';
 const failed=reason=>({ok:false,reason});
 const isObject=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const validSha=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
+// Metadata sanity only: digest cannot prove provenance, ownership, or signer identity.
+const validExportedAt=x=>{
+ if(typeof x!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(x))return false;
+ const n=Date.parse(x);
+ return Number.isFinite(n)&&new Date(n).toISOString()===x&&n<=Date.now()+300000;
+};
 async function sha256(text){
  if(typeof text!=='string'||!globalThis.crypto?.subtle||!globalThis.TextEncoder)
    return null;
@@ -40,8 +46,7 @@ function validUndoRaw(raw){
 export async function verifyTransactionalBackup(envelope){
  if(!isObject(envelope)||envelope.schema!==TRANSACTIONAL_BACKUP_SCHEMA||
    envelope.key!==MAIN_KEY||!Number.isSafeInteger(envelope.revision)||
-   envelope.revision<1||typeof envelope.exportedAt!=='string'||
-   !/^\d{4}-\d{2}-\d{2}T/.test(envelope.exportedAt)||
+   envelope.revision<1||!validExportedAt(envelope.exportedAt)||
    typeof envelope.mainRaw!=='string'||
    typeof envelope.undoRaw!=='string'||!isObject(envelope.legacyFence)||
    envelope.legacyFence.version!==1||
