@@ -1354,7 +1354,9 @@ function installFirstBrainPersistenceBanner(){
   const message=document.createElement('div');
   message.textContent=TX_MODE
     ? (txReady?'第一大腦交易式儲存（隔離候選）｜版本 '+txRevision+'。主圖與 Undo 同步交易；舊 localStorage 保留備份。'
-      :'交易式儲存尚未啟用（'+(txLoadError||'no_snapshot')+'）。目前是原主腦唯讀預覽，任何編輯均不保存。')
+      :(txLoadError==='transactional_snapshot_missing' && !legacyMayWrite()
+        ?'⚠ 先前已啟用的交易式主腦快照遺失。舊 localStorage 只代表切換前備份，可能缺少較新的修改；禁止用它直接重建交易資料。請保留兩份證據並進行人工恢復。'
+        :'交易式儲存尚未啟用（'+(txLoadError||'no_snapshot')+'）。目前是原主腦唯讀預覽，任何編輯均不保存。'))
     :'第一大腦交易資料已成權威，此舊版頁面禁止修改。請切換至交易模式。';
   banner.append(message);
   if(!TX_MODE){
@@ -1386,8 +1388,14 @@ function installFirstBrainPersistenceBanner(){
       a.download='first-brain-legacy-raw-backup.json';document.body.append(a);a.click();a.remove();
       setTimeout(()=>URL.revokeObjectURL(a.href),1200);
       exportedLegacy={mainRaw,undoRaw:undoRaw===null?'[]':undoRaw};
-      backupDownloaded=true;activate.disabled=false;
-      toast('舊主腦備份已準備，可自行保存到安全位置');
+      backupDownloaded=true;
+      // A prior 'idb' authority may have newer graph/Undo history than the
+      // preserved legacy bytes. A fresh copy is never a safe disaster restore.
+      activate.disabled=txLoadError==='transactional_snapshot_missing'&&!legacyMayWrite();
+      if(activate.disabled)activate.title='交易快照遺失：只能下載舊備份，禁止直接重建';
+      toast(activate.disabled
+        ?'⚠ 舊資料備份已保留，但先前交易快照遺失，禁止由舊版自動重建'
+        :'舊主腦備份已準備，可自行保存到安全位置');
     };
     activate.onclick=async()=>{
       if(!backupDownloaded||!exportedLegacy||txBusy)return;
@@ -1400,16 +1408,27 @@ function installFirstBrainPersistenceBanner(){
       }
       activate.disabled=true;
       try{
-        // Block updated legacy-mode tabs before staging. If a failure occurs,
-        // retain the marker and the original data for safe manual recovery.
-        localStorage.setItem(TX_AUTH_KEY,'idb');
-        let result=await stageLegacy3D(TX_DB,localStorage,{confirmed:true,
-          expectedMainRaw:exportedLegacy.mainRaw,expectedUndoRaw:exportedLegacy.undoRaw});
-        if(!result.ok&&result.reason==='transactional_snapshot_exists'){
-          // Only resume an interrupted initial copy that EXACTLY matches the
-          // reviewed exported bytes; never overwrite the existing IDB authority.
+        // If authority is already IDB, NEVER stage a fresh copy from legacy:
+        // eviction may have destroyed later graph/Undo revisions. Only an
+        // existing, revision-one, byte-for-byte staged copy may be resumed.
+        const declared=localStorage.getItem(TX_AUTH_KEY);
+        if(declared!==null&&declared!=='idb'){
+          toast('⚠ 保存權威標記不明，禁止切換：authority_marker_invalid');return;
+        }
+        let result;
+        if(declared==='idb'){
           result=await verifyStagedLegacy3D(TX_DB,localStorage,{confirmed:true,
             expectedMainRaw:exportedLegacy.mainRaw,expectedUndoRaw:exportedLegacy.undoRaw});
+        }else{
+          // Block updated legacy tabs before copying. Failure leaves the
+          // cutover marker intact: never silently reactivate a stale writer.
+          localStorage.setItem(TX_AUTH_KEY,'idb');
+          result=await stageLegacy3D(TX_DB,localStorage,{confirmed:true,
+            expectedMainRaw:exportedLegacy.mainRaw,expectedUndoRaw:exportedLegacy.undoRaw});
+          if(!result.ok&&result.reason==='transactional_snapshot_exists'){
+            result=await verifyStagedLegacy3D(TX_DB,localStorage,{confirmed:true,
+              expectedMainRaw:exportedLegacy.mainRaw,expectedUndoRaw:exportedLegacy.undoRaw});
+          }
         }
         if(!result.ok){toast('⚠ 交易初始化失敗：'+result.reason+'；原始備份與停止寫入標記仍保留');return;}
         location.reload();
