@@ -479,3 +479,12 @@ R20 找到明確風險：既有 `localStorage` 舊備份只有**IDB 首次切換
 首次 [Actions #40837210970](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40837210970)，Node **143/143 PASS**、Linux desktop WebKit **7/7 PASS**，但 Chromium **38/39（1 FAIL）**：在 `tests/first-brain-current-backup-browser.test.cjs:49` 點擊下載目前 IDB 權威備份後，**15 秒內沒有收到 `download` 事件**。尚不能推斷為資料損壞、摘要錯誤或單純測試偶發；保留這次真正的紅燈，不能以 WebKit 成功代替 Chromium 驗證。
 
 下一輪的測試先增加匯出 API 的結果 `{ok,reason,revision}` 預檢，若點擊後仍無下載則只記錄 UI ready、錯誤 toast、按鈕狀態與 authority marker（**不記錄 Graph、Undo、任何私人內容**），以定位是驗證失敗還是下載權限／操作時序。重跑 [Actions #40837803764](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40837803764)，完成之前仍 BLOCKED。
+
+
+### R21 最終隔離驗證與未宣稱事項
+
+- **受測程式／測試 SHA**：`9bcaf2e2eb060bc5fffa388d95a494f8db7d6015`；[GitHub Actions #40837803764](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40837803764) 三個 job 全數完成且 success：**Node 143/143、Chromium 39/39、Linux desktop WebKit 7/7；0 FAIL**。
+- Chrome 與桌面 WebKit 均有 `FIRST_BRAIN_R21_VERIFIED_CURRENT_BACKUP_PASS` 和 `FIRST_BRAIN_R21_MISSING_SNAPSHOT_NO_BACKUP_PASS` log marker；真正跑過原 3D 頁面的「舊備份 → IDB revision 2 → 手動下載新版備份 → 原始 main/Undo、SHA 檢查 → 篡改／過期／權威缺失拒絕」，沒有用舊備份冒充目前資料。實際下載和讀回只包含合成 seed 圖。
+- **第一次失敗仍保留**：首輪 Chrome 38/39 的 15 秒下載事件逾時，沒有足夠證據說明是否瀏覽器下載權限、CI 負載或備份生成延遲；後一輪加上非敏感匯出預檢與下載診斷，將等待事件範圍擴充到 25 秒並實際通過。這不能證明真設備下載 UX 永遠不會受延遲影響，應保留為後續人工試用觀察項，**不得宣稱已找到單一根因**。
+- **R21 結案範圍**：合成交易式權威備份的**明確點擊、檔案匯出與完整性檢查**在隔離 Chrome/WebKit 全綠；**備份檔的安全離線保管、正式恢復導入、macOS/iPhone/iPad Apple Safari、OS 儲存清理、真私人資料及獨立 review**尚未驗收。SHA-256 不是數位簽章，不能單靠 digest 宣稱來源真實或不可偽造。
+- 主線 `main` 未合併、原 PR #75 仍 Draft、未部署；現階段不需要使用者批准整合。未經明確授權，不自行處理私人歷史圖或完成恢復。
