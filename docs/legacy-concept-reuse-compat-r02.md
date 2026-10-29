@@ -508,3 +508,14 @@ R20 找到明確風險：既有 `localStorage` 舊備份只有**IDB 首次切換
 **這是合成備份在隔離資料庫的可還原性演練，而不是正式主腦的還原功能。** 不做實際產線資料復原、權威升格、用戶真歷史檔案、App／OS 外部備份、失敗後的雲端復原，亦不能斷言 Safari 真機或系統儲存清理時資料必然可恢復。SHA-256 僅驗證內部 byte 完整性，不是檔案來源簽章。
 
 本節提交時 GitHub Actions 最終結果尚未核定，應等待包含 R22 真瀏覽器測試的 Node、Chromium、WebKit 三個 job completed 且有可檢查日志後，才可標「R22 隔離演練 PASS」。正式合併與獨立 reviewer / Safari 實機 Gate 繼續 **BLOCKED**。
+
+
+### R22 最終隔離測試證據
+
+**已確認三組 CI 完全成功**：[GitHub Actions #40839544192](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40839544192)，受測程式及測試 SHA `0702975a7a3c129baf82321e63927016e2d3fc35`；Node **143/143 PASS**、真 Chromium **41/41 PASS**、Linux 桌面 WebKit **9/9 PASS**；三個 job conclusion 均為 `success`，**0 FAIL**。
+
+瀏覽器兩引擎均實際輸出：
+- `FIRST_BRAIN_R22_DISPOSABLE_RECOVERY_PASS`：來源 revision=2 的合成主圖與 Undo 在單筆隔離交易中逐位元組讀回、記錄來源版本及摘要；正式測試主腦升到 revision=3 後不被隔離演練覆寫；刪除演練庫也不影響現行主腦或舊 raw。
+- `FIRST_BRAIN_R22_NEGATIVE_REHEARSAL_PASS`：拒絕無效 ID、格式錯誤備份，並驗證**即使備份摘要有效，也不可覆寫已有較新版次的隔離快照**；清理只作用於測試 DB。
+
+**結論分層**：R22 合成備份的「隔離讀回、主圖/Undo 一致、拒絕覆蓋較新資料、刪除安全」PASS；正式資料庫還原／權威切換、授權真歷史資料、OS 刪庫後的外部備份有效性、實體 Apple Safari/iPad、舊版本退場與獨立 reviewer ACK 仍 BLOCKED。SHA-256 不等於身分簽章。不合併、部署、遷移或宣稱實際使用者資料已復原。
