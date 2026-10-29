@@ -25,7 +25,7 @@ test("R20 evicted active IDB: old legacy bytes cannot silently become authoritat
   assert.equal(JSON.parse(fs.readFileSync(await backup.path(),"utf8")).mainRaw,mainBefore);
   tx.once("dialog",d=>d.accept());
   await tx.locator("#brainTxActivate").click();
-  await tx.waitForFunction("window.AIBrain.persistence().ready===true",null,{timeout:30000});
+  await tx.waitForFunction("window.AIBrain?.persistence().ready===true",null,{timeout:30000});
   const changed=await tx.evaluate(async()=>{
    const node=window.AIBrain.getState().nodes[0],original=node.status,
     desired=original==="researching"?"resolved":"researching";
