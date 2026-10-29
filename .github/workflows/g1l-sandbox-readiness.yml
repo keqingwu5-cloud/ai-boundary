@@ -1,0 +1,27 @@
+name: G1L sandbox readiness (offline deny-only)
+on:
+  pull_request:
+    paths:
+      - 'api/g1l-sandbox/**'
+      - 'tests/g1l-sandbox-readiness.test.cjs'
+      - '.github/workflows/g1l-sandbox-readiness.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deny-only-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Test G1L deny-only provider, costs, and least-privilege preflight
+        run: node --test tests/g1l-sandbox-readiness.test.cjs
+      - name: Re-run prior G1k and G1h synthetic handoff regression
+        run: node --test tests/g1k-crossprocess.test.cjs tests/g1h-crosslayer-ack-review.test.cjs
