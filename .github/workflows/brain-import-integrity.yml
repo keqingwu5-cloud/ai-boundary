@@ -126,4 +126,4 @@ jobs:
           done
           exit 1
       - name: Test First Brain snapshot safety with desktop WebKit (not physical Safari)
-        run: R17_BROWSER=webkit node --test tests/first-brain-webkit-browser.test.cjs tests/first-brain-device-probe-browser.test.cjs
+        run: R17_BROWSER=webkit WORLD_LOCK_BROWSER=webkit node --test tests/first-brain-webkit-browser.test.cjs tests/first-brain-device-probe-browser.test.cjs tests/world-model-writer-lock-browser.test.cjs
