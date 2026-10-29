@@ -472,3 +472,10 @@ R20 找到明確風險：既有 `localStorage` 舊備份只有**IDB 首次切換
 - 新增程式不等同於**已證明可以把備份還原至正式主腦**；本階段不實作、不驗證導入。備份檔是離線的使用者管理檔案，瀏覽器沒有保證下載後永遠保存；多裝置、OS eviction、實體 iOS Safari、受控災難復原演練、獨立 reviewer ACK、舊 writer 淘汰仍需各自驗收。
 - 只有相同已提交 revision 的快照被驗證，不是跨 localStorage/IndexedDB 的真正全域原子快照，也不能保證點擊之後別的分頁不再更新。若 revision 已變，必須重讀頁面再操作，不暗中匯出使用者未確認的新版本。
 - 本節初次寫入時**R21 CI 結果尚未完成**；是否 PASS 必須等待對應 GitHub Actions 的 Node、Chromium、WebKit final conclusion 與實際 marker，不能預先報成功。
+
+
+### R21 首輪回歸失敗與調查依據
+
+首次 [Actions #40837210970](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40837210970)，Node **143/143 PASS**、Linux desktop WebKit **7/7 PASS**，但 Chromium **38/39（1 FAIL）**：在 `tests/first-brain-current-backup-browser.test.cjs:49` 點擊下載目前 IDB 權威備份後，**15 秒內沒有收到 `download` 事件**。尚不能推斷為資料損壞、摘要錯誤或單純測試偶發；保留這次真正的紅燈，不能以 WebKit 成功代替 Chromium 驗證。
+
+下一輪的測試先增加匯出 API 的結果 `{ok,reason,revision}` 預檢，若點擊後仍無下載則只記錄 UI ready、錯誤 toast、按鈕狀態與 authority marker（**不記錄 Graph、Undo、任何私人內容**），以定位是驗證失敗還是下載權限／操作時序。重跑 [Actions #40837803764](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40837803764)，完成之前仍 BLOCKED。
