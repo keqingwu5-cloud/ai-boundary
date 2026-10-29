@@ -29,6 +29,7 @@ on:
       - tests/research-event-chain.test.mjs
       - research-event-chain.mjs
       - world-verification-ledger.mjs
+      - tests/world-model-writer-lock-browser.test.cjs
       - world-verification-ui.mjs
       - concept-reuse-compat.mjs
       - tests/concept-reuse-compat.test.mjs
@@ -100,7 +101,7 @@ jobs:
           done
           exit 1
       - name: Test real browser 3D and Feed workflows
-        run: node --test tests/brain-browser-smoke.test.cjs tests/research-browser-smoke.test.cjs tests/dual-world-brain-browser.test.cjs tests/graph-validator-browser.test.cjs tests/transactional-brain-store-browser.test.cjs tests/first-brain-idb-browser.test.cjs tests/first-brain-transactional-ui-browser.test.cjs tests/first-brain-failure-gates-browser.test.cjs tests/first-brain-transactional-failure-browser.test.cjs tests/first-brain-learning-browser.test.cjs tests/first-brain-old-writer-browser.test.cjs tests/first-brain-historical-browser.test.cjs tests/first-brain-device-probe-browser.test.cjs
+        run: node --test tests/brain-browser-smoke.test.cjs tests/research-browser-smoke.test.cjs tests/dual-world-brain-browser.test.cjs tests/graph-validator-browser.test.cjs tests/transactional-brain-store-browser.test.cjs tests/first-brain-idb-browser.test.cjs tests/first-brain-transactional-ui-browser.test.cjs tests/first-brain-failure-gates-browser.test.cjs tests/first-brain-transactional-failure-browser.test.cjs tests/first-brain-learning-browser.test.cjs tests/first-brain-old-writer-browser.test.cjs tests/first-brain-historical-browser.test.cjs tests/first-brain-device-probe-browser.test.cjs tests/world-model-writer-lock-browser.test.cjs
 
   webkit-isolated:
     runs-on: ubuntu-latest
