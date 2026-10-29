@@ -1,0 +1,27 @@
+name: G1h isolated cross-layer ACK review
+on:
+  pull_request:
+    paths:
+      - 'api/g1h-review/**'
+      - 'tests/g1h-crosslayer-ack-review.test.cjs'
+      - '.github/workflows/g1h-crosslayer-review.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-ack-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Offline synthetic crosslayer tests (not actual GPT2 ACK)
+        run: node --test tests/g1h-crosslayer-ack-review.test.cjs
+      - name: Existing handoff contract and API regressions
+        run: node --test tests/handoff-contract.test.cjs tests/mainbrain-api.test.cjs
