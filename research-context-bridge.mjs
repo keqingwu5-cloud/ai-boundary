@@ -48,6 +48,23 @@ export function readNodeContext(storage,raw){
     status:typeof n.status==="string"?n.status:""
   }};
 }
+// Read-only resolution honors the First Brain's active persistence authority.
+// Never silently fall back to a stale localStorage node after an IDB cutover.
+export async function readAuthoritativeNodeContext(storage,raw){
+  let authority;
+  try{authority=storage.getItem('aiBrain.v1.persistence.authority');}
+  catch(_){return {status:'unreadable',node:null};}
+  if(authority===null)return readNodeContext(storage,raw);
+  if(authority!=='idb')return {status:'unreadable',node:null};
+  let current;
+  try{
+    const {readTransactional3D}=await import('./first-brain-idb-adapter.mjs');
+    current=await readTransactional3D('aiBrain.firstBrain.transaction.r1');
+  }catch(_){return {status:'unreadable',node:null};}
+  if(!current.ok)return {status:'unreadable',node:null};
+  const shim={getItem:key=>key==='aiBrain.v1'?JSON.stringify(current.graph):null};
+  return readNodeContext(shim,raw);
+}
 export function exportResearchReference(ref){
   if(!ref||ref.status!=="linked"||!ref.node)return null;
   return {schema:RESEARCH_REF_VERSION,source:"aiBrain.v1",node_id:ref.node.id,

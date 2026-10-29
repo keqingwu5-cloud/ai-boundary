@@ -1,6 +1,6 @@
 /* Browser-only research version history. No changes to aiBrain.v1 or private memory. */
 import {LEGACY_KEY,JOURNAL_KEY,JOURNAL_SCHEMA,STATUSES,
- readWorldLedger,rowsAtVersion,appendWorldLedger} from './world-verification-ledger.mjs';
+ readWorldLedger,rowsAtVersion,appendWorldLedgerLocked} from './world-verification-ledger.mjs';
 const $=id=>document.getElementById(id);
 const safeUrl=raw=>{try{const u=new URL(raw);return u.protocol==='https:'?u.href:'';}catch(_){return '';}};
 let snapshot=readWorldLedger(localStorage);
@@ -14,16 +14,23 @@ function sourceNodeId(){
  const x=window.BrainResearchLink;
  return x?.status==='linked'&&x?.sourceNodeId?x.sourceNodeId:null;
 }
-function update(change){
+let writePending=false;
+async function update(change){
+ if(writePending){showIssue('journal_write_busy');return false;}
  if(!snapshot.ok){showIssue(snapshot.reason);return false;}
- // Expected raw is captured when tab last read the data, not reread immediately
- // before the action. A stale tab must fail instead of silently overwriting.
- const result=appendWorldLedger(localStorage,snapshot.rawV2,{
-  ...change,sourceNodeId:sourceNodeId()});
- if(!result.ok){showIssue(result.reason);return false;}
- snapshot=readWorldLedger(localStorage);
- render();
- return snapshot.ok;
+ writePending=true;
+ try{
+  // A single cooperative writer holds the origin-scoped Web Lock. The raw
+  // v2 compare is repeated inside the lock; a stale tab must not overwrite.
+  // Older scripts that do not acquire the lock remain an explicit release Gate.
+  const result=await appendWorldLedgerLocked(localStorage,snapshot.rawV2,{
+   ...change,sourceNodeId:sourceNodeId()});
+  if(!result.ok){showIssue(result.reason);return false;}
+  snapshot=readWorldLedger(localStorage);
+  if(!snapshot.ok){showIssue(snapshot.reason);return false;}
+  render();
+  return true;
+ }finally{writePending=false;}
 }
 function showIssue(reason){
  $('verifyFormStatus').textContent='版本保存未完成：'+reason+'。未自動刪除原始記錄；請先備份，必要時重新整理。';
@@ -57,10 +64,10 @@ function render(){
   const select=document.createElement('select');select.setAttribute('aria-label','研究狀態');
   for(const status of STATUSES){const opt=document.createElement('option');opt.value=status;opt.textContent=status;select.append(opt);}
   select.value=r.status;
-  select.addEventListener('change',()=>{
+  select.addEventListener('change',async()=>{
    const next=select.value;
    const reason='人工更新：'+r.status+' → '+next+'；尚未附研究論證';
-   if(!update({type:'status',recordId:r.id,status:next,reason}))select.value=r.status;
+   if(!(await update({type:'status',recordId:r.id,status:next,reason})))select.value=r.status;
   });
   const del=document.createElement('button');del.className='button';del.type='button';del.textContent='移出目前列表（保留歷史）';
   del.addEventListener('click',()=>{
@@ -88,7 +95,7 @@ function render(){
 }
 const currentDate=()=>new Date().toLocaleDateString('en-CA');
 $('verifyDate').value=currentDate();
-$('verifyForm').addEventListener('submit',e=>{
+$('verifyForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const hypothesis=$('verifyHypothesis').value.trim(),falsifier=$('verifyFalsifier').value.trim(),
   createdOn=$('verifyDate').value,deadline=$('verifyDeadline').value,
@@ -99,7 +106,7 @@ $('verifyForm').addEventListener('submit',e=>{
  const row={id:'v'+Date.now()+'-'+Math.random().toString(36).slice(2,10),hypothesis,falsifier,
   createdOn,deadline,source,metric:$('verifyMetric').value.trim(),
   status:'待驗證',createdAt:new Date().toISOString()};
- if(update({type:'create',row,reason:'新增待驗證假設；尚未經獨立證據核驗'})){
+ if(await update({type:'create',row,reason:'新增待驗證假設；尚未經獨立證據核驗'})){
   $('verifyForm').reset();$('verifyDate').value=currentDate();
   $('verifyFormStatus').textContent='已建立新事件版本，舊歷史保留。';
  }
@@ -142,7 +149,7 @@ $('verifyImport').addEventListener('change',async e=>{
      status:STATUSES.includes(r.status)?r.status:'待驗證',createdAt:new Date().toISOString()};
   });
   if(confirm('匯入 '+rows.length+' 筆？只取代目前顯示的研究，不刪除歷史或舊 v1 原文。'))
-   update({type:'import',rows,reason:'人工匯入 v1 相容 JSON，歷史原文保留'});
+   await update({type:'import',rows,reason:'人工匯入 v1 相容 JSON，歷史原文保留'});
  }catch(err){showIssue('匯入失敗：'+err.message);}finally{e.target.value='';}
 });
 addEventListener('storage',e=>{
