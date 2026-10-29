@@ -41,7 +41,7 @@ export async function verifyTransactionalBackup(envelope){
  if(!isObject(envelope)||envelope.schema!==TRANSACTIONAL_BACKUP_SCHEMA||
    envelope.key!==MAIN_KEY||!Number.isSafeInteger(envelope.revision)||
    envelope.revision<1||typeof envelope.exportedAt!=='string'||
-   !/^\\d{4}-\\d{2}-\\d{2}T/.test(envelope.exportedAt)||
+   !/^\d{4}-\d{2}-\d{2}T/.test(envelope.exportedAt)||
    typeof envelope.mainRaw!=='string'||
    typeof envelope.undoRaw!=='string'||!isObject(envelope.legacyFence)||
    envelope.legacyFence.version!==1||
