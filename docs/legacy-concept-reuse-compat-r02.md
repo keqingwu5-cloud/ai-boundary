@@ -404,3 +404,11 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 - Node 已在 R19 CI 初次結果確認新增安全契約通過。其他 Chromium／WebKit 結果需以此次最終 GitHub Actions 對應 SHA 查驗。
 - **這不等於世界模型的多分頁正式完全原子保護**。未升級舊頁、其他儲存上下文、儲存被系統清除、異質 writer 與安全模式限制仍需明確治理；真 Apple Safari 實體裝置及獨立 reviewer ACK 必須保留 BLOCKED。
 - 只有正式整合前經授權的舊 writer 退場、版本衝突保全、Safari 實機與獨立審查完成後，才可討論正式多分頁研究事件放行。
+
+
+### R19 最終回歸（合作式寫入門檻）
+
+- 首次 [CI #40814364289](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40814364289)：Node **143/143**、桌面 WebKit **2/2** PASS，但真 Chromium **33/36（3 FAIL）**。原因為舊有瀏覽器測試採同步假設，在加上 Web Locks 非同步寫入後立即檢查狀態；QuotaExceeded 注入也在等待非同步寫入前撤除。**保留失敗 Run，不冒稱新程式已通過完整回歸**。
+- 修復測試：針對表單 create、select status、版本 restore 等動作，等待真實 journal 事件提交後再檢查；配額注入必須 `await` 受鎖保護的寫入 promise 完成才撤銷，避免未真正測到儲存寫入失敗。
+- 最新受測 SHA `daf653c6e6c35777936da5c3004e62326191e4bf`，[CI #40814703361](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40814703361)：**Node 143/143、真 Chromium 36/36、桌面 Linux WebKit 2/2，全數 PASS（0 FAIL）**。新增瀏覽器日誌 `WORLD_MODEL_R19_COOPERATIVE_LOCK_PASS busy=1 stale=1 reload=1 history=2`，`WORLD_MODEL_R19_LOCK_UNAVAILABLE_FAIL_CLOSED_PASS`，同時保留 quota 負面測試結果。
+- **正式 Gate 仍 BLOCKED**：只驗證合作式新 writer 的 Web Locks 串列化，沒有機制強制未更新、未加鎖的舊 writer 遵守。鎖本身不改變 `localStorage` 的資料耐久性，不能用本回歸替代真 Safari/iOS 裝置、正式搬移舊版本退場、獨立 reviewer ACK 或使用者對正式部署的確認。
