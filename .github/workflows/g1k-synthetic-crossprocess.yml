@@ -1,0 +1,30 @@
+name: G1k isolated cross-process handoff evidence
+on:
+  pull_request:
+    paths:
+      - 'api/g1k-crossprocess/**'
+      - 'api/g1h-review/**'
+      - 'tests/g1k-crossprocess.test.cjs'
+      - '.github/workflows/g1k-synthetic-crossprocess.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-crossprocess:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: G1k offline inter-process 33 negative / staging scenarios
+        run: node --test tests/g1k-crossprocess.test.cjs
+      - name: G1h existing 20 synthetic ACK regression scenarios
+        run: node --test tests/g1h-crosslayer-ack-review.test.cjs
+      - name: Existing handoff contract and API regression suite
+        run: node --test tests/handoff-contract.test.cjs tests/mainbrain-api.test.cjs
