@@ -31,13 +31,13 @@ test("Every monitored browser test has an explicit executable entry in its brows
   const cmd=file.includes("webkit")?webkitRun:run;
   assert.ok(cmd.split(/\s+/).includes(file),"watched but never executed by its browser job: "+file);
  }
- const trackedNodeTests=yaml.split("\\n").filter(x=>/^      - tests\\/[^\\s]+\\.test\\.mjs$/.test(x))
+ const trackedNodeTests=yaml.split("\n").filter(x=>/^      - tests\/[^\s]+\.test\.mjs$/.test(x))
   .map(x=>x.trim().slice(2));
- const nodeRun=yaml.split("\\n").find(x=>/^\\s+run: node --test tests\\/brain-import-integrity/.test(x));
+ const nodeRun=yaml.split("\n").find(x=>/^\s+run: node --test tests\/brain-import-integrity/.test(x));
  assert.ok(nodeRun,"Node test command is missing");
  assert.ok(trackedNodeTests.length>=6,"Node regression watch unexpectedly shrank");
  for(const file of trackedNodeTests){
-  assert.ok(nodeRun.split(/\\s+/).includes(file),
+  assert.ok(nodeRun.split(/\s+/).includes(file),
    "tracked Node test is never actually executed: "+file);
  }
  assert.ok(paths.includes("tests/first-brain-learning-browser.test.cjs"));
