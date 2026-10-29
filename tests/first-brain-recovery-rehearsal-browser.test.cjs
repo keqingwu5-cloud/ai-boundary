@@ -25,8 +25,8 @@ test("R22 verified backup replays only in disposable namespace, newer live IDB n
   await tx.locator("#brainTxActivate").click();
   await tx.waitForFunction("window.AIBrain?.persistence().ready===true",null,{timeout:30000});
   const envelope=await tx.evaluate(async()=>{
-   const id=window.AIBrain.getState().nodes[0].id;
-   window.AIBrain.setStatus(id,"researching");
+   const node=window.AIBrain.getState().nodes[0],id=node.id;
+   window.AIBrain.setStatus(id,node.status==="researching"?"resolved":"researching");
    const wrote=await window.AIBrain.whenIdle();
    const b=await (await import("/first-brain-transactional-backup.mjs"))
     .exportVerifiedTransactionalBackup("aiBrain.firstBrain.transaction.r1",localStorage,
@@ -60,8 +60,8 @@ test("R22 verified backup replays only in disposable namespace, newer live IDB n
   assert.equal(result.exact.snapshot.rehearsal.sourceDigest,envelope.backup.sha256.payload);
   assert.equal(result.duplicate.reason,"rehearsal_already_exists");
   const newer=await tx.evaluate(async()=>{
-   const id=window.AIBrain.getState().nodes[0].id;
-   window.AIBrain.setStatus(id,"resolved");
+   const node=window.AIBrain.getState().nodes[0],id=node.id;
+   window.AIBrain.setStatus(id,node.status==="resolved"?"researching":"resolved");
    const wrote=await window.AIBrain.whenIdle();
    const snapshot=await (await import("/transactional-brain-store.mjs"))
     .readSnapshot("aiBrain.firstBrain.transaction.r1","aiBrain.v1");
@@ -126,10 +126,29 @@ test("R22 corrupt, wrong ID, and occupied higher revision all fail closed withou
    const existing=await store.writeSnapshot(name,"aiBrain.v1",0,"existing","[]");
    const newer=await store.writeSnapshot(name,"aiBrain.v1",1,"newer","[]");
    const after=await store.readSnapshot(name,"aiBrain.v1");
-   const deny=await rehearsal.verifyRecoveryRehearsal({schema:"unknown"},id);
+   // A digest-valid synthetic backup must not overwrite a pre-existing
+   // higher revision in this isolated namespace, even when confirmed.
+   const graph=JSON.stringify(window.AIBrain.getState()),undo="[]";
+   const sha=async raw=>{
+    const hash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(raw));
+    return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,"0")).join("");
+   };
+   const backup={schema:"first-brain.transactional.backup.v1",key:"aiBrain.v1",
+    revision:1,exportedAt:new Date().toISOString(),mainRaw:graph,undoRaw:undo,
+    legacyFence:{version:1,mainSha:"a".repeat(64),undoSha:"b".repeat(64)}};
+   const payload=JSON.stringify({schema:backup.schema,key:backup.key,
+    revision:backup.revision,exportedAt:backup.exportedAt,
+    mainRaw:backup.mainRaw,undoRaw:backup.undoRaw,legacyFence:backup.legacyFence});
+   backup.sha256={mainRaw:await sha(graph),undoRaw:await sha(undo),
+    payload:await sha(payload)};
+   const valid=await (await import("/first-brain-transactional-backup.mjs"))
+    .verifyTransactionalBackup(backup);
+   const denied=await rehearsal.stageRecoveryRehearsal(backup,id,{confirmed:true});
+   const existingAfter=await store.readSnapshot(name,"aiBrain.v1");
    const cleaned=await rehearsal.discardRecoveryRehearsal(id,{confirmed:true});
    const live=await store.readSnapshot("aiBrain.firstBrain.transaction.r1","aiBrain.v1");
-   return {bad,altered,before,existing,newer,after,deny,cleaned,live};
+   return {bad,altered,before,existing,newer,after,valid,denied,
+    existingAfter,cleaned,live};
   });
   assert.equal(results.bad.reason,"invalid_rehearsal_id");
   assert.equal(results.altered.reason,"backup_format_invalid");
@@ -137,7 +156,11 @@ test("R22 corrupt, wrong ID, and occupied higher revision all fail closed withou
   assert.equal(results.newer.ok,true);
   assert.equal(results.after.snapshot.revision,2);
   assert.equal(results.after.snapshot.mainRaw,"newer");
-  assert.equal(results.deny.reason,"backup_format_invalid");
+  assert.equal(results.valid.ok,true,"synthetic backup must be structurally valid");
+  assert.equal(results.denied.reason,"rehearsal_already_exists",
+   "even a correctly verified backup cannot replace a higher revision");
+  assert.equal(results.existingAfter.snapshot.revision,2);
+  assert.equal(results.existingAfter.snapshot.mainRaw,"newer");
   assert.equal(results.cleaned.ok,true);
   assert.equal(results.before.snapshot,results.live.snapshot);
   console.log("FIRST_BRAIN_R22_NEGATIVE_REHEARSAL_PASS engine="+engine+
