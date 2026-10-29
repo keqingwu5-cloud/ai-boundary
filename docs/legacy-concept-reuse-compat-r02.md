@@ -519,3 +519,25 @@ R20 找到明確風險：既有 `localStorage` 舊備份只有**IDB 首次切換
 - `FIRST_BRAIN_R22_NEGATIVE_REHEARSAL_PASS`：拒絕無效 ID、格式錯誤備份，並驗證**即使備份摘要有效，也不可覆寫已有較新版次的隔離快照**；清理只作用於測試 DB。
 
 **結論分層**：R22 合成備份的「隔離讀回、主圖/Undo 一致、拒絕覆蓋較新資料、刪除安全」PASS；正式資料庫還原／權威切換、授權真歷史資料、OS 刪庫後的外部備份有效性、實體 Apple Safari/iPad、舊版本退場與獨立 reviewer ACK 仍 BLOCKED。SHA-256 不等於身分簽章。不合併、部署、遷移或宣稱實際使用者資料已復原。
+
+
+## R23｜隔離還原的雙分頁競態、中斷交易與損壞拒絕（2026-10-29）
+
+**歸屬**：接續 R22「合成備份隔離讀回」。R23 只延伸**安全負向測試**，不新增正式主腦還原功能、不自動恢復、不合併 main、不部署、不使用真實私人歷史資料。
+
+### 為什麼要測
+
+R22 測過單一分頁已存在版本不得被覆寫，但還沒有獨立證據確認：兩分頁同時對**同一個測試資料庫**提交時會不會各自宣稱成功、關閉/重開後來源是否保持完整、隔離 Undo 被其他程式破壞後會不會偷偷修好，以及 IndexedDB 寫入中斷後會不會留下僅有主圖的半筆資料。
+
+### 本輪新增實驗
+
+`tests/first-brain-rehearsal-conflicts-browser.test.cjs` 同一個可重複的合成 Seed/R21 合法備份，分別在真 Chromium 與 Linux desktop WebKit：
+1. 預建**空的 R22 專用測試 DB**，讓兩個分頁同時調用 `stageRecoveryRehearsal(...confirmed:true)`。兩者只能有一個完整 PASS，另一個必須 `rehearsal_already_exists`；不能都成功。
+2. 另一個分頁讀回完整 Graph/Undo，關閉原分頁、重新載入後再次比對來源版本與 bytes。
+3. 在隔離庫內刻意損壞 **Undo**，驗證 `verifyRecoveryRehearsal()` 拒絕 `rehearsal_does_not_match_backup`，重複 `stageRecoveryRehearsal()` 不允許無聲「修復」或覆寫；刪除隔離庫後重驗證不能自動建立空 DB。
+4. 在另一個隔離 DB 的單筆 readwrite 交易中刻意寫入「半筆主圖」後 abort，確認 transaction rollback 後快照不存在；只有**再次明確確認**的 stage 才能建立完整 Graph+Undo。
+5. 必須保持原主腦 storage namespace 不變，不把合成演練資料庫升格為權威。
+
+**CI 契約**：已加入同一個 GitHub Actions workflow 的 Chromium 與 Linux desktop WebKit 實際 runner；`tests/ci-execution-contract.test.mjs` 驗證新測試確實跑在兩個引擎，而不只是列在監看清單。
+
+**嚴格邊界**：即使雙頁合成競態通過，也不能證明不合作的舊版 Javascript 會遵守交易權威；桌面 WebKit 不等於真 Apple Safari/iPad，且沒有真實使用者歷史資料、外部備份災難恢復、獨立 reviewer 或正式整合授權。此段初次寫入時 CI 尚未完成，以 GitHub Actions 最終結果為準，**不能預先標記 R23 PASS**。
