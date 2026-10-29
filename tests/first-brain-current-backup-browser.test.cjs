@@ -45,10 +45,29 @@ test("R21 verified current IDB backup: main and Undo raw, revision and digest, z
   assert.equal(changed.success,true);assert.equal(changed.revision,2);
   assert.equal(changed.legacyRaw,original.mainRaw,"original legacy content remains unchanged");
   assert.equal(await tx.locator("#brainTxCurrentBackup").count(),1);
-  const [download]=await Promise.all([
-   tx.waitForEvent("download",{timeout:15000}),
-   tx.locator("#brainTxCurrentBackup").click()
-  ]);
+  const preflight=await tx.evaluate(async()=>{
+   const mod=await import("/first-brain-transactional-backup.mjs");
+   const current=window.AIBrain.persistence();
+   const outcome=await mod.exportVerifiedTransactionalBackup(
+    "aiBrain.firstBrain.transaction.r1",localStorage,{expectedRevision:current.revision});
+   return {ok:outcome.ok,reason:outcome.reason,revision:outcome.backup?.revision};
+  });
+  assert.equal(preflight.ok,true,"R21 raw-IDB preflight failure: "+JSON.stringify(preflight));
+  let download;
+  try{
+   [download]=await Promise.all([
+    tx.waitForEvent("download",{timeout:25000}),
+    tx.locator("#brainTxCurrentBackup").click()
+   ]);
+  }catch(e){
+   const diag=await tx.evaluate(()=>({p:window.AIBrain?.persistence(),
+    message:document.querySelector("#toast")?.textContent?.slice(0,180),
+    banner:document.querySelector("#brainPersistenceBanner")?.firstElementChild?.textContent?.slice(0,180),
+    disabled:document.querySelector("#brainTxCurrentBackup")?.disabled,
+    authority:localStorage.getItem("aiBrain.v1.persistence.authority")}));
+   console.log("FIRST_BRAIN_R21_DOWNLOAD_DIAG",JSON.stringify({engine,diag,errors}));
+   throw e;
+  }
   const backup=JSON.parse(fs.readFileSync(await download.path(),"utf8"));
   assert.match(download.suggestedFilename(),/revision-2-verified\.json$/);
   assert.equal(backup.schema,"first-brain.transactional.backup.v1");
