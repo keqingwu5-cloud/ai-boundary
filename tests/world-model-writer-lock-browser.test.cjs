@@ -2,13 +2,17 @@
 // R19 real Chromium two tabs: a cooperative lock protects the world-model
 // journal from new-version writes. This cannot stop obsolete unlocked scripts.
 const test=require("node:test"),assert=require("node:assert/strict");
-const {chromium}=require("playwright-core");
+const {chromium,webkit}=require("playwright-core");
+const WORLD_LOCK_BROWSER=process.env.WORLD_LOCK_BROWSER==="webkit"?"webkit":"chromium";
+const launchWorldLockBrowser=()=>WORLD_LOCK_BROWSER==="webkit"
+ ?webkit.launch({headless:true})
+ :chromium.launch({channel:"chrome",headless:true,args:["--no-sandbox","--disable-dev-shm-usage"]});
 const ROOT="http://127.0.0.1:8765/world-model.html";
 const ready=p=>p.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady==='1'",null,{timeout:45000});
 const row=id=>({id,hypothesis:"合成研究 "+id,falsifier:"反例",createdOn:"2026-10-29",
  deadline:"2026-12-31",source:"",metric:"",status:"待驗證",createdAt:"2026-10-29T01:00:00Z"});
 test("R19 real two-tab Web Lock: concurrent journal write denied, stale tab blocked",async()=>{
- const browser=await chromium.launch({channel:"chrome",headless:true,args:["--no-sandbox","--disable-dev-shm-usage"]});
+ const browser=await launchWorldLockBrowser();
  const ctx=await browser.newContext(),a=await ctx.newPage(),b=await ctx.newPage(),errors=[];
  [a,b].forEach(p=>p.on("pageerror",x=>errors.push(String(x))));
  try{
@@ -48,11 +52,11 @@ test("R19 real two-tab Web Lock: concurrent journal write denied, stale tab bloc
   assert.equal(state.events.length,2);
   assert.deepEqual(state.rows.map(x=>x.id),["r19-a","r19-b"]);
   assert.deepEqual(errors,[]);
-  console.log("WORLD_MODEL_R19_COOPERATIVE_LOCK_PASS busy=1 stale=1 reload=1 history=2");
+  console.log("WORLD_MODEL_R19_COOPERATIVE_LOCK_PASS engine="+WORLD_LOCK_BROWSER+" busy=1 stale=1 reload=1 history=2");
  }finally{await ctx.close();await browser.close();}
 });
 test("R19 browser missing Web Locks must not fall back to unsafe journal writes",async()=>{
- const browser=await chromium.launch({channel:"chrome",headless:true,args:["--no-sandbox","--disable-dev-shm-usage"]});
+ const browser=await launchWorldLockBrowser();
  const ctx=await browser.newContext(),page=await ctx.newPage();
  try{
   await page.addInitScript(()=>Object.defineProperty(navigator,"locks",{value:undefined,configurable:true}));
@@ -62,6 +66,6 @@ test("R19 browser missing Web Locks must not fall back to unsafe journal writes"
   assert.equal(ok,false);
   assert.equal(await page.evaluate(()=>localStorage.getItem("worldModel.verify.events.v2")),null);
   assert.match(await page.locator("#worldHistoryStatus").innerText(),/web_locks_unavailable/);
-  console.log("WORLD_MODEL_R19_LOCK_UNAVAILABLE_FAIL_CLOSED_PASS");
+  console.log("WORLD_MODEL_R19_LOCK_UNAVAILABLE_FAIL_CLOSED_PASS engine="+WORLD_LOCK_BROWSER);
  }finally{await ctx.close();await browser.close();}
 });
