@@ -171,12 +171,14 @@ test("10 delete from list, restore as new event, then export full backup",()=>wi
  await page.locator("details:has(#verifyList) > summary").click();
  page.once("dialog",d=>d.accept());
  await page.locator("#verifyList button").click();
+ await page.waitForFunction("window.WorldVerifyHistory.view().events.length===2");
  const deleted=await page.evaluate(()=>window.WorldVerifyHistory.view());
  assert.equal(deleted.rows.length,0);assert.equal(deleted.events.length,2);
  assert.equal(deleted.events[1].type,"delete");
  await page.locator("#worldHistoryPanel > summary").click();
  page.once("dialog",d=>d.accept());
  await page.locator("#worldHistoryList button").last().click();
+ await page.waitForFunction("window.WorldVerifyHistory.view().events.length===3");
  const restored=await page.evaluate(()=>window.WorldVerifyHistory.view());
  assert.equal(restored.rows[0].id,"hyp-del");
  assert.equal(restored.events.length,3);assert.equal(restored.events.at(-1).type,"restore");
