@@ -8,7 +8,10 @@ on:
       - brain-learning-ui.mjs
       - tests/brain-learning-feedback.test.mjs
       - tests/ci-execution-contract.test.mjs
-      - tests/first-brain-r18-gate-contract.test.mjs
+      - tests/first-brain-r18-gate-contract.test.mjs tests/first-brain-formal-recovery-preflight.test.mjs
+      - tests/first-brain-formal-recovery-preflight.test.mjs
+      - first-brain-formal-recovery-preflight.mjs
+      - docs/first-brain-r24-formal-acceptance.md
       - docs/first-brain-r18-release-gates.json
       - docs/first-brain-r18-integration-review.md
       - tests/first-brain-learning-browser.test.cjs
