@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readWorldLedger,rowsAtVersion,appendWorldLedger,LEGACY_KEY,JOURNAL_KEY} from '../world-verification-ledger.mjs';
+import {readWorldLedger,rowsAtVersion,appendWorldLedger,appendWorldLedgerLocked,WORLD_LEDGER_WRITE_LOCK,LEGACY_KEY,JOURNAL_KEY} from '../world-verification-ledger.mjs';
 const record=(id='v1',status='待驗證')=>({id,hypothesis:'假設 A',falsifier:'反例 B',
  createdOn:'2026-10-01',deadline:'2026-12-30',source:'',metric:'',status,createdAt:'2026-10-01T01:00:00Z'});
 function store(fail=null){
@@ -139,4 +139,53 @@ test('19 KNOWN LIMIT: delayed cross-tab visibility can overwrite a concurrent jo
  assert.equal(persisted.events[0].after.id,'B');
  assert.equal(persisted.events.some(x=>x.after?.id==='A'),false);
  console.log('KNOWN_CROSS_TAB_RACE_UNPROTECTED: localStorage not atomic CAS; BLOCKED for concurrent same-time edits');
+});
+
+
+test('R19 no Web Locks = no world journal write, even when legacy code allows it',async()=>{
+ const s=store(),action={type:'create',row:record('safe'),reason:'synthetic'};
+ const r=await appendWorldLedgerLocked(s,null,action,null);
+ assert.equal(r.ok,false);
+ assert.equal(r.reason,'web_locks_unavailable');
+ assert.equal(s.getItem(JOURNAL_KEY),null);
+ assert.deepEqual(s.ops,[]);
+});
+test('R19 held exclusive Web Lock refuses concurrent writer before touching localStorage',async()=>{
+ const s=store(),action={type:'create',row:record('locked'),reason:'synthetic'};
+ const occupied={request:async(name,opts,fn)=>{
+  assert.equal(name,WORLD_LEDGER_WRITE_LOCK);
+  assert.equal(opts.mode,'exclusive');
+  assert.equal(opts.ifAvailable,true);
+  return fn(null);
+ }};
+ const r=await appendWorldLedgerLocked(s,null,action,occupied);
+ assert.equal(r.reason,'journal_write_busy');
+ assert.equal(r.ok,false);
+ assert.equal(s.getItem(JOURNAL_KEY),null);
+});
+test('R19 cooperative writer holds an exclusive lock then validates stale snapshot',async()=>{
+ const s=store(),names=[],lockManager={
+  async request(name,opts,fn){
+   names.push(name);
+   assert.equal(opts.mode,'exclusive');assert.equal(opts.ifAvailable,true);
+   return fn({name});
+  }
+ };
+ const a=await appendWorldLedgerLocked(s,null,{type:'create',row:record('A'),reason:'A'},lockManager);
+ assert.equal(a.ok,true);
+ const old=await appendWorldLedgerLocked(s,null,{type:'create',row:record('B'),reason:'stale'},lockManager);
+ assert.equal(old.ok,false);assert.equal(old.reason,'stale_tab_conflict');
+ const journal=readWorldLedger(s);
+ assert.equal(journal.events.length,1);
+ assert.equal(journal.rows[0].id,'A');
+ assert.deepEqual(names,[WORLD_LEDGER_WRITE_LOCK,WORLD_LEDGER_WRITE_LOCK]);
+ const b=await appendWorldLedgerLocked(s,a.rawV2,{type:'create',row:record('B'),reason:'fresh'},lockManager);
+ assert.equal(b.ok,true);
+ assert.deepEqual(readWorldLedger(s).rows.map(x=>x.id),['A','B']);
+});
+test('R19 Web Locks callback errors cannot silently downgrade into unlocked fallback',async()=>{
+ const s=store(),thrower={request:async()=>{throw Error('unsupported browser restriction')}};
+ const r=await appendWorldLedgerLocked(s,null,{type:'create',row:record('x'),reason:'synthetic'},thrower);
+ assert.equal(r.ok,false);assert.equal(r.reason,'journal_lock_failed');
+ assert.equal(s.getItem(JOURNAL_KEY),null);
 });
