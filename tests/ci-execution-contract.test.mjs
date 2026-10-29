@@ -24,6 +24,8 @@ test("Every monitored browser test has an explicit executable entry in its brows
  assert.ok(webkitRun.split(/\s+/).includes("tests/first-brain-current-backup-browser.test.cjs"),"R21 WebKit verified backup browser test must really run");
  assert.ok(webkitRun.includes("R22_BROWSER=webkit"),"R22 WebKit recovery rehearsal selection missing");
  assert.ok(webkitRun.split(/\s+/).includes("tests/first-brain-recovery-rehearsal-browser.test.cjs"),"R22 WebKit rehearsal browser test must really run");
+ assert.ok(webkitRun.includes("R23_BROWSER=webkit"),"R23 WebKit concurrent rehearsal selector missing");
+ assert.ok(webkitRun.split(/\s+/).includes("tests/first-brain-rehearsal-conflicts-browser.test.cjs"),"R23 WebKit conflict browser test must really run");
  assert.ok(browserTests.length>=6,"browser test discovery unexpectedly shrank");
  for(const file of browserTests){
   const cmd=file.includes("webkit")?webkitRun:run;
