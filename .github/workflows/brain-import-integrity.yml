@@ -22,6 +22,7 @@ on:
       - tests/first-brain-current-backup-browser.test.cjs
       - first-brain-recovery-rehearsal.mjs
       - tests/first-brain-recovery-rehearsal-browser.test.cjs
+      - tests/first-brain-rehearsal-conflicts-browser.test.cjs
       - first-brain-device-probe.mjs
       - tests/fixtures/first-brain-device-diagnostics.html
       - tests/first-brain-device-probe-browser.test.cjs
@@ -106,7 +107,7 @@ jobs:
           done
           exit 1
       - name: Test real browser 3D and Feed workflows
-        run: node --test tests/brain-browser-smoke.test.cjs tests/research-browser-smoke.test.cjs tests/dual-world-brain-browser.test.cjs tests/graph-validator-browser.test.cjs tests/transactional-brain-store-browser.test.cjs tests/first-brain-idb-browser.test.cjs tests/first-brain-transactional-ui-browser.test.cjs tests/first-brain-failure-gates-browser.test.cjs tests/first-brain-transactional-failure-browser.test.cjs tests/first-brain-learning-browser.test.cjs tests/first-brain-old-writer-browser.test.cjs tests/first-brain-historical-browser.test.cjs tests/first-brain-device-probe-browser.test.cjs tests/world-model-writer-lock-browser.test.cjs tests/first-brain-eviction-browser.test.cjs tests/first-brain-current-backup-browser.test.cjs tests/first-brain-recovery-rehearsal-browser.test.cjs
+        run: node --test tests/brain-browser-smoke.test.cjs tests/research-browser-smoke.test.cjs tests/dual-world-brain-browser.test.cjs tests/graph-validator-browser.test.cjs tests/transactional-brain-store-browser.test.cjs tests/first-brain-idb-browser.test.cjs tests/first-brain-transactional-ui-browser.test.cjs tests/first-brain-failure-gates-browser.test.cjs tests/first-brain-transactional-failure-browser.test.cjs tests/first-brain-learning-browser.test.cjs tests/first-brain-old-writer-browser.test.cjs tests/first-brain-historical-browser.test.cjs tests/first-brain-device-probe-browser.test.cjs tests/world-model-writer-lock-browser.test.cjs tests/first-brain-eviction-browser.test.cjs tests/first-brain-current-backup-browser.test.cjs tests/first-brain-recovery-rehearsal-browser.test.cjs tests/first-brain-rehearsal-conflicts-browser.test.cjs
 
   webkit-isolated:
     runs-on: ubuntu-latest
@@ -131,4 +132,4 @@ jobs:
           done
           exit 1
       - name: Test First Brain snapshot safety with desktop WebKit (not physical Safari)
-        run: R17_BROWSER=webkit WORLD_LOCK_BROWSER=webkit R20_BROWSER=webkit R21_BROWSER=webkit R22_BROWSER=webkit node --test tests/first-brain-webkit-browser.test.cjs tests/first-brain-device-probe-browser.test.cjs tests/world-model-writer-lock-browser.test.cjs tests/first-brain-eviction-browser.test.cjs tests/first-brain-current-backup-browser.test.cjs tests/first-brain-recovery-rehearsal-browser.test.cjs
+        run: R17_BROWSER=webkit WORLD_LOCK_BROWSER=webkit R20_BROWSER=webkit R21_BROWSER=webkit R22_BROWSER=webkit R23_BROWSER=webkit node --test tests/first-brain-webkit-browser.test.cjs tests/first-brain-device-probe-browser.test.cjs tests/world-model-writer-lock-browser.test.cjs tests/first-brain-eviction-browser.test.cjs tests/first-brain-current-backup-browser.test.cjs tests/first-brain-recovery-rehearsal-browser.test.cjs tests/first-brain-rehearsal-conflicts-browser.test.cjs
