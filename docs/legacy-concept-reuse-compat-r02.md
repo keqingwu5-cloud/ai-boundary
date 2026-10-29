@@ -541,3 +541,14 @@ R22 測過單一分頁已存在版本不得被覆寫，但還沒有獨立證據�
 **CI 契約**：已加入同一個 GitHub Actions workflow 的 Chromium 與 Linux desktop WebKit 實際 runner；`tests/ci-execution-contract.test.mjs` 驗證新測試確實跑在兩個引擎，而不只是列在監看清單。
 
 **嚴格邊界**：即使雙頁合成競態通過，也不能證明不合作的舊版 Javascript 會遵守交易權威；桌面 WebKit 不等於真 Apple Safari/iPad，且沒有真實使用者歷史資料、外部備份災難恢復、獨立 reviewer 或正式整合授權。此段初次寫入時 CI 尚未完成，以 GitHub Actions 最終結果為準，**不能預先標記 R23 PASS**。
+
+
+### R23 完整 CI 與 Gate 判定
+
+**最終實測**：[GitHub Actions #40849160656](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40849160656)，受測程式／CI 契約 SHA `364e684a74efc8b60cfb6f2d7694216a71fa7476`：**Node 143/143 PASS、真 Chromium 43/43 PASS、Linux desktop WebKit 11/11 PASS，三個 jobs 全數 success，0 FAIL**。
+
+兩個真瀏覽器均有：
+- `FIRST_BRAIN_R23_CROSS_TAB_REHEARSAL_PASS`：同一 R22 專用合成 DB，兩分頁競爭只有一個 winner；舊分頁關閉後新頁重載仍能逐 byte 核對；合成 Undo 被改動即 fail closed，不自動修復或覆寫；清除後驗證不建新 DB。
+- `FIRST_BRAIN_R23_ABORT_RETRY_PASS`：單筆 IDB readwrite transaction 中途 abort，不留下只有主圖的半筆；再度**明確確認**才可建立完整合成備份；測試不啟動正式主腦 IDB 權威。
+
+**R23 判定**：合成資料、隔離資料庫、合作式同源分頁、Chromium 與桌面 WebKit 的中斷／多分頁測試 **PASS**。這不是外部備份還原到正式主腦的安全批准；真正 macOS/iPhone/iPad Safari、系統清理、長時間可靠性、惡意寫入者、獨立 reviewer、真歷史資料與正式整合仍 **BLOCKED**。原 PR #75 繼續 Draft，未合併 main 或部署。
