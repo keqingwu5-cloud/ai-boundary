@@ -21,7 +21,8 @@ async function sha256(text){
 }
 function payload(envelope){
  return JSON.stringify({schema:envelope.schema,key:envelope.key,
-  revision:envelope.revision,mainRaw:envelope.mainRaw,undoRaw:envelope.undoRaw,
+  revision:envelope.revision,exportedAt:envelope.exportedAt,
+  mainRaw:envelope.mainRaw,undoRaw:envelope.undoRaw,
   legacyFence:envelope.legacyFence});
 }
 function validGraphRaw(raw){
@@ -39,7 +40,9 @@ function validUndoRaw(raw){
 export async function verifyTransactionalBackup(envelope){
  if(!isObject(envelope)||envelope.schema!==TRANSACTIONAL_BACKUP_SCHEMA||
    envelope.key!==MAIN_KEY||!Number.isSafeInteger(envelope.revision)||
-   envelope.revision<1||typeof envelope.mainRaw!=='string'||
+   envelope.revision<1||typeof envelope.exportedAt!=='string'||
+   !/^\\d{4}-\\d{2}-\\d{2}T/.test(envelope.exportedAt)||
+   typeof envelope.mainRaw!=='string'||
    typeof envelope.undoRaw!=='string'||!isObject(envelope.legacyFence)||
    envelope.legacyFence.version!==1||
    !validSha(envelope.legacyFence.mainSha)||!validSha(envelope.legacyFence.undoSha)||
@@ -78,7 +81,8 @@ export async function exportVerifiedTransactionalBackup(databaseName,storage,
    return failed('snapshot_changed_during_backup');
  const s=first.snapshot;
  const envelope={schema:TRANSACTIONAL_BACKUP_SCHEMA,key:MAIN_KEY,
-  revision:s.revision,mainRaw:s.mainRaw,undoRaw:s.undoRaw,legacyFence:s.legacyFence};
+  revision:s.revision,exportedAt:new Date().toISOString(),
+  mainRaw:s.mainRaw,undoRaw:s.undoRaw,legacyFence:s.legacyFence};
  // A valid legacy seal is already checked by readTransactional3D.
  const a=await sha256(s.mainRaw),b=await sha256(s.undoRaw);
  if(!a||!b)return failed('backup_crypto_unavailable');
