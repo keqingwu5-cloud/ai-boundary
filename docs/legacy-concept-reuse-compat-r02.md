@@ -441,3 +441,12 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 **正式驗收邊界**：這是在隔離瀏覽器上**模擬完整資料庫遺失**並檢查是否 fail closed，不是已成功找回丟失的 IDB 歷史，也不是 Safari/iPhone/iPad 真機測試、OS 升級或真實容量清理演練。若資料已被系統清除，必須在授權後使用可靠的較新備份及獨立審查恢復，不能無憑證復原。
 
 **CI 結果**：以提交相對應 GitHub Actions 的最終狀態與讀回的測試 log 為準；本節寫入時 Node 143/143 PASS，兩個瀏覽器 job 的最終結果尚需確認。若失敗則保留真實反例，不能標為 R20 已完成。
+
+
+### R20 最終回歸與保留的失敗證據
+
+**首輪真實錯誤保留**：[Actions #40833864764](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40833864764) 的桌面 WebKit 新測試在頁面自動重載瞬間讀取尚未存在的 `window.AIBrain.persistence()`，導致驗證程式報錯。修正為等待 `window.AIBrain?.persistence().ready` 後，已實際通過跨引擎刪除與阻擋驗證。首輪 Chrome 的完整回歸仍有 1 項獨立的世界模型「刪除後恢復」同步判定錯誤（Chrome 36/37）：測試在非同步 journal 提交完成前就讀取結果；補充等待 events 2／3 筆的真實保存證據後重跑，不刪除紅燈歷史。
+
+**最新全套已驗證**：[Actions #40834480098](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40834480098)，受測程式／測試提交 SHA `db007e20919d14eeb798238e8f37f749a0fd1e84`：Node **143/143 PASS**、真 Chromium **37/37 PASS**、Linux 桌面 WebKit **5/5 PASS**，**三個 jobs 全部 SUCCESS，0 FAIL**。兩個 browser job 都輸出 `FIRST_BRAIN_R20_IDB_EVICTION_FAIL_CLOSED_PASS`，驗明「交易 revision=2 → 完整刪除該 IDB → 重新載入後不准舊備份 re-stage，保留 localStorage bytes 並封鎖 Feed」，且原有世界模型刪除與 restore 的非同步測試也通過。
+
+**Gate 分級**：R20「隔離 Chromium／桌面 WebKit 合成 IDB 資料遺失後的 fail-closed 測試」PASS；**R20「真正還原已被 OS 刪除的最新資料」不是完成項目**，不應宣稱可還原不存在的快照。真實 Apple iOS/iPadOS Safari、OS 容量清理、真歷史檔、舊版本退場、獨立審查及使用者正式合併授權均仍 BLOCKED。原 PR 保持 Draft，未上線。
