@@ -412,3 +412,14 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 - 修復測試：針對表單 create、select status、版本 restore 等動作，等待真實 journal 事件提交後再檢查；配額注入必須 `await` 受鎖保護的寫入 promise 完成才撤銷，避免未真正測到儲存寫入失敗。
 - 最新受測 SHA `daf653c6e6c35777936da5c3004e62326191e4bf`，[CI #40814703361](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40814703361)：**Node 143/143、真 Chromium 36/36、桌面 Linux WebKit 2/2，全數 PASS（0 FAIL）**。新增瀏覽器日誌 `WORLD_MODEL_R19_COOPERATIVE_LOCK_PASS busy=1 stale=1 reload=1 history=2`，`WORLD_MODEL_R19_LOCK_UNAVAILABLE_FAIL_CLOSED_PASS`，同時保留 quota 負面測試結果。
 - **正式 Gate 仍 BLOCKED**：只驗證合作式新 writer 的 Web Locks 串列化，沒有機制強制未更新、未加鎖的舊 writer 遵守。鎖本身不改變 `localStorage` 的資料耐久性，不能用本回歸替代真 Safari/iOS 裝置、正式搬移舊版本退場、獨立 reviewer ACK 或使用者對正式部署的確認。
+
+
+### R19 延伸驗收｜桌面 WebKit 真實多分頁鎖測試（2026-10-29）
+
+原 R19 只在 Chromium 做 `world-model-writer-lock-browser.test.cjs` 的兩分頁測試。為降低「Chromium 全綠，另一瀏覽器未實際跑相同場景」的假信心，本輪改成 **相同測試依引擎參數分別在 Chromium 和 Linux desktop WebKit 執行**，驗證 cooperative Web Locks 的 A 持鎖/B 被拒絕、過期版本被拒、重載後追加、缺 Web Locks 時不可回退到無鎖寫入。CI 契約增加明確檢查，保證 WebKit job 真的包含這個測試且設定 `WORLD_LOCK_BROWSER=webkit`，而不是只監看檔案。
+
+**保留錯誤來源**：首次 [Actions #40831348282](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40831348282) 的新增 WebKit 4/4 PASS，但 Node CI 契約 142/143（1 FAIL），原因是正規表示式沒有接受 `R17_BROWSER` 環境變數名稱中的數字，誤判 WebKit 的 `run` 指令不存在。修正契約規則 `[A-Z0-9_]+` 後重新跑全套，沒有略過原本的失敗證據。
+
+**最終隔離 CI**：[Actions #40831436129](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40831436129)，受測程式／測試契約 SHA `69a4c7bde520fb43b8036a55751c2bda0219af26`：**Node 143/143、Chromium 36/36、Linux desktop WebKit 4/4；三個 jobs 全數 success，0 FAIL**。Chromium 和 WebKit 各自輸出 `WORLD_MODEL_R19_COOPERATIVE_LOCK_PASS` 和 `WORLD_MODEL_R19_LOCK_UNAVAILABLE_FAIL_CLOSED_PASS`，確證兩引擎中真實多分頁合作寫入鎖與安全停止行為。
+
+**不能升格的 Gate**：Linux WebKit 仍不等於 Apple Safari/iOS 實機；Web Locks 無法阻止不合作的未升級舊 JS 直接寫 `localStorage`，也無法解決永久儲存政策、跨裝置同步、真歷史資料相容、獨立 reviewer 和正式部署授權。所有正式 Gate 維持 BLOCKED，原 PR #75 保持 Draft，未合併主線。
