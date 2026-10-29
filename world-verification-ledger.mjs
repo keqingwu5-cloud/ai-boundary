@@ -129,3 +129,24 @@ export function appendWorldLedger(storage,expectedRawV2,change){
  }catch(_){return {ok:false,reason:'storage_write_failed'};}
  return {ok:true,reason:'ok',rows:after,events:payload.events,rawV1:before.rawV1,rawV2:value,event};
 }
+
+
+/* R19: cooperative cross-tab exclusive writer.
+ * All new UI writers MUST use this async entry point; the legacy synchronous
+ * helper remains available for isolated old-contract tests only.
+ * A browser without Web Locks must FAIL CLOSED, not fall back to racy writes.
+ * This cannot stop an old script that ignores the same lock name.
+ */
+export const WORLD_LEDGER_WRITE_LOCK='worldModel.verify.events.v2.writer';
+export async function appendWorldLedgerLocked(storage,expectedRawV2,change,
+  lockManager=globalThis.navigator?.locks){
+ if(!lockManager||typeof lockManager.request!=='function')
+   return {ok:false,reason:'web_locks_unavailable'};
+ try{
+  return await lockManager.request(WORLD_LEDGER_WRITE_LOCK,
+   {mode:'exclusive',ifAvailable:true},lock=>{
+    if(!lock)return {ok:false,reason:'journal_write_busy'};
+    return appendWorldLedger(storage,expectedRawV2,change);
+   });
+ }catch(_){return {ok:false,reason:'journal_lock_failed'};}
+}
