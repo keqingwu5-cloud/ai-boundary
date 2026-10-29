@@ -488,3 +488,23 @@ R20 找到明確風險：既有 `localStorage` 舊備份只有**IDB 首次切換
 - **第一次失敗仍保留**：首輪 Chrome 38/39 的 15 秒下載事件逾時，沒有足夠證據說明是否瀏覽器下載權限、CI 負載或備份生成延遲；後一輪加上非敏感匯出預檢與下載診斷，將等待事件範圍擴充到 25 秒並實際通過。這不能證明真設備下載 UX 永遠不會受延遲影響，應保留為後續人工試用觀察項，**不得宣稱已找到單一根因**。
 - **R21 結案範圍**：合成交易式權威備份的**明確點擊、檔案匯出與完整性檢查**在隔離 Chrome/WebKit 全綠；**備份檔的安全離線保管、正式恢復導入、macOS/iPhone/iPad Apple Safari、OS 儲存清理、真私人資料及獨立 review**尚未驗收。SHA-256 不是數位簽章，不能單靠 digest 宣稱來源真實或不可偽造。
 - 主線 `main` 未合併、原 PR #75 仍 Draft、未部署；現階段不需要使用者批准整合。未經明確授權，不自行處理私人歷史圖或完成恢復。
+
+
+## R22｜經驗證備份的隔離還原演練（2026-10-29）
+
+**歸屬**：R03-01 保存／可恢復性驗收，銜接 R20（快照遺失時拒絕過期備份）及 R21（可核驗現行 IDB 主圖與 Undo 備份）。不新增正式主腦還原 UI，不使用使用者私人圖，不讀取雲端資料，不合併 main、不部署。
+
+### 安全設計與真正完成範圍
+
+- `first-brain-recovery-rehearsal.mjs` 新增 **純隔離、明確確認**的還原演練：只接受 32 字元 hex 測試 ID，唯一 DB 名稱為 `first-brain-r22-rehearsal-<id>`。不接受任意主腦資料庫名稱或 `localStorage` namespace，不具備 promotion、activation、production restore 操作。
+- `stageRecoveryRehearsal(backup,id,{confirmed:true})` 先用 R21 `verifyTransactionalBackup()` 驗證整包 SHA-256、Graph、Undo、版本格式，再以單一 IndexedDB readwrite transaction 寫入一筆含 **mainRaw、undoRaw、legacyFence、sourceRevision、sourceDigest、exportedAt** 的原子快照。檢測到同 ID 既存快照不論版本大小都拒絕 `rehearsal_already_exists`，不得覆寫。
+- `verifyRecoveryRehearsal(backup,id)` 在已存在的隔離 DB 中唯讀比對原始 main/Undo bytes、來源版本、摘要與 metadata；若資料庫不存在，讀取時 **不得自行建立新 DB**。可使用 `discardRecoveryRehearsal(id,{confirmed:true})` 清理該專用 DB；不會刪除正式 IDB。
+- 刻意將 **備份原 revision=2** 與 **隔離快照本地 revision=1** 分開表示：本地測試 DB 的版本並不是正式第一大腦的歷史版本，不能將 staged revision=1 當成已恢復的權威版本。
+- `tests/first-brain-recovery-rehearsal-browser.test.cjs` 在真 Chromium 與桌面 Linux WebKit 以公開合成 3D Seed 經 `legacy→opt-in IDB→修改為 rev2→R21 匯出→隔離演練→逐 byte 查核`，再讓**正式 IDB 新增 rev3**，確認演練過程不改寫／降低 rev3、不修改 legacy、重複演練拒絕，刪除演練仍保留 live rev3。負向案例含：無明確確認、ID 不合法、備份壞格式或摘要、已有較新隔離快照 rev2 不得用經驗證舊備份覆寫。
+- GitHub CI 契約強制監看、實際執行新 Chromium／WebKit browser test，並確實設定 `R22_BROWSER=webkit`，避免「列在 workflow 但沒有實際跑」的假成功。
+
+### 邊界與 Gate
+
+**這是合成備份在隔離資料庫的可還原性演練，而不是正式主腦的還原功能。** 不做實際產線資料復原、權威升格、用戶真歷史檔案、App／OS 外部備份、失敗後的雲端復原，亦不能斷言 Safari 真機或系統儲存清理時資料必然可恢復。SHA-256 僅驗證內部 byte 完整性，不是檔案來源簽章。
+
+本節提交時 GitHub Actions 最終結果尚未核定，應等待包含 R22 真瀏覽器測試的 Node、Chromium、WebKit 三個 job completed 且有可檢查日志後，才可標「R22 隔離演練 PASS」。正式合併與獨立 reviewer / Safari 實機 Gate 繼續 **BLOCKED**。
