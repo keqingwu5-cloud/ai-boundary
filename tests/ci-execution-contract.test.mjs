@@ -13,9 +13,11 @@ test("Every monitored browser test has an explicit executable entry in its brows
   .map(x=>x.trim().slice(2));
  const browserTests=paths.filter(x=>x.includes("browser"));
  const run=yaml.split("\n").find(x=>/^\s+run: node --test tests\/brain-browser-smoke/.test(x));
- const webkitRun=yaml.split("\n").find(x=>/^\s+run: (?:R17_BROWSER=webkit )?node --test tests\/first-brain-webkit-browser/.test(x));
+ const webkitRun=yaml.split("\n").find(x=>/^\s+run: (?:[A-Z_]+=\w+ )*node --test tests\/first-brain-webkit-browser/.test(x));
  assert.ok(run,"Chromium test command is missing");
  assert.ok(webkitRun,"WebKit test command is missing");
+ assert.ok(webkitRun.includes("WORLD_LOCK_BROWSER=webkit"),"WebKit world-lock browser selection is missing");
+ assert.ok(webkitRun.split(/\s+/).includes("tests/world-model-writer-lock-browser.test.cjs"),"R19 WebKit cross-tab test must really run");
  assert.ok(browserTests.length>=6,"browser test discovery unexpectedly shrank");
  for(const file of browserTests){
   const cmd=file.includes("webkit")?webkitRun:run;
