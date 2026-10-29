@@ -450,3 +450,25 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 **最新全套已驗證**：[Actions #40834480098](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40834480098)，受測程式／測試提交 SHA `db007e20919d14eeb798238e8f37f749a0fd1e84`：Node **143/143 PASS**、真 Chromium **37/37 PASS**、Linux 桌面 WebKit **5/5 PASS**，**三個 jobs 全部 SUCCESS，0 FAIL**。兩個 browser job 都輸出 `FIRST_BRAIN_R20_IDB_EVICTION_FAIL_CLOSED_PASS`，驗明「交易 revision=2 → 完整刪除該 IDB → 重新載入後不准舊備份 re-stage，保留 localStorage bytes 並封鎖 Feed」，且原有世界模型刪除與 restore 的非同步測試也通過。
 
 **Gate 分級**：R20「隔離 Chromium／桌面 WebKit 合成 IDB 資料遺失後的 fail-closed 測試」PASS；**R20「真正還原已被 OS 刪除的最新資料」不是完成項目**，不應宣稱可還原不存在的快照。真實 Apple iOS/iPadOS Safari、OS 容量清理、真歷史檔、舊版本退場、獨立審查及使用者正式合併授權均仍 BLOCKED。原 PR 保持 Draft，未上線。
+
+
+## R21｜目前交易式主腦的權威備份與離線完整性核對（2026-10-29）
+
+**歸屬**：R03-01／A 保存及復原證據，延續 R20 資料遺失問題，不啟動正式還原、不增加第二個主腦、不改 main、不部署或使用私人歷史資料。所有程式與測試留在 Draft PR #75，關聯 Issue #32。
+
+### 動機、因果與工程修補
+
+R20 找到明確風險：既有 `localStorage` 舊備份只有**IDB 首次切換前**的版本，之後任何主腦寫入都不會回寫舊備份。瀏覽器若清除 IDB，即使安全停止重建，也可能無法從過期備份找回最新改動。正確的第一步應是**資料仍存在時**讓使用者自行匯出目前真正的 IDB 快照，同時證明匯出的 main/Undo 來自同一已提交 revision。
+
+實作 `first-brain-transactional-backup.mjs`：
+- `exportVerifiedTransactionalBackup(databaseName,storage,{expectedRevision})` 需要 UI 仍處於 `idb` 權威，且提供目前所見 revision。先讀取已提交的單一 IDB 快照，再用 `readTransactional3D()` 重新驗證 Graph/Undo、legacy 來源指紋及 IDB 正常讀取；計算 SHA-256 並再讀一次快照，若版本或 bytes 已變、權威被改、指紋衝突、IDB 遺失或加密能力不可用即**拒絕產生權威備份**。
+- 匯出 `first-brain.transactional.backup.v1` 包含修訂號、使用者端匯出時間、主圖/Undo **原始 bytes**、legacy 來源指紋，以及個別 bytes 與封裝內容的 SHA-256。封裝中的 SHA-256 是**位元組完整性檢查**，不是簽章或身分認證；會自行重新計算該摘要的攻擊者仍可能偽造，不得冒稱不可竄改。
+- `verifyTransactionalBackup(envelope)` 是純讀取內容驗證，檢查 schema、revision、圖與 Undo 形狀、三份 SHA-256。檢查過程不寫入任何 IDB／localStorage；沒有自動匯入或恢復按鈕。**舊 `aiBrain.legacy.raw.backup.v1` 不等於本格式，也不得當成目前版本**。
+- 既有 `app.js?brainTx=1` 只在 `txReady=true` 時顯示「下載目前交易版本備份（主圖＋Undo）」；需使用者親自點擊才產生本機 JSON 下載。交易正忙、版本過期、來源不一致或資料庫遺失都不產生檔案。這個 JSON **可能含有全部私人主腦資料**，必須由使用者自行安全保存，不上傳至 GitHub 或第三方服務；本輪工程與 CI 僅用合成 Seed 圖，沒有讀取私人記錄。
+- `tests/first-brain-current-backup-browser.test.cjs` 使用原 3D UI 從合成 legacy → opt-in IDB → 真實修改 revision=2 → 點擊下載 → 驗證 main/Undo 原始 bytes、版本、SHA 與原 legacy 不同；將 main、Undo、revision 單獨改動後確認驗證失敗；落後版本與 authority 改變拒絕匯出；完全沒有 IDB 或沒有 marker 的情況不可自動建立備份／seed。這個測試在**真 Chromium 與 Linux desktop WebKit 分開執行**，CI 契約確認兩套 runner 都真的包含測試檔。
+
+### 驗收邊界
+
+- 新增程式不等同於**已證明可以把備份還原至正式主腦**；本階段不實作、不驗證導入。備份檔是離線的使用者管理檔案，瀏覽器沒有保證下載後永遠保存；多裝置、OS eviction、實體 iOS Safari、受控災難復原演練、獨立 reviewer ACK、舊 writer 淘汰仍需各自驗收。
+- 只有相同已提交 revision 的快照被驗證，不是跨 localStorage/IndexedDB 的真正全域原子快照，也不能保證點擊之後別的分頁不再更新。若 revision 已變，必須重讀頁面再操作，不暗中匯出使用者未確認的新版本。
+- 本節初次寫入時**R21 CI 結果尚未完成**；是否 PASS 必須等待對應 GitHub Actions 的 Node、Chromium、WebKit final conclusion 與實際 marker，不能預先報成功。
