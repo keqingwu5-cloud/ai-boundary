@@ -380,3 +380,27 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 - **絕不提前升級的 Gate**：實體 iPhone/iPad、真 Apple Safari、背景暫停與作業系統刪除、授權真歷史資料、實際跨版本舊 Writer 整體淘汰、獨立 reviewer ACK、PR 疊接合併與正式部署。Chrome/WebKit 合成預檢 PASS，不等於完整 R17 實機驗收。
 
 **結論**：R17「隔離實機診斷工具與 Chrome/WebKit 前置 CI」PASS；R17「Apple 真機與真歷史資料／正式發行」BLOCKED。保留相依 Gate，下一個可直接推進的工程工作是 R18 獨立 PR 依賴與 reviewer 檢查，不藉此跳過實機測試。
+
+
+## R19｜世界模型研究事件的合作式多分頁寫入門檻（2026-10-29）
+
+**定位與目的**：延續原 R18 的世界模型 journal `worldModel.verify.events.v2` 已知跨分頁併發風險，避免研究事件未經處理就互相覆寫。不新增第二個主腦、不動第一大腦的 `aiBrain.v1`、不接入 GPT② 私人記憶、不合併 main 或部署。
+
+### 真實風險與修正
+
+原 `world-verification-ledger.mjs` 的 `appendWorldLedger()` 在 `localStorage.getItem → localStorage.setItem` 前只比對一次舊值；localStorage 並沒有跨分頁的原子 CAS。已有 Node 反例 `KNOWN_CROSS_TAB_RACE_UNPROTECTED` 證明：落後視圖的舊版 writer 可以覆蓋先前的研究版本。此反例**不移除、不宣稱舊版已獲約束**。
+
+新增 `appendWorldLedgerLocked()`：透過 Web Locks API 以同源固定名 `worldModel.verify.events.v2.writer` 取得 exclusive lock，使用 `ifAvailable:true`。取得鎖時才執行原有來源基線與版本比較以及單鍵寫入；鎖忙回 `journal_write_busy`，缺少 Web Locks 回 `web_locks_unavailable`，請求例外回 `journal_lock_failed`。這三種都**不允許回退成不帶鎖寫入**。原 `world-verification-ui.mjs` 的 create/status/delete/import/restore 導向 async 受保護路徑，且單頁避免重複送出。
+
+測試：
+- `tests/world-verification-ledger.test.mjs` 新增四項：缺鎖、鎖忙、過期快照、鎖請求失敗，均不能出現假成功或未鎖定覆寫。
+- `tests/world-model-writer-lock-browser.test.cjs` 新增真 Chromium 雙頁：在 A 持鎖時 B 應拒絕、A 寫入後 B 過期應拒絕、B 重新載入後才可正常追加兩條事件；另外測試注入無 Web Locks 時寫入被禁止。
+- 原 `tests/world-verification-ledger.test.mjs` 第 19 案**保留舊不合作的寫入者可以造成覆寫的失敗證據**。這個修復只協調採用新 API 的合作式 writer，不能阻止停留在舊 JS 的其他分頁或使用者手動修改 localStorage。
+
+依 [MDN Web Locks API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API)，Web Locks 用於同來源多頁互斥協調，且需安全瀏覽情境。依 [WebKit Safari 16.4 公告](https://webkit.org/blog/13966/webkit-features-in-safari-16-4/)，Lockdown Mode 可能停用 WebLocks；本修補在缺少此 API 時**停止研究寫入**，而不是假設瀏覽器一定支援。
+
+### 验收邊界
+
+- Node 已在 R19 CI 初次結果確認新增安全契約通過。其他 Chromium／WebKit 結果需以此次最終 GitHub Actions 對應 SHA 查驗。
+- **這不等於世界模型的多分頁正式完全原子保護**。未升級舊頁、其他儲存上下文、儲存被系統清除、異質 writer 與安全模式限制仍需明確治理；真 Apple Safari 實體裝置及獨立 reviewer ACK 必須保留 BLOCKED。
+- 只有正式整合前經授權的舊 writer 退場、版本衝突保全、Safari 實機與獨立審查完成後，才可討論正式多分頁研究事件放行。
