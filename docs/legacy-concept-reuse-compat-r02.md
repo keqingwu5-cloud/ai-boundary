@@ -423,3 +423,21 @@ R11 的 \`findReusableLessons\` 只檢索已審閱的經驗：如果在**相同�
 **最終隔離 CI**：[Actions #40831436129](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40831436129)，受測程式／測試契約 SHA `69a4c7bde520fb43b8036a55751c2bda0219af26`：**Node 143/143、Chromium 36/36、Linux desktop WebKit 4/4；三個 jobs 全數 success，0 FAIL**。Chromium 和 WebKit 各自輸出 `WORLD_MODEL_R19_COOPERATIVE_LOCK_PASS` 和 `WORLD_MODEL_R19_LOCK_UNAVAILABLE_FAIL_CLOSED_PASS`，確證兩引擎中真實多分頁合作寫入鎖與安全停止行為。
 
 **不能升格的 Gate**：Linux WebKit 仍不等於 Apple Safari/iOS 實機；Web Locks 無法阻止不合作的未升級舊 JS 直接寫 `localStorage`，也無法解決永久儲存政策、跨裝置同步、真歷史資料相容、獨立 reviewer 和正式部署授權。所有正式 Gate 維持 BLOCKED，原 PR #75 保持 Draft，未合併主線。
+
+
+## R20｜交易權威資料遭清除後不得使用過期備份自動重建（2026-10-29）
+
+**歸類**：R03-01 保存復原／R17 Safari 儲存清理驗收，延續 Issue #32 及隔離 Draft PR #75；不新增功能、不合併、不部署、不使用私人資料。
+
+**確定的風險**：第一大腦已由 `aiBrain.v1.persistence.authority=idb` 進入交易模式後，IndexedDB 可能因瀏覽器資料清理、容量政策或使用者手動刪除而遺失。保留於 `localStorage` 的舊主圖/Undo 只有**切換前的備份**；其內容可能落後於 IDB 後來提交的數十個 revision。如果資料遺失後重新下載這份舊備份，並讓原 `stageLegacy3D()` 建立空白 IDB 的新 revision=1，將造成「原較新版本無聲消失」的誤導性復原。
+
+**已修補的拒絕條件**：
+1. `app.js` 在權威 marker 已是 `idb` 時，**只允許** `verifyStagedLegacy3D()` 驗證仍存在、revision=1 且與使用者原備份 bytes 完全一致的**既有暫存資料**，不允許重新 `stageLegacy3D()`。這保留 R14 中斷後的安全續接，但不允許在正式交易資料消失後把舊資料當新權威。
+2. 若已有 `idb` marker 卻回報 `transactional_snapshot_missing`，3D 頁面使用明確警示「先前交易式主腦快照遺失」，保持唯讀；可以下載舊備份供人工核對，但啟用按鈕保持停用。即使偽造按鈕可點，後端啟用 handler 仍須 fail closed。
+3. 其他不明 authority marker 仍拒絕重新啟用，不能將未知狀態默認為首次遷移。
+4. 合成 `tests/first-brain-eviction-browser.test.cjs` 在原生 3D 頁面先建立 legacy → 備份 → 啟用 IDB → 真提交新 revision=2 → **完整刪除該測試用 IDB 資料庫** → 重新載入。須確認 marker 仍指向 `idb`、原 legacy raw bytes 不變、3D 編輯拒絕、備份可以供證據使用、UI 與 handler 不允許 re-stage、Feed 來源阻擋；Chromium 與 Linux desktop WebKit 均須實際執行。
+5. `tests/ci-execution-contract.test.mjs` 新增保證 R20 WebKit 測試有實際執行且 `R20_BROWSER=webkit`，不把監看或執行 Chromium 冒充 WebKit。
+
+**正式驗收邊界**：這是在隔離瀏覽器上**模擬完整資料庫遺失**並檢查是否 fail closed，不是已成功找回丟失的 IDB 歷史，也不是 Safari/iPhone/iPad 真機測試、OS 升級或真實容量清理演練。若資料已被系統清除，必須在授權後使用可靠的較新備份及獨立審查恢復，不能無憑證復原。
+
+**CI 結果**：以提交相對應 GitHub Actions 的最終狀態與讀回的測試 log 為準；本節寫入時 Node 143/143 PASS，兩個瀏覽器 job 的最終結果尚需確認。若失敗則保留真實反例，不能標為 R20 已完成。
