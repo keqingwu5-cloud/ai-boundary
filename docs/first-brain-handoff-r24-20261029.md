@@ -7,14 +7,14 @@
 ## 一、工程所在位置
 
 - 儲存庫：`keqingwu5-cloud/ai-boundary`。
-- 交接的最高層 PR：[#75](https://github.com/keqingwu5-cloud/ai-boundary/pull/75)，head branch `test/legacy-concept-reuse-compat-20261027`，稽核時 HEAD `69aec4a9eb7abc3a57ad5a419bb608655507b4bf`。
+- 交接的最高層 PR：[#75](https://github.com/keqingwu5-cloud/ai-boundary/pull/75)，head branch `test/legacy-concept-reuse-compat-20261027`，2026-10-29 19:25（Asia/Taipei）核對時 HEAD `dc20a9e01b8b4bed12c78241ecc28e7dc13d07d0`（文件後續變動時請重新查 HEAD）。
 - 依賴鏈**必須依序**：[#68](https://github.com/keqingwu5-cloud/ai-boundary/pull/68)（base `main`）→ [#71](https://github.com/keqingwu5-cloud/ai-boundary/pull/71)（base #68 branch）→ [#72](https://github.com/keqingwu5-cloud/ai-boundary/pull/72)（base #71 branch）→ [#74](https://github.com/keqingwu5-cloud/ai-boundary/pull/74)（base #72 branch）→ [#75](https://github.com/keqingwu5-cloud/ai-boundary/pull/75)（base #74 branch）。
 - **實際核對五個 PR 都 open / Draft / merged=false / reviews=[]**。GitHub `mergeable=true` 並不表示已通過使用者授權、安全審查或實機 Gate。
 - 討論紀錄／主要缺陷登錄：[Issue #32](https://github.com/keqingwu5-cloud/ai-boundary/issues/32)；長期工程稽核 `docs/legacy-concept-reuse-compat-r02.md`；R18 前置稽核 `docs/first-brain-r18-integration-review.md` 和 `docs/first-brain-r18-release-gates.json`。
 
 ## 二、最新 CI（切勿把舊 SHA 的綠燈冒充新修改）
 
-[GitHub Actions #40853173647](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40853173647) 是核對時 #75 HEAD `69aec4a9eb7abc3a57ad5a419bb608655507b4bf` 的最新完成工作：
+[GitHub Actions #40854204935](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/40854204935) 是 2026-10-29 19:25 核對時 #75 HEAD `dc20a9e01b8b4bed12c78241ecc28e7dc13d07d0` 的最新完成工作：
 - Node.js **149/149 PASS**（包含 R24 正式還原唯讀預檢 6 項）；
 - Chromium **43/43 PASS**（包含 R23 雙分頁 / abort 演練）；
 - Linux 桌面 WebKit **11/11 PASS**（包含 R23 演練）；
@@ -37,6 +37,13 @@
 | R24（**最新**） | `first-brain-formal-recovery-preflight.mjs` **只讀**：檢查備份、舊 bytes 指紋及「現有 IDB 是否被授權查明」；即使符合仍永遠回傳 `status=blocked`、`restoreAuthorized=false`、`mergeAuthorized=false` | **沒有正式 restore API/UI、沒有權威切換、沒有人為審查或實機 ACK** |
 
 R24 入口文件：[正式還原／Safari／獨立審查工作包](./first-brain-r24-formal-acceptance.md)，R24 Node 反例測試 `tests/first-brain-formal-recovery-preflight.test.mjs`。
+
+### 2026-10-29 19:25 最後交接補記
+
+- 最新的 R24 只讀預檢測試包括於 Node 149/149（新增 6 個 preflight 負面驗證），與 Chromium 43/43、Linux 桌面 WebKit 11/11 同一個完整成功 Run #40854204935。
+- 下一輪首要任務就是 **正式還原 / Apple Safari 與 iPad 實機 / 真正獨立 reviewer 三項 Gate**，其中真機及 reviewer 需要外部可核對的人員／裝置證據，不能由測試程式自行補齊。
+- 工作只需先檢查是否有新證據／取得經授權的受控預覽與審查計畫；不得自行執行正式還原、寄送審查邀請、合併或部署。
+- 本文件所在分支每次新增提交都會改變 HEAD。上面列的 `dc20a9e...` 是**實際經 CI 測試的程式與測試契約 SHA**，而不是永久最新 HEAD；接手先重新取得 GitHub PR head 再核對新變更與 CI。
 
 ## 四、未完成的三個主要 Gate（下一個對話應優先接手）
 
