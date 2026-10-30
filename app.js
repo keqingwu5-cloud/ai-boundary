@@ -300,6 +300,44 @@ function importJSON(obj){
   return true;
 }
 
+/* Manual internal plan load; adds nodes only after explicit confirmation. */
+async function loadEightDimensionPlan(){
+  try {
+    if (!globalThis.FirstBrainPlanCore || !globalThis.crypto?.subtle) throw Error('規劃驗證模組／安全雜湊不可用');
+    const response = await fetch('./data/first-brain-eight-dim-plan-20261030.json', {cache:'no-store'});
+    if (!response.ok) throw Error('規劃候選檔案尚未發布');
+    const raw=await response.text();
+    if(raw.length>30000) throw Error('規劃檔案過大');
+    const packet=JSON.parse(raw);
+    const bytes=new TextEncoder().encode(raw);
+    const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(x=>x.toString(16).padStart(2,'0')).join('');
+    const result=globalThis.FirstBrainPlanCore.preparePlan(state,packet,{digest,now:Date.now()});
+    if(!result.changed){
+      toast('已載入同版本規劃；不重複新增研究節點');
+      focusNode(result.receipt.payload.root_node_id);
+      return;
+    }
+    if(!confirm('將新增 1 個架構總節點與 8 個研究子節點，保留所有舊節點。來源：Notion 八維架構候選。是否載入本機第一大腦？'))return;
+    const before=JSON.stringify(state),persisted=localStorage.getItem(KEY);
+    if(persisted!==before)throw Error('本機資料已變動，請先重新整理或儲存後再試，避免覆寫');
+    const next=JSON.stringify(result.state);
+    const updatedUndo=[...undoStack.slice(-11),before];
+    // Preserve an undo snapshot before replacing the browser's saved state.
+    localStorage.setItem(UKEY,JSON.stringify(updatedUndo));
+    localStorage.setItem(KEY,next);
+    if(localStorage.getItem(KEY)!==next)throw Error('寫入回讀不一致；請勿標記為已載入');
+    clearTimeout(saveT);
+    state=result.state;
+    undoStack=updatedUndo;
+    sync();renderHistory();renderCrumbs();
+    focusNode(result.receipt.payload.root_node_id);
+    emit('change',{action:'plan.loaded',payload:result.receipt.payload});
+    toast('已載入本機 9 個候選節點，歷史可回讀；不代表 AI 已自主研究');
+  } catch(err) {
+    toast('規劃未確認載入：'+(err?.message||'未知錯誤'));
+  }
+}
+
 /* ================= three.js scene ================= */
 const canvas = $('#c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:!MOBILE, alpha:false, powerPreference:'high-performance' });
@@ -884,6 +922,7 @@ function renderHistory(){
   $('#hCount').textContent = state.history.length;
 }
 $('#bHist').onclick = () => { $('#hist').classList.toggle('open'); renderHistory(); };
+$('#bPlan').onclick = loadEightDimensionPlan;
 $('#hX').onclick = () => $('#hist').classList.remove('open');
 $('#bUndo').onclick = undo;
 $('#bExport').onclick = exportJSON;
