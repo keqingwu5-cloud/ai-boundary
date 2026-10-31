@@ -48,3 +48,18 @@ test("empty value explicitly clears a previously set note with recorded reason",
   assert.equal(s.threshold.text,"");
   assert.equal(s.history[1].before,"舊設定");
 });
+
+test("reject forged latest control values and disconnected history",()=>{
+ let a=core.revise(undefined,"direction","方向甲","起始",at,"x1");
+ assert.throws(()=>core.view({...a,direction:{text:"偽造",version:2}}),/history_invalid/);
+ a=core.revise(a,"direction","方向乙","修正",at,"x2");
+ const broken=JSON.parse(JSON.stringify(a));broken.history[1].before="錯誤來源";
+ assert.throws(()=>core.view(broken),/history_invalid/);
+});
+test("reject repeated event IDs while keeping direction and threshold separate",()=>{
+ let a=core.revise(undefined,"direction","方向甲","起始",at,"z1");
+ a=core.revise(a,"threshold","門檻乙","分離管理",at,"z2");
+ const broken=JSON.parse(JSON.stringify(a));broken.history[1].id="z1";
+ assert.throws(()=>core.view(broken),/history_invalid/);
+ assert.equal(a.direction.version,1);assert.equal(a.threshold.version,1);
+});
