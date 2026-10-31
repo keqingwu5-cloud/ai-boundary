@@ -108,10 +108,19 @@
     return rows.sort((a,b) => b.score-a.score).slice(0,Math.max(1,Math.min(10,maxResults)));
   }
   function processLatest(audit) {
-    const seen = new Set(), rows = [];
+    // The UI unshifts new events, but restored arrays may be in reverse order.
+    // Use the newer dated record when both dates are valid; preserve input order
+    // for legacy undated/tied events, without mutating the source audit.
+    const latestByRef = new Map(), rows = [];
     for (const x of audit) {
-      if (x.kind !== "workflow.recorded" || !x.ref || seen.has(x.ref)) continue;
-      seen.add(x.ref);
+      if (!x || x.kind !== "workflow.recorded" || !x.ref) continue;
+      const prior = latestByRef.get(x.ref);
+      if (!prior) { latestByRef.set(x.ref, x); continue; }
+      const priorTime = Date.parse(prior.at), nextTime = Date.parse(x.at);
+      if (Number.isFinite(priorTime) && Number.isFinite(nextTime) && nextTime > priorTime)
+        latestByRef.set(x.ref, x);
+    }
+    for (const x of latestByRef.values()) {
       rows.push({ref:x.ref,taskTitle:x.taskTitle || x.summary || "",actor:x.actor || "",status:x.status || "unknown",reason:x.reason || "",nextAction:x.nextAction || "",at:x.at || ""});
     }
     return rows;
