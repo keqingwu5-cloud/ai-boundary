@@ -43,6 +43,20 @@ test("NEG T04C: allowlist override with wrong id rejects; matching id passes",()
   assert.equal(validatePlan(packet,{allowedSourceIds:[packet.source_id]}),packet);
 });
 
+test("NEG T04D: malformed allowlist overrides fail closed (no bypass)",()=>{
+  const malformed=[null,undefined,false,0,"trusted-source",{},[null],[42],[{}],[" "],[packet.source_id,null]];
+  const forged={...packet,source_id:"untrusted-origin"};
+  for(const bad of malformed){
+    assert.throws(()=>validatePlan(forged,{allowedSourceIds:bad}),/source_id_allowlist_invalid/);
+  }
+});
+
+test("NEG T04E: malformed allowlist cannot bypass preparePlan either",()=>{
+  for(const bad of [null,"trusted-source",{},[null],[""],[packet.source_id,42]]){
+    assert.throws(()=>preparePlan(start(),packet,{digest,now,allowedSourceIds:bad}),/source_id_allowlist_invalid/);
+  }
+});
+
 test("POS: intact graph with user title edit is legitimate unchanged",()=>{
   const once=preparePlan(start(),packet,{digest,now}).state;
   const child=once.nodes.find(n=>String(n.id).endsWith("_d1"));

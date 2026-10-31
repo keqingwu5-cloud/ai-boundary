@@ -1,7 +1,7 @@
 /* Isolated, add-only plan candidate / local receipt. No network or secrets. */
 (function (root,factory){const api=factory();if(typeof module!=="undefined"&&module.exports)module.exports=api;if(root)root.FirstBrainPlanCore=api;})(typeof globalThis!=="undefined"?globalThis:this,function(){
 "use strict";
-/** Default allowlist: known first-brain Notion page UUID (no hyphens / with hyphens). Empty opts.allowedSourceIds disables extra allowlist (still requires non-empty string). */
+/** Default allowlist: known first-brain Notion page UUID (with / without hyphens). An explicit override must be a non-empty array of non-empty strings. */
 const DEFAULT_ALLOWED_SOURCE_IDS=Object.freeze([
   "4009d611-eff6-8173-aee2-f23d5eda3350",
   "4009d611eff68173aee2f23d5eda3350"
@@ -16,12 +16,13 @@ function validatePlan(p,opts) {
   const allow=opts&&Object.prototype.hasOwnProperty.call(opts,"allowedSourceIds")
     ? opts.allowedSourceIds
     : DEFAULT_ALLOWED_SOURCE_IDS;
-  if(Array.isArray(allow)){
-    if(allow.length===0) throw Error("source_id_allowlist_empty");
-    const norm=normalizeSourceId(p.source_id);
-    const ok=allow.some(a=>normalizeSourceId(a)===norm);
-    if(!ok) throw Error("source_id_not_allowed");
-  }
+  // Explicitly malformed overrides must never bypass source verification.
+  if(!Array.isArray(allow)||allow.some(a=>typeof a!=="string"||!a.trim()))
+    throw Error("source_id_allowlist_invalid");
+  if(allow.length===0) throw Error("source_id_allowlist_empty");
+  const norm=normalizeSourceId(p.source_id);
+  const ok=allow.some(a=>normalizeSourceId(a)===norm);
+  if(!ok) throw Error("source_id_not_allowed");
   if (!Array.isArray(p.dimensions)||p.dimensions.length!==8) throw Error("exactly_eight_dimensions_required");
   const seen=new Set();
   for (const d of p.dimensions) {

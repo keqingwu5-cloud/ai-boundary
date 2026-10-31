@@ -1,5 +1,5 @@
 # Adapted from fix/r19-webkit-wait-journal-events (.github/workflows/brain-import-integrity.yml).
-# Minimal change: run Node unit + L1 negative tests for first-brain-plan-core (16 tests).
+# Minimal change: run Node unit + L1 negative tests for first-brain-plan-core.
 # Chromium / WebKit Playwright jobs from r19 do NOT apply here (no browser tests in this PR).
 name: PR86 L1 plan integrity (isolated)
 on:
@@ -20,5 +20,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Run plan-core unit + L1 negative (16 tests)
+      - name: Run plan-core unit + L1 negative
         run: node --test tests/first-brain-plan-core.test.cjs tests/first-brain-plan-core-l1-negative.test.cjs
