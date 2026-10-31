@@ -107,3 +107,18 @@ test("plan is deterministic and does not overwrite user direction or memories",(
  const a=plan(s,{taskTitle:"記憶方向核對"}),b=plan(s,{taskTitle:"記憶方向核對"});
  assert.deepEqual(a,b);assert.equal(JSON.stringify(s),before);
 });
+
+test("dated audit is safe when imported oldest-first; no stale blocked proposal",()=>{
+ const s=state();
+ s.audit=[
+  {kind:"workflow.recorded",ref:"w-order",status:"blocked",taskTitle:"記憶來源",reason:"舊阻塞",
+   at:"2026-10-30T00:00:00.000Z"},
+  {kind:"workflow.recorded",ref:"w-order",status:"done",taskTitle:"記憶來源",
+   at:"2026-10-31T00:00:00.000Z"}
+ ];
+ const original=JSON.stringify(s.audit);
+ const p=plan(s);
+ assert.equal(p.proposals.some(x=>x.type==="blocked_research"&&x.ref==="w-order"),false);
+ assert.equal(JSON.stringify(s.audit),original);
+ assert.equal(p.sideEffects,false);
+});
