@@ -7,6 +7,7 @@
   function view(raw){
     if(raw==null)return blank(); // Older encrypted vaults remain readable, without mutation.
     if(typeof raw!=="object"||Array.isArray(raw)||!Array.isArray(raw.history))throw Error("memory_controls_invalid");
+    if(raw.history.length>10000)throw Error("memory_controls_history_invalid");
     const result={history:raw.history.map(e=>({...e}))};
     for(const k of KEYS){
       const item=raw[k];
@@ -14,11 +15,19 @@
         !Number.isSafeInteger(item.version)||item.version<0)throw Error("memory_controls_invalid");
       result[k]={text:item.text,version:item.version};
     }
+    const values={direction:"",threshold:""},seq={direction:0,threshold:0},ids=new Set();
     for(const h of result.history){
       if(!h||!KEYS.includes(h.kind)||typeof h.before!=="string"||typeof h.after!=="string"||
-        typeof h.reason!=="string"||typeof h.at!=="string"||typeof h.id!=="string"||
-        !Number.isSafeInteger(h.version)||h.version<1)throw Error("memory_controls_history_invalid");
+        h.before.length>6000||h.after.length>6000||
+        typeof h.reason!=="string"||!h.reason.trim()||h.reason.length>1000||
+        typeof h.at!=="string"||!Number.isFinite(Date.parse(h.at))||
+        typeof h.id!=="string"||!h.id||ids.has(h.id)||
+        !Number.isSafeInteger(h.version)||h.version!==seq[h.kind]+1||
+        h.before!==values[h.kind]||h.after===h.before)throw Error("memory_controls_history_invalid");
+      ids.add(h.id);seq[h.kind]=h.version;values[h.kind]=h.after;
     }
+    for(const k of KEYS)if(result[k].version!==seq[k]||result[k].text!==values[k])
+      throw Error("memory_controls_history_invalid");
     return result;
   }
   function revise(raw,kind,nextText,reason,at,id){
