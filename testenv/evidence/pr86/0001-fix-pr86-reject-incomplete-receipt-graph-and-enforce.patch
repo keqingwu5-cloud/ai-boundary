@@ -1,0 +1,193 @@
+From d6ceb5618615f79f3e8be027fb1bca245e8b3f40 Mon Sep 17 00:00:00 2001
+From: testenv-local <merlin-local@testenv.invalid>
+Date: Sat, 31 Oct 2026 10:13:35 +0800
+Subject: [PATCH] fix(pr86): reject incomplete receipt graph and enforce
+ source_id allowlist
+
+- preparePlan: when receipt exists, verify all node_ids/links/parents against
+  receipt (corruption) while allowing legitimate title edits on intact graph
+- preparePlan: reject pre-existing plan link_id collisions
+- validatePlan: default source_id allowlist; overridable via opts.allowedSourceIds
+- add L1 negative tests (independent of PR #85)
+
+Local-only commit; no push/PR.
+---
+ first-brain-plan-core.js                      | 58 +++++++++++++++-
+ ...first-brain-plan-core-l1-negative.test.cjs | 66 +++++++++++++++++++
+ 2 files changed, 121 insertions(+), 3 deletions(-)
+ create mode 100644 tests/first-brain-plan-core-l1-negative.test.cjs
+
+diff --git a/first-brain-plan-core.js b/first-brain-plan-core.js
+index c4f38f2..b0488d8 100644
+--- a/first-brain-plan-core.js
++++ b/first-brain-plan-core.js
+@@ -1,12 +1,27 @@
+ /* Isolated, add-only plan candidate / local receipt. No network or secrets. */
+ (function (root,factory){const api=factory();if(typeof module!=="undefined"&&module.exports)module.exports=api;if(root)root.FirstBrainPlanCore=api;})(typeof globalThis!=="undefined"?globalThis:this,function(){
+ "use strict";
+-function validatePlan(p) {
++/** Default allowlist: known first-brain Notion page UUID (no hyphens / with hyphens). Empty opts.allowedSourceIds disables extra allowlist (still requires non-empty string). */
++const DEFAULT_ALLOWED_SOURCE_IDS=Object.freeze([
++  "4009d611-eff6-8173-aee2-f23d5eda3350",
++  "4009d611eff68173aee2f23d5eda3350"
++]);
++function normalizeSourceId(s){return String(s||"").trim().toLowerCase().replace(/-/g,"");}
++function validatePlan(p,opts) {
+   const text=(v,n)=>typeof v==="string"&&v.trim().length>0&&v.length<=n;
+   if (!p||p.schema!=="ai-boundary.first-brain-plan.v1") throw Error("plan_schema_invalid");
+   if (!text(p.packet_id,80)||!/^[A-Z0-9][A-Z0-9_-]*$/.test(p.packet_id)) throw Error("packet_id_invalid");
+   if (!text(p.source_id,100)||!text(p.source_revision,100)||!text(p.title,100)||!text(p.goal,500)) throw Error("plan_metadata_invalid");
+   if (!text(p.source_url,512)||!/^https:\/\/[^\s<>]+$/.test(p.source_url)) throw Error("source_url_invalid");
++  const allow=opts&&Object.prototype.hasOwnProperty.call(opts,"allowedSourceIds")
++    ? opts.allowedSourceIds
++    : DEFAULT_ALLOWED_SOURCE_IDS;
++  if(Array.isArray(allow)){
++    if(allow.length===0) throw Error("source_id_allowlist_empty");
++    const norm=normalizeSourceId(p.source_id);
++    const ok=allow.some(a=>normalizeSourceId(a)===norm);
++    if(!ok) throw Error("source_id_not_allowed");
++  }
+   if (!Array.isArray(p.dimensions)||p.dimensions.length!==8) throw Error("exactly_eight_dimensions_required");
+   const seen=new Set();
+   for (const d of p.dimensions) {
+@@ -16,8 +31,38 @@ function validatePlan(p) {
+   if(seen.size!==8) throw Error("dimension_ids_incomplete");
+   return p;
+ }
++/** Verify receipt graph still intact. Missing structure = corruption; title/note edits on intact nodes = legitimate user edit (idempotent unchanged). */
++function assertReceiptGraphIntact(state,receipt){
++  const payload=receipt&&receipt.payload;
++  if(!payload||!Array.isArray(payload.node_ids)||payload.node_ids.length!==9) throw Error("receipt_corrupt_missing_node_ids");
++  const rootId=payload.root_node_id;
++  if(typeof rootId!=="string"||!rootId) throw Error("receipt_corrupt_missing_root");
++  if(payload.node_ids[0]!==rootId) throw Error("receipt_corrupt_root_mismatch");
++  const byId=new Map((state.nodes||[]).map(n=>[n.id,n]));
++  for(const id of payload.node_ids){
++    if(!byId.has(id)) throw Error("receipt_graph_incomplete_missing_node");
++  }
++  const root=byId.get(rootId);
++  if(!root) throw Error("receipt_graph_incomplete_missing_node");
++  const childIds=payload.node_ids.slice(1);
++  for(const cid of childIds){
++    const child=byId.get(cid);
++    if(child.parentId!==rootId) throw Error("receipt_graph_integrity_parent_mismatch");
++    const linkId="l_"+cid;
++    const link=(state.links||[]).find(l=>l.id===linkId);
++    if(!link) throw Error("receipt_graph_incomplete_missing_link");
++    if(link.from!==rootId||link.to!==cid) throw Error("receipt_graph_integrity_link_mismatch");
++  }
++  // Duplicate link IDs among plan links = corruption
++  const planLinkIds=childIds.map(cid=>"l_"+cid);
++  const allIds=(state.links||[]).map(l=>l.id);
++  for(const lid of planLinkIds){
++    if(allIds.filter(x=>x===lid).length!==1) throw Error("receipt_graph_integrity_duplicate_link_id");
++  }
++  return true;
++}
+ function preparePlan(original,p,opts) {
+-  validatePlan(p);
++  validatePlan(p,opts);
+   const digest=opts?.digest,now=opts?.now;
+   if(typeof digest!=="string"||!/^[a-f0-9]{64}$/.test(digest)||!Number.isSafeInteger(now)||now<=0)throw Error("receipt_metadata_invalid");
+   if(!original||!Array.isArray(original.brains)||!original.brains.some(b=>b.id==="main")||!Array.isArray(original.nodes)||!Array.isArray(original.links)||!Array.isArray(original.history))throw Error("brain_state_invalid");
+@@ -25,11 +70,18 @@ function preparePlan(original,p,opts) {
+   if(existing){
+     const rootId=existing.payload.root_node_id;
+     if(existing.payload.packet_sha256!==digest||existing.payload.source_revision!==p.source_revision||!original.nodes.some(n=>n.id===rootId))throw Error("receipt_conflict_or_missing_nodes");
++    // Distinguish corruption (incomplete/broken graph) from legitimate user edits on intact nodes.
++    assertReceiptGraphIntact(original,existing);
+     return {changed:false,state:original,receipt:existing,addedNodes:0};
+   }
+   const prefix="n_fp_"+p.packet_id.toLowerCase(),rootId=prefix+"_root";
+   const wanted=[rootId,...p.dimensions.map(d=>prefix+"_"+d.id.toLowerCase())];
+   if(wanted.some(id=>original.nodes.some(n=>n.id===id)))throw Error("node_id_conflict");
++  // Reject pre-existing link IDs that would collide with plan links
++  for(const id of wanted.slice(1)){
++    const lid="l_"+id;
++    if(original.links.some(l=>l.id===lid)) throw Error("link_id_conflict");
++  }
+   const state=JSON.parse(JSON.stringify(original));
+   const source={who:"Notion",outlet:"第一大腦總規劃／研究候選",date:p.source_revision.slice(0,10),url:p.source_url,also:[]};
+   const mk=(id,parentId,kind,title,oneLiner,pos)=>({
+@@ -57,5 +109,5 @@ function preparePlan(original,p,opts) {
+   state.history.push(receipt);
+   return {changed:true,state,receipt,addedNodes:9};
+ }
+-return {validatePlan,preparePlan};
++return {validatePlan,preparePlan,assertReceiptGraphIntact,DEFAULT_ALLOWED_SOURCE_IDS,normalizeSourceId};
+ });
+diff --git a/tests/first-brain-plan-core-l1-negative.test.cjs b/tests/first-brain-plan-core-l1-negative.test.cjs
+new file mode 100644
+index 0000000..32beeb9
+--- /dev/null
++++ b/tests/first-brain-plan-core-l1-negative.test.cjs
+@@ -0,0 +1,66 @@
++"use strict";
++/**
++ * L1 negative tests for PR #86 safety gaps. Independent of PR #85.
++ * Expects FIXED core: incomplete graph must REJECT; arbitrary source_id must REJECT.
++ */
++const test=require("node:test"),assert=require("node:assert/strict");
++const fs=require("node:fs");
++const path=require("node:path");
++const {preparePlan,validatePlan}=require("../first-brain-plan-core.js");
++const packet=JSON.parse(fs.readFileSync(path.join(__dirname,"../data/first-brain-eight-dim-plan-20261030.json"),"utf8"));
++const digest="a".repeat(64),now=1793368800000;
++const start=()=>({version:2,brains:[{id:"main"}],nodes:[{id:"old",title:"舊資料"}],links:[],history:[{ts:1,action:"seed"}]});
++
++test("NEG T01: delete D4 then reload must reject incomplete graph",()=>{
++  const once=preparePlan(start(),packet,{digest,now}).state;
++  once.nodes=once.nodes.filter(n=>!String(n.id).endsWith("_d4"));
++  assert.throws(()=>preparePlan(once,packet,{digest,now:now+1}),/receipt_graph_incomplete/);
++});
++
++test("NEG T02A: delete D5 link then reload must reject",()=>{
++  const once=preparePlan(start(),packet,{digest,now}).state;
++  once.links=once.links.filter(l=>!String(l.id).includes("_d5"));
++  assert.throws(()=>preparePlan(once,packet,{digest,now:now+1}),/receipt_graph_incomplete_missing_link/);
++});
++
++test("NEG T03: pre-existing link ID conflict must reject on first load",()=>{
++  const s=start();
++  s.links.push({id:"l_n_fp_fb-8d-20261030-v1_d1",from:"old",to:"old",kind:"legacy"});
++  assert.throws(()=>preparePlan(s,packet,{digest,now}),/link_id_conflict/);
++});
++
++test("NEG T04A: arbitrary source_id must be rejected by allowlist",()=>{
++  const p={...packet,source_id:"totally-different-source"};
++  assert.throws(()=>validatePlan(p),/source_id_not_allowed/);
++});
++
++test("NEG T04B: empty allowlist override rejects",()=>{
++  assert.throws(()=>validatePlan(packet,{allowedSourceIds:[]}),/source_id_allowlist_empty/);
++});
++
++test("NEG T04C: allowlist override with wrong id rejects; matching id passes",()=>{
++  assert.throws(()=>validatePlan(packet,{allowedSourceIds:["only-this-one"]}),/source_id_not_allowed/);
++  assert.equal(validatePlan(packet,{allowedSourceIds:[packet.source_id]}),packet);
++});
++
++test("POS: intact graph with user title edit is legitimate unchanged",()=>{
++  const once=preparePlan(start(),packet,{digest,now}).state;
++  const child=once.nodes.find(n=>String(n.id).endsWith("_d1"));
++  child.title="使用者合法改標題";
++  child.oneLiner="合法編輯內容，結構完整";
++  const r=preparePlan(once,packet,{digest,now:now+1});
++  assert.equal(r.changed,false);
++  assert.equal(r.addedNodes,0);
++});
++
++test("POS: happy path still adds 9 nodes",()=>{
++  const r=preparePlan(start(),packet,{digest,now});
++  assert.equal(r.addedNodes,9);
++  assert.equal(r.state.links.length,8);
++});
++
++test("POS: official happy-path same-version still unchanged",()=>{
++  const once=preparePlan(start(),packet,{digest,now});
++  const twice=preparePlan(once.state,packet,{digest,now:now+1});
++  assert.equal(twice.changed,false);
++});
+-- 
+2.47.3
+

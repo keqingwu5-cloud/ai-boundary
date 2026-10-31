@@ -1,0 +1,24 @@
+✔ NEG T01: delete D4 then reload must reject incomplete graph (1.810843ms)
+✔ NEG T02A: delete D5 link then reload must reject (1.165515ms)
+✔ NEG T03: pre-existing link ID conflict must reject on first load (0.182938ms)
+✔ NEG T04A: arbitrary source_id must be rejected by allowlist (0.116456ms)
+✔ NEG T04B: empty allowlist override rejects (0.111183ms)
+✔ NEG T04C: allowlist override with wrong id rejects; matching id passes (0.142679ms)
+✔ POS: intact graph with user title edit is legitimate unchanged (0.237621ms)
+✔ POS: happy path still adds 9 nodes (0.13068ms)
+✔ POS: official happy-path same-version still unchanged (0.19609ms)
+✔ public eight-dimension packet valid (0.799742ms)
+✔ adds nine nodes, one append-only receipt and preserves original (0.619772ms)
+✔ same version repeated: no duplicate (4.192592ms)
+✔ same packet ID and changed digest fail closed (0.470514ms)
+✔ different node with reserved ID fail closed (0.152814ms)
+✔ wrong source URL, missing dimension or duplicate dimension fail (0.152661ms)
+✔ bad state or digest is rejected (0.114554ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 59.577369

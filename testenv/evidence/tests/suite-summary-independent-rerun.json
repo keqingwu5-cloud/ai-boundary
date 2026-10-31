@@ -1,0 +1,168 @@
+{
+  "started_at_taipei": "2026-10-31 10:20:41 Asia/Taipei",
+  "finished_at_taipei": "2026-10-31 10:20:44 Asia/Taipei",
+  "node": "v24.22.1",
+  "queue_wt_sha": "a99f48a",
+  "pr86_fix_sha": "d6ceb5618615f79f3e8be027fb1bca245e8b3f40",
+  "results": [
+    {
+      "id": "BOOT",
+      "status": "PASS",
+      "detail": {
+        "pid": 407598,
+        "boot": "{\"ok\":true,\"port\":18765,\"mode\":\"MOCK\",\"grant_id\":\"grant-local-e2e-001\"}"
+      },
+      "at_taipei": "2026-10-31 10:20:41 Asia/Taipei"
+    },
+    {
+      "id": "unauthorized_rejection",
+      "status": "PASS",
+      "detail": {
+        "error": "UNAUTHORIZED"
+      },
+      "at_taipei": "2026-10-31 10:20:41 Asia/Taipei"
+    },
+    {
+      "id": "unauthorized_forged_token",
+      "status": "PASS",
+      "detail": {
+        "error": "UNAUTHORIZED"
+      },
+      "at_taipei": "2026-10-31 10:20:41 Asia/Taipei"
+    },
+    {
+      "id": "source_and_version_stamping",
+      "status": "PASS",
+      "detail": {
+        "event_id": "e812cb85-fb5c-49ad-8f8f-d8c89d4af1d3",
+        "source": "origin-local",
+        "payload_version": "1",
+        "digest": "0b764f6c595799fa924d9380d9e5c044fc4014a76d8b339194e151f17eef42c5",
+        "result_kind": "MOCK"
+      },
+      "at_taipei": "2026-10-31 10:20:41 Asia/Taipei"
+    },
+    {
+      "id": "dedup_idempotency",
+      "status": "PASS",
+      "detail": {
+        "same": "f7b42cd1-c337-41ce-85ed-24ba24d1b039",
+        "conflict": {
+          "error": "IDEMPOTENCY_CONFLICT"
+        }
+      },
+      "at_taipei": "2026-10-31 10:20:42 Asia/Taipei"
+    },
+    {
+      "id": "retry",
+      "status": "PASS",
+      "detail": {
+        "event_id": "evt-retry-ea075b6f",
+        "attempts": 2,
+        "mid_state": "queued"
+      },
+      "at_taipei": "2026-10-31 10:20:42 Asia/Taipei"
+    },
+    {
+      "id": "timeout_lease_reclaim",
+      "status": "PASS",
+      "detail": {
+        "oldAttempt": "26922ce4-e628-4d3e-be81-f0e9493200c5",
+        "newAttempt": "25b4f2c4-ce35-4ccf-9d20-9d708bc31de0"
+      },
+      "at_taipei": "2026-10-31 10:20:43 Asia/Taipei"
+    },
+    {
+      "id": "restart_recovery",
+      "status": "PASS",
+      "detail": {
+        "event_id": "6af3fe81-a402-46f3-9750-9b5d0046b75a",
+        "state": "ack_received",
+        "result_kind": "MOCK"
+      },
+      "at_taipei": "2026-10-31 10:20:44 Asia/Taipei"
+    },
+    {
+      "id": "cost_cap",
+      "status": "PASS",
+      "detail": {
+        "event_id": "evt-cost-b447c4f6",
+        "state": "failed",
+        "last_error": "cost_cap_exceeded"
+      },
+      "at_taipei": "2026-10-31 10:20:44 Asia/Taipei"
+    },
+    {
+      "id": "reporting",
+      "status": "PASS",
+      "detail": {
+        "totals": {
+          "events": 6,
+          "ack_received": 3,
+          "failed": 1,
+          "MOCK": 3,
+          "REAL": 0,
+          "total_cost_usd": 0.02
+        }
+      },
+      "at_taipei": "2026-10-31 10:20:44 Asia/Taipei"
+    },
+    {
+      "id": "e2e_submit_ack_readback",
+      "status": "PASS",
+      "detail": {
+        "exit": 0,
+        "out_head": "{\n  \"step\": \"send\",\n  \"ok\": true,\n  \"event_id\": \"04a8fdd2-ac6d-440c-9d99-a32491293392\",\n  \"state\": \"queued\",\n  \"payload_digest\": \"e8124d74ebcf3b330f0589ecf69516533cb582dff22fe8621ff916d9f314eb8b\"\n}\n{\n  \"step\": \"status\",\n  \"event\": {\n    \"event_id\": \"04a8fdd2-ac6d-440c-9d99-a32491293392\",\n    \"task_i"
+      },
+      "at_taipei": "2026-10-31 10:20:44 Asia/Taipei"
+    },
+    {
+      "id": "openai_real_executor",
+      "status": "NOT_RUN",
+      "detail": {
+        "reason": "Merlin policy: read-only plan only; no key create, no model request, no billing, not wired to execution",
+        "env_OPENAI_API_KEY": "UNSET"
+      },
+      "at_taipei": "2026-10-31 10:20:44 Asia/Taipei"
+    },
+    {
+      "id": "openai_paid_api_call",
+      "status": "NOT_RUN",
+      "detail": {
+        "reason": "forbidden without approval"
+      },
+      "at_taipei": "2026-10-31 10:20:44 Asia/Taipei"
+    },
+    {
+      "id": "supabase_wake",
+      "status": "NOT_RUN",
+      "detail": {
+        "reason": "project xsgtpcutpnniomlrqazs INACTIVE; wake needs Merlin approval"
+      },
+      "at_taipei": "2026-10-31 10:20:44 Asia/Taipei"
+    },
+    {
+      "id": "deploy_production",
+      "status": "NOT_RUN",
+      "detail": {
+        "reason": "needs Merlin approval"
+      },
+      "at_taipei": "2026-10-31 10:20:44 Asia/Taipei"
+    },
+    {
+      "id": "mock_real_separation",
+      "status": "PASS",
+      "detail": {
+        "MOCK": 4,
+        "REAL": 0
+      },
+      "at_taipei": "2026-10-31 10:20:44 Asia/Taipei"
+    }
+  ],
+  "counts": {
+    "PASS": 12,
+    "FAIL": 0,
+    "BLOCKED": 0,
+    "NOT_RUN": 4
+  }
+}

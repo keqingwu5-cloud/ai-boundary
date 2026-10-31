@@ -1,0 +1,27 @@
+[PASS] K1_content_readback_exact_match {"maps_to":"K1","tests":["e2e_submit_ack_readback","e2e_readback_content_mismatch_negative"],"tip_sha_file":"000000000000000000000000000000000000dead","suite_counts":{"PASS":14,"FAIL":0,"BLOCKED":0,"NOT_RUN":4}}
+[PASS] K2_no_skip_execute_to_complete {"maps_to":"K2","tests":["state_machine_illegal_transition_negative"],"tip_sha_file":"000000000000000000000000000000000000dead"}
+[PASS] R1_forged_endpoint_rejected {"execute_forged":"EVENT_CONFLICT","ack_forged":"EVENT_CONFLICT","rejects":2,"grant_id":"g-r1"}
+[BLOCKED] R1_real_cross_ai_identity {"reason":"Issue #41 real cross-AI / independent GPT② ACK still BLOCKED; local API identity ≠ ChatGPT read receipt"}
+[PASS] R2_replay_and_cross_task_reject {"old_attempt_ack":"EVENT_CONFLICT","wrong_version":"EVENT_CONFLICT","cross_event":"EVENT_CONFLICT","rejects":3}
+[PASS] R3_retry_side_effect_exactly_once {"first":"applied","second":"UNKNOWN_NEEDS_RECONCILIATION","executor_duplicate":"UNKNOWN_NEEDS_RECONCILIATION","claim_wired_in_executor":true}
+[PASS] R4_stop_revoke_vs_complete_race {"stop_blocks_execute":"FORBIDDEN","revoke_blocks_ack":"FORBIDDEN","stop_status":"STOP_REQUESTED","final_state":"executed"}
+[PASS] R5_crash_inject_write_recovery {"after_execute_inject":"INJECTED_FAIL","mid_state":"leased","before_ack_inject":"INJECTED_FAIL","result_preserved":true,"final":"ack_received"}
+[PASS] R6_result_binding_invalid_rejected {"invalid_flag":"EXECUTED_BUT_RESULT_INVALID","ack_invalid":"EXECUTED_BUT_RESULT_INVALID","ack_wrong_sha":"output_sha256_mismatch"}
+[PASS] R7_synthetic_two_store_isolation {"cross_get":null,"wrong_project_enqueue":"FORBIDDEN","expired_grant":"FORBIDDEN","scope_execute":"FORBIDDEN","expired_execute":"FORBIDDEN"}
+[NOT_RUN] R7_real_supabase_rls {"reason":"real Supabase not connected; project INACTIVE; needs Merlin approval to wake"}
+[PASS] R8_retry_cost_stop_limits {"terminal":"failed","cost_cap":"cost_cap_exceeded","stop_execute":"FORBIDDEN","stop_enqueue":"FORBIDDEN","revoke_execute":"FORBIDDEN","REAL_costs":0}
+[FAIL] R9_coverage_manifest testenv-commit-sha.txt must equal git HEAD
++ actual - expected
+
++ '000000000000000000000000000000000000dead'
+- '72b78877776211eb0b6381c3ba1892d4e0d7e918'
+
+
+=== RISK PACK SUMMARY ===
+{
+  "PASS": 10,
+  "FAIL": 1,
+  "BLOCKED": 1,
+  "NOT_RUN": 1
+}
+EXIT=1

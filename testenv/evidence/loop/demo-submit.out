@@ -1,0 +1,34 @@
+{
+  "step": "send",
+  "ok": true,
+  "event_id": "e78a5285-699f-4fc8-a843-545963438388",
+  "state": "queued",
+  "payload_digest": "152bec255f52f75ceff0aab00607637657737b4fce1c960f0cc29e2ebf80e341"
+}
+{
+  "step": "status",
+  "event": {
+    "event_id": "e78a5285-699f-4fc8-a843-545963438388",
+    "task_id": "TASK-LOCAL-E2E",
+    "source_endpoint_id": "origin-local",
+    "destination_endpoint_id": "worker-mock",
+    "idempotency_key": "idem-0c588fd26c6a8a5816e43fc4",
+    "payload_version": "1",
+    "payload_digest": "152bec255f52f75ceff0aab00607637657737b4fce1c960f0cc29e2ebf80e341",
+    "payload": {
+      "instruction": "Merlin可視示範：隔離MOCK閉環",
+      "goal": "Merlin可視示範：隔離MOCK閉環",
+      "label": "MOCK_LOOP"
+    },
+    "state": "ack_received",
+    "grant_id": "grant-local-e2e-001",
+    "attempt_count": 1,
+    "current_attempt_id": "9af6d7eb-1f26-4f58-a6fc-0e784ac2004a",
+    "lease_until": "2026-10-31T02:18:31.121Z",
+    "next_attempt_at": "2026-10-31T02:18:00.928Z",
+    "created_at": "2026-10-31T02:18:00.928Z",
+    "updated_at": "2026-10-31T02:18:01.123Z",
+    "result_kind": "MOCK",
+    "last_error": null
+  }
+}

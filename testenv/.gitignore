@@ -1,0 +1,9 @@
+loop/data/
+loop/data-test-*/
+queue-wt/
+pr86-fix/
+viewer/
+*.bundle
+
+loop/data-risk-*/
+loop/data-test-*/

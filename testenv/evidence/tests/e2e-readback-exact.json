@@ -1,0 +1,33 @@
+{
+  "event_id": "32e70a95-50bd-417e-b9ed-c1361506af4a",
+  "instruction": "full-e2e-merlin-visible",
+  "expected": {
+    "mode": "MOCK",
+    "result_kind": "MOCK",
+    "instruction": "full-e2e-merlin-visible",
+    "echo": {
+      "instruction": "full-e2e-merlin-visible",
+      "goal": "full-e2e-merlin-visible",
+      "label": "MOCK_LOOP"
+    },
+    "verified": true,
+    "note": "synthetic local execution; OpenAI NOT connected",
+    "output_sha256": "bd0c7ddb390cf34384663d7fb412366d60ce87762aa89242e1d0aadce295617f"
+  },
+  "actual": {
+    "mode": "MOCK",
+    "result_kind": "MOCK",
+    "instruction": "full-e2e-merlin-visible",
+    "echo": {
+      "instruction": "full-e2e-merlin-visible",
+      "goal": "full-e2e-merlin-visible",
+      "label": "MOCK_LOOP"
+    },
+    "verified": true,
+    "note": "synthetic local execution; OpenAI NOT connected",
+    "output_sha256": "bd0c7ddb390cf34384663d7fb412366d60ce87762aa89242e1d0aadce295617f"
+  },
+  "match": true,
+  "lifecycle": "done",
+  "submit_cli_exit": 0
+}

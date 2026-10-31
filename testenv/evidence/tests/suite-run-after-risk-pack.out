@@ -1,0 +1,26 @@
+[PASS] BOOT {"pid":419484,"boot":"{\"ok\":true,\"port\":18765,\"mode\":\"MOCK\",\"grant_id\":\"grant-local-e2e-001\"}"}
+[PASS] unauthorized_rejection {"error":"UNAUTHORIZED"}
+[PASS] unauthorized_forged_token {"error":"UNAUTHORIZED"}
+[PASS] source_and_version_stamping {"event_id":"1cd09961-e681-4381-bdfb-fc60c0b05d96","source":"origin-local","payload_version":"1","digest":"0b764f6c595799fa924d9380d9e5c044fc4014a76d8b339194e151f17eef42c5","result_kind":"MOCK"}
+[PASS] dedup_idempotency {"same":"f553a2be-7934-40f0-b46d-70e6b02e7630","conflict":{"error":"IDEMPOTENCY_CONFLICT"}}
+[PASS] retry {"event_id":"evt-retry-36454450","attempts":2,"mid_state":"queued"}
+[PASS] timeout_lease_reclaim {"oldAttempt":"633ee7de-2701-4025-9396-ef9e80377a0a","newAttempt":"f06204f3-137d-482f-8bbf-3af3e2c8ba4d"}
+[PASS] restart_recovery {"event_id":"b1968d43-fb62-4f64-8b60-c83d911655e1","state":"ack_received","result_kind":"MOCK"}
+[PASS] cost_cap {"event_id":"evt-cost-cd791a50","state":"failed","last_error":"cost_cap_exceeded"}
+[PASS] reporting {"totals":{"events":6,"ack_received":3,"failed":1,"MOCK":3,"REAL":0,"total_cost_usd":0.02}}
+[PASS] e2e_submit_ack_readback {"event_id":"380a6360-cb81-4efb-9b75-0ac30e4ac877","exact_match":true,"instruction":"full-e2e-merlin-visible","output_sha256":"bd0c7ddb390cf34384663d7fb412366d60ce87762aa89242e1d0aadce295617f","lifecycle":"done","submit_cli_exit":0}
+[PASS] e2e_readback_content_mismatch_negative {"actual_sha":"1ba30e4df4d3d7edf6a449f0d9ef0b57f250f8de9afa6ee391a370d8ec214ece","wrong_sha":"ff7123fce64590704cfa780e64d0934eea9f9123634f1f1e84bfbd158b67ad2d"}
+[PASS] state_machine_illegal_transition_negative {"queued_ack":"EVENT_CONFLICT","leased_ack_skip_execute":"EVENT_CONFLICT","leased_ack_msg":"invalid attempt, endpoint, state or expired lease","queued_execute":"EVENT_CONFLICT","executed_ack_without_result":"EVENT_CONFLICT","legal_done_lifecycle":"done"}
+[NOT_RUN] openai_real_executor {"reason":"Merlin policy: read-only plan only; no key create, no model request, no billing, not wired to execution","env_OPENAI_API_KEY":"UNSET"}
+[NOT_RUN] openai_paid_api_call {"reason":"forbidden without approval"}
+[NOT_RUN] supabase_wake {"reason":"project xsgtpcutpnniomlrqazs INACTIVE; wake needs Merlin approval"}
+[NOT_RUN] deploy_production {"reason":"needs Merlin approval"}
+[PASS] mock_real_separation {"MOCK":7,"REAL":0}
+
+=== SUMMARY ===
+{
+  "PASS": 14,
+  "FAIL": 0,
+  "BLOCKED": 0,
+  "NOT_RUN": 4
+}
