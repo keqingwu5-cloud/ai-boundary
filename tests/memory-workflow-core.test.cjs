@@ -52,3 +52,19 @@ test("processLatest prefers later dated event despite reversed import order",()=
  assert.equal(events[0].status,"blocked");
  assert.equal(events.length,2);
 });
+
+test("source-fidelity: identical source ID and answer but altered evidence must not be deduplicated",()=>{
+ const incoming={...item,id:"SRC-1",question:"記憶來源",purpose:"追溯原意",content:"同一答案",evidence:"證據 B",reason:"原始理由"};
+ const s={...empty,candidates:[{id:"c1",originId:"SRC-1",question:"記憶來源",purpose:"追溯原意",
+  content:"同一答案",evidence:"證據 A",evidenceLevel:"hypothesis",originReason:"原始理由",status:"pending"}]};
+ const before=JSON.stringify(s);
+ assert.throws(()=>c.planImport({...pack,items:[incoming]},s),/來源版本衝突/);
+ assert.equal(JSON.stringify(s),before);
+});
+test("source-fidelity: changed original reason cannot masquerade as identical source",()=>{
+ const incoming={...item,id:"SRC-2",question:"記憶來源",purpose:"追溯原意",content:"同一答案",
+   evidence:"固定證據",reason:"第二版原因"};
+ const s={...empty,candidates:[{id:"c2",originId:"SRC-2",question:"記憶來源",purpose:"追溯原意",
+   content:"同一答案",evidence:"固定證據",evidenceLevel:"hypothesis",originReason:"第一版原因",status:"pending"}]};
+ assert.throws(()=>c.planImport({...pack,items:[incoming]},s),/來源版本衝突/);
+});
