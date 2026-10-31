@@ -87,6 +87,7 @@ hr{border:0;border-top:1px solid var(--line);margin:22px 0}
 </div>
 <p class="backlink"><a href="./mainbrain.html">← 回主腦控制台</a></p>
 </main>
+<script src="./handoff-contract.js"></script>
 <script>
 "use strict";
 (()=>{
@@ -98,7 +99,7 @@ let draftExpected, draftsBlocked=false;
 try { draftExpected=localStorage.getItem(DRAFT_KEY); } catch { draftsBlocked=true; }
 const responseCommand=$("#response-command");
 function clone(value){return JSON.parse(JSON.stringify(value));}
-function validCommand(p){return p&&p.schema==='ai-boundary.command.v0.1'&&['command_id','created_at','recipient','title','instructions','completion_criteria','stop_and_escalation','response_requirements','source_template','source','delivery_status'].every(k=>typeof p[k]==='string'&&p[k].length<=200000)&&p.command_id.length>0;}
+function validCommand(p){return p&&p.schema==='ai-boundary.command.v0.1'&&['command_id','created_at','recipient','title','instructions','completion_criteria','stop_and_escalation','response_requirements','source_template','source','delivery_status'].every(k=>typeof p[k]==='string'&&p[k].length<=200000)&&p.command_id.length>0&&(!p.resource_ref||(()=>{try{const parsed=HandoffContract.validateResource(p.resource_ref);return !p.resource_type||p.resource_type===parsed.resource_type;}catch{return false;}})());}
 function rememberCommand(p){
  if(!commandHistory.some(x=>x.command_id===p.command_id))commandHistory.push(clone(p));
  refreshCommandChoices();
@@ -117,6 +118,9 @@ const templates={
 function applyTemplate(){const t=templates[task.value];title.value=t.title;instruction.value=t.instructions;done.value=t.done;stop.value=t.stop;render();}
 function packet(){
  const data={schema:"ai-boundary.command.v0.1",command_id:"cmd-"+new Date().toISOString().replace(/[-:.TZ]/g,"")+"-"+Math.random().toString(36).slice(2,7),created_at:new Date().toISOString(),source:"主腦發射器（人工交接）",delivery_status:"待交接（非自動傳送）",task_ref:task.value==="audit"?"https://github.com/keqingwu5-cloud/ai-boundary/issues/16":task.value==="timeline"?"https://github.com/keqingwu5-cloud/ai-boundary/issues/17":null,recipient:target.value,title:title.value.trim(),instructions:instruction.value.trim(),completion_criteria:done.value.trim(),stop_and_escalation:stop.value.trim(),response_requirements:"繁體中文；區分事實、推導、推論、預測與未知；回報來源、問題、踩坑、反證、未決及建議候選修正。不得假裝已更新其他 AI 或中央權威記憶。",source_template:task.value};
+ data.resource_ref=data.task_ref?HandoffContract.parseResourceUrl(data.task_ref):null;
+ data.resource_type=data.resource_ref?data.resource_ref.resource_type:"none";
+ data.source_endpoint_id=null;data.destination_endpoint_id=null;data.ack_status="unverified";
  const fingerprint=JSON.stringify([data.source_template,data.recipient,data.title,data.instructions,data.completion_criteria,data.stop_and_escalation]);
  if(!commandCache||fingerprint!==commandFingerprint){commandCache=data;commandFingerprint=fingerprint;}
  return clone(commandCache);
@@ -128,6 +132,8 @@ function formatted(p){return [
  "接收者："+p.recipient,
  "交接狀態："+p.delivery_status,
  p.task_ref?"參考："+p.task_ref:"",
+ p.resource_ref?"資源類型："+p.resource_ref.resource_type+"｜資源識別："+p.resource_ref.scope+"#"+p.resource_ref.resource_id:"資源類型：未指定（自訂任務須補齊）",
+ "端點身分：未驗證；接收回執：未取得",
  "【任務內容】",p.instructions,
  "【完成條件】",p.completion_criteria,
  "【停止／升級條件】",p.stop_and_escalation,
