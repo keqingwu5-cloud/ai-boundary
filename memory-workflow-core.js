@@ -30,7 +30,8 @@
     const accepted = [], duplicated = [], conflicts = [];
     const seen = new Set();
     const existing = [
-      ...(state.candidates || []).map(c => ({id:c.id, question:c.question, content:c.content, originId:c.originId})),
+      ...(state.candidates || []).map(c => ({id:c.id, question:c.question, content:c.content, originId:c.originId,
+        purpose:c.purpose, evidence:c.evidence, evidenceLevel:c.evidenceLevel, originReason:c.originReason})),
       ...(state.memories || []).map(m => ({id:m.id, question:m.question, content:m.versions?.at(-1)?.content}))
     ];
     for (const item of rows) {
@@ -39,7 +40,14 @@
       const oldByOrigin = existing.find(c => c.originId === item.id);
       const exact = same.find(c => simplify(c.content) === simplify(item.content));
       // Reused provenance ID with changed content is not an exact duplicate.
-      if(oldByOrigin && (oldByOrigin.question!==item.question || oldByOrigin.content!==item.content))
+      // The same provenance ID must not hide a changed known evidence record.
+      // Legacy rows without these optional fields retain their old duplicate contract.
+      const sourceFields={purpose:item.purpose,evidence:item.evidence,
+        evidenceLevel:item.evidenceLevel||"hypothesis",originReason:item.reason};
+      const knownFieldChanged=oldByOrigin&&Object.keys(sourceFields).some(k=>
+        typeof oldByOrigin[k]==="string" && oldByOrigin[k]!==sourceFields[k]);
+      if(oldByOrigin && (oldByOrigin.question!==item.question ||
+        oldByOrigin.content!==item.content || knownFieldChanged))
         throw Error("相同來源 ID 對應不同內容：來源版本衝突，停止匯入並要求人工核對");
       if (oldByOrigin || exact || seen.has(key + "\u241f" + simplify(item.content))) {
         duplicated.push(item.id);
