@@ -1,0 +1,48 @@
+# F05 isolated MOCK testenv CI. No repo secrets. No Supabase/OpenAI/production.
+# Stages gitignored queue-wt + pr86-fix from pinned public commits.
+# R9 (local orphan-git pin authenticity) is NOT_RUN in CI — see TESTENV_CI_SKIP_R9.
+name: F05 isolated MOCK testenv
+on:
+  pull_request:
+    paths:
+      - testenv/**
+      - .github/workflows/f05-testenv-mock.yml
+jobs:
+  mock-suite-and-risk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Stage pinned queue-wt API (no secrets)
+        run: |
+          set -euo pipefail
+          QSHA=a99f48a1cf3a848ef770b77701bf1e6283f11bad
+          git fetch --no-tags --depth=1 origin "$QSHA"
+          test "$(git rev-parse FETCH_HEAD)" = "$QSHA"
+          mkdir -p testenv/queue-wt/api
+          for f in auth-adapter.cjs http-server.cjs polling-worker-candidate.cjs mainbrain-api.cjs; do
+            git show FETCH_HEAD:api/"$f" > testenv/queue-wt/api/"$f"
+          done
+      - name: Stage pr86-fix prerequisite for path presence (pinned public SHA)
+        run: |
+          set -euo pipefail
+          FSHA=d6ceb5618615f79f3e8be027fb1bca245e8b3f40
+          git fetch --no-tags --depth=1 origin "$FSHA"
+          test "$(git rev-parse FETCH_HEAD)" = "$FSHA"
+          mkdir -p testenv/pr86-fix/tests
+          git show FETCH_HEAD:first-brain-plan-core.js > testenv/pr86-fix/first-brain-plan-core.js
+          git show FETCH_HEAD:tests/first-brain-plan-core.test.cjs > testenv/pr86-fix/tests/first-brain-plan-core.test.cjs
+          git show FETCH_HEAD:tests/first-brain-plan-core-l1-negative.test.cjs > testenv/pr86-fix/tests/first-brain-plan-core-l1-negative.test.cjs
+      - name: Line A suite (MOCK only)
+        working-directory: testenv/loop
+        run: node run-tests.cjs
+      - name: Risk pack K/R (R9 NOT_RUN in CI)
+        working-directory: testenv/loop
+        env:
+          TESTENV_CI_SKIP_R9: "1"
+        run: node risk-tests.cjs

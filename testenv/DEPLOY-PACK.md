@@ -3,7 +3,9 @@
 - 撰寫時間（Asia/Taipei）：2026-10-31 10:17 CST
 - WEAK 修補時間（Asia/Taipei）：見 `evidence/tests/suite-summary.json` finished_at
 - rp41 獨立審查 WEAK 修補時間（Asia/Taipei）：2026-10-31 10:52 Asia/Taipei
-- 性質：**候選部署說明**；尚未 push／合併／部署／喚醒雲端
+- 性質：**候選部署說明**；Draft PR 已開（#87／#88）；**未合併／未部署／未喚醒雲端**
+- Draft PR／CI 更新時間（Asia/Taipei）：2026-10-31 11:20 Asia/Taipei
+- Merlin 核准（Asia/Taipei）：2026-10-31 11:04 — 僅允許 push 兩個 Draft PR 並等 CI；禁止 merge／main 直推／deploy／Supabase／OpenAI／production／留言其他 issue／PR
 - 獨立審查欄：見文末
 
 ---
@@ -16,11 +18,25 @@
 | 佇列／API 候選（重用） | `feat/queue-pg-worker-candidate-20261020` worktree | `a99f48a1cf3a848ef770b77701bf1e6283f11bad` |
 | PR #86 原 HEAD | Draft #86 | `3c57f56a23fff296342e1e77a001c02f23f5386d` |
 | PR #86 L1 本地修補 | 分支 `local/pr86-l1-fix-20261031` | `d6ceb5618615f79f3e8be027fb1bca245e8b3f40` |
+| PR #87 Draft（#86 L1 修補） | `fix/pr86-l1-plan-integrity` → base `main`（原擬 #86 head 無 CI） | head `d6ceb5618615f79f3e8be027fb1bca245e8b3f40`；URL https://github.com/keqingwu5-cloud/ai-boundary/pull/87 |
+| PR #88 Draft（testenv） | `test/f05-isolated-testenv` → base `main` | head `edc16c8c2389ea0dc362def0b7281caeea807fe5`；URL https://github.com/keqingwu5-cloud/ai-boundary/pull/88 |
+| GitHub Actions（#87／#88） | check-runs／workflow_runs | **0 runs**（見下方「Draft PR／CI」）；無 run ID |
 | Node | runtime | v24.22.1 |
-| testenv 本地交付（無遠端） | 分支 `local/testenv-20261031` | 見 `evidence/inventory/testenv-commit-sha.txt` |
+| testenv 本地 tip | 分支 `local/testenv-20261031` | `ac0ecc6069581d7acf838febaa72579f1c0a429e`（typo 修：tip_sha_live=1f1fd9b、R9 PASS=11、pr86-fix 說明） |
 | 測試套件摘要 | `evidence/tests/suite-summary.json` | PASS 14／FAIL 0／NOT_RUN 4 |
 | 風險包摘要（K/R） | `evidence/tests/risk-pack-summary.json` | PASS 11／FAIL 0／BLOCKED 1／NOT_RUN 1 |
 | R9 覆蓋表 | `evidence/R9-coverage.md` | 含 4 NOT_RUN 說明 |
+
+---
+
+## 1b. Draft PR／CI 狀態（2026-10-31 11:14 Asia/Taipei）
+
+| PR | URL | head SHA | base | Draft | CI runs | per-job |
+|----|-----|----------|------|-------|---------|---------|
+| #87 #86 L1 fix | https://github.com/keqingwu5-cloud/ai-boundary/pull/87 | `d6ceb5618615f79f3e8be027fb1bca245e8b3f40` | `main`（先試 #86 head＝`feature/first-brain-plan-readback-v0-20261030` → **0 Actions**；改 main 後仍 0） | 是 | **0** check-runs；**0** workflow_runs | n/a |
+| #88 testenv | https://github.com/keqingwu5-cloud/ai-boundary/pull/88 | `edc16c8c2389ea0dc362def0b7281caeea807fe5` | `main` | 是 | **0** check-runs；**0** workflow_runs | n/a |
+
+**更新（Merlin 11:20 Asia/Taipei 核准）**：各 PR 追加**恰好一個** CI workflow commit（本檔隨 #88 該 commit 一併更新）。#88 workflow：`f05-testenv-mock.yml` — 跑 `loop/run-tests.cjs` + `loop/risk-tests.cjs`；CI 內組裝 gitignored `queue-wt/`（pin `a99f48a…`）與 `pr86-fix/`（pin `d6ceb561…`）；**R9 在 CI 標 NOT_RUN**（`TESTENV_CI_SKIP_R9=1`：orphan tip pin 非 ai-boundary 祖先）。無 repo secrets／無網路金鑰。
 
 ---
 
@@ -179,7 +195,7 @@ cd /workspace/f05/testenv/pr86-fix && git format-patch -1 d6ceb561… -o evidenc
 
 1. Issue #41 真實跨 AI／獨立 GPT② ACK 仍 **BLOCKED**（本地 API ACK ≠ ChatGPT 已讀）。
 2. 無 Docker／本機 PG → 檔案 store 非生產級交易隔離（單機鎖）；上雲需改回 `pg-store-candidate`。
-3. PR #86 修補僅本地；T05–T08（多分頁／Safari 等）仍 **NOT_RUN**。
+3. PR #86 L1 修補已開 Draft [#87](https://github.com/keqingwu5-cloud/ai-boundary/pull/87)（head `d6ceb561…`）；T05–T08（多分頁／Safari 等）仍 **NOT_RUN**。CI 未觸發（見 §1b）。
 4. OpenAI／Railway／Supabase 喚醒均待核准。
 5. main 保護：任何入倉需 PR。
 
@@ -189,7 +205,8 @@ cd /workspace/f05/testenv/pr86-fix && git format-patch -1 d6ceb561… -o evidenc
 - R1–R8：本地最小負測已落地（`loop/risk-tests.cjs`）；R1 真跨 AI **BLOCKED**；R7 真 Supabase **NOT_RUN**。
 - R9：`evidence/R9-coverage.md`（含 tip/SHA/command 真實性驗證）。
 - rp41 WEAK 已關；mutation proofs 見 `evidence/tests/mutation-proofs/`。
-- **仍 NO_GO**：push／PR／merge／Supabase 喚醒／OpenAI／deploy（需 Merlin 核准）。
+- **已做（Merlin 11:04 核准）**：兩個 Draft PR push（#87／#88）；等 CI（目前 0 runs）。
+- **仍 NO_GO**：merge 任一 PR／main 直推／Supabase 喚醒／OpenAI／deploy／留言其他 issue／PR。
 
 ### 已關閉之獨立審查 WEAK（Line A，本地修補；§12 原文不改）
 
@@ -211,7 +228,7 @@ cd /workspace/f05/testenv/pr86-fix && git format-patch -1 d6ceb561… -o evidenc
 
 | # | 核准項 | 具體內容 |
 |---|--------|----------|
-| A | **push／開 PR** | 是否將 `d6ceb561…`（#86 L1 修補）推到 GitHub 並開／更新 PR |
+| A | **push／開 PR** | **已核准並完成（Draft only）**：#87（`d6ceb561…`）＋#88（`edc16c8…`）。**合併仍未核准**。 |
 | B | **Supabase 喚醒** | 是否喚醒 `xsgtpcutpnniomlrqazs`（或另建隔離專案）並允許套用 candidate SQL |
 | C | **金鑰** | 是否建立／注入 `OPENAI_API_KEY`（及可選 org／project）；**禁止**把 service_role 交給 bot |
 | D | **付費使用** | OpenAI billing／硬限額度；任何付費 API 呼叫 |
