@@ -35,3 +35,13 @@ test("rejection status does not recall an unrelated topic",()=>{
  assert.deepEqual(result.map(x=>x.id),["y"]);
  assert.deepEqual(c.recall("拒絕",s).map(x=>x.id),["x","y"]);
 });
+
+test("processLatest prefers later dated event despite reversed import order",()=>{
+ const events=[
+  {kind:"workflow.recorded",ref:"w-order",status:"blocked",at:"2026-10-30T00:00:00.000Z"},
+  {kind:"workflow.recorded",ref:"w-order",status:"done",at:"2026-10-31T00:00:00.000Z"}
+ ];
+ assert.equal(c.processLatest(events)[0].status,"done");
+ assert.equal(events[0].status,"blocked");
+ assert.equal(events.length,2);
+});
