@@ -76,19 +76,22 @@
    if(!["blocked","refused"].includes(x.status))continue;
    add({id:"workflow:"+x.ref,ref:x.ref,type:"blocked_research",status:"idea_draft",
     title:trunc(x.taskTitle||"未解工作"),reason:trunc(x.reason||"需要原始證據"),
-    next:trunc(x.nextAction||"回查方向與失敗證據"),source:"audit.workflow.recorded"});
+    next:trunc(x.nextAction||"回查方向與失敗證據"),source:"audit.workflow.recorded",
+    _matchText:[x.taskTitle,x.reason,x.nextAction].filter(valid).join(" ")});
   }
   for(const c of state.candidates){
    if(!c||c.status!=="rejected"||c.resolvedBy||!valid(c.id))continue;
    add({id:"rejected:"+c.id,ref:c.id,type:"challenge_rejection",status:"idea_draft",
     title:trunc(c.question||"被拒候選"),reason:trunc(c.review?.reason||"需回看拒絕理由"),
-    next:"比較最新方向與原反證，提出可被推翻的修正草稿",source:"candidates.rejected"});
+    next:"比較最新方向與原反證，提出可被推翻的修正草稿",source:"candidates.rejected",
+    _matchText:[c.question,c.purpose,c.content,c.review?.reason].filter(valid).join(" ")});
   }
   for(const c of state.candidates){
    if(!c||c.status!=="pending"||!valid(c.id))continue;
    add({id:"pending:"+c.id,ref:c.id,type:"compare_pending",status:"idea_draft",
     title:trunc(c.question||"待審方向"),reason:"候選不等於已生效的記憶",
-    next:"回查原意、相關性與競爭解釋，不自動核准",source:"candidates.pending"});
+    next:"回查原意、相關性與競爭解釋，不自動核准",source:"candidates.pending",
+    _matchText:[c.question,c.purpose,c.content,c.reason].filter(valid).join(" ")});
   }
   if(!rows.length)add({id:"direction:"+direction.version,
    ref:"memoryControls.direction",type:"new_question",status:"idea_draft",
@@ -96,8 +99,10 @@
    reason:"目前未發現可回接的未解工作、拒絕或待審項",
    next:"保留原目標，提出至少一個競爭解釋與可測反例",
    source:"memoryControls.direction"});
-  const enriched=rows.map((row,i)=>{
-   const desc=[row.title,row.reason,row.next].join(" ");
+  const enriched=rows.map(({_matchText,...row},i)=>{
+   // Do not match against OUR generated generic "memory/direction/goal"
+   // templates: that made unrelated candidates look direction-aligned.
+   const desc=_matchText||row.title;
    const hit=overlap(direction.text,desc);
    return {...row,directionRef:out.direction.ref,directionVersion:direction.version,
     originalGoalRef:origin.ref,fitHint:row.type==="new_question"?"DIRECTION_ANCHORED":
