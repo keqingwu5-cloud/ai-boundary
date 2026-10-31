@@ -1,0 +1,49 @@
+name: Memory first-batch candidate regression
+on:
+  push:
+    branches:
+      - candidate/memory-user-controlled-direction-gate-20261022
+  pull_request:
+    paths:
+      - "memory*.js"
+      - "memory.html"
+      - "tests/memory*.test.cjs"
+      - ".github/workflows/memory-first-batch-candidate.yml"
+permissions:
+  contents: read
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax validation
+        run: |
+          node --check memory.js
+          node --check memory-controls-core.js
+          node --check memory-workflow-core.js
+          node --check memory-impact-core.js
+          node --check memory-auto-drive-core.js
+          node --check scripts/package-memory-v1.cjs
+          node --check scripts/verify-memory-v1-bundle.cjs
+          node --check scripts/check-memory-private-origin.cjs
+      - name: Existing and new isolated regression
+        run: |
+          node --test tests/memory-controls-core.test.cjs tests/memory-workflow-core.test.cjs tests/memory-first-batch-safe-restore.test.cjs tests/memory-impact-core.test.cjs tests/memory-batch1-schema-integration.test.cjs tests/memory-standalone-package.test.cjs tests/memory-write-lock.test.cjs tests/memory-toctou-repro.test.cjs tests/memory-isolated-origin-policy.test.cjs tests/memory-private-origin-preflight.test.cjs tests/memory-auto-drive-core.test.cjs tests/memory-integration-cross-branch.test.cjs
+
+  browser-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install temporary browser test tools (CI only)
+        run: |
+          npm install --no-save --no-package-lock playwright@1.57.0
+          npx playwright install --with-deps chromium
+      - name: Chromium full-use and same-origin security observation (synthetic data)
+        run: node --test tests/memory-browser-e2e.test.cjs
