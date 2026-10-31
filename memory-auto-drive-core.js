@@ -69,10 +69,19 @@
   if(!out.direction.available)return {...out,reason:"direction_not_set"};
   const seen=new Set(),rows=[],limit=Number.isInteger(opts.limit)?Math.max(1,Math.min(5,opts.limit)):4;
   const add=c=>{if(!seen.has(c.id)){seen.add(c.id);rows.push(c);}};
-  const processed=new Set();
+  // New events are normally unshifted; restored/imported audit may be reordered.
+  // Choose the later dated event per ref without changing immutable history.
+  // Missing/tied timestamps preserve first-entry (normal newest-first) priority.
+  const latestByRef=new Map();
   for(const x of state.audit){
-   if(!x||x.kind!=="workflow.recorded"||!valid(x.ref)||processed.has(x.ref))continue;
-   processed.add(x.ref);
+   if(!x||x.kind!=="workflow.recorded"||!valid(x.ref))continue;
+   const prior=latestByRef.get(x.ref);
+   if(!prior){latestByRef.set(x.ref,x);continue;}
+   const priorTime=Date.parse(prior.at),nextTime=Date.parse(x.at);
+   if(Number.isFinite(priorTime)&&Number.isFinite(nextTime)&&nextTime>priorTime)
+    latestByRef.set(x.ref,x);
+  }
+  for(const x of latestByRef.values()){
    if(!["blocked","refused"].includes(x.status))continue;
    add({id:"workflow:"+x.ref,ref:x.ref,type:"blocked_research",status:"idea_draft",
     title:trunc(x.taskTitle||"未解工作"),reason:trunc(x.reason||"需要原始證據"),
