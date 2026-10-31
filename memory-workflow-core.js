@@ -43,8 +43,16 @@
       } else {
         seen.add(key + "\u241f" + simplify(item.content));
         const possible = same.map(c => c.id).filter(Boolean);
-        accepted.push({item, possibleConflictWith:possible});
-        if (possible.length) conflicts.push(item.id);
+        // Intra-pack conflicts must be visible to BOTH candidates. Previously
+        // only the persisted vault was scanned, silently missing batch peers.
+        const batchPeers = accepted.filter(row => simplify(row.item.question) === key);
+        const batchRefs = batchPeers.map(row => row.item.id);
+        for (const row of batchPeers) {
+          row.possibleBatchConflictWith.push(item.id);
+          if (!conflicts.includes(row.item.id)) conflicts.push(row.item.id);
+        }
+        accepted.push({item, possibleConflictWith:possible, possibleBatchConflictWith:batchRefs});
+        if ((possible.length || batchRefs.length) && !conflicts.includes(item.id)) conflicts.push(item.id);
       }
     }
     return {accepted, duplicated, conflicts};
@@ -76,13 +84,20 @@
       const score = matchScore(q, [m.question,m.purpose,v.content,v.evidence].join(" "));
       if (score) rows.push({id:m.id,type:"approved",title:m.question,content:v.content,evidence:v.evidence || "",score});
     }
+    const rejectionContext = /拒絕|被拒|失敗|阻塞|卡住|錯誤|踩坑/.test(q);
+    const pendingContext = /未完成|待辦|進度|任務|阻塞/.test(q);
+    // Status hints may boost a TOPIC hit, never manufacture unrelated matches.
+    // Pure status queries retain their original "show status" utility.
+    const topicQuery = q.replace(/被拒|拒絕|失敗|阻塞|卡住|錯誤|踩坑|未完成|待辦|進度|任務/g," ").trim();
     for (const c of state.candidates || []) {
       if (!["pending","rejected"].includes(c.status)) continue;
-      let score = matchScore(q,[c.question,c.purpose,c.content,c.reason,c.review?.reason || ""].join(" "));
-      const rejectionContext = /拒絕|被拒|失敗|阻塞|卡住|錯誤|踩坑/.test(q);
-      const pendingContext = /未完成|待辦|進度|任務|阻塞/.test(q);
-      if (c.status === "rejected" && rejectionContext) score += 5;
-      if (c.status === "pending" && pendingContext) score += 2;
+      let score = topicQuery
+        ? matchScore(topicQuery,[c.question,c.purpose,c.content,c.reason,c.review?.reason || ""].join(" "))
+        : 0;
+      if (score && c.status === "rejected" && rejectionContext) score += 5;
+      if (score && c.status === "pending" && pendingContext) score += 2;
+      if (!topicQuery && c.status === "rejected" && rejectionContext) score = 5;
+      if (!topicQuery && c.status === "pending" && pendingContext) score = 2;
       if (score) rows.push({id:c.id,type:c.status,title:c.question,content:c.content,evidence:c.review?.reason || c.evidence || "",score});
     }
     for (const p of processLatest(state.audit || [])) {
