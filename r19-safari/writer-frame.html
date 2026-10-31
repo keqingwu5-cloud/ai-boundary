@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R19 writer frame</title>
+</head>
+<body>
+<p id="status">loading</p>
+<script type="module">
+import {
+  JOURNAL_KEY, LEGACY_KEY, WORLD_LEDGER_WRITE_LOCK,
+  readWorldLedger, appendWorldLedgerLocked
+} from './vendor/world-verification-ledger.mjs';
+
+/* Mirrors world-verification-ui.mjs update()/snapshot pattern (bbf381a):
+ * snapshot captured at load; storage events do NOT refresh snapshot. */
+let snapshot = readWorldLedger(localStorage);
+let writePending = false;
+let holdRelease = null;
+let holdLocked = false;
+
+const row = (id) => ({
+  id, hypothesis: '合成研究 ' + id, falsifier: '反例',
+  createdOn: '2026-10-29', deadline: '2026-12-31',
+  source: '', metric: '', status: '待驗證', createdAt: '2026-10-29T01:00:00Z'
+});
+
+async function update(change) {
+  if (writePending) return { ok: false, reason: 'journal_write_busy' };
+  if (!snapshot.ok) return { ok: false, reason: snapshot.reason };
+  writePending = true;
+  try {
+    const result = await appendWorldLedgerLocked(localStorage, snapshot.rawV2, {
+      ...change, sourceNodeId: null
+    });
+    if (!result.ok) return { ok: false, reason: result.reason };
+    snapshot = readWorldLedger(localStorage);
+    if (!snapshot.ok) return { ok: false, reason: snapshot.reason };
+    return { ok: true, reason: 'ok' };
+  } finally {
+    writePending = false;
+  }
+}
+
+function probe() {
+  let raw = null, eventsLen = -1;
+  try {
+    raw = localStorage.getItem(JOURNAL_KEY);
+    if (raw) eventsLen = JSON.parse(raw).events?.length ?? -1;
+    else eventsLen = 0;
+  } catch (_) { eventsLen = -2; }
+  return {
+    rawIsNull: raw === null,
+    eventsLen,
+    snapshotRawIsNull: snapshot.rawV2 === null,
+    snapshotOk: snapshot.ok,
+    holdLocked
+  };
+}
+
+function clearJournal() {
+  try { localStorage.removeItem(JOURNAL_KEY); } catch (_) {}
+  try { localStorage.removeItem(LEGACY_KEY); } catch (_) {}
+  snapshot = readWorldLedger(localStorage);
+  return probe();
+}
+
+async function holdLock() {
+  if (!navigator.locks?.request) return { ok: false, reason: 'web_locks_unavailable' };
+  if (holdLocked) return { ok: true, already: true };
+  holdLocked = false;
+  const held = new Promise((resolve) => { holdRelease = resolve; });
+  // Fire-and-forget request; resolve when callback entered
+  const entered = new Promise((resolveEnter) => {
+    navigator.locks.request(WORLD_LEDGER_WRITE_LOCK, { mode: 'exclusive' }, () => {
+      holdLocked = true;
+      resolveEnter({ ok: true });
+      return held.then(() => { holdLocked = false; });
+    }).catch((e) => resolveEnter({ ok: false, reason: String(e) }));
+  });
+  return entered;
+}
+
+function releaseLock() {
+  if (typeof holdRelease === 'function') {
+    holdRelease();
+    holdRelease = null;
+  }
+  return { ok: true };
+}
+
+
+async function dispatch(cmd, msg = {}) {
+  if (cmd === 'ping') return { ok: true, ready: true };
+  if (cmd === 'probe') return { ok: true, ...probe() };
+  if (cmd === 'clear') return { ok: true, ...clearJournal() };
+  if (cmd === 'holdLock') return await holdLock();
+  if (cmd === 'releaseLock') return releaseLock();
+  if (cmd === 'resetSnapshot') {
+    snapshot = readWorldLedger(localStorage);
+    return { ok: true, ...probe() };
+  }
+  if (cmd === 'append') {
+    const idRow = msg.rowId || ('r-' + Math.random().toString(36).slice(2, 8));
+    const r = await update({ type: 'create', row: row(idRow), reason: msg.reason || 'r19' });
+    return { ...r, ...probe(), rowId: idRow };
+  }
+  return { ok: false, reason: 'unknown_cmd' };
+}
+window.__r19 = { dispatch, probe, PRODUCT_SHA: 'bbf381a6cad340af830d09da55e98ad752ac9a78' };
+
+window.addEventListener('message', async (ev) => {
+  if (ev.origin !== location.origin) return;
+  const msg = ev.data;
+  if (!msg || msg.channel !== 'r19-writer') return;
+  const { id, cmd } = msg;
+  let result;
+  try { result = await dispatch(cmd, msg); }
+  catch (e) { result = { ok: false, reason: 'exception:' + (e && e.message ? e.message : String(e)) }; }
+  ev.source.postMessage({ channel: 'r19-writer', id, result }, location.origin);
+});
+
+document.getElementById('status').textContent = 'ready';
+parent.postMessage({ channel: 'r19-writer', event: 'ready' }, location.origin);
+
+</script>
+</body>
+</html>

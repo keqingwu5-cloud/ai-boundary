@@ -1,0 +1,2 @@
+launch webkit-desktop exe= /home/box/.cache/ms-playwright/webkit-2215/pw_run.sh
+{"label":"webkit-desktop","pass":100,"fail":0,"rate":0,"uniqSigs":[],"out":"/workspace/f05/r19-safari/evidence/result-webkit-desktop.json"}

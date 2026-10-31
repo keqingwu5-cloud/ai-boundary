@@ -1,0 +1,5 @@
+wm N 80 wm-iphone13-n80-recheck iphone 1 root http://127.0.0.1:8766/world-model.html
+progress 25 pass 24 fail 1
+progress 50 pass 49 fail 1
+progress 75 pass 74 fail 1
+{"out":"/workspace/f05/r19-safari/evidence/result-wm-iphone13-n80-recheck.json","pass":79,"fail":1,"rate":0.0125,"uniqSigs":["L109_true_ne_false"]}

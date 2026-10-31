@@ -1,0 +1,8 @@
+bridge N 150 bridge-iphone13-n150 iphone 1 http://127.0.0.1:8766/world-model-r19.html
+progress 25 pass 25 fail 0
+progress 50 pass 50 fail 0
+progress 75 pass 74 fail 1
+progress 100 pass 98 fail 2
+progress 125 pass 123 fail 2
+progress 150 pass 147 fail 3
+{"out":"/workspace/f05/r19-safari/evidence/result-bridge-iphone13-n150.json","pass":147,"fail":3,"rate":0.02,"uniqSigs":["L109_true_ne_false"]}

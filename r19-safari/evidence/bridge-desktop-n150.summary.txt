@@ -1,0 +1,8 @@
+bridge N 150 bridge-desktop-n150 iphone 0 http://127.0.0.1:8766/world-model-r19.html
+progress 25 pass 11 fail 14
+progress 50 pass 23 fail 27
+progress 75 pass 34 fail 41
+progress 100 pass 45 fail 55
+progress 125 pass 55 fail 70
+progress 150 pass 68 fail 82
+{"out":"/workspace/f05/r19-safari/evidence/result-bridge-desktop-n150.json","pass":68,"fail":82,"rate":0.5466666666666666,"uniqSigs":["A_WRITE_FAIL","EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation","L109_true_ne_false"]}

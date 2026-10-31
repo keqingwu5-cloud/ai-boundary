@@ -1,0 +1,29 @@
+{
+  "label": "wm-iphone13-n200",
+  "mode": "world-model-two-top-level-pages",
+  "productCommit": "bbf381a6cad340af830d09da55e98ad752ac9a78",
+  "N": 200,
+  "pass": 198,
+  "fail": 2,
+  "rate": 0.01,
+  "uniqSigs": [
+    "L109_true_ne_false"
+  ],
+  "failureSignatures": [
+    {
+      "trial": 117,
+      "sig": "L109_true_ne_false",
+      "detail": {
+        "stale": true
+      }
+    },
+    {
+      "trial": 156,
+      "sig": "L109_true_ne_false",
+      "detail": {
+        "stale": true
+      }
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
+}

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>短影音 · AI 認知邊界</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%93%B1%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script>window.__errs=[];addEventListener("error",function(e){window.__errs.push(String(e.message||e));});addEventListener("unhandledrejection",function(e){window.__errs.push("rej:"+String(e.reason&&e.reason.message||e.reason));});</script>
+<script>window.__V="20261021b01";(function(){try{fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v||j.v===window.__V)return;var k="aiBoundary.reloadFor."+j.v;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");var u=new URL(location.href);u.searchParams.set("v",j.v);location.replace(u.toString());}).catch(function(){});}catch(e){}})();</script>
+<script src="./data.js?v=20261021b01"></script>
+<style>
+:root{--glass:rgba(14,18,40,.58);--line:rgba(160,180,255,.18);--text:#eef0ff;--muted:#a3abd6;--gold:#f5c451;--colw:min(100vw,calc(100dvh * 9 / 16))}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#03040b;color:var(--text);font-family:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif}
+button{font-family:inherit;color:inherit;cursor:pointer}
+a{color:inherit}
+.glass{background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%)}
+/* feed */
+#feed{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;scroll-snap-type:y mandatory;overscroll-behavior:contain;scrollbar-width:none}
+#feed::-webkit-scrollbar{display:none}
+.it{position:relative;height:100dvh;scroll-snap-align:start;scroll-snap-stop:always;display:flex;justify-content:center;overflow:hidden}
+.it:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--c) 22%,transparent),transparent 60%);opacity:.7}
+.col{position:relative;width:var(--colw);height:100%;overflow:hidden;background:#05060f}
+@media (min-width:701px){.col{border-left:1px solid var(--line);border-right:1px solid var(--line);box-shadow:0 0 60px color-mix(in srgb,var(--c) 25%,transparent)}}
+.col video,.col .bgimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.45) 0,transparent 18%,transparent 48%,rgba(0,0,0,.82) 100%)}
+/* placeholder */
+.ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:90px 70px 230px 24px;text-align:center;
+  background:radial-gradient(120% 70% at 50% 35%,color-mix(in srgb,var(--c) 30%,#05060f),#05060f 70%)}
+.ph .ring{position:relative;width:140px;height:140px;flex:none;display:grid;place-items:center}
+.ph .ring:before,.ph .ring:after{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent,var(--c),transparent 40%,color-mix(in srgb,var(--c) 60%,#fff),transparent 75%);
+  -webkit-mask:radial-gradient(closest-side,transparent 86%,#000 88%);mask:radial-gradient(closest-side,transparent 86%,#000 88%);animation:spin 6s linear infinite}
+.ph .ring:after{inset:16px;animation-duration:9s;animation-direction:reverse;opacity:.6}
+.ph .orb{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;font-size:34px;background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--c) 70%,#fff),color-mix(in srgb,var(--c) 60%,#000));box-shadow:0 0 40px var(--c),0 0 90px color-mix(in srgb,var(--c) 50%,transparent);animation:float 4s ease-in-out infinite}
+.it.dir .ph .orb{border-radius:18px;transform:rotate(45deg)}
+.it.dir .ph .orb span{transform:rotate(-45deg)}
+.ph h3{margin:0;font-size:22px;line-height:1.45;font-weight:900;text-shadow:0 0 22px color-mix(in srgb,var(--c) 70%,transparent);max-width:560px}
+.ph .wip{display:inline-flex;align-items:center;gap:8px;border:1px solid color-mix(in srgb,var(--c) 55%,transparent);border-radius:99px;padding:5px 14px;font-size:13px;background:rgba(0,0,0,.25)}
+.ph .wip i{width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c);animation:blink 1.4s infinite}
+.ph .ext{font-size:13px;border:1px solid var(--line);border-radius:99px;padding:6px 14px;text-decoration:none;background:rgba(255,255,255,.06)}
+.dots{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(2px 2px at 20% 30%,#fff8,transparent),radial-gradient(1.5px 1.5px at 70% 20%,#fff6,transparent),radial-gradient(2px 2px at 80% 65%,#fff7,transparent),radial-gradient(1.5px 1.5px at 30% 75%,#fff5,transparent),radial-gradient(1px 1px at 55% 50%,#fff8,transparent);animation:drift 14s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes float{50%{translate:0 -8px}}
+@keyframes blink{50%{opacity:.25}}
+@keyframes drift{to{transform:translateY(-40px)}}
+/* video */
+.col .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.col video.player{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent}
+.bigplay{position:absolute;left:50%;top:44%;translate:-50% -50%;z-index:5;width:88px;height:88px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(10,12,30,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:34px;padding-left:6px;display:none;box-shadow:0 0 30px rgba(0,0,0,.5)}
+.it.blocked .bigplay{display:block;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 14px rgba(255,255,255,.08),0 0 30px rgba(0,0,0,.5)}}
+.ep{position:absolute;z-index:3;top:calc(62px + env(safe-area-inset-top));left:12px;font-size:11.5px;font-weight:700;letter-spacing:1px;padding:3px 9px;border-radius:99px;background:rgba(0,0,0,.45);border:1px solid color-mix(in srgb,var(--c) 60%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--c) 40%,transparent)}
+.prog{height:3px;width:100%!important;transform:scaleX(var(--p,0));transform-origin:0 50%;will-change:transform}
+#sndHint{position:fixed;z-index:21;top:calc(58px + env(safe-area-inset-top));left:50%;translate:-50% -8px;opacity:0;pointer-events:none;transition:.3s;border-radius:99px;padding:6px 14px;font-size:13px;color:#fff}
+#sndHint.on{opacity:1;translate:-50% 0;pointer-events:auto}
+#bSound.lit{border-color:rgba(127,224,168,.6);box-shadow:0 0 12px rgba(127,224,168,.35)}
+/* performance: nothing animates or blurs on top of a playing video; off-screen items are frozen */
+.it:not(.cur) *,.it:not(.cur){animation-play-state:paused!important}
+body.playing .top,body.playing #sndHint,body.playing .rb b{backdrop-filter:none;-webkit-backdrop-filter:none}
+body.playing .top{background:rgba(10,12,28,.72)}
+body.playing .rb b{background:rgba(10,12,28,.6)}
+body.playing .dots,body.playing .ph *{animation-play-state:paused!important}
+@media (min-width:701px){body.playing .it.cur .col{box-shadow:none}}
+/* caption */
+.cap{position:absolute;left:0;right:68px;bottom:0;padding:0 14px calc(18px + env(safe-area-inset-bottom));z-index:2}
+.row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px}
+.tag{display:inline-flex;align-items:center;gap:3px;border:1px solid color-mix(in srgb,var(--c) 60%,transparent);background:color-mix(in srgb,var(--c) 22%,rgba(0,0,0,.35));border-radius:99px;padding:2px 9px;font-size:11.5px}
+.tag.k{--c:#9db7ff}.tag.k.direction{--c:#ff7ae0}
+.cap h2{margin:0 0 6px;font-size:17px;line-height:1.45;font-weight:900;text-shadow:0 1px 8px #000}
+.it.noVideo .cap h2{display:none}
+.note{font-size:13.5px;line-height:1.6;color:#e6e9ff;text-shadow:0 1px 6px #000;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.note.open{display:block;-webkit-line-clamp:unset;max-height:34dvh;overflow:auto;background:rgba(0,0,0,.45);border-radius:12px;padding:8px 10px;margin:0 -4px}
+.note .more{color:var(--muted);font-size:12px}
+.note .cred{display:block;margin-top:6px;font-size:12px;color:var(--muted)}
+.note .cred a{color:#c9d6ff}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.chip{border:none;font-size:12px;padding:2px 9px;border-radius:99px;background:color-mix(in srgb,var(--cc) 25%,rgba(0,0,0,.4));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cc) 55%,transparent)}
+.chip:before{content:"#"}
+.src1{margin-top:7px;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* burned-in subtitles: keep the lower third clear, caption folds into one line until tapped */
+.it.subs .cap:not(.open) :is(.row,.note,.chips,.src1){display:none}
+.it.subs .cap:not(.open) h2{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;margin:0}
+.it.subs .cap:not(.open) h2:after{content:" ▴";color:var(--muted);font-size:11px}
+.it.subs .cap h2{cursor:pointer}
+.it.subs .cap.open{background:linear-gradient(transparent,rgba(0,0,0,.75) 25%);padding-top:30px}
+.it.subs .shade{background:linear-gradient(180deg,rgba(0,0,0,.45) 0,transparent 18%,transparent 80%,rgba(0,0,0,.6) 100%)}
+/* rail */
+.rail{position:absolute;right:8px;bottom:calc(22px + env(safe-area-inset-bottom));z-index:3;display:flex;flex-direction:column;align-items:center;gap:14px}
+.rb{display:flex;flex-direction:column;align-items:center;gap:3px;border:none;background:none;padding:0;font-size:11px;color:#fff;text-decoration:none;text-shadow:0 1px 4px #000}
+.rb b{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:21px;font-weight:400;background:rgba(20,24,50,.55);border:1px solid var(--line);backdrop-filter:blur(8px);transition:transform .15s}
+.rb:active b{transform:scale(.88)}
+.rb.on b{background:color-mix(in srgb,var(--rc,#ff4d79) 45%,rgba(20,24,50,.6));border-color:var(--rc,#ff4d79);box-shadow:0 0 16px var(--rc,#ff4d79)}
+.rb.like{--rc:#ff4d79}.rb.save{--rc:#f5c451}
+.rb.brain b{background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--c) 70%,#fff),color-mix(in srgb,var(--c) 55%,#000));box-shadow:0 0 14px var(--c)}
+.flash{position:absolute;left:50%;top:45%;translate:-50% -50%;font-size:64px;opacity:0;pointer-events:none;z-index:4;text-shadow:0 0 20px #000}
+.flash.on{animation:pop .7s ease-out}
+@keyframes pop{0%{opacity:0;scale:.5}25%{opacity:1;scale:1.1}100%{opacity:0;scale:1.4}}
+.prog{position:absolute;left:0;bottom:0;height:2px;background:var(--c);z-index:3;width:0}
+/* top bar */
+.top{position:fixed;z-index:20;top:calc(8px + env(safe-area-inset-top));left:50%;translate:-50% 0;width:calc(var(--colw) - 16px);display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:99px}
+.top h1{flex:1;margin:0;font-size:14px;font-weight:900;text-align:center;letter-spacing:1px}
+.top h1 small{font-weight:400;color:var(--muted);font-size:11.5px;margin-left:6px}
+.ib{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.05);display:grid;place-items:center;font-size:15px;text-decoration:none;position:relative}
+.ib.on:after{content:"";position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--gold)}
+/* sheets */
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:.3s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;z-index:41;left:50%;bottom:0;width:min(100vw,560px);max-height:78dvh;translate:-50% 105%;transition:translate .38s cubic-bezier(.2,.8,.2,1);border-radius:20px 20px 0 0;display:flex;flex-direction:column;background:rgba(12,15,34,.94);padding-bottom:env(safe-area-inset-bottom)}
+.sheet.on{translate:-50% 0}
+.sheet header{display:flex;align-items:center;gap:8px;padding:12px 14px 8px;border-bottom:1px solid var(--line)}
+.sheet header h3{flex:1;margin:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet .bd{overflow:auto;padding:12px 14px 18px}
+.grab{width:38px;height:4px;border-radius:2px;background:#ffffff40;margin:8px auto 0}
+.lbl{font-size:12px;color:var(--muted);margin:12px 0 6px;letter-spacing:1px}
+.lbl:first-child{margin-top:0}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{border:1px solid color-mix(in srgb,var(--oc,#9db7ff) 45%,transparent);background:rgba(255,255,255,.04);border-radius:99px;padding:4px 11px;font-size:12.5px}
+.opt.on{background:color-mix(in srgb,var(--oc,#9db7ff) 30%,transparent);border-color:var(--oc,#9db7ff);box-shadow:0 0 12px color-mix(in srgb,var(--oc,#9db7ff) 45%,transparent)}
+.brl a{display:flex;gap:8px;align-items:flex-start;padding:9px 10px;border-radius:12px;text-decoration:none;border:1px solid var(--line);margin-bottom:6px;background:rgba(255,255,255,.03);font-size:14px;line-height:1.5}
+.brl a i{font-style:normal;flex:none;width:9px;height:9px;border-radius:50%;margin-top:6px;background:var(--c);box-shadow:0 0 8px var(--c)}
+.brl a.dir i{border-radius:2px;rotate:45deg}
+.brl a small{display:block;color:var(--muted);font-size:11.5px}
+.empty{color:var(--muted);font-size:13px}
+#gcNote{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px}
+#gcWarn{display:none;font-size:13px;line-height:1.7;border:1px dashed rgba(245,196,81,.5);border-radius:12px;padding:10px 12px;margin-bottom:10px;color:#ffe7a8}
+#gcWarn.on{display:block}
+#giscus{min-height:160px}
+#botPick .opt{font-size:12px;padding:3px 10px}
+#botHint{color:#8a90ad;font-size:12.5px;margin:8px 2px 6px;line-height:1.5}
+#botHint small{display:block;font-size:11px;color:#6d7391}
+#none{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:30px;color:var(--muted);line-height:1.8;z-index:1}
+#none.on{display:grid}
+#toast{position:fixed;z-index:60;left:50%;top:70px;translate:-50% -10px;opacity:0;transition:.3s;pointer-events:none;padding:7px 14px;border-radius:99px;font-size:13px}
+#toast.on{opacity:1;translate:-50% 0}
+.keys{position:fixed;right:14px;bottom:14px;font-size:11px;color:#ffffff55;z-index:5}
+@media (max-width:700px){.keys{display:none}}
+</style>
+</head>
+<body>
+<div id="feed" tabindex="0"></div>
+<div id="none"><div>這個篩選條件下還沒有內容。<br>影像導演 bot 產出影片後會出現在這裡。<br><button class="opt" id="clearF">顯示全部</button></div></div>
+<header class="top glass">
+  <a class="ib" id="toBrain" href="index.html" title="回到 3D 大腦">🧠</a>
+  <a class="ib" href="launcher.html" title="主腦發射器（人工交接）">🚀</a>
+  <a class="ib" id="toWorldModel" href="./world-model.html" title="帶目前節點前往世界模型（唯讀來源連結）">🌐</a>
+  <h1>短影音<small id="cnt"></small></h1>
+  <button class="ib" id="bSound" title="聲音開關">🔇</button>
+  <button class="ib" id="bSet" title="篩選與排序">⚙</button>
+</header>
+<button id="sndHint" class="glass">🔇 點一下開聲音</button>
+<div class="keys">↑↓ 切換・空白鍵 播放/暫停・M 聲音</div>
+<div class="scrim" id="scrim"></div>
+<section class="sheet glass" id="setSheet" aria-label="設定"><div class="grab"></div>
+  <header><h3>⚙ 短影音設定</h3><button class="ib" data-close>✕</button></header>
+  <div class="bd">
+    <div class="lbl">排序</div><div class="opts" id="oOrder"></div>
+    <div class="lbl">播放</div><div class="opts" id="oPlay"></div>
+    <div class="lbl">顯示</div><div class="opts" id="oShow"></div>
+    <div class="lbl">類型</div><div class="opts" id="oType"></div>
+    <div class="lbl">🧵 概念</div><div class="opts" id="oConc"></div>
+  </div>
+</section>
+<section class="sheet glass" id="brSheet" aria-label="分支"><div class="grab"></div>
+  <header><h3 id="brT">🌿 分支</h3><button class="ib" data-close>✕</button></header>
+  <div class="bd" id="brB"></div>
+</section>
+<section class="sheet glass" id="cmSheet" aria-label="留言"><div class="grab"></div>
+  <header><h3 id="cmT">💬 留言</h3><button class="ib" data-close>✕</button></header>
+  <div class="bd">
+    <div id="gcNote">留言、回饋、提問會存在 GitHub Discussions，每一題、每個 bot 各自一串，需要 GitHub 帳號登入。</div>
+    <div id="gcWarn">留言區還沒啟用：網站擁有者需要先在 GitHub 安裝 giscus App（github.com/apps/giscus）並授權給 ai-boundary 這個 repo，安裝後這裡就會自動出現留言串。</div>
+    <div class="lbl">留言要交給哪個 bot</div>
+    <div class="opts" id="botPick"></div>
+    <div id="botHint"></div>
+    <div id="giscus"></div>
+  </div>
+</section>
+<div id="toast" class="glass"></div>
+<script type="module" src="./feed.js?v=20261027research01"></script>
+<script type="module" src="./knowledge-score.js?v=20261021b01"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+exe /home/box/.cache/ms-playwright/webkit-2215/pw_run.sh N 100 label webkit-two-page-desktop iphone 0
+progress 25 pass 25 fail 0
+progress 50 pass 50 fail 0
+progress 75 pass 75 fail 0
+progress 100 pass 100 fail 0
+{"out":"/workspace/f05/r19-safari/evidence/result-webkit-two-page-desktop.json","pass":100,"fail":0,"rate":0,"uniqSigs":[]}

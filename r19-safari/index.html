@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R19 stale-write Safari 實機複現</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif}
+body{margin:0;padding:16px;background:#0b1220;color:#e8eef8;line-height:1.5;max-width:720px}
+h1{font-size:1.25rem;margin:0 0 8px}
+.fine{color:#9bb0c9;font-size:13px}
+.panel{border:1px solid #2a3d55;border-radius:12px;padding:14px;margin:12px 0;background:#121c2e}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+button,a.button{border:1px solid #4a6a84;background:#1e3549;color:#fff;border-radius:10px;padding:10px 14px;font:inherit;cursor:pointer;text-decoration:none;display:inline-block}
+button:disabled{opacity:.5;cursor:not-allowed}
+input[type=number]{width:5rem;background:#0b1425;color:#fff;border:1px solid #3a4d65;border-radius:8px;padding:8px;font:inherit}
+.metric{display:inline-block;min-width:5.5rem;padding:8px 10px;border-radius:10px;background:#18243a;border:1px solid #293c57;margin-right:6px}
+.metric b{display:block;font-size:1.4rem}
+.fail{color:#f6abb1}.pass{color:#98e4ba}
+.ok{color:#98e4ba}.bad{color:#f6abb1}
+pre{white-space:pre-wrap;word-break:break-word;background:#0a1322;padding:10px;border-radius:8px;font-size:12px;max-height:240px;overflow:auto}
+.warning{border-left:3px solid #f6cf83;padding:8px 10px;background:#66502a22;color:#f1dbad;margin:8px 0}
+.step{border-left:3px solid #6aa9ff;padding:8px 10px;background:#1a2a44;margin:8px 0}
+</style>
+</head>
+<body>
+<h1>R19 stale-write 實機複現（本機／Safari）</h1>
+<p class="fine">產品碼：<code>world-model.html</code> + <code>world-verification-ledger.mjs</code> / <code>ui</code> @ <span id="shaShort">bbf381a</span>。無網路請求、無分析、不收集私資料。</p>
+<div class="warning">跨分頁 journal CAS 驗證用。請勿填入個人或機密資料。iOS Safari 限制 window.open，請用下方「一鍵開第二分頁」。</div>
+
+<div class="panel" id="setupPanel">
+  <h2 style="font-size:1rem;margin:0 0 8px">準備兩個寫入者分頁</h2>
+  <div class="step">
+    <b>步驟 1</b>：點下方開寫入者 A（可同頁或新分頁）。
+    <div class="row">
+      <a class="button" id="openA" href="./world-model-r19.html?role=A" target="_blank" rel="noopener">開寫入者 A</a>
+      <span class="fine" id="statusA">A：未連線</span>
+    </div>
+  </div>
+  <div class="step">
+    <b>步驟 2（一鍵）</b>：再開寫入者 B（同源第二 browsing context，共享 localStorage）。
+    <div class="row">
+      <a class="button" id="openB" href="./world-model-r19.html?role=B" target="_blank" rel="noopener">開寫入者 B（第二分頁）</a>
+      <span class="fine" id="statusB">B：未連線</span>
+    </div>
+  </div>
+  <p class="fine">兩個分頁都顯示「r19 ready」或此處變為已連線後，再按開始。Playwright 證據路徑為兩個 top-level <code>world-model.html</code>（非同頁雙 iframe；同頁 iframe 在 WebKit 上未能複現）。</p>
+</div>
+
+<div class="panel">
+  <div class="row">
+    <label>次數 N <input id="nInput" type="number" min="1" max="5000" value="100"></label>
+    <button type="button" id="runBtn" disabled>開始重跑</button>
+    <button type="button" id="stopBtn" disabled>停止</button>
+    <button type="button" id="copyBtn">複製結果 JSON</button>
+  </div>
+  <div class="row">
+    <span class="metric"><small>PASS</small><b id="passCount" class="pass">0</b></span>
+    <span class="metric"><small>FAIL</small><b id="failCount" class="fail">0</b></span>
+    <span class="metric"><small>跑完</small><b id="doneCount">0</b></span>
+    <span class="metric"><small>進行中</small><b id="trialLabel">—</b></span>
+  </div>
+  <p class="fine" id="statusLine" role="status">等待寫入者 A / B 連線…</p>
+  <p class="fine">最近失敗簽名：<code id="lastSig">（尚無）</code></p>
+  <p class="fine">userAgent：</p>
+  <pre id="ua"></pre>
+  <details open><summary>結果 JSON 預覽</summary><pre id="preview">{}</pre></details>
+</div>
+
+<script>
+const PRODUCT_SHA = 'bbf381a6cad340af830d09da55e98ad752ac9a78';
+const CHANNEL = 'r19-stale-write';
+document.getElementById('shaShort').textContent = PRODUCT_SHA.slice(0, 7);
+document.getElementById('ua').textContent = navigator.userAgent;
+
+const bc = ('BroadcastChannel' in window) ? new BroadcastChannel(CHANNEL) : null;
+const peers = { A: { ready: false, last: 0 }, B: { ready: false, last: 0 } };
+const pending = new Map();
+let nextId = 1;
+let stopFlag = false;
+let pass = 0, fail = 0;
+const failures = [];
+let peerUA = navigator.userAgent;
+
+function setPeer(role, ready) {
+  peers[role].ready = !!ready;
+  peers[role].last = Date.now();
+  const el = document.getElementById('status' + role);
+  if (el) {
+    el.textContent = role + '：' + (ready ? '已連線' : '未連線');
+    el.className = 'fine ' + (ready ? 'ok' : 'bad');
+  }
+  const both = peers.A.ready && peers.B.ready;
+  document.getElementById('runBtn').disabled = !both;
+  document.getElementById('statusLine').textContent = both
+    ? 'A/B 已連線，可開始。'
+    : '等待寫入者 ' + (!peers.A.ready ? 'A' : 'B') + ' 連線…';
+}
+
+function onBc(msg) {
+  if (!msg || msg.channel !== CHANNEL) return;
+  if (msg.type === 'hello') {
+    setPeer(msg.role, !!msg.ready);
+    if (msg.ua) peerUA = msg.ua;
+    return;
+  }
+  if (msg.type === 'result' && msg.id != null && pending.has(msg.id)) {
+    pending.get(msg.id)(msg.result);
+    pending.delete(msg.id);
+  }
+}
+
+if (bc) bc.onmessage = (ev) => onBc(ev.data);
+window.addEventListener('message', (ev) => {
+  if (ev.origin !== location.origin) return;
+  onBc(ev.data);
+});
+
+function call(role, cmd, extra = {}) {
+  const id = nextId++;
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error('timeout ' + role + ' ' + cmd));
+    }, 20000);
+    pending.set(id, (result) => { clearTimeout(t); resolve(result); });
+    const msg = { channel: CHANNEL, type: 'cmd', id, role, cmd, ...extra };
+    if (bc) bc.postMessage(msg);
+  });
+}
+
+async function reloadPeer(role) {
+  // clear triggers location.reload inside peer; wait for hello again
+  setPeer(role, false);
+  try { await call(role, 'clear'); } catch (_) {}
+  const t0 = Date.now();
+  while (!peers[role].ready && Date.now() - t0 < 25000) {
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  if (!peers[role].ready) throw new Error('peer ' + role + ' not ready after reload');
+}
+
+async function oneTrial(i) {
+  await reloadPeer('A');
+  await reloadPeer('B');
+  const hold = await call('A', 'holdLock');
+  if (!hold || !hold.ok) return { ok: false, sig: 'HOLD_LOCK_FAIL', detail: hold };
+  const busy = await call('B', 'append', { idSuffix: 'busy-' + i, reason: 'busy B' });
+  if (busy && busy.ok) {
+    await call('A', 'releaseLock');
+    return { ok: false, sig: 'BUSY_EXPECT_DENIED', detail: busy };
+  }
+  await call('A', 'releaseLock');
+  const first = await call('A', 'append', { idSuffix: 'a-' + i, reason: 'A saves after lock' });
+  if (!first || !first.ok) return { ok: false, sig: 'A_WRITE_FAIL', detail: first };
+  const stale = await call('B', 'append', { idSuffix: 'b-' + i, reason: 'B stale' });
+  if (stale && stale.ok) return { ok: false, sig: 'L109_true_ne_false', detail: { stale: stale.value } };
+  return { ok: true };
+}
+
+function resultJson() {
+  return {
+    label: 'safari-harness',
+    mode: 'world-model-r19-two-top-level-tabs',
+    productCommit: PRODUCT_SHA,
+    N: pass + fail,
+    pass, fail,
+    rate: (pass + fail) ? fail / (pass + fail) : null,
+    uniqSigs: [...new Set(failures.map((f) => f.sig))],
+    failureSignatures: failures.slice(0, 50),
+    userAgent: peerUA || navigator.userAgent,
+    controllerUA: navigator.userAgent,
+    atTaipei: new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })
+  };
+}
+
+function paint() {
+  document.getElementById('passCount').textContent = String(pass);
+  document.getElementById('failCount').textContent = String(fail);
+  document.getElementById('doneCount').textContent = String(pass + fail);
+  document.getElementById('preview').textContent = JSON.stringify(resultJson(), null, 2);
+  document.getElementById('ua').textContent = peerUA || navigator.userAgent;
+}
+
+document.getElementById('runBtn').onclick = async () => {
+  stopFlag = false;
+  pass = 0; fail = 0; failures.length = 0;
+  paint();
+  const N = Math.max(1, Math.min(5000, Number(document.getElementById('nInput').value) || 100));
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+  for (let i = 1; i <= N; i++) {
+    if (stopFlag) break;
+    document.getElementById('trialLabel').textContent = i + '/' + N;
+    document.getElementById('statusLine').textContent = 'trial ' + i;
+    let r;
+    try { r = await oneTrial(i); }
+    catch (e) { r = { ok: false, sig: 'EXCEPTION:' + (e && e.message || e) }; }
+    if (r.ok) pass++;
+    else {
+      fail++;
+      failures.push({ trial: i, sig: r.sig, detail: r.detail || null });
+      document.getElementById('lastSig').textContent = r.sig;
+    }
+    paint();
+  }
+  document.getElementById('trialLabel').textContent = '完成';
+  document.getElementById('statusLine').textContent = '完成 pass=' + pass + ' fail=' + fail;
+  document.getElementById('runBtn').disabled = !(peers.A.ready && peers.B.ready);
+  document.getElementById('stopBtn').disabled = true;
+};
+
+document.getElementById('stopBtn').onclick = () => { stopFlag = true; };
+
+document.getElementById('copyBtn').onclick = async () => {
+  const text = JSON.stringify(resultJson(), null, 2);
+  try {
+    await navigator.clipboard.writeText(text);
+    document.getElementById('statusLine').textContent = '已複製結果 JSON';
+  } catch (_) {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); document.getElementById('statusLine').textContent = '已複製結果 JSON'; }
+    catch (e) { document.getElementById('statusLine').textContent = '複製失敗，請手動選取預覽'; }
+    ta.remove();
+  }
+};
+
+// Probe existing peers
+if (bc) {
+  bc.postMessage({ channel: CHANNEL, type: 'cmd', id: 0, role: 'A', cmd: 'ping' });
+  bc.postMessage({ channel: CHANNEL, type: 'cmd', id: 0, role: 'B', cmd: 'ping' });
+}
+
+// Expose for Playwright
+window.__r19Harness = {
+  call, reloadPeer, oneTrial,
+  getState: () => ({ pass, fail, peers: { A: peers.A.ready, B: peers.B.ready }, result: resultJson() }),
+  setPeer
+};
+</script>
+</body>
+</html>

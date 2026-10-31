@@ -1,0 +1,10 @@
+bridge N 200 bridge-desktop-n200 iphone 0 http://127.0.0.1:8766/world-model-r19.html
+progress 25 pass 25 fail 0
+progress 50 pass 50 fail 0
+progress 75 pass 75 fail 0
+progress 100 pass 100 fail 0
+progress 125 pass 125 fail 0
+progress 150 pass 150 fail 0
+progress 175 pass 175 fail 0
+progress 200 pass 200 fail 0
+{"out":"/workspace/f05/r19-safari/evidence/result-bridge-desktop-n200.json","pass":200,"fail":0,"rate":0,"uniqSigs":[]}

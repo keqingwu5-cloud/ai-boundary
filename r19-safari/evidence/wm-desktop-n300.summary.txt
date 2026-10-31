@@ -1,0 +1,14 @@
+wm N 300 wm-desktop-n300 iphone 0 root http://127.0.0.1:8766/world-model.html
+progress 25 pass 24 fail 1
+progress 50 pass 49 fail 1
+progress 75 pass 73 fail 2
+progress 100 pass 98 fail 2
+progress 125 pass 123 fail 2
+progress 150 pass 147 fail 3
+progress 175 pass 171 fail 4
+progress 200 pass 195 fail 5
+progress 225 pass 220 fail 5
+progress 250 pass 245 fail 5
+progress 275 pass 269 fail 6
+progress 300 pass 293 fail 7
+{"out":"/workspace/f05/r19-safari/evidence/result-wm-desktop-n300.json","pass":293,"fail":7,"rate":0.023333333333333334,"uniqSigs":["L109_true_ne_false"]}

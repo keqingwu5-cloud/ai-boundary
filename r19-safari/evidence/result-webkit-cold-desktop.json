@@ -1,0 +1,11 @@
+{
+  "label": "webkit-cold-desktop",
+  "mode": "cold-context-per-trial",
+  "N": 80,
+  "pass": 80,
+  "fail": 0,
+  "rate": 0,
+  "uniqSigs": [],
+  "failureSignatures": [],
+  "productCommit": "bbf381a6cad340af830d09da55e98ad752ac9a78"
+}

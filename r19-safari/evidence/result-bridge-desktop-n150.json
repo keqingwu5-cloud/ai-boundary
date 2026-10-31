@@ -1,0 +1,310 @@
+{
+  "label": "bridge-desktop-n150",
+  "mode": "world-model-r19-two-top-level-pages",
+  "productCommit": "bbf381a6cad340af830d09da55e98ad752ac9a78",
+  "N": 150,
+  "pass": 68,
+  "fail": 82,
+  "rate": 0.5466666666666666,
+  "uniqSigs": [
+    "A_WRITE_FAIL",
+    "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+    "L109_true_ne_false"
+  ],
+  "failureSignatures": [
+    {
+      "trial": 3,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 4,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 5,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 7,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 9,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 11,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 12,
+      "sig": "L109_true_ne_false",
+      "detail": {
+        "stale": true
+      }
+    },
+    {
+      "trial": 13,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 15,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 17,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 19,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 21,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 23,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 24,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 27,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 28,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 30,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 33,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 36,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 38,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 40,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 42,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 44,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 45,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 47,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 48,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 50,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 51,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 52,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 54,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 56,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 57,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 59,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 61,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 63,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 64,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 66,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 68,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 70,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 73,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 74,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 76,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 78,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 81,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 84,
+      "sig": "A_WRITE_FAIL",
+      "detail": {
+        "ok": false,
+        "value": false
+      }
+    },
+    {
+      "trial": 85,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 86,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 87,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    },
+    {
+      "trial": 88,
+      "sig": "L109_true_ne_false",
+      "detail": {
+        "stale": true
+      }
+    },
+    {
+      "trial": 89,
+      "sig": "EXCEPTION:page.evaluate: Execution context was destroyed, most likely because of a navigation",
+      "detail": null
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
+}

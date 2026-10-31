@@ -1,0 +1,14 @@
+product-shell N 250 product-shell-desktop-n250 iphone 0
+progress 20 pass 20 fail 0
+progress 40 pass 40 fail 0
+progress 60 pass 60 fail 0
+progress 80 pass 80 fail 0
+progress 100 pass 100 fail 0
+progress 120 pass 120 fail 0
+progress 140 pass 140 fail 0
+progress 160 pass 160 fail 0
+progress 180 pass 180 fail 0
+progress 200 pass 200 fail 0
+progress 220 pass 220 fail 0
+progress 240 pass 240 fail 0
+{"out":"/workspace/f05/r19-safari/evidence/result-product-shell-desktop-n250.json","pass":250,"fail":0,"rate":0,"uniqSigs":[]}

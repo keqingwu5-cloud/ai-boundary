@@ -1,0 +1,36 @@
+{
+  "label": "bridge-iphone13-n150",
+  "mode": "world-model-r19-two-top-level-pages",
+  "productCommit": "bbf381a6cad340af830d09da55e98ad752ac9a78",
+  "N": 150,
+  "pass": 147,
+  "fail": 3,
+  "rate": 0.02,
+  "uniqSigs": [
+    "L109_true_ne_false"
+  ],
+  "failureSignatures": [
+    {
+      "trial": 68,
+      "sig": "L109_true_ne_false",
+      "detail": {
+        "stale": true
+      }
+    },
+    {
+      "trial": 89,
+      "sig": "L109_true_ne_false",
+      "detail": {
+        "stale": true
+      }
+    },
+    {
+      "trial": 137,
+      "sig": "L109_true_ne_false",
+      "detail": {
+        "stale": true
+      }
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
+}

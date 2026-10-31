@@ -1,0 +1,22 @@
+{
+  "label": "wm-iphone13-n80-recheck",
+  "mode": "world-model-two-top-level-pages",
+  "productCommit": "bbf381a6cad340af830d09da55e98ad752ac9a78",
+  "N": 80,
+  "pass": 79,
+  "fail": 1,
+  "rate": 0.0125,
+  "uniqSigs": [
+    "L109_true_ne_false"
+  ],
+  "failureSignatures": [
+    {
+      "trial": 2,
+      "sig": "L109_true_ne_false",
+      "detail": {
+        "stale": true
+      }
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
+}

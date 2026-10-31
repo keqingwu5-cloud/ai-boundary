@@ -1,0 +1,12 @@
+{
+  "label": "webkit-two-page-desktop-n250",
+  "mode": "two-top-level-pages",
+  "productCommit": "bbf381a6cad340af830d09da55e98ad752ac9a78",
+  "N": 250,
+  "pass": 250,
+  "fail": 0,
+  "rate": 0,
+  "uniqSigs": [],
+  "failureSignatures": [],
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
+}

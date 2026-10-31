@@ -1,0 +1,1 @@
+ORIG2 pass=99 fail=1

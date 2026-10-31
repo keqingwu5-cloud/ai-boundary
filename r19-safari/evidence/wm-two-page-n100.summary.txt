@@ -1,0 +1,6 @@
+progress 20 pass 19 fail 1
+progress 40 pass 39 fail 1
+progress 60 pass 59 fail 1
+progress 80 pass 79 fail 1
+progress 100 pass 99 fail 1
+{"pass":99,"fail":1,"rate":0.01,"sample":[{"i":13,"sig":"L109","stale":true}]}

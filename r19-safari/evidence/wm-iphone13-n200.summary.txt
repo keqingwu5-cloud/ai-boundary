@@ -1,0 +1,10 @@
+wm N 200 wm-iphone13-n200 iphone 1 root http://127.0.0.1:8766/world-model.html
+progress 25 pass 25 fail 0
+progress 50 pass 50 fail 0
+progress 75 pass 75 fail 0
+progress 100 pass 100 fail 0
+progress 125 pass 124 fail 1
+progress 150 pass 149 fail 1
+progress 175 pass 173 fail 2
+progress 200 pass 198 fail 2
+{"out":"/workspace/f05/r19-safari/evidence/result-wm-iphone13-n200.json","pass":198,"fail":2,"rate":0.01,"uniqSigs":["L109_true_ne_false"]}

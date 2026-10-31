@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R19 product shell</title>
+<style>
+body{font:14px system-ui;margin:12px;background:#0b1220;color:#e8eef8}
+.fine{color:#9bb0c9;font-size:12px}
+.button{border:1px solid #4a6a84;background:#1e3549;color:#fff;border-radius:8px;padding:8px 10px}
+.verify-case,.verify-actions,.verify-note,.verify-good,.verify-dim,.fine{}
+</style>
+</head>
+<body>
+<p class="fine">R19 product shell — vendored UI+ledger @ bbf381a. No network.</p>
+<p id="worldHistoryStatus" class="fine" role="status">…</p>
+<span id="verifyCount">0</span>
+<span id="worldHistoryCount">0</span>
+<div id="verifyList"></div>
+<ol id="worldHistoryList"></ol>
+<p id="verifyFormStatus"></p>
+<form id="verifyForm">
+  <textarea id="verifyHypothesis"></textarea>
+  <textarea id="verifyFalsifier"></textarea>
+  <input id="verifyDate" type="date">
+  <input id="verifyDeadline" type="date">
+  <input id="verifySource" type="url">
+  <textarea id="verifyMetric"></textarea>
+  <button type="submit">save</button>
+</form>
+<button id="verifyExport" type="button">export</button>
+<button id="verifyImportButton" type="button">import</button>
+<input id="verifyImport" type="file" hidden>
+<button id="worldHistoryExport" type="button">hist export</button>
+<button id="worldHistoryVersionZero" type="button">v0</button>
+<script type="module" src="./vendor/world-verification-ui.mjs"></script>
+<script type="module">
+/* Automation helpers for Playwright / second-tab protocol (does not alter product update path). */
+import { JOURNAL_KEY, LEGACY_KEY, WORLD_LEDGER_WRITE_LOCK } from './vendor/world-verification-ledger.mjs';
+let holdRelease = null;
+window.__r19Shell = {
+  ready: () => !!(window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'),
+  async clear() {
+    localStorage.removeItem(JOURNAL_KEY);
+    localStorage.removeItem(LEGACY_KEY);
+  },
+  async holdLock() {
+    if (!navigator.locks?.request) return { ok: false };
+    window.r19Locked = false;
+    const held = new Promise((resolve) => { holdRelease = resolve; });
+    await new Promise((entered) => {
+      navigator.locks.request(WORLD_LEDGER_WRITE_LOCK, { mode: 'exclusive' }, () => {
+        window.r19Locked = true;
+        entered();
+        return held.then(() => { window.r19Locked = false; });
+      });
+    });
+    return { ok: true };
+  },
+  releaseLock() {
+    if (typeof holdRelease === 'function') { holdRelease(); holdRelease = null; }
+    return { ok: true };
+  },
+  append: (change) => window.WorldVerifyHistory.append(change),
+  view: () => window.WorldVerifyHistory.view(),
+  probe() {
+    const raw = localStorage.getItem(JOURNAL_KEY);
+    let eventsLen = raw ? JSON.parse(raw).events.length : 0;
+    return { rawIsNull: raw === null, eventsLen, locked: !!window.r19Locked };
+  }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+source_repo=keqingwu5-cloud/ai-boundary
+commit=bbf381a6cad340af830d09da55e98ad752ac9a78
+files=world-model.html world-verification-ledger.mjs world-verification-ui.mjs research-context-bridge.mjs research-event-chain.mjs brain-import-guard.mjs
+note=world-model-r19.html = world-model.html + R19 test bridge (not product)
+copied_at_taipei=2026-10-31 21:59:42 CST
+c79a365bf07872a0454862d82ff358e84c92cf23694f350af07e931b49dc8043  world-model.html
+29d71d1fedc5e51f025107af33b097ddfec6f59ee5c8b3263dea9d189f7cf1ce  world-verification-ledger.mjs
+c1a8545a9a931ea96b61020c17f20fcb4f6d0c84ab7ce4128f223f9818ef1683  world-verification-ui.mjs
+b0998e8a6f9d1b91d244df0bc0c7687a9b2024c41aee11670dd90e604d7e0462  research-context-bridge.mjs
+661f14ef87b80245a9afba52298d9d8d4da6fdd48c631d8608945f27b77a8226  research-event-chain.mjs
+d0828d0a574bca999361c805811b7d0b738245d9b0c2ae2726f53f482151b1c8  brain-import-guard.mjs
+29d71d1fedc5e51f025107af33b097ddfec6f59ee5c8b3263dea9d189f7cf1ce  vendor/world-verification-ledger.mjs
+c1a8545a9a931ea96b61020c17f20fcb4f6d0c84ab7ce4128f223f9818ef1683  vendor/world-verification-ui.mjs

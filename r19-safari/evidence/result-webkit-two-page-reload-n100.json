@@ -1,0 +1,12 @@
+{
+  "label": "webkit-two-page-reload-n100",
+  "mode": "two-top-level-pages-reload-per-trial",
+  "productCommit": "bbf381a6cad340af830d09da55e98ad752ac9a78",
+  "N": 100,
+  "pass": 100,
+  "fail": 0,
+  "rate": 0,
+  "uniqSigs": [],
+  "failureSignatures": [],
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
+}
