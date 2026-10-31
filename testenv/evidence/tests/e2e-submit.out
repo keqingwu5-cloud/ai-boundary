@@ -1,0 +1,84 @@
+{
+  "step": "send",
+  "ok": true,
+  "event_id": "941504a8-1d21-4b81-bece-bef52fd0d6f0",
+  "state": "queued",
+  "payload_digest": "d869cd7b3d1b000084fc4687e5069578408a88b16f6e6e6207df77147eb0acf9",
+  "expected_result": {
+    "mode": "MOCK",
+    "result_kind": "MOCK",
+    "instruction": "submit-cli-exact-check",
+    "echo": {
+      "instruction": "submit-cli-exact-check",
+      "goal": "submit-cli-exact-check",
+      "label": "MOCK_LOOP"
+    },
+    "verified": true,
+    "note": "synthetic local execution; OpenAI NOT connected",
+    "output_sha256": "3fb7637cc0fb983e3d702248d9304ebc02818527c821bcb6ed73cf7a8015e993"
+  }
+}
+{
+  "step": "status",
+  "event": {
+    "event_id": "941504a8-1d21-4b81-bece-bef52fd0d6f0",
+    "task_id": "TASK-LOCAL-E2E",
+    "source_endpoint_id": "origin-local",
+    "destination_endpoint_id": "worker-mock",
+    "idempotency_key": "idem-eb5b361d6901ed55c967be2c",
+    "payload_version": "1",
+    "payload_digest": "d869cd7b3d1b000084fc4687e5069578408a88b16f6e6e6207df77147eb0acf9",
+    "payload": {
+      "instruction": "submit-cli-exact-check",
+      "goal": "submit-cli-exact-check",
+      "label": "MOCK_LOOP"
+    },
+    "state": "ack_received",
+    "grant_id": "grant-local-e2e-001",
+    "attempt_count": 1,
+    "current_attempt_id": "5914abbc-6b3c-4c55-b633-5bbef0f85e6c",
+    "lease_until": "2026-10-31T02:55:14.111Z",
+    "next_attempt_at": "2026-10-31T02:55:11.964Z",
+    "created_at": "2026-10-31T02:55:11.964Z",
+    "updated_at": "2026-10-31T02:55:12.113Z",
+    "result_kind": "MOCK",
+    "result": {
+      "mode": "MOCK",
+      "result_kind": "MOCK",
+      "instruction": "submit-cli-exact-check",
+      "echo": {
+        "instruction": "submit-cli-exact-check",
+        "goal": "submit-cli-exact-check",
+        "label": "MOCK_LOOP"
+      },
+      "verified": true,
+      "note": "synthetic local execution; OpenAI NOT connected",
+      "output_sha256": "3fb7637cc0fb983e3d702248d9304ebc02818527c821bcb6ed73cf7a8015e993"
+    },
+    "lifecycle": "done",
+    "last_error": null,
+    "result_bound_digest": "d869cd7b3d1b000084fc4687e5069578408a88b16f6e6e6207df77147eb0acf9",
+    "result_bound_attempt": "5914abbc-6b3c-4c55-b633-5bbef0f85e6c",
+    "result_integrity": "ok"
+  }
+}
+{
+  "step": "readback_exact_match",
+  "ok": true,
+  "event_id": "941504a8-1d21-4b81-bece-bef52fd0d6f0",
+  "lifecycle": "done",
+  "result": {
+    "mode": "MOCK",
+    "result_kind": "MOCK",
+    "instruction": "submit-cli-exact-check",
+    "echo": {
+      "instruction": "submit-cli-exact-check",
+      "goal": "submit-cli-exact-check",
+      "label": "MOCK_LOOP"
+    },
+    "verified": true,
+    "note": "synthetic local execution; OpenAI NOT connected",
+    "output_sha256": "3fb7637cc0fb983e3d702248d9304ebc02818527c821bcb6ed73cf7a8015e993"
+  }
+}
+

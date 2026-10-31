@@ -1,0 +1,361 @@
+{
+  "viewed_at_taipei": "2026-10-31 10:55:11 Asia/Taipei",
+  "runtime": {
+    "pid": 431115,
+    "host": "127.0.0.1",
+    "port": 18765,
+    "executor_mode": "MOCK",
+    "openai": "NOT_CONNECTED",
+    "grant_id": "grant-local-e2e-001",
+    "started_at_taipei": "2026-10-31 10:55:11 Asia/Taipei",
+    "origin_id": "origin-local",
+    "worker_id": "worker-mock"
+  },
+  "totals": {
+    "events": 6,
+    "ack_received": 3,
+    "failed": 1,
+    "MOCK": 3,
+    "REAL": 0,
+    "total_cost_usd": 0.02
+  },
+  "note": "REAL executor NOT_CONNECTED; OpenAI requests NOT_RUN",
+  "events": [
+    {
+      "event_id": "e0191e8c-d4da-4d15-a881-c6f3adc5e529",
+      "task_id": "TASK-LOCAL-E2E",
+      "state": "ack_received",
+      "lifecycle": "done",
+      "result_kind": "MOCK",
+      "attempt_count": 1,
+      "payload": {
+        "instruction": "stamp-check",
+        "v": 1
+      },
+      "result": {
+        "mode": "MOCK",
+        "result_kind": "MOCK",
+        "instruction": "stamp-check",
+        "echo": {
+          "instruction": "stamp-check",
+          "v": 1
+        },
+        "verified": true,
+        "note": "synthetic local execution; OpenAI NOT connected",
+        "output_sha256": "a127763aaf9daf7d7c80b11e7567839ddc7c01854afeb45c0222ea88d2151394"
+      },
+      "last_error": null,
+      "updated_at": "2026-10-31T02:55:09.630Z"
+    },
+    {
+      "event_id": "cfe390e2-60ad-4fdb-95c6-2c115f257a84",
+      "task_id": "TASK-LOCAL-E2E",
+      "state": "ack_received",
+      "lifecycle": "done",
+      "result_kind": "MOCK",
+      "attempt_count": 1,
+      "payload": {
+        "instruction": "dedup-a"
+      },
+      "result": {
+        "mode": "MOCK",
+        "result_kind": "MOCK",
+        "instruction": "dedup-a",
+        "echo": {
+          "instruction": "dedup-a"
+        },
+        "verified": true,
+        "note": "synthetic local execution; OpenAI NOT connected",
+        "output_sha256": "d7d751e8079f6f56b93a523e2b6bb259ad062bd0787d620db09f49c9e899b9c8"
+      },
+      "last_error": null,
+      "updated_at": "2026-10-31T02:55:09.833Z"
+    },
+    {
+      "event_id": "evt-retry-b3504583",
+      "task_id": "TASK-RETRY",
+      "state": "leased",
+      "lifecycle": "running",
+      "result_kind": null,
+      "attempt_count": 2,
+      "payload": {
+        "x": 1
+      },
+      "result": null,
+      "last_error": "injected_fail",
+      "updated_at": "2026-10-31T02:55:09.641Z"
+    },
+    {
+      "event_id": "evt-timeout-7c4477a8",
+      "task_id": "TASK-TIMEOUT",
+      "state": "leased",
+      "lifecycle": "running",
+      "result_kind": null,
+      "attempt_count": 2,
+      "payload": {
+        "t": 1
+      },
+      "result": null,
+      "last_error": null,
+      "updated_at": "2026-10-31T02:55:10.844Z"
+    },
+    {
+      "event_id": "fc45bfc2-8487-4f3f-bc57-2e8f7b6286ed",
+      "task_id": "TASK-LOCAL-E2E",
+      "state": "ack_received",
+      "lifecycle": "done",
+      "result_kind": "MOCK",
+      "attempt_count": 1,
+      "payload": {
+        "instruction": "restart-recovery"
+      },
+      "result": {
+        "mode": "MOCK",
+        "result_kind": "MOCK",
+        "instruction": "restart-recovery",
+        "echo": {
+          "instruction": "restart-recovery"
+        },
+        "verified": true,
+        "note": "synthetic local execution; OpenAI NOT connected",
+        "output_sha256": "4b0c87521700466e689f5db254f4e2e052f7b513de4fe49ebadb5dd5f10e174a"
+      },
+      "last_error": null,
+      "updated_at": "2026-10-31T02:55:11.706Z"
+    },
+    {
+      "event_id": "evt-cost-8717d70f",
+      "task_id": "TASK-COST",
+      "state": "failed",
+      "lifecycle": "failed",
+      "result_kind": null,
+      "attempt_count": 0,
+      "payload": {
+        "c": 1
+      },
+      "result": null,
+      "last_error": "cost_cap_exceeded",
+      "updated_at": "2026-10-31T02:55:11.760Z"
+    }
+  ],
+  "recent_logs": [
+    {
+      "id": 12,
+      "event_id": "evt-retry-b3504583",
+      "actor_endpoint_id": "worker-retry",
+      "action": "acked",
+      "detail": {
+        "attempt_id": "020b3e7a-1540-4e9e-b12d-c90d7fe80d3c"
+      },
+      "created_at": "2026-10-31T02:55:09.641Z"
+    },
+    {
+      "id": 13,
+      "event_id": "evt-retry-b3504583",
+      "actor_endpoint_id": "worker-retry",
+      "action": "leased",
+      "detail": {
+        "attempt_id": "020b3e7a-1540-4e9e-b12d-c90d7fe80d3c",
+        "attempt_count": 2
+      },
+      "created_at": "2026-10-31T02:55:09.641Z"
+    },
+    {
+      "id": 14,
+      "event_id": "evt-timeout-7c4477a8",
+      "actor_endpoint_id": "origin-local",
+      "action": "queued",
+      "detail": {
+        "grant_id": "grant-timeout-test"
+      },
+      "created_at": "2026-10-31T02:55:09.641Z"
+    },
+    {
+      "id": 15,
+      "event_id": "evt-timeout-7c4477a8",
+      "actor_endpoint_id": "worker-timeout",
+      "action": "acked",
+      "detail": {
+        "attempt_id": "df000de1-75cc-44cf-8a7b-44adc1864682"
+      },
+      "created_at": "2026-10-31T02:55:09.642Z"
+    },
+    {
+      "id": 16,
+      "event_id": "evt-timeout-7c4477a8",
+      "actor_endpoint_id": "worker-timeout",
+      "action": "leased",
+      "detail": {
+        "attempt_id": "df000de1-75cc-44cf-8a7b-44adc1864682",
+        "attempt_count": 1
+      },
+      "created_at": "2026-10-31T02:55:09.642Z"
+    },
+    {
+      "id": 17,
+      "event_id": "cfe390e2-60ad-4fdb-95c6-2c115f257a84",
+      "actor_endpoint_id": "worker-mock",
+      "action": "acked",
+      "detail": {
+        "attempt_id": "043f61da-4022-4745-96af-5b1cf532a457"
+      },
+      "created_at": "2026-10-31T02:55:09.831Z"
+    },
+    {
+      "id": 18,
+      "event_id": "cfe390e2-60ad-4fdb-95c6-2c115f257a84",
+      "actor_endpoint_id": "worker-mock",
+      "action": "leased",
+      "detail": {
+        "attempt_id": "043f61da-4022-4745-96af-5b1cf532a457",
+        "attempt_count": 1
+      },
+      "created_at": "2026-10-31T02:55:09.831Z"
+    },
+    {
+      "id": 19,
+      "event_id": "cfe390e2-60ad-4fdb-95c6-2c115f257a84",
+      "actor_endpoint_id": null,
+      "action": "side_effect_applied",
+      "detail": {
+        "key": "mock-exec:cfe390e2-60ad-4fdb-95c6-2c115f257a84",
+        "event_id": "cfe390e2-60ad-4fdb-95c6-2c115f257a84",
+        "attempt_id": "043f61da-4022-4745-96af-5b1cf532a457",
+        "status": "applied",
+        "duplicate": false,
+        "at": "2026-10-31T02:55:09.831Z"
+      },
+      "created_at": "2026-10-31T02:55:09.831Z"
+    },
+    {
+      "id": 20,
+      "event_id": "cfe390e2-60ad-4fdb-95c6-2c115f257a84",
+      "actor_endpoint_id": "worker-mock",
+      "action": "executed",
+      "detail": {
+        "attempt_id": "043f61da-4022-4745-96af-5b1cf532a457",
+        "result_kind": "MOCK"
+      },
+      "created_at": "2026-10-31T02:55:09.833Z"
+    },
+    {
+      "id": 21,
+      "event_id": "cfe390e2-60ad-4fdb-95c6-2c115f257a84",
+      "actor_endpoint_id": "worker-mock",
+      "action": "ack_received",
+      "detail": {
+        "attempt_id": "043f61da-4022-4745-96af-5b1cf532a457"
+      },
+      "created_at": "2026-10-31T02:55:09.833Z"
+    },
+    {
+      "id": 22,
+      "event_id": "evt-timeout-7c4477a8",
+      "actor_endpoint_id": "worker-timeout",
+      "action": "acked",
+      "detail": {
+        "attempt_id": "7a051470-f1d1-47c0-a1eb-44281c29b3f6"
+      },
+      "created_at": "2026-10-31T02:55:10.844Z"
+    },
+    {
+      "id": 23,
+      "event_id": "evt-timeout-7c4477a8",
+      "actor_endpoint_id": "worker-timeout",
+      "action": "leased",
+      "detail": {
+        "attempt_id": "7a051470-f1d1-47c0-a1eb-44281c29b3f6",
+        "attempt_count": 2
+      },
+      "created_at": "2026-10-31T02:55:10.844Z"
+    },
+    {
+      "id": 24,
+      "event_id": "fc45bfc2-8487-4f3f-bc57-2e8f7b6286ed",
+      "actor_endpoint_id": "origin-local",
+      "action": "queued",
+      "detail": {
+        "grant_id": "grant-local-e2e-001"
+      },
+      "created_at": "2026-10-31T02:55:10.846Z"
+    },
+    {
+      "id": 25,
+      "event_id": "fc45bfc2-8487-4f3f-bc57-2e8f7b6286ed",
+      "actor_endpoint_id": "worker-mock",
+      "action": "acked",
+      "detail": {
+        "attempt_id": "0a9dc90e-a306-4564-a3be-325159cdda90"
+      },
+      "created_at": "2026-10-31T02:55:11.703Z"
+    },
+    {
+      "id": 26,
+      "event_id": "fc45bfc2-8487-4f3f-bc57-2e8f7b6286ed",
+      "actor_endpoint_id": "worker-mock",
+      "action": "leased",
+      "detail": {
+        "attempt_id": "0a9dc90e-a306-4564-a3be-325159cdda90",
+        "attempt_count": 1
+      },
+      "created_at": "2026-10-31T02:55:11.703Z"
+    },
+    {
+      "id": 27,
+      "event_id": "fc45bfc2-8487-4f3f-bc57-2e8f7b6286ed",
+      "actor_endpoint_id": null,
+      "action": "side_effect_applied",
+      "detail": {
+        "key": "mock-exec:fc45bfc2-8487-4f3f-bc57-2e8f7b6286ed",
+        "event_id": "fc45bfc2-8487-4f3f-bc57-2e8f7b6286ed",
+        "attempt_id": "0a9dc90e-a306-4564-a3be-325159cdda90",
+        "status": "applied",
+        "duplicate": false,
+        "at": "2026-10-31T02:55:11.703Z"
+      },
+      "created_at": "2026-10-31T02:55:11.703Z"
+    },
+    {
+      "id": 28,
+      "event_id": "fc45bfc2-8487-4f3f-bc57-2e8f7b6286ed",
+      "actor_endpoint_id": "worker-mock",
+      "action": "executed",
+      "detail": {
+        "attempt_id": "0a9dc90e-a306-4564-a3be-325159cdda90",
+        "result_kind": "MOCK"
+      },
+      "created_at": "2026-10-31T02:55:11.706Z"
+    },
+    {
+      "id": 29,
+      "event_id": "fc45bfc2-8487-4f3f-bc57-2e8f7b6286ed",
+      "actor_endpoint_id": "worker-mock",
+      "action": "ack_received",
+      "detail": {
+        "attempt_id": "0a9dc90e-a306-4564-a3be-325159cdda90"
+      },
+      "created_at": "2026-10-31T02:55:11.706Z"
+    },
+    {
+      "id": 30,
+      "event_id": "evt-cost-8717d70f",
+      "actor_endpoint_id": "origin-local",
+      "action": "queued",
+      "detail": {
+        "grant_id": "grant-cost-test"
+      },
+      "created_at": "2026-10-31T02:55:11.759Z"
+    },
+    {
+      "id": 31,
+      "event_id": "evt-cost-8717d70f",
+      "actor_endpoint_id": "worker-cost",
+      "action": "failed",
+      "detail": {
+        "reason": "cost_cap_exceeded",
+        "spent": 0.02
+      },
+      "created_at": "2026-10-31T02:55:11.760Z"
+    }
+  ]
+}

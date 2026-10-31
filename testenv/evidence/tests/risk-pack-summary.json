@@ -1,0 +1,167 @@
+{
+  "started_at_taipei": "2026-10-31 10:55:09 Asia/Taipei",
+  "finished_at_taipei": "2026-10-31 10:55:12 Asia/Taipei",
+  "tip_sha_file": "f959bb9a3c25f4ad3f70fc21209b300283309e1b",
+  "tip_sha_live": "1f1fd9b8df5075fae6ad7908469fe06507ea8520",
+  "results": [
+    {
+      "id": "K1_content_readback_exact_match",
+      "status": "PASS",
+      "detail": {
+        "maps_to": "K1",
+        "tests": [
+          "e2e_submit_ack_readback",
+          "e2e_readback_content_mismatch_negative"
+        ],
+        "tip_sha_file": "f959bb9a3c25f4ad3f70fc21209b300283309e1b",
+        "suite_counts": {
+          "PASS": 14,
+          "FAIL": 0,
+          "BLOCKED": 0,
+          "NOT_RUN": 4
+        }
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    },
+    {
+      "id": "K2_no_skip_execute_to_complete",
+      "status": "PASS",
+      "detail": {
+        "maps_to": "K2",
+        "tests": [
+          "state_machine_illegal_transition_negative"
+        ],
+        "tip_sha_file": "f959bb9a3c25f4ad3f70fc21209b300283309e1b"
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    },
+    {
+      "id": "R1_forged_endpoint_rejected",
+      "status": "PASS",
+      "detail": {
+        "execute_forged": "EVENT_CONFLICT",
+        "ack_forged": "EVENT_CONFLICT",
+        "rejects": 2,
+        "grant_id": "g-r1"
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    },
+    {
+      "id": "R1_real_cross_ai_identity",
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "Issue #41 real cross-AI / independent GPT② ACK still BLOCKED; local API identity ≠ ChatGPT read receipt"
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    },
+    {
+      "id": "R2_replay_and_cross_task_reject",
+      "status": "PASS",
+      "detail": {
+        "old_attempt_ack": "EVENT_CONFLICT",
+        "wrong_version": "EVENT_CONFLICT",
+        "cross_event": "EVENT_CONFLICT",
+        "rejects": 3
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    },
+    {
+      "id": "R3_retry_side_effect_exactly_once",
+      "status": "PASS",
+      "detail": {
+        "first": "applied",
+        "second": "UNKNOWN_NEEDS_RECONCILIATION",
+        "executor_duplicate": "UNKNOWN_NEEDS_RECONCILIATION",
+        "claim_wired_in_executor": true
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    },
+    {
+      "id": "R4_stop_revoke_vs_complete_race",
+      "status": "PASS",
+      "detail": {
+        "stop_blocks_execute": "FORBIDDEN",
+        "revoke_blocks_ack": "FORBIDDEN",
+        "stop_status": "STOP_REQUESTED",
+        "final_state": "executed"
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    },
+    {
+      "id": "R5_crash_inject_write_recovery",
+      "status": "PASS",
+      "detail": {
+        "after_execute_inject": "INJECTED_FAIL",
+        "mid_state": "leased",
+        "before_ack_inject": "INJECTED_FAIL",
+        "result_preserved": true,
+        "final": "ack_received"
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    },
+    {
+      "id": "R6_result_binding_invalid_rejected",
+      "status": "PASS",
+      "detail": {
+        "invalid_flag": "EXECUTED_BUT_RESULT_INVALID",
+        "ack_invalid": "EXECUTED_BUT_RESULT_INVALID",
+        "ack_wrong_sha": "output_sha256_mismatch"
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    },
+    {
+      "id": "R7_synthetic_two_store_isolation",
+      "status": "PASS",
+      "detail": {
+        "cross_get": null,
+        "wrong_project_enqueue": "FORBIDDEN",
+        "expired_grant": "FORBIDDEN",
+        "scope_execute": "FORBIDDEN",
+        "expired_execute": "FORBIDDEN"
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    },
+    {
+      "id": "R7_real_supabase_rls",
+      "status": "NOT_RUN",
+      "detail": {
+        "reason": "real Supabase not connected; project INACTIVE; needs Merlin approval to wake"
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    },
+    {
+      "id": "R8_retry_cost_stop_limits",
+      "status": "PASS",
+      "detail": {
+        "terminal": "failed",
+        "cost_cap": "cost_cap_exceeded",
+        "stop_execute": "FORBIDDEN",
+        "stop_enqueue": "FORBIDDEN",
+        "revoke_execute": "FORBIDDEN",
+        "REAL_costs": 0
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    },
+    {
+      "id": "R9_coverage_manifest",
+      "status": "PASS",
+      "detail": {
+        "path": "/workspace/f05/testenv/evidence/R9-coverage.md",
+        "tip_sha_pinned": "f959bb9a3c25f4ad3f70fc21209b300283309e1b",
+        "tip_sha_live": "1f1fd9b8df5075fae6ad7908469fe06507ea8520",
+        "suite_tip_sha_file": "f959bb9a3c25f4ad3f70fc21209b300283309e1b",
+        "versions_tip": "f959bb9a3c25f4ad3f70fc21209b300283309e1b",
+        "pin_equals_live": false,
+        "verified": true,
+        "commands_exist": 4
+      },
+      "at_taipei": "2026-10-31 10:55:12 Asia/Taipei"
+    }
+  ],
+  "counts": {
+    "PASS": 11,
+    "FAIL": 0,
+    "BLOCKED": 1,
+    "NOT_RUN": 1
+  }
+}
