@@ -25,8 +25,11 @@ test("rejected and pending remain non-authoritative ideas",()=>{
  const s=state();s.candidates=[
   {id:"x",status:"rejected",question:"舊方向",review:{reason:"證據不足"}},
   {id:"y",status:"pending",question:"新方向"},{id:"z",status:"rejected",resolvedBy:"repair"}];
- const p=plan(s);assert.deepEqual(p.proposals.map(x=>x.ref),["x","y"]);
- assert.ok(p.proposals.every(x=>x.status==="idea_draft"));assert.equal(s.memories.length,0);
+ const p=plan(s);
+ assert.deepEqual(p.proposals.filter(x=>x.source!=="memoryControls.direction").map(x=>x.ref),["x","y"]);
+ assert.ok(p.proposals.every(x=>x.status==="idea_draft"));
+ assert.equal(p.proposals[0].fitHint,"DIRECTION_ANCHORED");
+ assert.equal(s.memories.length,0);
 });
 test("corrupt direction or state fails closed",()=>{
  const s=state();s.memoryControls.direction.version=-1;
