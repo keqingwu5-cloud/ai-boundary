@@ -109,6 +109,10 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 <section id="tab-controls" role="tabpanel" hidden>
 <div class="panel"><h2>記憶體自動內驅動｜方向與研究下一步</h2>
 <p class="small">解鎖和更新記憶後自動依目前有效方向、阻塞與拒絕紀錄重新產生探索草稿。本機不傳送資料、不執行遠端 AI、不自動修改或核准記憶。</p>
+<label for="memoryDriveTask">新項目方向回查（選填，僅在本機比對）</label>
+<input id="memoryDriveTask" maxlength="200" placeholder="例如：記憶來源與舊版本修復">
+<div class="actions"><button type="button" id="memoryDriveCheck">核對本項目方向</button></div>
+<div id="memoryDrivePreflight" class="small" aria-live="polite"></div>
 <div id="memoryDriveList" aria-live="polite"></div></div>
 <div class="panel"><h2>記憶體方向｜由你動態調整</h2>
 <p>這是記憶體體系自己的方向設定，不屬於主腦中樞。由你填寫與更新，初始不預設方向。</p>

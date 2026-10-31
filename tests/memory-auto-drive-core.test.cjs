@@ -40,3 +40,67 @@ test("bounded repeatable drafts have no artificial approval or ACK",()=>{
  assert.equal(a.alignment,"not_verified");
  assert.equal(a.mode,"LOCAL_IDEA_DRAFT_ONLY");
 });
+
+test("direction history: first original intent preserved through revisions",()=>{
+ const s=state();
+ s.memoryControls.direction={text:"記憶來源與反證優先",version:2};
+ s.memoryControls.history=[
+  {id:"v1",kind:"direction",version:1,before:"",after:"記憶來源優先"},
+  {id:"v2",kind:"direction",version:2,before:"記憶來源優先",after:"記憶來源與反證優先"}];
+ const p=plan(s);
+ assert.equal(p.direction.origin.status,"history_consistent_local");
+ assert.equal(p.direction.origin.ref,"memoryControls.history:v1");
+ assert.equal(p.direction.origin.originalExcerpt,"記憶來源優先");
+ assert.equal(s.memoryControls.history[0].after,"記憶來源優先");
+});
+test("forged or gapped history cannot claim provenance",()=>{
+ const s=state();
+ s.memoryControls.history=[{id:"fake",kind:"direction",version:2,before:"錯誤",after:"以記憶方向追溯原意與反證"}];
+ const p=plan(s);
+ assert.equal(p.direction.origin.status,"unverified");
+ assert.equal(p.direction.origin.ref,null);
+});
+test("new task preflight gives direction and related approved memory without approval",()=>{
+ const s=state();s.memories=[{id:"m1",question:"記憶來源與反證",purpose:"記憶方向沿革",versions:[
+  {number:1,content:"先記錄原來的理解"},
+  {number:2,content:"現在記錄記憶來源與反證"}]}];
+ const r=plan(s,{taskTitle:"修正記憶方向與來源"});
+ assert.equal(r.preflight.directionVersion,2);
+ assert.equal(r.preflight.fitHint,"LEXICAL_CANDIDATE");
+ assert.deepEqual(r.preflight.relatedApproved.map(x=>x.ref),["memory:m1"]);
+ assert.equal(r.preflight.relatedApproved[0].version,2);
+ assert.equal(r.preflight.relatedApproved[0].relation,"lexical_candidate");
+ assert.equal(r.preflight.verdict,"not_verified_no_auto_execution");
+});
+test("unrelated tasks are marked for review, not treated as aligned",()=>{
+ const s=state();
+ const p=plan(s,{taskTitle:"設計海洋魚類辨識遊戲"});
+ assert.equal(p.preflight.fitHint,"NEEDS_DIRECTION_REVIEW");
+ assert.equal(p.alignment,"not_verified");
+});
+test("unrelated open ideas survive as drafts with direction anchored exploration",()=>{
+ const s=state();
+ s.candidates=[{id:"c-remote",status:"pending",question:"海洋魚類辨識"}];
+ const p=plan(s);
+ assert.equal(p.proposals[0].fitHint,"DIRECTION_ANCHORED");
+ const divergent=p.proposals.find(x=>x.ref==="c-remote");
+ assert.ok(divergent);
+ assert.equal(divergent.fitHint,"NEEDS_DIRECTION_REVIEW");
+ assert.equal(divergent.status,"idea_draft");
+ assert.equal(s.candidates[0].status,"pending");
+});
+test("direction-linked open work ranked ahead of unrelated without status promotion",()=>{
+ const s=state();
+ s.candidates=[{id:"unrelated",status:"pending",question:"星際觀測"},
+  {id:"relevant",status:"pending",question:"記憶方向與反證的研究"}];
+ const p=plan(s,{limit:2});
+ assert.equal(p.proposals[0].ref,"relevant");
+ assert.equal(p.proposals[0].fitHint,"LEXICAL_CANDIDATE");
+ assert.ok(p.proposals.every(x=>x.status==="idea_draft"));
+});
+test("plan is deterministic and does not overwrite user direction or memories",()=>{
+ const s=state();s.memories=[{id:"m",question:"記憶方向",versions:[{number:1,content:"保存原意"}]}];
+ const before=JSON.stringify(s);
+ const a=plan(s,{taskTitle:"記憶方向核對"}),b=plan(s,{taskTitle:"記憶方向核對"});
+ assert.deepEqual(a,b);assert.equal(JSON.stringify(s),before);
+});

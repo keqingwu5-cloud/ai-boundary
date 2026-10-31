@@ -187,23 +187,41 @@ function renderMemoryDrive(){
  if(!state)return;
  const drive=globalThis.MemoryAutoDriveCore;
  if(!drive){appendText(box,"p","small","內驅動未載入，未執行任何操作。");return;}
+ const pre=$("memoryDrivePreflight");if(pre)pre.replaceChildren();
  let result;
- try{result=drive.plan(state);}
+ try{result=drive.plan(state,{taskTitle:$("memoryDriveTask")?.value||""});}
  catch(_){appendText(box,"p","small","方向資料格式有問題，停止產生候選。");return;}
  if(!result.direction.available){
   appendText(box,"p","small","目前未有已確認的本機記憶方向；不會自行設定或猜測。");
   return;
  }
- appendText(box,"p","small","已讀記憶方向版本 "+result.direction.version+"，下列是未驗證的探索草稿：");
+ appendText(box,"p","small","已讀本機記憶方向版本 "+result.direction.version+
+  "；原始方向紀錄："+result.direction.origin.status+"（非遠端身分驗證）。");
+ if(result.preflight&&pre){
+  appendText(pre,"p","",result.preflight.fitHint==="LEXICAL_CANDIDATE"?
+    "此項目與目前方向有文字關聯，但仍未證明真正符合原意。":
+    "此項目與目前方向尚無明確文字關聯；保留新想法，需回查原意與適用邊界。");
+  appendText(pre,"p","","方向來源："+result.preflight.directionRef+
+   "｜方向版本："+result.preflight.directionVersion+
+   "｜原始方向紀錄："+(result.preflight.originalGoalRef||"未能驗證"));
+  for(const m of result.preflight.relatedApproved)
+   appendText(pre,"p","small","可能相關既有記憶："+m.question+"｜"+m.ref+"｜版本 "+m.version+"（文字比對，非因果）");
+ }
  for(const idea of result.proposals){
   const card=node("article","card");
   appendText(card,"b","",idea.title);
   appendText(card,"p","small","IDEA_DRAFT · "+idea.type+" · 來源 "+idea.source+" · "+idea.ref);
+  appendText(card,"p","small","方向版本："+idea.directionVersion+"｜方向對照："+idea.fitHint+
+   "（文字線索、非已驗證對齊）");
   appendText(card,"p","","發現／理由："+idea.reason);
   appendText(card,"p","small","下一步："+idea.next);
+  for(const m of idea.relatedApproved)
+   appendText(card,"p","small","相關已核准本機記憶："+m.question+"｜"+m.ref+
+    "｜版本 "+m.version+"（文字候選關聯）");
   box.append(card);
  }
 }
+$("memoryDriveCheck").addEventListener("click",()=>{if(state)renderMemoryDrive();});
 function renderAll(){if(!state)return;
  renderMemoryControls();renderMemoryDrive();
  const info=$("vaultMetadata");if(info)info.textContent="本機記憶庫："+state.vaultId+"｜版本 "+state.revision+"｜儲存 "+fmtDate(state.updatedAt);
