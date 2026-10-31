@@ -480,7 +480,7 @@ $("memoryPackInput").addEventListener("change",async e=>{
    for(const {item,possibleConflictWith} of next.accepted){
     const c={id:uid(),originId:item.id,eventType:"new_question",parentId:null,
       question:item.question,purpose:item.purpose,content:item.content,
-      evidence:item.evidence,reason:item.reason+(possibleConflictWith.length?"；同題不同版本需人工比較："+possibleConflictWith.join(","):""),
+      evidence:item.evidence,originReason:item.reason,reason:item.reason+(possibleConflictWith.length?"；同題不同版本需人工比較："+possibleConflictWith.join(","):""),
       proposer:"GPT1",evidenceLevel:item.evidenceLevel||"hypothesis",
       createdAt:utc(),status:"pending",repairOf:null,review:null,
       originVerification:"unverified_manual_claim",directionRelation:"unassessed"};
