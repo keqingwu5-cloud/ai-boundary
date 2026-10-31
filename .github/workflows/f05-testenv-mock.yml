@@ -46,3 +46,6 @@ jobs:
         env:
           TESTENV_CI_SKIP_R9: "1"
         run: node risk-tests.cjs
+      - name: Tracked evidence must stay clean
+        working-directory: testenv/loop
+        run: node check-evidence-clean.cjs
