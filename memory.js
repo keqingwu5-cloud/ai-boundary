@@ -182,8 +182,30 @@ function renderDiff(){const box=$("auditList");box.replaceChildren();const date=
  for(const e of events.slice(0,300)){const row=node("div","card");appendText(row,"span","small",fmtDate(e.at)+" · "+e.kind+" · "+e.ref.slice(0,8));appendText(row,"p","",e.summary);box.append(row);}
 }
 $("dateFilter").addEventListener("change",renderDiff);
+function renderMemoryDrive(){
+ const box=$("memoryDriveList");if(!box)return;box.replaceChildren();
+ if(!state)return;
+ const drive=globalThis.MemoryAutoDriveCore;
+ if(!drive){appendText(box,"p","small","內驅動未載入，未執行任何操作。");return;}
+ let result;
+ try{result=drive.plan(state);}
+ catch(_){appendText(box,"p","small","方向資料格式有問題，停止產生候選。");return;}
+ if(!result.direction.available){
+  appendText(box,"p","small","目前未有已確認的本機記憶方向；不會自行設定或猜測。");
+  return;
+ }
+ appendText(box,"p","small","已讀記憶方向版本 "+result.direction.version+"，下列是未驗證的探索草稿：");
+ for(const idea of result.proposals){
+  const card=node("article","card");
+  appendText(card,"b","",idea.title);
+  appendText(card,"p","small","IDEA_DRAFT · "+idea.type+" · 來源 "+idea.source+" · "+idea.ref);
+  appendText(card,"p","","發現／理由："+idea.reason);
+  appendText(card,"p","small","下一步："+idea.next);
+  box.append(card);
+ }
+}
 function renderAll(){if(!state)return;
- renderMemoryControls();
+ renderMemoryControls();renderMemoryDrive();
  const info=$("vaultMetadata");if(info)info.textContent="本機記憶庫："+state.vaultId+"｜版本 "+state.revision+"｜儲存 "+fmtDate(state.updatedAt);
  $("countMemories").textContent=String(state.memories.length);$("countPending").textContent=String(state.candidates.filter(c=>c.status==="pending").length);$("countRejected").textContent=String(state.candidates.filter(c=>c.status==="rejected"&&!c.resolvedBy).length);renderSelectors();renderReviews();renderMemories();renderDiff();}
 
