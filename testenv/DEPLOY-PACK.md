@@ -3,7 +3,7 @@
 - 撰寫時間（Asia/Taipei）：2026-10-31 10:17 CST
 - WEAK 修補時間（Asia/Taipei）：見 `evidence/tests/suite-summary.json` finished_at
 - rp41 獨立審查 WEAK 修補時間（Asia/Taipei）：2026-10-31 10:52 Asia/Taipei
-- 性質：**候選部署說明**；Draft PR 已開（#87／#88）；**未合併／未部署／未喚醒雲端**
+- 性質：**候選部署說明**；#88 已合入 main；本檔隨 runs/ 分離修正更新（本地）；**未部署／未喚醒雲端**
 - Draft PR／CI 更新時間（Asia/Taipei）：2026-10-31 11:20 Asia/Taipei
 - Merlin 核准（Asia/Taipei）：2026-10-31 11:04 — 僅允許 push 兩個 Draft PR 並等 CI；禁止 merge／main 直推／deploy／Supabase／OpenAI／production／留言其他 issue／PR
 - 獨立審查欄：見文末
@@ -24,7 +24,19 @@
 | Node | runtime | v24.22.1 |
 | testenv 本地 tip | 分支 `local/testenv-20261031` | `ac0ecc6069581d7acf838febaa72579f1c0a429e`（typo 修：tip_sha_live=1f1fd9b、R9 PASS=11、pr86-fix 說明） |
 | 測試套件摘要 | `evidence/tests/suite-summary.json` | PASS 14／FAIL 0／NOT_RUN 4 |
-| 風險包摘要（K/R） | `evidence/tests/risk-pack-summary.json` | PASS 11／FAIL 0／BLOCKED 1／NOT_RUN 1 |
+| 風險包摘要（K/R） | `evidence/tests/risk-pack-summary.json`（**固定樣本**） | 見下方「計數範圍」；即時結果在 `runs/` |
+| 即時跑分目錄 | `runs/<timestamp>-<sha>/`（**gitignore**） | 含 `manifest.json`、suite／risk 摘要、R9-coverage |
+
+### 計數範圍（local vs CI；分開記）
+
+| 範圍 | 風險包預期 | 條件 |
+|------|------------|------|
+| **Local** | **11 PASS／1 BLOCKED／1 NOT_RUN** | R9 執行（tip pin 真實性） |
+| **CI** | **10 PASS／1 BLOCKED／2 NOT_RUN** | `TESTENV_CI_SKIP_R9=1`（R9 → NOT_RUN） |
+
+- `manifest.json` 的 `scope` 欄位為 `local` 或 `ci`，並內嵌上述 expected note。
+- 追蹤中的 `evidence/` 為**唯讀固定樣本**；每次跑測寫入 `runs/`，並以 `loop/check-evidence-clean.cjs` 確認 `evidence/` 未被改寫。
+
 | R9 覆蓋表 | `evidence/R9-coverage.md` | 含 4 NOT_RUN 說明 |
 
 ---
@@ -62,7 +74,9 @@ node view.cjs                       # 原端讀回結果
 node view.cjs ack_received          # 只看完成
 node view.cjs MOCK                  # 只看 MOCK
 ./stop.sh                           # 停止
-node run-tests.cjs                  # 重跑隔離套件
+node run-tests.cjs                  # 重跑隔離套件 → 寫入 runs/<ts>-<sha>/
+node risk-tests.cjs                 # 風險包；與 suite 共用 TESTENV_RUN_DIR
+node check-evidence-clean.cjs       # 失敗＝有人改了追蹤中的 evidence/
 ```
 
 PR #86 線（`pr86-fix/` 為 gitignored，需本機自備 worktree，見 README）：
