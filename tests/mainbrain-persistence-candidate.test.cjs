@@ -84,7 +84,7 @@ test('expired attempt quota fails task before any fresh lease',async()=>{
   assert(calls.some(c=>has(c.sql,"SET state='failed'")));
 });
 test('stale attempt ACK is rejected before receipts or status update',async()=>{
-  const e={...event,state:'executed',current_attempt_id:UUID,lease_until:'2026-10-20T06:01:00Z',attempt_count:1};
+  const e={...event,state:'executed',current_attempt_id:UUID,lease_until:'2026-10-20T06:01:00Z',attempt_count:1,external_intent_at:NOW};
   const {store,calls}=harness(q=>{
     if(has(q,'SELECT * FROM mainbrain_api.events'))return {rows:[e]};
     if(has(q,'FROM mainbrain_api.grants'))return {rows:[grant]};
@@ -96,7 +96,7 @@ test('stale attempt ACK is rejected before receipts or status update',async()=>{
   assert(!calls.some(c=>has(c.sql,'INSERT INTO mainbrain_api.receipts')));
 });
 test('valid ACK records receipt, status and event log in one transaction',async()=>{
-  const e={...event,state:'executed',current_attempt_id:UUID,lease_until:'2026-10-20T06:01:00Z',attempt_count:1};
+  const e={...event,state:'executed',current_attempt_id:UUID,lease_until:'2026-10-20T06:01:00Z',attempt_count:1,external_intent_at:NOW};
   const {store,calls}=harness(q=>{
     if(has(q,'SELECT * FROM mainbrain_api.events'))return {rows:[e]};
     if(has(q,'FROM mainbrain_api.grants'))return {rows:[grant]};
@@ -124,7 +124,7 @@ test('ACK rejects an expired or revoked grant',async()=>{
 test('worker idle mode never creates phantom results',async()=>{
   const calls=[];
   const w=createPollingWorker({client:{
-    receive:async()=>[],execute:async()=>calls.push('execute'),
+    receive:async()=>[],intent:async()=>calls.push('intent'),execute:async()=>calls.push('execute'),
     ack:async()=>calls.push('ack'),fail:async()=>calls.push('fail')
   },performTask:async()=>({execution_evidence:'ok',receipt_evidence:'ok'})});
   assert.deepEqual(await w.runOnce(),{state:'idle'});
@@ -134,6 +134,7 @@ test('worker executes current attempt then returns API ACK',async()=>{
   const calls=[];
   const client={
     receive:async()=>[{...event,state:'leased',current_attempt_id:UUID}],
+    intent:async p=>calls.push(['intent',p]),
     execute:async p=>calls.push(['execute',p]),
     ack:async p=>calls.push(['ack',p]),
     fail:async p=>calls.push(['fail',p])
@@ -144,13 +145,14 @@ test('worker executes current attempt then returns API ACK',async()=>{
   }});
   const result=await w.runOnce();
   assert.equal(result.state,'processed');
-  assert.deepEqual(calls.map(x=>x[0]),['execute','ack']);
-  assert.equal(calls[1][1].payload_digest,event.payload_digest);
+  assert.deepEqual(calls.map(x=>x[0]),['intent','execute','ack']);
+  assert.equal(calls[2][1].payload_digest,event.payload_digest);
 });
 test('worker reports handler failure without acknowledging work',async()=>{
   const calls=[];
   const client={
     receive:async()=>[{...event,current_attempt_id:UUID}],
+    intent:async()=>calls.push('intent'),
     execute:async()=>calls.push('execute'),ack:async()=>calls.push('ack'),
     fail:async()=>calls.push('fail')
   };
@@ -163,6 +165,7 @@ test('worker reports handler failure without acknowledging work',async()=>{
 test('worker refuses receipt-free output and fails closed on unrecorded failure',async()=>{
   const client={
     receive:async()=>[{...event,current_attempt_id:UUID}],
+    intent:async()=>{},
     execute:async()=>{throw Error('should not execute');},
     ack:async()=>{throw Error('should not acknowledge');},
     fail:async()=>{throw Error('persistent receipt unavailable');}
@@ -206,6 +209,7 @@ test('HTTP worker client rejects missing credentials and server denial',async()=
 test('uncertain ACK quarantines once; external handler is not retried',async()=>{
  const log=[];
  const client={receive:async()=>[{...event,current_attempt_id:UUID}],
+   intent:async()=>log.push('intent'),
    execute:async()=>log.push('execute'),
    ack:async()=>{log.push('ack');throw Error('ack timeout');},
    status:async()=>({state:'executed',current_attempt_id:UUID}),
@@ -215,11 +219,12 @@ test('uncertain ACK quarantines once; external handler is not retried',async()=>
    log.push('model');return {execution_evidence:'e',receipt_evidence:'r'};
  }});
  assert.equal((await w.runOnce()).state,'reconciliation_required');
- assert.deepEqual(log,['model','execute','ack','fail:reconciliation_required']);
+ assert.deepEqual(log,['intent','model','execute','ack','fail:reconciliation_required']);
 });
 test('ACK transport timeout with committed receipt is confirmed by bound readback',async()=>{
  const log=[];
  const client={receive:async()=>[{...event,current_attempt_id:UUID}],
+   intent:async()=>log.push('intent'),
    execute:async()=>log.push('execute'),ack:async()=>{throw Error('timeout');},
    status:async()=>({...event,current_attempt_id:UUID,state:'ack_received'}),
    fail:async()=>log.push('fail')};
@@ -230,7 +235,7 @@ test('ACK transport timeout with committed receipt is confirmed by bound readbac
 test('unconfirmed failure receipt throws P0, never reports processed',async()=>{
  const logs=[];
  const client={receive:async()=>[{...event,current_attempt_id:UUID}],
-   execute:async()=>{},ack:async()=>{throw Error('timeout');},
+   intent:async()=>{},execute:async()=>{},ack:async()=>{throw Error('timeout');},
    status:async()=>{throw Error('status unavailable');},
    fail:async()=>{throw Error('fail unavailable')}};
  const w=createPollingWorker({client,logger:x=>logs.push(x),
