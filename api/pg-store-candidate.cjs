@@ -23,6 +23,13 @@ const A = 'mainbrain_api.attempts';
 const R = 'mainbrain_api.receipts';
 const L = 'mainbrain_api.event_logs';
 const AL = 'mainbrain_api.alerts';
+// User-facing anomaly messages are read-only. They do not grant execute/retry rights.
+const ALERT_GUIDE=Object.freeze({
+  LEASE_EXPIRED_OUTCOME_UNKNOWN:{reason:'任務租約到期，執行結果未知',impact:'外部工作可能已執行；直接重試可能重複呼叫與計費',next_action:'先查原執行端的 receipt/status，取得不可重複執行的證據後再人工核准恢復'},
+  EXTERNAL_OUTCOME_UNKNOWN:{reason:'外部結果或 ACK 傳輸不確定',impact:'API 回應失敗不代表外部操作失敗，可能重複執行',next_action:'核對同一 event_id、attempt_id 與遠端結果；禁止盲目重試'},
+  GRANT_INVALID:{reason:'授權已撤銷、逾期或不符合任務範圍',impact:'任務執行被安全阻止',next_action:'保留阻塞紀錄，只有合法授權者可重新授權'},
+  ATTEMPT_LIMIT_REACHED:{reason:'任務已達重試上限',impact:'任務可能一直無法完成',next_action:'核對歷次錯誤及已執行的副作用，提出新的可否證修復方案'}
+});
 function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAttemptId=randomUUID, leaseSeconds=120}={}) {
   if (!pool || typeof pool.connect !== 'function' || typeof pool.query !== 'function')
     throw new TypeError('a pg-compatible pool is required');
@@ -214,7 +221,7 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
       const event=(await pool.query('SELECT * FROM '+E+' WHERE event_id=$1',[eventId])).rows[0];
       if(!event)return null;
       const alerts=(await pool.query('SELECT alert_code,severity,status,details,first_seen_at,last_seen_at,occurrences FROM '+AL+" WHERE event_id=$1 AND status='open' ORDER BY severity,first_seen_at",[eventId])).rows;
-      return {...event,alerts};
+      return {...event,alerts:alerts.map(a=>({...a,...(ALERT_GUIDE[a.alert_code]||{reason:'未分類事件，需人工查核',impact:'影響未確認',next_action:'檢查原始事件與錯誤日誌'}),delivery:'inbox_only_not_pushed'}))};
     }
   };
 }
