@@ -184,6 +184,21 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
         return updated;
       });
     },
+    // The last local grant check before dispatch; NOT a downstream revocation fence.
+    // An external provider must independently enforce a revocation epoch for a strict guarantee.
+    async authorizeDispatch(p) {
+      const at=now();
+      return inTransaction(pool,async c=>{
+        const e=await locked(c,p.event_id);
+        await checkGrant(c,e,'execute',at);
+        correctLease(e,p,at,['leased']);
+        if(!e.external_intent_at)throw error('EVENT_CONFLICT','external intent not recorded');
+        await audit(c,e.event_id,p.endpoint_id,'dispatch_authorization_checked',
+          {attempt_id:p.attempt_id,guarantee:'best_effort_not_downstream_fenced'});
+        return {event_id:e.event_id,attempt_id:p.attempt_id,authorized:true,checked_at:at,
+          guarantee:'best_effort_not_downstream_fenced'};
+      });
+    },
     async markExecuted(p) {
       const at=now();
       return inTransaction(pool,async c=>{
@@ -246,6 +261,65 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
         await audit(c,e.event_id,p.endpoint_id,terminal?'failed':'requeued',
           {attempt_id:p.attempt_id,reason:String(p.reason||'worker failure').slice(0,200),backoff_seconds:terminal?0:delay});
         return updated;
+      });
+    },
+    // Narrow append-only evidence route; an existing revoked grant is NOT a permit to
+    // execute new work. Authenticated tasks:report endpoint identity and current attempt
+    // are required, and this route cannot create new attempts or requeue anything.
+    async recordOutcome(p) {
+      const reasons=new Set(['dispatch_authorization_unconfirmed','execution_outcome_unknown','provider_result_observed']);
+      if(!p || typeof p.event_id!=='string'||!p.event_id ||
+        typeof p.attempt_id!=='string'||!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(p.attempt_id) ||
+        typeof p.endpoint_id!=='string'||!p.endpoint_id ||
+        typeof p.payload_digest!=='string'||!/^[0-9a-f]{64}$/i.test(p.payload_digest) ||
+        typeof p.report_id!=='string'||!/^[A-Za-z0-9_-]{8,100}$/.test(p.report_id) ||
+        !reasons.has(p.reason))
+        throw error('BAD_REQUEST','valid bounded outcome report fields and reason required');
+      if(p.evidence_reference!==undefined &&
+         (typeof p.evidence_reference!=='string'||p.evidence_reference.length>512))
+        throw error('BAD_REQUEST','evidence reference exceeds the allowed bound');
+      if(p.reason==='provider_result_observed'&&!p.evidence_reference)
+        throw error('BAD_REQUEST','observed provider result requires evidence reference');
+      const at=now(),evidence=p.evidence_reference||null;
+      return inTransaction(pool,async c=>{
+        const e=await locked(c,p.event_id);
+        if(e.current_attempt_id!==p.attempt_id||e.destination_endpoint_id!==p.endpoint_id||
+           e.payload_digest!==p.payload_digest)
+          throw error('EVENT_CONFLICT','attempt, endpoint or payload identity mismatch');
+        if(!['leased','executed','blocked','ack_received'].includes(e.state))
+          throw error('EVENT_CONFLICT','event state does not accept historical outcome reports');
+        const inserted=(await c.query('INSERT INTO mainbrain_api.outcome_reports'+
+          ' (event_id,attempt_id,report_id,endpoint_id,payload_digest,reason,evidence_reference,received_at)'+
+          ' VALUES ($1,$2::uuid,$3,$4,$5,$6,$7,$8::timestamptz)'+
+          ' ON CONFLICT (event_id,attempt_id,report_id) DO NOTHING RETURNING *',
+          [e.event_id,p.attempt_id,p.report_id,p.endpoint_id,p.payload_digest,p.reason,evidence,at])).rows[0];
+        if(!inserted){
+          const previous=(await c.query('SELECT * FROM mainbrain_api.outcome_reports'+
+            ' WHERE event_id=$1 AND attempt_id=$2::uuid AND report_id=$3 FOR SHARE',
+            [e.event_id,p.attempt_id,p.report_id])).rows[0];
+          if(!previous||previous.endpoint_id!==p.endpoint_id||
+             previous.payload_digest!==p.payload_digest||previous.reason!==p.reason||
+             (previous.evidence_reference||null)!==evidence)
+            throw error('EVENT_CONFLICT','changed outcome report replay');
+          return {state:e.state,recorded:true,already_recorded:true,
+            event_id:e.event_id,attempt_id:p.attempt_id,report_id:p.report_id};
+        }
+        let state=e.state;
+        if(['leased','executed'].includes(e.state)){
+          const updated=(await c.query('UPDATE '+E+
+            " SET state='blocked',lease_until=NULL,updated_at=$2::timestamptz"+
+            " WHERE event_id=$1 AND current_attempt_id=$3::uuid AND state IN ('leased','executed') RETURNING *",
+            [e.event_id,at,p.attempt_id])).rows[0];
+          if(!updated)throw error('EVENT_CONFLICT','stale attempt cannot be quarantined');
+          state=updated.state;
+          await alert(c,e.event_id,'EXTERNAL_OUTCOME_UNKNOWN','P0',at,
+            {attempt_id:p.attempt_id,source:'bounded_outcome_report',reason:p.reason});
+        }
+        await audit(c,e.event_id,p.endpoint_id,'historical_outcome_reported',
+          {attempt_id:p.attempt_id,report_id:p.report_id,reason:p.reason,
+           evidence_reference_present:Boolean(evidence),execution_permitted:false});
+        return {state,recorded:true,already_recorded:false,
+          event_id:e.event_id,attempt_id:p.attempt_id,report_id:p.report_id};
       });
     },
     async get(eventId) {
