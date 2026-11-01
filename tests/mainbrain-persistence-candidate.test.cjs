@@ -361,3 +361,74 @@ test('standalone sweep refuses an empty destination and never leases new work',a
  assert(calls.some(x=>x.sql.includes('WITH stale AS')));
  assert(!calls.some(x=>x.sql.includes('INSERT INTO mainbrain_api.attempts')));
 });
+
+test('pre-provider intent must commit before execution',async()=>{
+ const leased={...event,state:'leased',current_attempt_id:UUID,
+   lease_until:'2026-10-20T06:01:00Z'};
+ const {store,calls}=harness(q=>{
+  if(q.includes('SELECT * FROM mainbrain_api.events'))return {rows:[leased]};
+  if(q.includes('FROM mainbrain_api.grants'))return {rows:[grant]};
+  if(q.includes('SET external_intent_at='))return {rows:[{...leased,external_intent_at:NOW}]};
+  return {rows:[]};
+ });
+ const r=await store.markExternalIntent({event_id:'EV1',attempt_id:UUID,endpoint_id:'target'});
+ assert.equal(r.external_intent_at,NOW);
+ assert(calls.some(x=>x.sql.includes('external_intent_at IS NULL RETURNING *')));
+ assert(calls.some(x=>x.params?.includes('external_intent_recorded')));
+ assert(calls.some(x=>x.sql==='COMMIT'));
+ assert(!calls.some(x=>x.sql.includes('INSERT INTO mainbrain_api.receipts')));
+});
+test('a missing provider intent blocks execute and ACK with no receipts',async()=>{
+ const leased={...event,state:'leased',current_attempt_id:UUID,
+   lease_until:'2026-10-20T06:01:00Z'};
+ const {store,calls}=harness(q=>{
+  if(q.includes('SELECT * FROM mainbrain_api.events'))return {rows:[leased]};
+  if(q.includes('FROM mainbrain_api.grants'))return {rows:[grant]};
+  return {rows:[]};
+ });
+ await assert.rejects(store.markExecuted({event_id:'EV1',attempt_id:UUID,endpoint_id:'target',execution_evidence:'e'}),
+   /external intent not recorded/);
+ await assert.rejects(store.ack({event_id:'EV1',attempt_id:UUID,endpoint_id:'target',channel:'api',
+   payload_digest:event.payload_digest,payload_version:'1',receipt_evidence:'r'}),/external intent not recorded/);
+ assert(!calls.some(x=>x.sql.includes('INSERT INTO mainbrain_api.receipts')));
+});
+test('external intent makes even a generic failure fail-closed',async()=>{
+ const leased={...event,state:'leased',current_attempt_id:UUID,
+   lease_until:'2026-10-20T06:01:00Z',external_intent_at:NOW};
+ const {store,calls}=harness(q=>{
+  if(q.includes('SELECT * FROM mainbrain_api.events'))return {rows:[leased]};
+  if(q.includes('FROM mainbrain_api.grants'))return {rows:[grant]};
+  if(q.includes("SET state='blocked'"))return {rows:[{...leased,state:'blocked'}]};
+  return {rows:[]};
+ });
+ const result=await store.fail({event_id:'EV1',attempt_id:UUID,endpoint_id:'target',reason:'worker_step_failed'});
+ assert.equal(result.state,'blocked');
+ assert(calls.some(x=>x.sql.includes('INSERT INTO mainbrain_api.alerts')));
+ assert(!calls.some(x=>x.sql.includes('SET state=$2,next_attempt_at')));
+});
+test('intent response timeout prevents provider invocation and mandates reconciliation',async()=>{
+ const seen=[];
+ const client={receive:async()=>[{...event,state:'leased',current_attempt_id:UUID}],
+  intent:async()=>{seen.push('intent');throw Error('intent response timeout');},
+  execute:async()=>{throw Error('must not execute');},
+  ack:async()=>{throw Error('must not ack');},
+  fail:async p=>seen.push('fail:'+p.reason),
+  status:async()=>({state:'leased',current_attempt_id:UUID})};
+ const worker=createPollingWorker({client,performTask:async()=>{seen.push('provider');throw Error('must not call provider');}});
+ assert.equal((await worker.runOnce()).state,'reconciliation_required');
+ assert.deepEqual(seen,['intent','fail:reconciliation_required']);
+});
+test('HTTP client sends intent using scoped bearer token',async()=>{
+ const {createHttpTaskClient}=require('../api/http-task-client-candidate.cjs');
+ const recorded=[];
+ const client=createHttpTaskClient({baseUrl:'https://api.example.com/',tokenProvider:async s=>'token-'+s,
+  httpFetch:async(url,options)=>{recorded.push({url,options});return {ok:true,json:async()=>({data:{external_intent_at:NOW}})};}});
+ const r=await client.intent({event_id:'EV1',attempt_id:UUID});
+ assert.equal(r.external_intent_at,NOW);
+ assert.equal(recorded[0].url,'https://api.example.com/v1/tasks/intent');
+ assert.equal(recorded[0].options.headers.authorization,'Bearer token-intent');
+});
+test('isolated migration includes a separate provider intent timestamp',()=>{
+ const migration=fs.readFileSync(path.join(__dirname,'../api/persistence-candidate.sql'),'utf8');
+ assert.match(migration,/ADD COLUMN IF NOT EXISTS external_intent_at timestamptz/);
+});
