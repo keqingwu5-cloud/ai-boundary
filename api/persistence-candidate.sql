@@ -18,6 +18,10 @@ CREATE INDEX IF NOT EXISTS grants_lookup_idx
 
 ALTER TABLE mainbrain_api.events
   ADD COLUMN IF NOT EXISTS grant_id text REFERENCES mainbrain_api.grants(grant_id);
+-- Write-ahead marker: must be committed before any provider invocation.
+-- A recorded intent does NOT prove the external provider executed the work.
+ALTER TABLE mainbrain_api.events
+  ADD COLUMN IF NOT EXISTS external_intent_at timestamptz;
 -- Existing events are untrusted until explicitly reauthorised. Candidate store
 -- refuses any event without a grant_id. No silent backfill is performed.
 CREATE TABLE IF NOT EXISTS mainbrain_api.attempts (
