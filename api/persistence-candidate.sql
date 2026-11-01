@@ -34,6 +34,26 @@ CREATE TABLE IF NOT EXISTS mainbrain_api.attempts (
   UNIQUE(event_id, attempt_no)
 );
 CREATE INDEX IF NOT EXISTS attempts_latest_idx ON mainbrain_api.attempts(event_id, attempt_no DESC);
+
+-- Bounded post-revocation evidence. Reporting is NOT an execution capability.
+-- Use a dedicated, scoped service identity; never expose this table to clients.
+CREATE TABLE IF NOT EXISTS mainbrain_api.outcome_reports (
+  event_id text NOT NULL,
+  attempt_id uuid NOT NULL,
+  report_id text NOT NULL CHECK (length(report_id) BETWEEN 8 AND 100),
+  endpoint_id text NOT NULL,
+  payload_digest text NOT NULL,
+  reason text NOT NULL CHECK (reason IN (
+    'dispatch_authorization_unconfirmed',
+    'execution_outcome_unknown',
+    'provider_result_observed'
+  )),
+  evidence_reference text CHECK (evidence_reference IS NULL OR length(evidence_reference) <= 512),
+  received_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (event_id, attempt_id, report_id),
+  FOREIGN KEY (event_id, attempt_id) REFERENCES mainbrain_api.attempts(event_id, attempt_id)
+);
+REVOKE ALL ON mainbrain_api.outcome_reports FROM PUBLIC, anon, authenticated;
 -- No public/client role may write the queue or the grants table.
 REVOKE ALL ON SCHEMA mainbrain_api FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON ALL TABLES IN SCHEMA mainbrain_api FROM PUBLIC, anon, authenticated;
