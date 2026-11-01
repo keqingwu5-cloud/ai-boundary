@@ -30,21 +30,44 @@
     const accepted = [], duplicated = [], conflicts = [];
     const seen = new Set();
     const existing = [
-      ...(state.candidates || []).map(c => ({id:c.id, question:c.question, content:c.content, originId:c.originId})),
+      ...(state.candidates || []).map(c => ({id:c.id, question:c.question, content:c.content, originId:c.originId,
+        purpose:c.purpose, evidence:c.evidence, evidenceLevel:c.evidenceLevel, originReason:c.originReason})),
       ...(state.memories || []).map(m => ({id:m.id, question:m.question, content:m.versions?.at(-1)?.content}))
     ];
     for (const item of rows) {
       const key = simplify(item.question);
       const same = existing.filter(c => simplify(c.question) === key);
       const oldByOrigin = existing.find(c => c.originId === item.id);
+      // Distinct origin IDs may corroborate an identical answer with new evidence.
+      // Semantic overlap is a review hint, never a reason to discard provenance.
       const exact = same.find(c => simplify(c.content) === simplify(item.content));
-      if (oldByOrigin || exact || seen.has(key + "\u241f" + simplify(item.content))) {
+      // Reused provenance ID with changed content is not an exact duplicate.
+      // The same provenance ID must not hide a changed known evidence record.
+      // Legacy rows without these optional fields retain their old duplicate contract.
+      const sourceFields={purpose:item.purpose,evidence:item.evidence,
+        evidenceLevel:item.evidenceLevel||"hypothesis",originReason:item.reason};
+      const knownFieldChanged=oldByOrigin&&Object.keys(sourceFields).some(k=>
+        typeof oldByOrigin[k]==="string" && oldByOrigin[k]!==sourceFields[k]);
+      if(oldByOrigin && (oldByOrigin.question!==item.question ||
+        oldByOrigin.content!==item.content || knownFieldChanged))
+        throw Error("相同來源 ID 對應不同內容：來源版本衝突，停止匯入並要求人工核對");
+      if (oldByOrigin) {
         duplicated.push(item.id);
       } else {
-        seen.add(key + "\u241f" + simplify(item.content));
+        // Keep the independent source as a pending candidate even when its
+        // answer matches an existing memory or another item in the same pack.
+        seen.add(item.id);
         const possible = same.map(c => c.id).filter(Boolean);
-        accepted.push({item, possibleConflictWith:possible});
-        if (possible.length) conflicts.push(item.id);
+        // Intra-pack conflicts must be visible to BOTH candidates. Previously
+        // only the persisted vault was scanned, silently missing batch peers.
+        const batchPeers = accepted.filter(row => simplify(row.item.question) === key);
+        const batchRefs = batchPeers.map(row => row.item.id);
+        for (const row of batchPeers) {
+          row.possibleBatchConflictWith.push(item.id);
+          if (!conflicts.includes(row.item.id)) conflicts.push(row.item.id);
+        }
+        accepted.push({item, possibleConflictWith:possible, possibleBatchConflictWith:batchRefs});
+        if ((possible.length || batchRefs.length) && !conflicts.includes(item.id)) conflicts.push(item.id);
       }
     }
     return {accepted, duplicated, conflicts};
@@ -76,13 +99,20 @@
       const score = matchScore(q, [m.question,m.purpose,v.content,v.evidence].join(" "));
       if (score) rows.push({id:m.id,type:"approved",title:m.question,content:v.content,evidence:v.evidence || "",score});
     }
+    const rejectionContext = /拒絕|被拒|失敗|阻塞|卡住|錯誤|踩坑/.test(q);
+    const pendingContext = /未完成|待辦|進度|任務|阻塞/.test(q);
+    // Status hints may boost a TOPIC hit, never manufacture unrelated matches.
+    // Pure status queries retain their original "show status" utility.
+    const topicQuery = q.replace(/被拒|拒絕|失敗|阻塞|卡住|錯誤|踩坑|未完成|待辦|進度|任務/g," ").trim();
     for (const c of state.candidates || []) {
       if (!["pending","rejected"].includes(c.status)) continue;
-      let score = matchScore(q,[c.question,c.purpose,c.content,c.reason,c.review?.reason || ""].join(" "));
-      const rejectionContext = /拒絕|被拒|失敗|阻塞|卡住|錯誤|踩坑/.test(q);
-      const pendingContext = /未完成|待辦|進度|任務|阻塞/.test(q);
-      if (c.status === "rejected" && rejectionContext) score += 5;
-      if (c.status === "pending" && pendingContext) score += 2;
+      let score = topicQuery
+        ? matchScore(topicQuery,[c.question,c.purpose,c.content,c.reason,c.review?.reason || ""].join(" "))
+        : 0;
+      if (score && c.status === "rejected" && rejectionContext) score += 5;
+      if (score && c.status === "pending" && pendingContext) score += 2;
+      if (!topicQuery && c.status === "rejected" && rejectionContext) score = 5;
+      if (!topicQuery && c.status === "pending" && pendingContext) score = 2;
       if (score) rows.push({id:c.id,type:c.status,title:c.question,content:c.content,evidence:c.review?.reason || c.evidence || "",score});
     }
     for (const p of processLatest(state.audit || [])) {
@@ -93,11 +123,29 @@
     return rows.sort((a,b) => b.score-a.score).slice(0,Math.max(1,Math.min(10,maxResults)));
   }
   function processLatest(audit) {
-    const seen = new Set(), rows = [];
+    // The UI unshifts new events, but restored arrays may be in reverse order.
+    // Use the newer dated record when both dates are valid; preserve input order
+    // for legacy undated/tied events, without mutating the source audit.
+    const latestByRef = new Map(), rows = [], ambiguousRefs=new Set();
     for (const x of audit) {
-      if (x.kind !== "workflow.recorded" || !x.ref || seen.has(x.ref)) continue;
-      seen.add(x.ref);
-      rows.push({ref:x.ref,taskTitle:x.taskTitle || x.summary || "",actor:x.actor || "",status:x.status || "unknown",reason:x.reason || "",nextAction:x.nextAction || "",at:x.at || ""});
+      if (!x || x.kind !== "workflow.recorded" || !x.ref) continue;
+      const prior = latestByRef.get(x.ref);
+      if (!prior) { latestByRef.set(x.ref, x); continue; }
+      const priorTime = Date.parse(prior.at), nextTime = Date.parse(x.at);
+      if (Number.isFinite(priorTime) && Number.isFinite(nextTime) && nextTime !== priorTime) {
+        if (nextTime > priorTime) latestByRef.set(x.ref, x);
+      } else if (prior.status !== x.status || prior.reason !== x.reason || prior.nextAction !== x.nextAction) {
+        // A missing/tied timestamp cannot establish which conflicting fact is latest.
+        ambiguousRefs.add(x.ref);
+      }
+    }
+    for (const x of latestByRef.values()) {
+      const ambiguous=ambiguousRefs.has(x.ref);
+      rows.push({ref:x.ref,taskTitle:x.taskTitle || x.summary || "",actor:x.actor || "",
+        status:ambiguous?"unknown":(x.status || "unknown"),
+        reason:ambiguous?"事件時間缺失或相同，無法確定最新狀態":(x.reason || ""),
+        nextAction:ambiguous?"核對原始事件時間及順序後再恢復狀態判定":(x.nextAction || ""),
+        at:ambiguous?"":(x.at || ""),ambiguous});
     }
     return rows;
   }

@@ -6,7 +6,8 @@ const item={id:"G1-001",question:"主腦分工",purpose:"責任",content:"GPT①
 const pack={schema:c.PACK_SCHEMA,items:[item]};
 const empty={candidates:[],memories:[],audit:[]};
 test("new pack imports as candidate proposal",()=>assert.equal(c.planImport(pack,empty).accepted.length,1));
-test("duplicate origin ID is skipped",()=>assert.equal(c.planImport(pack,{...empty,candidates:[{originId:"G1-001",question:"主腦分工",content:"old"}]}).duplicated.length,1));
+test("exact duplicate origin ID is skipped",()=>assert.equal(c.planImport(pack,{...empty,candidates:[{originId:"G1-001",question:"主腦分工",content:item.content}]}).duplicated.length,1));
+test("reused origin ID and different content requires review",()=>assert.throws(()=>c.planImport(pack,{...empty,candidates:[{originId:"G1-001",question:"主腦分工",content:"old"}]}),/來源版本衝突/));
 test("same question different answer remains conflict",()=>assert.equal(c.planImport(pack,{...empty,memories:[{id:"m1",question:"主腦分工",versions:[{content:"different"}]}]}).conflicts.length,1));
 test("duplicate item IDs rejected",()=>assert.throws(()=>c.validatePack({...pack,items:[item,item]})));
 test("reject overwriting operations in imported packs",()=>assert.throws(()=>c.validatePack({...pack,items:[{...item,eventType:"revise_answer"}]})));
@@ -14,6 +15,86 @@ test("approved memory is recalled",()=>assert.equal(c.recall("主腦分工",{...
 test("rejected candidate is recalled with status",()=>assert.equal(c.recall("主腦分工 拒絕",{...empty,candidates:[{id:"c1",question:"主腦分工",purpose:"責任",content:"有缺口",status:"rejected",review:{reason:"證據不足"}}]}).at(0).type,"rejected"));
 test("workflow latest status keeps original audit untouched",()=>{
  const events=[{kind:"workflow.recorded",ref:"t1",status:"done"},{kind:"workflow.recorded",ref:"t1",status:"blocked"}];
- assert.equal(c.processLatest(events)[0].status,"done");assert.equal(events.length,2);
+ assert.equal(c.processLatest(events)[0].status,"unknown");assert.equal(events.length,2);
 });
 test("irrelevant recall returns no results",()=>assert.equal(c.recall("完全無關",{...empty,memories:[{id:"m1",question:"主腦分工",purpose:"責任",versions:[{content:"GPT①發號"}]}]}).length,0));
+
+test("same ID with punctuation-only changed payload still blocks silent duplicate skip",()=>{
+ const first={originId:"G1-001",question:"主腦分工",content:item.content};
+ const newer={...item,content:item.content+"。"};
+ assert.throws(()=>c.planImport({...pack,items:[newer]},{...empty,candidates:[first]}),/來源版本衝突/);
+});
+
+test("two competing directions in the same pack remain distinct and both flagged",()=>{
+ const a={...item,id:"D-1",question:"記憶方向",content:"先做實驗"};
+ const b={...item,id:"D-2",question:"記憶方向",content:"先做反證"};
+ const r=c.planImport({...pack,items:[a,b]},empty);
+ assert.equal(r.accepted.length,2);
+ assert.deepEqual(r.conflicts,["D-1","D-2"]);
+ assert.deepEqual(r.accepted[0].possibleBatchConflictWith,["D-2"]);
+ assert.deepEqual(r.accepted[1].possibleBatchConflictWith,["D-1"]);
+});
+test("rejection status does not recall an unrelated topic",()=>{
+ const s={...empty,candidates:[
+  {id:"x",status:"rejected",question:"台灣 CPI",review:{reason:"拒絕，來源不足"},content:"舊"},
+  {id:"y",status:"rejected",question:"記憶方向",review:{reason:"拒絕，沒有反證"},content:"舊"}]};
+ const result=c.recall("記憶方向 拒絕",s);
+ assert.deepEqual(result.map(x=>x.id),["y"]);
+ assert.deepEqual(c.recall("拒絕",s).map(x=>x.id),["x","y"]);
+});
+
+test("processLatest prefers later dated event despite reversed import order",()=>{
+ const events=[
+  {kind:"workflow.recorded",ref:"w-order",status:"blocked",at:"2026-10-30T00:00:00.000Z"},
+  {kind:"workflow.recorded",ref:"w-order",status:"done",at:"2026-10-31T00:00:00.000Z"}
+ ];
+ assert.equal(c.processLatest(events)[0].status,"done");
+ assert.equal(events[0].status,"blocked");
+ assert.equal(events.length,2);
+});
+
+test("source-fidelity: identical source ID and answer but altered evidence must not be deduplicated",()=>{
+ const incoming={...item,id:"SRC-1",question:"記憶來源",purpose:"追溯原意",content:"同一答案",evidence:"證據 B",reason:"原始理由"};
+ const s={...empty,candidates:[{id:"c1",originId:"SRC-1",question:"記憶來源",purpose:"追溯原意",
+  content:"同一答案",evidence:"證據 A",evidenceLevel:"hypothesis",originReason:"原始理由",status:"pending"}]};
+ const before=JSON.stringify(s);
+ assert.throws(()=>c.planImport({...pack,items:[incoming]},s),/來源版本衝突/);
+ assert.equal(JSON.stringify(s),before);
+});
+test("source-fidelity: changed original reason cannot masquerade as identical source",()=>{
+ const incoming={...item,id:"SRC-2",question:"記憶來源",purpose:"追溯原意",content:"同一答案",
+   evidence:"固定證據",reason:"第二版原因"};
+ const s={...empty,candidates:[{id:"c2",originId:"SRC-2",question:"記憶來源",purpose:"追溯原意",
+   content:"同一答案",evidence:"固定證據",evidenceLevel:"hypothesis",originReason:"第一版原因",status:"pending"}]};
+ assert.throws(()=>c.planImport({...pack,items:[incoming]},s),/來源版本衝突/);
+});
+
+test("different origin IDs with identical answer retain independent evidence candidates",()=>{
+ const p={...pack,items:[{...item,id:"SRC-B",question:"驗證主張",content:"結果相同",evidence:"獨立 B"}]};
+ const state={...empty,candidates:[{id:"cA",originId:"SRC-A",question:"驗證主張",content:"結果相同",evidence:"獨立 A",status:"pending"}]};
+ const result=c.planImport(p,state);
+ assert.equal(result.accepted.length,1);
+ assert.deepEqual(result.duplicated,[]);
+ assert.deepEqual(result.conflicts,["SRC-B"]);
+ assert.equal(result.accepted[0].item.evidence,"獨立 B");
+});
+test("identical answer in one pack with different source IDs is not lost",()=>{
+ const p={...pack,items:[
+   {...item,id:"SRC-A",question:"共同假設",content:"相同結論",evidence:"E1"},
+   {...item,id:"SRC-B",question:"共同假設",content:"相同結論",evidence:"E2"}]};
+ const r=c.planImport(p,empty);
+ assert.deepEqual(r.accepted.map(x=>x.item.id),["SRC-A","SRC-B"]);
+ assert.deepEqual(r.conflicts,["SRC-A","SRC-B"]);
+});
+test("tied or missing audit timestamps cannot silently choose opposite states",()=>{
+ for(const at of [undefined,"2026-11-01T00:00:00.000Z"]){
+   const records=[
+     {kind:"workflow.recorded",ref:"x",status:"blocked",at},
+     {kind:"workflow.recorded",ref:"x",status:"done",at}
+   ];
+   const r=c.processLatest(records)[0];
+   assert.equal(r.status,"unknown");
+   assert.equal(r.ambiguous,true);
+   assert.equal(records[0].status,"blocked");
+ }
+});

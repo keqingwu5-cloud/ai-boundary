@@ -1,0 +1,26 @@
+name: Memory auto-drive isolated
+on:
+  pull_request:
+    paths:
+      - 'memory-auto-drive-core.js'
+      - 'memory-controls-core.js'
+      - 'memory-workflow-core.js'
+      - 'memory.js'
+      - 'memory.html'
+      - 'tests/memory-auto-drive-core.test.cjs'
+      - 'tests/memory-controls-core.test.cjs'
+      - 'tests/memory-workflow-core.test.cjs'
+      - '.github/workflows/memory-auto-drive-isolated.yml'
+jobs:
+  node-memory:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Local memory controls, recall and auto-drive tests
+        run: node --test tests/memory-controls-core.test.cjs tests/memory-workflow-core.test.cjs tests/memory-auto-drive-core.test.cjs
