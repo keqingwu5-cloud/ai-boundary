@@ -298,6 +298,22 @@ test('authenticated status contains clear anomaly guidance without claiming noti
  assert.equal(status.alerts[0].external_execution_state,'unknown');
  assert.equal(status.alerts[0].external_stop_confirmed,false);
 });
+test('lease timeout alert keeps execution outcome unknown',async()=>{
+ const {store}=harness(q=>{
+  if(q.startsWith('SELECT * FROM mainbrain_api.events'))return {rows:[{...event,state:'blocked'}]};
+  if(q.includes('FROM mainbrain_api.alerts'))return {rows:[{
+   alert_code:'LEASE_EXPIRED_OUTCOME_UNKNOWN',severity:'P0',status:'open',
+   occurrences:1,details:{attempt_id:UUID},first_seen_at:NOW,last_seen_at:NOW
+  }]};
+  return {rows:[]};
+ });
+ const result=await store.get('EV1');
+ assert.equal(result.state,'blocked');
+ assert.equal(result.alerts[0].dispatch_effect,'requeue_blocked_only');
+ assert.equal(result.alerts[0].external_execution_state,'unknown');
+ assert.equal(result.alerts[0].external_stop_confirmed,false);
+ assert.equal(result.alerts[0].delivery,'inbox_only_not_pushed');
+});
 test('alert schema deduplicates by event ID and reason',()=>{
  const sql=fs.readFileSync(path.join(__dirname,'../api/persistence-candidate.sql'),'utf8');
  assert.match(sql,/CREATE TABLE IF NOT EXISTS mainbrain_api\.alerts/);
