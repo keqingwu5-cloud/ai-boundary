@@ -50,6 +50,7 @@ test('valid grant allows transactional enqueue with append-only event log',async
 test('lease claims queued work atomically with FOR UPDATE SKIP LOCKED and durable attempt',async()=>{
   const leased={...event,state:'leased',attempt_count:1,current_attempt_id:UUID,lease_until:'2026-10-20T06:01:00Z'};
   const {store,calls}=harness(q=>{
+    if(has(q,'WITH stale AS'))return {rows:[]};
     if(has(q,'SKIP LOCKED'))return {rows:[event]};
     if(has(q,'FROM mainbrain_api.grants'))return {rows:[grant]};
     if(has(q,'UPDATE mainbrain_api.events')&&has(q,'RETURNING *'))return {rows:[leased]};
@@ -63,6 +64,7 @@ test('lease claims queued work atomically with FOR UPDATE SKIP LOCKED and durabl
 });
 test('revoked grant blocks leasing rather than running task',async()=>{
   const {store,calls}=harness(q=>{
+    if(has(q,'WITH stale AS'))return {rows:[]};
     if(has(q,'SKIP LOCKED'))return {rows:[event]};
     if(has(q,'FROM mainbrain_api.grants'))return {rows:[{...grant,revoked_at:NOW}]};
     return {rows:[]};
@@ -73,6 +75,7 @@ test('revoked grant blocks leasing rather than running task',async()=>{
 });
 test('expired attempt quota fails task before any fresh lease',async()=>{
   const {store,calls}=harness(q=>{
+    if(has(q,'WITH stale AS'))return {rows:[]};
     if(has(q,'SKIP LOCKED'))return {rows:[{...event,attempt_count:3}]};
     if(has(q,'FROM mainbrain_api.grants'))return {rows:[grant]};
     return {rows:[]};
@@ -151,7 +154,9 @@ test('worker reports handler failure without acknowledging work',async()=>{
     execute:async()=>calls.push('execute'),ack:async()=>calls.push('ack'),
     fail:async()=>calls.push('fail')
   };
-  const w=createPollingWorker({client,performTask:async()=>{throw Error('failed');}});
+  const w=createPollingWorker({client,
+    prepareTask:async()=>{throw Error('local input failed');},
+    performTask:async()=>{throw Error('must not call external handler');}});
   assert.equal((await w.runOnce()).state,'failed_attempt');
   assert.deepEqual(calls,['fail']);
 });
@@ -195,4 +200,79 @@ test('HTTP worker client rejects missing credentials and server denial',async()=
   const forbidden=createHttpTaskClient({baseUrl:'https://api.example.com/',
     tokenProvider:async()=> 'fake',httpFetch:async()=>({ok:false,json:async()=>({error:'FORBIDDEN'})})});
   await assert.rejects(forbidden.receive(),e=>e.code==='FORBIDDEN');
+});
+
+// This batch is safety-focused and does not use a real model or service.
+test('uncertain ACK quarantines once; external handler is not retried',async()=>{
+ const log=[];
+ const client={receive:async()=>[{...event,current_attempt_id:UUID}],
+   execute:async()=>log.push('execute'),
+   ack:async()=>{log.push('ack');throw Error('ack timeout');},
+   status:async()=>({state:'executed',current_attempt_id:UUID}),
+   fail:async p=>log.push('fail:'+p.reason)};
+ const w=createPollingWorker({client,performTask:async task=>{
+   assert.match(task.execution_idempotency_key,/^[0-9a-f]{64}$/);
+   log.push('model');return {execution_evidence:'e',receipt_evidence:'r'};
+ }});
+ assert.equal((await w.runOnce()).state,'reconciliation_required');
+ assert.deepEqual(log,['model','execute','ack','fail:reconciliation_required']);
+});
+test('ACK transport timeout with committed receipt is confirmed by bound readback',async()=>{
+ const log=[];
+ const client={receive:async()=>[{...event,current_attempt_id:UUID}],
+   execute:async()=>log.push('execute'),ack:async()=>{throw Error('timeout');},
+   status:async()=>({...event,current_attempt_id:UUID,state:'ack_received'}),
+   fail:async()=>log.push('fail')};
+ const w=createPollingWorker({client,performTask:async()=>({execution_evidence:'e',receipt_evidence:'r'})});
+ assert.equal((await w.runOnce()).state,'processed_readback');
+ assert(!log.includes('fail'));
+});
+test('unconfirmed failure receipt throws P0, never reports processed',async()=>{
+ const logs=[];
+ const client={receive:async()=>[{...event,current_attempt_id:UUID}],
+   execute:async()=>{},ack:async()=>{throw Error('timeout');},
+   status:async()=>{throw Error('status unavailable');},
+   fail:async()=>{throw Error('fail unavailable')}};
+ const w=createPollingWorker({client,logger:x=>logs.push(x),
+   performTask:async()=>({execution_evidence:'e',receipt_evidence:'r'})});
+ await assert.rejects(w.runOnce(),/fail unavailable/);
+ assert(logs.some(x=>x.action==='p0_failure_receipt_unconfirmed'));
+});
+test('store lease quarantines expired attempts and emits one durable alert record',async()=>{
+ const expired={...event,state:'leased',current_attempt_id:UUID,lease_until:'2026-10-20T05:59:00Z'};
+ const {store,calls}=harness(q=>{
+   if(has(q,'WITH stale AS'))return {rows:[expired]};
+   if(has(q,"state='queued'"))return {rows:[]};
+   return {rows:[]};
+ });
+ assert.deepEqual(await store.lease({destination_endpoint_id:'target'}),[]);
+ assert(calls.some(x=>has(x.sql,'INSERT INTO mainbrain_api.alerts')));
+ assert(calls.some(x=>has(x.sql,'lease_expired_reconciliation_required'))===false ||
+   calls.some(x=>x.params?.includes('lease_expired_reconciliation_required')));
+ assert(!calls.some(x=>has(x.sql,'INSERT INTO mainbrain_api.attempts')));
+});
+test('uncertain fail is blocked and writes alert without a requeue',async()=>{
+ const leased={...event,state:'executed',current_attempt_id:UUID,
+   lease_until:'2026-10-20T06:01:00Z',attempt_count:1};
+ const {store,calls}=harness(q=>{
+   if(has(q,'SELECT * FROM mainbrain_api.events'))return {rows:[leased]};
+   if(has(q,'FROM mainbrain_api.grants'))return {rows:[grant]};
+   if(has(q,"SET state='blocked'"))return {rows:[{...leased,state:'blocked'}]};
+   return {rows:[]};
+ });
+ const result=await store.fail({event_id:'EV1',attempt_id:UUID,endpoint_id:'target',reason:'reconciliation_required'});
+ assert.equal(result.state,'blocked');
+ assert(calls.some(x=>has(x.sql,'INSERT INTO mainbrain_api.alerts')));
+ assert(!calls.some(x=>has(x.sql,"SET state=$2,next_attempt_at")));
+});
+test('status readback is authenticated GET with strict event ID',async()=>{
+ const {createHttpTaskClient}=require('../api/http-task-client-candidate.cjs');
+ const calls=[];
+ const client=createHttpTaskClient({baseUrl:'https://api.example.com/',
+   tokenProvider:async()=> 'read-only-status',
+   httpFetch:async(url,opt)=>{calls.push([url,opt]);return {ok:true,json:async()=>({data:{state:'blocked'}})}}});
+ assert.deepEqual(await client.status({event_id:'EV1'}),{state:'blocked'});
+ assert.equal(calls[0][1].method,'GET');
+ assert.match(calls[0][0],/\/v1\/tasks\/EV1$/);
+ await assert.rejects(client.status({event_id:'../secrets'}),/canonical event ID/);
 });
