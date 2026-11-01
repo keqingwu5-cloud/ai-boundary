@@ -36,3 +36,20 @@ REVOKE ALL ON ALL TABLES IN SCHEMA mainbrain_api FROM PUBLIC, anon, authenticate
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA mainbrain_api FROM PUBLIC, anon, authenticated;
 -- Production requires a dedicated least-privileged worker DB role, separate
 -- human-controlled grant issuer, RLS/privilege audit and approved migrations.
+
+-- Durable, deduplicated abnormal-state inbox. This is not an outbound notifier.
+-- Visibility is limited to the authenticated event participants through status.
+CREATE TABLE IF NOT EXISTS mainbrain_api.alerts (
+  event_id text NOT NULL REFERENCES mainbrain_api.events(event_id),
+  alert_code text NOT NULL,
+  severity text NOT NULL CHECK (severity IN ('P0','P1','P2')),
+  status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved')),
+  details jsonb NOT NULL DEFAULT '{}'::jsonb,
+  first_seen_at timestamptz NOT NULL DEFAULT now(),
+  last_seen_at timestamptz NOT NULL DEFAULT now(),
+  occurrences integer NOT NULL DEFAULT 1,
+  PRIMARY KEY(event_id, alert_code)
+);
+CREATE INDEX IF NOT EXISTS alerts_open_idx ON mainbrain_api.alerts(status, severity, last_seen_at)
+  WHERE status='open';
+REVOKE ALL ON mainbrain_api.alerts FROM PUBLIC, anon, authenticated;
