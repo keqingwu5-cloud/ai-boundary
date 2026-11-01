@@ -15,7 +15,7 @@ test("approved memory is recalled",()=>assert.equal(c.recall("主腦分工",{...
 test("rejected candidate is recalled with status",()=>assert.equal(c.recall("主腦分工 拒絕",{...empty,candidates:[{id:"c1",question:"主腦分工",purpose:"責任",content:"有缺口",status:"rejected",review:{reason:"證據不足"}}]}).at(0).type,"rejected"));
 test("workflow latest status keeps original audit untouched",()=>{
  const events=[{kind:"workflow.recorded",ref:"t1",status:"done"},{kind:"workflow.recorded",ref:"t1",status:"blocked"}];
- assert.equal(c.processLatest(events)[0].status,"done");assert.equal(events.length,2);
+ assert.equal(c.processLatest(events)[0].status,"unknown");assert.equal(events.length,2);
 });
 test("irrelevant recall returns no results",()=>assert.equal(c.recall("完全無關",{...empty,memories:[{id:"m1",question:"主腦分工",purpose:"責任",versions:[{content:"GPT①發號"}]}]}).length,0));
 
@@ -67,4 +67,34 @@ test("source-fidelity: changed original reason cannot masquerade as identical so
  const s={...empty,candidates:[{id:"c2",originId:"SRC-2",question:"記憶來源",purpose:"追溯原意",
    content:"同一答案",evidence:"固定證據",evidenceLevel:"hypothesis",originReason:"第一版原因",status:"pending"}]};
  assert.throws(()=>c.planImport({...pack,items:[incoming]},s),/來源版本衝突/);
+});
+
+test("different origin IDs with identical answer retain independent evidence candidates",()=>{
+ const p={...pack,items:[{...item,id:"SRC-B",question:"驗證主張",content:"結果相同",evidence:"獨立 B"}]};
+ const state={...empty,candidates:[{id:"cA",originId:"SRC-A",question:"驗證主張",content:"結果相同",evidence:"獨立 A",status:"pending"}]};
+ const result=c.planImport(p,state);
+ assert.equal(result.accepted.length,1);
+ assert.deepEqual(result.duplicated,[]);
+ assert.deepEqual(result.conflicts,["SRC-B"]);
+ assert.equal(result.accepted[0].item.evidence,"獨立 B");
+});
+test("identical answer in one pack with different source IDs is not lost",()=>{
+ const p={...pack,items:[
+   {...item,id:"SRC-A",question:"共同假設",content:"相同結論",evidence:"E1"},
+   {...item,id:"SRC-B",question:"共同假設",content:"相同結論",evidence:"E2"}]};
+ const r=c.planImport(p,empty);
+ assert.deepEqual(r.accepted.map(x=>x.item.id),["SRC-A","SRC-B"]);
+ assert.deepEqual(r.conflicts,["SRC-A","SRC-B"]);
+});
+test("tied or missing audit timestamps cannot silently choose opposite states",()=>{
+ for(const at of [undefined,"2026-11-01T00:00:00.000Z"]){
+   const records=[
+     {kind:"workflow.recorded",ref:"x",status:"blocked",at},
+     {kind:"workflow.recorded",ref:"x",status:"done",at}
+   ];
+   const r=c.processLatest(records)[0];
+   assert.equal(r.status,"unknown");
+   assert.equal(r.ambiguous,true);
+   assert.equal(records[0].status,"blocked");
+ }
 });
