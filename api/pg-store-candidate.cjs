@@ -92,6 +92,15 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
       throw error('EVENT_CONFLICT','invalid attempt, endpoint, state or expired lease');
   }
   return {
+    // Operator-controlled watchdog entrypoint: no receive, no model invocation.
+    // An independent, separately authorised runner may call this when no workers run.
+    // Only quarantines expired attempts and emits audit/inbox rows, never requeues.
+    async sweepExpired({destination_endpoint_id}={}) {
+      if(typeof destination_endpoint_id!=='string'||!destination_endpoint_id.trim())
+        throw error('BAD_REQUEST','destination_endpoint_id required');
+      const at=now();
+      return inTransaction(pool,c=>reapExpired(c,destination_endpoint_id,at));
+    },
     // Storage enforces a real grant even if HTTP caller has a valid token.
     async enqueue(p) {
       const at=now();
