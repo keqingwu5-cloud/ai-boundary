@@ -166,12 +166,31 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
         return [result];
       });
     },
+    async markExternalIntent(p) {
+      const at=now();
+      return inTransaction(pool,async c=>{
+        const e=await locked(c,p.event_id);
+        await checkGrant(c,e,'execute',at);
+        correctLease(e,p,at,['leased']);
+        if(e.external_intent_at)throw error('EVENT_CONFLICT','external intent already committed');
+        const updated=(await c.query(
+          'UPDATE '+E+" SET external_intent_at=$2::timestamptz,updated_at=$2::timestamptz"+
+          " WHERE event_id=$1 AND current_attempt_id=$3::uuid AND state='leased'"+
+          ' AND lease_until>$2::timestamptz AND external_intent_at IS NULL RETURNING *',
+          [e.event_id,at,p.attempt_id])).rows[0];
+        if(!updated)throw error('EVENT_CONFLICT','stale or repeated external intent');
+        await audit(c,e.event_id,p.endpoint_id,'external_intent_recorded',
+          {attempt_id:p.attempt_id,provider_outcome:'unknown'});
+        return updated;
+      });
+    },
     async markExecuted(p) {
       const at=now();
       return inTransaction(pool,async c=>{
         const e=await locked(c,p.event_id);
         await checkGrant(c,e,'execute',at);
         correctLease(e,p,at,['leased']);
+        if(!e.external_intent_at)throw error('EVENT_CONFLICT','external intent not recorded');
         await c.query('INSERT INTO '+R+" (event_id,attempt_id,endpoint_id,channel,kind,evidence) VALUES ($1,$2::uuid,$3,'api','execution',$4::jsonb)",
           [e.event_id,p.attempt_id,p.endpoint_id,JSON.stringify({reference:p.execution_evidence})]);
         const updated=(await c.query('UPDATE '+E+" SET state='executed',updated_at=$2::timestamptz WHERE event_id=$1 RETURNING *",[e.event_id,at])).rows[0];
@@ -186,6 +205,7 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
         if(p.channel!=='api')throw error('BAD_REQUEST','ChatGPT read receipt is a separate channel');
         await checkGrant(c,e,'ack',at);
         correctLease(e,p,at,['leased','executed']);
+        if(!e.external_intent_at)throw error('EVENT_CONFLICT','external intent not recorded');
         if(e.payload_digest!==p.payload_digest || e.payload_version!==p.payload_version)
           throw error('EVENT_CONFLICT','wrong payload digest or version');
         await c.query('INSERT INTO '+R+" (event_id,attempt_id,endpoint_id,channel,kind,evidence) VALUES ($1,$2::uuid,$3,'api','ack',$4::jsonb)",
@@ -203,7 +223,7 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
         correctLease(e,p,at,['leased','executed']);
         // An uncertain external side effect cannot be put back in the queue.
         // Keep the attempt identity and require evidence-based reconciliation.
-        if(p.reason==='reconciliation_required'){
+        if(p.reason==='reconciliation_required'||Boolean(e.external_intent_at)){
           const frozen=(await c.query(
             'UPDATE '+E+" SET state='blocked',lease_until=NULL,updated_at=$2::timestamptz"+
             " WHERE event_id=$1 AND current_attempt_id=$3::uuid AND state IN ('leased','executed')"+
@@ -211,7 +231,7 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
             [e.event_id,at,p.attempt_id])).rows[0];
           if(!frozen)throw error('EVENT_CONFLICT','stale attempt cannot quarantine');
           await audit(c,e.event_id,p.endpoint_id,'reconciliation_required',
-            {attempt_id:p.attempt_id,reason:'external_execution_result_uncertain'});
+            {attempt_id:p.attempt_id,reason:'external_execution_result_uncertain',external_intent_recorded:Boolean(e.external_intent_at)});
           await alert(c,e.event_id,'EXTERNAL_OUTCOME_UNKNOWN','P0',at,
             {attempt_id:p.attempt_id,reason:'execute_or_ack_uncertain'});
           return frozen;
