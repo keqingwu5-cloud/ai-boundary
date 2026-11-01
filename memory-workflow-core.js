@@ -38,6 +38,8 @@
       const key = simplify(item.question);
       const same = existing.filter(c => simplify(c.question) === key);
       const oldByOrigin = existing.find(c => c.originId === item.id);
+      // Distinct origin IDs may corroborate an identical answer with new evidence.
+      // Semantic overlap is a review hint, never a reason to discard provenance.
       const exact = same.find(c => simplify(c.content) === simplify(item.content));
       // Reused provenance ID with changed content is not an exact duplicate.
       // The same provenance ID must not hide a changed known evidence record.
@@ -49,10 +51,12 @@
       if(oldByOrigin && (oldByOrigin.question!==item.question ||
         oldByOrigin.content!==item.content || knownFieldChanged))
         throw Error("相同來源 ID 對應不同內容：來源版本衝突，停止匯入並要求人工核對");
-      if (oldByOrigin || exact || seen.has(key + "\u241f" + simplify(item.content))) {
+      if (oldByOrigin) {
         duplicated.push(item.id);
       } else {
-        seen.add(key + "\u241f" + simplify(item.content));
+        // Keep the independent source as a pending candidate even when its
+        // answer matches an existing memory or another item in the same pack.
+        seen.add(item.id);
         const possible = same.map(c => c.id).filter(Boolean);
         // Intra-pack conflicts must be visible to BOTH candidates. Previously
         // only the persisted vault was scanned, silently missing batch peers.
@@ -122,17 +126,26 @@
     // The UI unshifts new events, but restored arrays may be in reverse order.
     // Use the newer dated record when both dates are valid; preserve input order
     // for legacy undated/tied events, without mutating the source audit.
-    const latestByRef = new Map(), rows = [];
+    const latestByRef = new Map(), rows = [], ambiguousRefs=new Set();
     for (const x of audit) {
       if (!x || x.kind !== "workflow.recorded" || !x.ref) continue;
       const prior = latestByRef.get(x.ref);
       if (!prior) { latestByRef.set(x.ref, x); continue; }
       const priorTime = Date.parse(prior.at), nextTime = Date.parse(x.at);
-      if (Number.isFinite(priorTime) && Number.isFinite(nextTime) && nextTime > priorTime)
-        latestByRef.set(x.ref, x);
+      if (Number.isFinite(priorTime) && Number.isFinite(nextTime) && nextTime !== priorTime) {
+        if (nextTime > priorTime) latestByRef.set(x.ref, x);
+      } else if (prior.status !== x.status || prior.reason !== x.reason || prior.nextAction !== x.nextAction) {
+        // A missing/tied timestamp cannot establish which conflicting fact is latest.
+        ambiguousRefs.add(x.ref);
+      }
     }
     for (const x of latestByRef.values()) {
-      rows.push({ref:x.ref,taskTitle:x.taskTitle || x.summary || "",actor:x.actor || "",status:x.status || "unknown",reason:x.reason || "",nextAction:x.nextAction || "",at:x.at || ""});
+      const ambiguous=ambiguousRefs.has(x.ref);
+      rows.push({ref:x.ref,taskTitle:x.taskTitle || x.summary || "",actor:x.actor || "",
+        status:ambiguous?"unknown":(x.status || "unknown"),
+        reason:ambiguous?"事件時間缺失或相同，無法確定最新狀態":(x.reason || ""),
+        nextAction:ambiguous?"核對原始事件時間及順序後再恢復狀態判定":(x.nextAction || ""),
+        at:ambiguous?"":(x.at || ""),ambiguous});
     }
     return rows;
   }
