@@ -28,7 +28,23 @@ function createHttpTaskClient({baseUrl,tokenProvider,httpFetch=fetch}={}) {
     if(!Object.hasOwn(body,'data'))throw Error('missing task API data');
     return body.data;
   }
+  async function status({event_id}={}) {
+    if(typeof event_id!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(event_id))
+      throw new TypeError('canonical event ID required for readback');
+    const token=await tokenProvider('status');
+    if(typeof token!=='string'||!token.trim())throw Error('authenticated status token required');
+    const response=await httpFetch(origin+'/v1/tasks/'+event_id,{
+      method:'GET',headers:{authorization:'Bearer '+token,accept:'application/json'}
+    });
+    let body;
+    try{body=await response.json();}catch{throw Error('invalid task status response');}
+    if(!response.ok){const error=new Error('task status readback failed');
+      error.code=typeof body?.error==='string'?body.error:'API_ERROR';throw error;}
+    if(!Object.hasOwn(body,'data'))throw Error('missing task status data');
+    return body.data;
+  }
   return {
+    status,
     receive:()=>post('receive'),
     execute:p=>post('execute',p),
     ack:p=>post('ack',p),
