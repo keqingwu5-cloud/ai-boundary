@@ -5,8 +5,8 @@
 const {setTimeout: sleep}=require('node:timers/promises');
 const {createHash}=require('node:crypto');
 function createPollingWorker({client,performTask,prepareTask=async()=>{},intervalMs=1000,logger=()=>{}}={}) {
-  if(!client || !['receive','intent','execute','ack','fail'].every(k=>typeof client[k]==='function'))
-    throw new TypeError('authenticated task client with receive/execute/ack/fail is required');
+  if(!client || !['receive','intent','authorize','execute','ack','fail','report'].every(k=>typeof client[k]==='function'))
+    throw new TypeError('authenticated client with receive/intent/authorize/execute/ack/fail/report is required');
   if(typeof performTask!=='function'||typeof prepareTask!=='function')
     throw new TypeError('performTask and prepareTask must be functions');
   if(!Number.isInteger(intervalMs)||intervalMs<100||intervalMs>3600000)
@@ -42,6 +42,11 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
       // No automatic restart is safe after this line without receiver reconciliation.
       phase='intent';
       await client.intent({event_id:eventId,attempt_id:attemptId});
+      // Final best-effort grant check; not a provider-enforced revocation fence.
+      phase='authorization';
+      const permit=await client.authorize({event_id:eventId,attempt_id:attemptId});
+      if(permit?.authorized!==true)
+        throw Error('dispatch authorization not confirmed');
       phase='external';
       const r=await performTask(task);
       if(!r||typeof r.execution_evidence!=='string'||!r.execution_evidence.trim()||
@@ -56,6 +61,23 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
       logger({action:'processed_api_only',event_id:eventId,attempt_id:attemptId});
       return {state:'processed',event_id:eventId,attempt_id:attemptId};
     }catch(e) {
+      if(phase==='authorization'){
+        // No provider call was made by this worker after this failed check.
+        // Evidence can be saved even when the original execute grant was revoked.
+        try {
+          await client.report({event_id:eventId,attempt_id:attemptId,
+            payload_digest:event.payload_digest,report_id:'auth-'+attemptId,
+            reason:'dispatch_authorization_unconfirmed'});
+        }catch(failure){
+          logger({action:'p0_failure_receipt_unconfirmed',event_id:eventId,
+            attempt_id:attemptId,reason:'dispatch_authorization_unconfirmed',
+            code:failure.code||'ERROR'});
+          throw failure;
+        }
+        logger({action:'dispatch_authorization_unconfirmed',event_id:eventId,
+          attempt_id:attemptId,code:e.code||'ERROR'});
+        return {state:'reconciliation_required',event_id:eventId,attempt_id:attemptId};
+      }
       if(phase!=='preflight' && await checkCommittedAck()){
         logger({action:'api_ack_readback_confirmed',event_id:eventId,attempt_id:attemptId});
         return {state:'processed_readback',event_id:eventId,attempt_id:attemptId};
@@ -68,6 +90,22 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
         if(phase!=='preflight' && await checkCommittedAck()){
           logger({action:'api_ack_readback_confirmed',event_id:eventId,attempt_id:attemptId});
           return {state:'processed_readback',event_id:eventId,attempt_id:attemptId};
+        }
+        if(phase!=='preflight'){
+          // fail() may be denied after the business grant is revoked. The
+          // distinct tasks:report path can preserve bounded evidence only.
+          try {
+            await client.report({event_id:eventId,attempt_id:attemptId,
+              payload_digest:event.payload_digest,report_id:'outcome-'+attemptId,
+              reason:'execution_outcome_unknown'});
+            logger({action:'reconciliation_required_evidence_only',event_id:eventId,
+              attempt_id:attemptId});
+            return {state:'reconciliation_required',event_id:eventId,attempt_id:attemptId};
+          }catch(reportFailure){
+            logger({action:'p0_failure_receipt_unconfirmed',event_id:eventId,attempt_id:attemptId,
+              reason,code:reportFailure.code||'ERROR'});
+            throw reportFailure;
+          }
         }
         logger({action:'p0_failure_receipt_unconfirmed',event_id:eventId,attempt_id:attemptId,
           reason,code:failure.code||'ERROR'});
