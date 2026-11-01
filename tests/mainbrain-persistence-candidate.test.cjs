@@ -294,6 +294,9 @@ test('authenticated status contains clear anomaly guidance without claiming noti
  assert.match(status.alerts[0].impact,/重複執行/);
  assert.match(status.alerts[0].next_action,/核對/);
  assert.equal(status.alerts[0].delivery,'inbox_only_not_pushed');
+ assert.equal(status.alerts[0].dispatch_effect,'requeue_blocked_only');
+ assert.equal(status.alerts[0].external_execution_state,'unknown');
+ assert.equal(status.alerts[0].external_stop_confirmed,false);
 });
 test('alert schema deduplicates by event ID and reason',()=>{
  const sql=fs.readFileSync(path.join(__dirname,'../api/persistence-candidate.sql'),'utf8');
