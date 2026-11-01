@@ -381,8 +381,12 @@ test('pre-provider intent must commit before execution',async()=>{
 test('a missing provider intent blocks execute and ACK with no receipts',async()=>{
  const leased={...event,state:'leased',current_attempt_id:UUID,
    lease_until:'2026-10-20T06:01:00Z'};
+ let reads=0;
  const {store,calls}=harness(q=>{
-  if(q.includes('SELECT * FROM mainbrain_api.events'))return {rows:[leased]};
+  // Test both valid pre-execution states independently: leased for execute,
+  // executed for ACK; both still lack the durable provider intent.
+  if(q.includes('SELECT * FROM mainbrain_api.events'))
+   return {rows:[reads++===0?leased:{...leased,state:'executed'}]};
   if(q.includes('FROM mainbrain_api.grants'))return {rows:[grant]};
   return {rows:[]};
  });
