@@ -1,6 +1,6 @@
 # ADR-CANDIDATE 07 — 第一大腦事件持久化、授權撤銷與歷史證據邊界 V0.1
 
-- **狀態**：PROPOSED / DRAFT_ONLY / NOT_IMPLEMENTED / NOT_E2E_VERIFIED
+- **狀態**：DRAFT_IMPLEMENTED_PARTIALLY / SYNTHETIC_TESTED / NOT_REAL_E2E_VERIFIED
 - **日期**：2026-11-01（Asia/Taipei）
 - **對應**：PR #48；《世界如棋局》Actor / Resource / Rule / Relation / Flow / Constraint / State / Mechanism / Time；原 18 條邏輯 × 50 種修正方法
 - **受檢固定基線**：`7e3dc478044cfc57f5a784204a5d0bbc63e79845`（隔離 CI success，不代表真 PG 或真 GPT②）
@@ -20,10 +20,10 @@
 ## 2. 目前有／沒有的功能（固定基線）
 
 - **已存在**：`/v1/tasks/send` 於 `await store.enqueue()` 完成後才回 HTTP 200；`inTransaction` 在 `COMMIT` 回傳前不視為成功；事件／冪等鍵及人類 grant；`lease`、`markExternalIntent`、`markExecuted`、`ack` 具授權和 attempt 檢查；`external_intent_at` 作意圖持久標記；遺失 ACK 時隔離不自動重派；獨立但尚未排程的 Watchdog 與 inbox-only alerts。
-- **已發現的 P0 缺口**：
-  - `client.intent()` 成功後、`performTask()` 送出外部請求之前，沒有可證明對使用者撤銷完全原子化的下游執行授權。
-  - `fail()` 仍會 `checkGrant(..., 'execute')`。撤銷或到期後，執行端可能無法保存「操作已發生／結果不明」的必要回報。
-  - `ack()` 同樣查詢當前 grant；「驗證事後歷史執行證據」必須與「核准新的業務行動」拆開。
+- **原基線 P0 缺口（本輪已加候選防護，仍非真實驗收）**：
+  - `client.intent()` 與 `performTask()` 之間已增加 `client.authorize()` 的最後 grant 複查，但它只能縮小競態，尚無下游原子化撤銷 fence。
+  - `fail()` 仍會 `checkGrant(..., 'execute')`；已新增獨立受信 `tasks:report` 的 `recordOutcome()` 通道，提供撤權後的受限結果保存候選，真 DB 權限與部署仍未驗收。
+  - `ack()` 仍查詢有效 grant；撤權後的受限 `report` 只保存歷史證據主張，不會冒充完成 ACK，也不授予新的業務執行權。
 - **尚不存在**：通用、已啟用的 GitHub/Notion Webhook Ingress；獨立的原始事件 Inbox／Outbox 合約及真實斷線恢復驗收；被下游共同遵守的授權撤銷 fence；真 PostgreSQL 故障注入；已部署的 Watchdog／推播；可信 GPT② Runtime 與模型 ACK。
 - **注意**：PostgreSQL 的物理 WAL ≠ 應用層的持久事件 Inbox/Outbox；`external_intent_at` ≠ 遠端執行收據。
 
@@ -91,9 +91,9 @@ T5 provider outcome?     [may be unknown even if cancellation requested]
 
 | Case | 故障注入／前提 | 要求結果 | 現況 |
 | --- | --- | --- | --- |
-| P0-A | T2 意圖成功；T3 撤權；T4 外部呼叫前 | 最後保護點拒絕新副作用；若下游不具 fence，**不可**宣稱完全攔截，需留未知窗口 | `DESIGN_ONLY` |
+| P0-A | T2 意圖成功；T3 撤權；T4 外部呼叫前 | 本地最後 grant 複查拒絕後不得呼叫模型；下游無 fence 仍保留競態 | `CANDIDATE_MOCK_PASS / PROVIDER_FENCE_NOT_RUN` |
 | P0-B | 已發出外部請求；其後撤權／網路斷線 | 保留遠端結果未知狀態，不能自動重派、不能宣稱已取消 | `NOT_RUN` |
-| P0-C | 撤權後，執行端回報真正結果／失敗 | **受限的證據通道**能保存受信原始證據，不能取得新執行權；無權者或錯配 attempt 必須被拒絕 | `DESIGN_ONLY` |
+| P0-C | 撤權後，執行端回報真正結果／失敗 | `tasks:report` 回報必須綁定當前事件／attempt／digest，append-only 去重，不得執行或重排 | `CANDIDATE_MOCK_PASS / REAL_PG_NOT_RUN` |
 | P1-D | Inbox + Outbox `COMMIT` 成功但 HTTP 回覆遺失；來源重播 | 相同來源鍵與 digest 僅有一份持久事件及一個待派工項目；衝突不得成功 | `WEBHOOK_NOT_IMPLEMENTED` |
 | P1-E | 事件已保存、還未派工便重啟；重啟前後撤權 | 仍可找到原始事件；新派工先檢查最新 grant；撤權後不執行 | `WEBHOOK_NOT_IMPLEMENTED` |
 
@@ -122,3 +122,11 @@ T5 provider outcome?     [may be unknown even if cancellation requested]
 - **下一隔離候選**：先為 P0-A、P0-C 添加固定 SHA 可回歸的負測，再做最小授權狀態／受限審計介面；只能證實 Mock 達成 Mock 預期。
 - **實境 Gate**：在另行核准的隔離 PostgreSQL 與下游執行端實測 T2/T3/T4 競態、審計斷線、未知 COMMIT、併發撤銷。失敗即保持 `BLOCKED`。
 - **禁止自動升格**：本 ADR、PR #48 Draft、CI success、Google Docs POSTED 均不等於主腦部署、真 GPT② ACK、無條件發信或主線合併。
+
+## 10. 實際補丁與重新驗收（2026-11-01，候選而非上線）
+
+- **新程式**：`api/pg-store-candidate.cjs` 增加 `authorizeDispatch`，在外部呼叫前重新核對已存在的意圖、grant、現行 attempt 與 lease。這**不是** Provider 下游 revocation fence。
+- **受限證據**：`api/persistence-candidate.sql` 加入帶有事件、attempt、report ID 複合鍵的 `outcome_reports`；`recordOutcome` 驗證身分與 digest、固定原因、證據引用上限，採冪等新增，必要時只轉為 `blocked`，不領取工作、不重排、不授權執行。需獨立的 `tasks:report` 身分與最小權限 DB 角色；目前尚未正式核准配發。
+- **API 與 Worker**：新增 `/v1/tasks/authorize`、`/v1/tasks/report` 兩條候選端點。Worker 意圖登記後先授權複查；若失敗，經受限回報隔離而不觸發 Provider。一般 `fail` 因撤權被拒絕時，允許改用受限報告保存未知結果，回報失敗不得偽稱已保存。
+- **負測**：`tests/mainbrain-revocation-candidate.test.cjs` 檢查撤權攔截、無 Provider 呼叫、受限證據、過期 attempt 與偽造身分、冪等衝突、超量證據；舊 Worker / API 回歸測試與 HTTP 權限測試同步驗證。
+- **不能升格的結果**：尚未部署正式服務、尚未做真 PostgreSQL 撤權交易競態／網路斷線／資料遺失驗收；下游沒有共同執行撤銷 epoch 的證據。也未建立可信 GPT② Runtime 或實際警報推播。此處的報告為受信來源提交的**待查證歷史主張**，不是遠端執行已獨立證實。
