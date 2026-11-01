@@ -22,6 +22,7 @@ const G = 'mainbrain_api.grants';
 const A = 'mainbrain_api.attempts';
 const R = 'mainbrain_api.receipts';
 const L = 'mainbrain_api.event_logs';
+const AL = 'mainbrain_api.alerts';
 function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAttemptId=randomUUID, leaseSeconds=120}={}) {
   if (!pool || typeof pool.connect !== 'function' || typeof pool.query !== 'function')
     throw new TypeError('a pg-compatible pool is required');
@@ -31,6 +32,35 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
   async function audit(c, eventId, actor, action, detail={}) {
     await c.query('INSERT INTO '+L+' (event_id,actor_endpoint_id,action,detail) VALUES ($1,$2,$3,$4::jsonb)',
       [eventId,actor,action,JSON.stringify(detail)]);
+  }
+  // Durable anomaly inbox: one alert per event/reason. Repeated observations
+  // update the same row instead of generating duplicate notifications.
+  async function alert(c,eventId,code,severity,at,detail={}) {
+    await c.query('INSERT INTO '+AL+
+      ' (event_id,alert_code,severity,status,details,first_seen_at,last_seen_at,occurrences)'+
+      " VALUES ($1,$2,$3,'open',$4::jsonb,$5::timestamptz,$5::timestamptz,1)"+
+      ' ON CONFLICT(event_id,alert_code) DO UPDATE SET last_seen_at=EXCLUDED.last_seen_at,'+
+      ' occurrences='+AL+'.occurrences+1,details=EXCLUDED.details,status=\'open\'',
+      [eventId,code,severity,JSON.stringify(detail),at]);
+  }
+  // A timed-out lease is never automatically re-issued to another worker.
+  // Its unknown external outcome is quarantined, auditable and visible via status.
+  async function reapExpired(c,destination,at) {
+    const rows=(await c.query(
+      'WITH stale AS (SELECT event_id FROM '+E+
+      " WHERE destination_endpoint_id=$1 AND state IN ('leased','executed')"+
+      ' AND lease_until<=$2::timestamptz ORDER BY lease_until'+
+      ' FOR UPDATE SKIP LOCKED LIMIT 100)'+
+      ' UPDATE '+E+" AS e SET state='blocked',lease_until=NULL,updated_at=$2::timestamptz"+
+      ' FROM stale WHERE e.event_id=stale.event_id RETURNING e.event_id,e.current_attempt_id',
+      [destination,at])).rows;
+    for(const item of rows){
+      await audit(c,item.event_id,destination,'lease_expired_reconciliation_required',
+        {attempt_id:item.current_attempt_id,outcome:'unknown'});
+      await alert(c,item.event_id,'LEASE_EXPIRED_OUTCOME_UNKNOWN','P0',at,
+        {attempt_id:item.current_attempt_id});
+    }
+    return rows.length;
   }
   async function checkGrant(c, event, action, at) {
     if (!event.grant_id) throw error('FORBIDDEN','event missing human grant');
@@ -88,8 +118,9 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
     async lease({destination_endpoint_id}) {
       const at=now();
       return inTransaction(pool,async c=>{
+        await reapExpired(c,destination_endpoint_id,at);
         const row=(await c.query(
-          'SELECT * FROM '+E+" WHERE destination_endpoint_id=$1 AND ((state='queued' AND next_attempt_at<=$2::timestamptz) OR (state='leased' AND lease_until<=$2::timestamptz)) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1",
+          'SELECT * FROM '+E+" WHERE destination_endpoint_id=$1 AND state='queued' AND next_attempt_at<=$2::timestamptz ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1",
           [destination_endpoint_id,at])).rows[0];
         if(!row)return [];
         let grant;
@@ -98,11 +129,13 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
           if(e.code!=='FORBIDDEN')throw e;
           await c.query('UPDATE '+E+" SET state='blocked',updated_at=$2::timestamptz WHERE event_id=$1",[row.event_id,at]);
           await audit(c,row.event_id,destination_endpoint_id,'blocked',{reason:'grant_invalid'});
+          await alert(c,row.event_id,'GRANT_INVALID','P1',at,{reason:'revoked_expired_or_out_of_scope'});
           return [];
         }
         if(row.attempt_count >= grant.max_attempts){
           await c.query('UPDATE '+E+" SET state='failed',updated_at=$2::timestamptz WHERE event_id=$1",[row.event_id,at]);
           await audit(c,row.event_id,destination_endpoint_id,'failed',{reason:'attempt_limit'});
+          await alert(c,row.event_id,'ATTEMPT_LIMIT_REACHED','P1',at,{attempt_count:row.attempt_count});
           return [];
         }
         const attemptId=makeAttemptId();
@@ -152,6 +185,21 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
         const e=await locked(c,p.event_id);
         const grant=await checkGrant(c,e,'execute',at);
         correctLease(e,p,at,['leased','executed']);
+        // An uncertain external side effect cannot be put back in the queue.
+        // Keep the attempt identity and require evidence-based reconciliation.
+        if(p.reason==='reconciliation_required'){
+          const frozen=(await c.query(
+            'UPDATE '+E+" SET state='blocked',lease_until=NULL,updated_at=$2::timestamptz"+
+            " WHERE event_id=$1 AND current_attempt_id=$3::uuid AND state IN ('leased','executed')"+
+            ' RETURNING *',
+            [e.event_id,at,p.attempt_id])).rows[0];
+          if(!frozen)throw error('EVENT_CONFLICT','stale attempt cannot quarantine');
+          await audit(c,e.event_id,p.endpoint_id,'reconciliation_required',
+            {attempt_id:p.attempt_id,reason:'external_execution_result_uncertain'});
+          await alert(c,e.event_id,'EXTERNAL_OUTCOME_UNKNOWN','P0',at,
+            {attempt_id:p.attempt_id,reason:'execute_or_ack_uncertain'});
+          return frozen;
+        }
         const terminal=e.attempt_count>=grant.max_attempts;
         const delay=Math.min(3600,30*2**Math.min(8,e.attempt_count-1));
         const updated=(await c.query(
@@ -162,7 +210,12 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
         return updated;
       });
     },
-    async get(eventId) {return (await pool.query('SELECT * FROM '+E+' WHERE event_id=$1',[eventId])).rows[0]||null;}
+    async get(eventId) {
+      const event=(await pool.query('SELECT * FROM '+E+' WHERE event_id=$1',[eventId])).rows[0];
+      if(!event)return null;
+      const alerts=(await pool.query('SELECT alert_code,severity,status,details,first_seen_at,last_seen_at,occurrences FROM '+AL+" WHERE event_id=$1 AND status='open' ORDER BY severity,first_seen_at",[eventId])).rows;
+      return {...event,alerts};
+    }
   };
 }
 module.exports={createPostgresStore};
