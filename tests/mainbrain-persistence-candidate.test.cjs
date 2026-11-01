@@ -124,7 +124,7 @@ test('ACK rejects an expired or revoked grant',async()=>{
 test('worker idle mode never creates phantom results',async()=>{
   const calls=[];
   const w=createPollingWorker({client:{
-    receive:async()=>[],intent:async()=>calls.push('intent'),execute:async()=>calls.push('execute'),
+    receive:async()=>[],authorize:async()=>({authorized:true}),report:async()=>{throw Error('report unavailable');},intent:async()=>calls.push('intent'),execute:async()=>calls.push('execute'),
     ack:async()=>calls.push('ack'),fail:async()=>calls.push('fail')
   },performTask:async()=>({execution_evidence:'ok',receipt_evidence:'ok'})});
   assert.deepEqual(await w.runOnce(),{state:'idle'});
@@ -134,7 +134,7 @@ test('worker executes current attempt then returns API ACK',async()=>{
   const calls=[];
   const client={
     receive:async()=>[{...event,state:'leased',current_attempt_id:UUID}],
-    intent:async p=>calls.push(['intent',p]),
+    authorize:async()=>({authorized:true}),report:async()=>{throw Error('report unavailable');},intent:async p=>calls.push(['intent',p]),
     execute:async p=>calls.push(['execute',p]),
     ack:async p=>calls.push(['ack',p]),
     fail:async p=>calls.push(['fail',p])
@@ -152,7 +152,7 @@ test('worker reports handler failure without acknowledging work',async()=>{
   const calls=[];
   const client={
     receive:async()=>[{...event,current_attempt_id:UUID}],
-    intent:async()=>calls.push('intent'),
+    authorize:async()=>({authorized:true}),report:async()=>{throw Error('report unavailable');},intent:async()=>calls.push('intent'),
     execute:async()=>calls.push('execute'),ack:async()=>calls.push('ack'),
     fail:async()=>calls.push('fail')
   };
@@ -165,13 +165,13 @@ test('worker reports handler failure without acknowledging work',async()=>{
 test('worker refuses receipt-free output and fails closed on unrecorded failure',async()=>{
   const client={
     receive:async()=>[{...event,current_attempt_id:UUID}],
-    intent:async()=>{},
+    authorize:async()=>({authorized:true}),report:async()=>{throw Error('report unavailable');},intent:async()=>{},
     execute:async()=>{throw Error('should not execute');},
     ack:async()=>{throw Error('should not acknowledge');},
     fail:async()=>{throw Error('persistent receipt unavailable');}
   };
   const w=createPollingWorker({client,performTask:async()=>({execution_evidence:'x'})});
-  await assert.rejects(w.runOnce(),/persistent receipt unavailable/);
+  await assert.rejects(w.runOnce(),/report unavailable/);
 });
 
 test('HTTP worker client only accepts secure service roots',()=>{
@@ -209,7 +209,7 @@ test('HTTP worker client rejects missing credentials and server denial',async()=
 test('uncertain ACK quarantines once; external handler is not retried',async()=>{
  const log=[];
  const client={receive:async()=>[{...event,current_attempt_id:UUID}],
-   intent:async()=>log.push('intent'),
+   authorize:async()=>({authorized:true}),report:async()=>{throw Error('report unavailable');},intent:async()=>log.push('intent'),
    execute:async()=>log.push('execute'),
    ack:async()=>{log.push('ack');throw Error('ack timeout');},
    status:async()=>({state:'executed',current_attempt_id:UUID}),
@@ -224,7 +224,7 @@ test('uncertain ACK quarantines once; external handler is not retried',async()=>
 test('ACK transport timeout with committed receipt is confirmed by bound readback',async()=>{
  const log=[];
  const client={receive:async()=>[{...event,current_attempt_id:UUID}],
-   intent:async()=>log.push('intent'),
+   authorize:async()=>({authorized:true}),report:async()=>{throw Error('report unavailable');},intent:async()=>log.push('intent'),
    execute:async()=>log.push('execute'),ack:async()=>{throw Error('timeout');},
    status:async()=>({...event,current_attempt_id:UUID,state:'ack_received'}),
    fail:async()=>log.push('fail')};
@@ -235,12 +235,12 @@ test('ACK transport timeout with committed receipt is confirmed by bound readbac
 test('unconfirmed failure receipt throws P0, never reports processed',async()=>{
  const logs=[];
  const client={receive:async()=>[{...event,current_attempt_id:UUID}],
-   intent:async()=>{},execute:async()=>{},ack:async()=>{throw Error('timeout');},
+   authorize:async()=>({authorized:true}),report:async()=>{throw Error('report unavailable');},intent:async()=>{},execute:async()=>{},ack:async()=>{throw Error('timeout');},
    status:async()=>{throw Error('status unavailable');},
    fail:async()=>{throw Error('fail unavailable')}};
  const w=createPollingWorker({client,logger:x=>logs.push(x),
    performTask:async()=>({execution_evidence:'e',receipt_evidence:'r'})});
- await assert.rejects(w.runOnce(),/fail unavailable/);
+ await assert.rejects(w.runOnce(),/report unavailable/);
  assert(logs.some(x=>x.action==='p0_failure_receipt_unconfirmed'));
 });
 test('store lease quarantines expired attempts and emits one durable alert record',async()=>{
@@ -413,7 +413,7 @@ test('external intent makes even a generic failure fail-closed',async()=>{
 test('intent response timeout prevents provider invocation and mandates reconciliation',async()=>{
  const seen=[];
  const client={receive:async()=>[{...event,state:'leased',current_attempt_id:UUID}],
-  intent:async()=>{seen.push('intent');throw Error('intent response timeout');},
+  authorize:async()=>({authorized:true}),report:async()=>{throw Error('report unavailable');},intent:async()=>{seen.push('intent');throw Error('intent response timeout');},
   execute:async()=>{throw Error('must not execute');},
   ack:async()=>{throw Error('must not ack');},
   fail:async p=>seen.push('fail:'+p.reason),
