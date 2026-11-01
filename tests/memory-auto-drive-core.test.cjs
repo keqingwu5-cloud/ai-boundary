@@ -15,8 +15,8 @@ test("automatic draft generation does not mutate memory",()=>{
 });
 test("latest blocked event wins, old done remains untouched",()=>{
  const s=state();s.audit=[
-  {kind:"workflow.recorded",ref:"w1",status:"blocked",taskTitle:"追溯",reason:"原方向缺口",nextAction:"核對來源"},
-  {kind:"workflow.recorded",ref:"w1",status:"done",taskTitle:"追溯"},
+  {kind:"workflow.recorded",ref:"w1",status:"blocked",taskTitle:"追溯",reason:"原方向缺口",nextAction:"核對來源",at:"2026-11-01T01:00:00.000Z"},
+  {kind:"workflow.recorded",ref:"w1",status:"done",taskTitle:"追溯",at:"2026-10-31T01:00:00.000Z"},
   {kind:"workflow.recorded",ref:"w2",status:"done",taskTitle:"已完成"}];
  const p=plan(s);assert.deepEqual(p.proposals.map(x=>x.ref),["w1"]);
  assert.equal(p.proposals[0].next,"核對來源");assert.equal(s.audit.length,3);
@@ -121,4 +121,17 @@ test("dated audit is safe when imported oldest-first; no stale blocked proposal"
  assert.equal(p.proposals.some(x=>x.type==="blocked_research"&&x.ref==="w-order"),false);
  assert.equal(JSON.stringify(s.audit),original);
  assert.equal(p.sideEffects,false);
+});
+
+test("ambiguous audit order emits review-only draft rather than fabricated latest status",()=>{
+ const s=state();s.audit=[
+  {kind:"workflow.recorded",ref:"w-tie",status:"done",taskTitle:"記憶方向"},
+  {kind:"workflow.recorded",ref:"w-tie",status:"blocked",taskTitle:"記憶方向"}];
+ const r=plan(s);
+ const ambiguity=r.proposals.find(x=>x.ref==="w-tie");
+ assert.ok(ambiguity);
+ assert.equal(ambiguity.type,"audit_ambiguity");
+ assert.equal(ambiguity.status,"idea_draft");
+ assert.match(ambiguity.reason,/無法安全判定/);
+ assert.equal(r.sideEffects,false);
 });
