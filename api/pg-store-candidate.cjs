@@ -204,7 +204,9 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
         const e=await locked(c,p.event_id);
         if(p.channel!=='api')throw error('BAD_REQUEST','ChatGPT read receipt is a separate channel');
         await checkGrant(c,e,'ack',at);
-        correctLease(e,p,at,['leased','executed']);
+        // An intent marker alone does not prove execution or authorise completion.
+        // markExecuted must commit the execution receipt and state first.
+        correctLease(e,p,at,['executed']);
         if(!e.external_intent_at)throw error('EVENT_CONFLICT','external intent not recorded');
         if(e.payload_digest!==p.payload_digest || e.payload_version!==p.payload_version)
           throw error('EVENT_CONFLICT','wrong payload digest or version');
