@@ -26,7 +26,7 @@ const AL = 'mainbrain_api.alerts';
 // User-facing anomaly messages are read-only. They do not grant execute/retry rights.
 const ALERT_GUIDE=Object.freeze({
   LEASE_EXPIRED_OUTCOME_UNKNOWN:{reason:'任務租約到期，執行結果未知',impact:'blocked 只會停止重新派工，不保證外部模型已停止；可能重複執行與計費',next_action:'核對原執行端的 receipt/status 與外部完成時間；確認外部效果後再審核是否恢復，禁止盲目重派',dispatch_effect:'requeue_blocked_only',external_execution_state:'unknown',external_stop_confirmed:false},
-  EXTERNAL_OUTCOME_UNKNOWN:{reason:'外部結果或 ACK 傳輸不確定',impact:'blocked 僅禁止重新派工；API 回應失敗不代表外部模型停止或執行失敗',next_action:'核對同一 event_id、attempt_id 與遠端 execution_id／receipt；證據不足時繼續隔離，禁止盲目重試',dispatch_effect:'requeue_blocked_only',external_execution_state:'unknown',external_stop_confirmed:false},
+  EXTERNAL_OUTCOME_UNKNOWN:{reason:'外部結果或 ACK 傳輸不確定',impact:'blocked 僅禁止重新派工；API 回應失敗不代表外部模型停止或執行失敗，未對帳就恢復可能重複執行',next_action:'核對同一 event_id、attempt_id 與遠端 execution_id／receipt；證據不足時繼續隔離，禁止盲目重試',dispatch_effect:'requeue_blocked_only',external_execution_state:'unknown',external_stop_confirmed:false},
   GRANT_INVALID:{reason:'授權已撤銷、逾期或不符合任務範圍',impact:'任務執行被安全阻止',next_action:'保留阻塞紀錄，只有合法授權者可重新授權'},
   ATTEMPT_LIMIT_REACHED:{reason:'任務已達重試上限',impact:'任務可能一直無法完成',next_action:'核對歷次錯誤及已執行的副作用，提出新的可否證修復方案'}
 });
