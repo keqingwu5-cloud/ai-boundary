@@ -276,3 +276,27 @@ test('status readback is authenticated GET with strict event ID',async()=>{
  assert.match(calls[0][0],/\/v1\/tasks\/EV1$/);
  await assert.rejects(client.status({event_id:'../secrets'}),/canonical event ID/);
 });
+
+test('authenticated status contains clear anomaly guidance without claiming notification delivery',async()=>{
+ const {store}=harness(q=>{
+  if(q.startsWith('SELECT * FROM mainbrain_api.events'))return {rows:[event]};
+  if(q.includes('FROM mainbrain_api.alerts'))return {rows:[{
+    alert_code:'EXTERNAL_OUTCOME_UNKNOWN',severity:'P0',status:'open',
+    occurrences:3,details:{attempt_id:UUID},first_seen_at:NOW,last_seen_at:NOW
+  }]};
+  return {rows:[]};
+ });
+ const status=await store.get('EV1');
+ assert.equal(status.alerts.length,1);
+ assert.equal(status.alerts[0].severity,'P0');
+ assert.equal(status.alerts[0].occurrences,3);
+ assert.match(status.alerts[0].reason,/不確定/);
+ assert.match(status.alerts[0].impact,/重複執行/);
+ assert.match(status.alerts[0].next_action,/核對/);
+ assert.equal(status.alerts[0].delivery,'inbox_only_not_pushed');
+});
+test('alert schema deduplicates by event ID and reason',()=>{
+ const sql=fs.readFileSync(path.join(__dirname,'../api/persistence-candidate.sql'),'utf8');
+ assert.match(sql,/CREATE TABLE IF NOT EXISTS mainbrain_api\.alerts/);
+ assert.match(sql,/PRIMARY KEY\(event_id, alert_code\)/);
+});
