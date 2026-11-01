@@ -28,3 +28,26 @@ test('intent requires event and attempt identifiers',async()=>{
  await assert.rejects(api.intent({principal:principal('worker2',['tasks:execute']),body:{event_id:'E1'}}),
    /event_id and attempt_id required/);
 });
+
+test('report evidence uses separate scope and authenticated endpoint',async()=>{
+ const seen=[];
+ const store={
+  recordOutcome:async p=>{seen.push(['report',p]);return {...p,recorded:true};},
+  authorizeDispatch:async p=>{seen.push(['authorize',p]);return {...p,authorized:true};}
+ };
+ const api=createApi({store,authenticate:async req=>req.principal});
+ const principal=(scope)=>({verified:true,endpoint_id:'worker2',scopes:[scope]});
+ const report={event_id:'E1',attempt_id:'A1',payload_digest:'a'.repeat(64),
+  report_id:'report-A1',reason:'execution_outcome_unknown',endpoint_id:'spoof'};
+ await assert.rejects(api.report({principal:principal('tasks:execute'),body:report}),/Verified endpoint/);
+ assert.equal(seen.length,0);
+ const result=await api.report({principal:principal('tasks:report'),body:report});
+ assert.equal(result.endpoint_id,'worker2');
+ assert.equal(seen[0][1].endpoint_id,'worker2');
+ await assert.rejects(api.authorize({principal:principal('tasks:report'),
+  body:{event_id:'E1',attempt_id:'A1'}}),/Verified endpoint/);
+ const checked=await api.authorize({principal:principal('tasks:execute'),
+  body:{event_id:'E1',attempt_id:'A1',endpoint_id:'spoof'}});
+ assert.equal(checked.endpoint_id,'worker2');
+ assert.equal(seen[1][0],'authorize');
+});
