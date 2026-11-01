@@ -5,7 +5,7 @@
 const {setTimeout: sleep}=require('node:timers/promises');
 const {createHash}=require('node:crypto');
 function createPollingWorker({client,performTask,prepareTask=async()=>{},intervalMs=1000,logger=()=>{}}={}) {
-  if(!client || !['receive','execute','ack','fail'].every(k=>typeof client[k]==='function'))
+  if(!client || !['receive','intent','execute','ack','fail'].every(k=>typeof client[k]==='function'))
     throw new TypeError('authenticated task client with receive/execute/ack/fail is required');
   if(typeof performTask!=='function'||typeof prepareTask!=='function')
     throw new TypeError('performTask and prepareTask must be functions');
@@ -40,6 +40,8 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
       await prepareTask(task);
       // This is the point beyond which an external side effect is possible.
       // No automatic restart is safe after this line without receiver reconciliation.
+      phase='intent';
+      await client.intent({event_id:eventId,attempt_id:attemptId});
       phase='external';
       const r=await performTask(task);
       if(!r||typeof r.execution_evidence!=='string'||!r.execution_evidence.trim()||
