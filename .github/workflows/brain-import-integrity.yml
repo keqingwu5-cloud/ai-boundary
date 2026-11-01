@@ -72,6 +72,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Validate full stack requirements before running R19 tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            tests/brain-import-integrity.test.cjs
+            tests/fixtures/transactional-store.html
+            transactional-brain-store.mjs
+            world-model.html
+            tests/world-model-writer-lock-browser.test.cjs
+          )
+          missing=()
+          for file in "${required[@]}"; do
+            if [[ ! -f "$file" ]]; then missing+=("$file"); fi
+          done
+          if (( ${#missing[@]} )); then
+            echo "::error title=BLOCKED_MISSING_PRODUCT_STACK::R19 test-only backport lacks product and fixture dependencies"
+            printf 'Missing: %s\\n' "${missing[@]}"
+            echo 'R19 integration: BLOCKED_BY_MISSING_PRODUCT_STACK (not a product defect verdict; NOT_RUN)' >> "$GITHUB_STEP_SUMMARY"
+            printf 'Missing dependency: %s\\n' "${missing[@]}" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
       - name: Stage pinned legacy Draft modules for compatibility only
         run: |
           mkdir -p tests/_legacy_pr_sources
@@ -97,6 +119,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Validate full stack requirements before running R19 tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            tests/brain-import-integrity.test.cjs
+            tests/fixtures/transactional-store.html
+            transactional-brain-store.mjs
+            world-model.html
+            tests/world-model-writer-lock-browser.test.cjs
+          )
+          missing=()
+          for file in "${required[@]}"; do
+            if [[ ! -f "$file" ]]; then missing+=("$file"); fi
+          done
+          if (( ${#missing[@]} )); then
+            echo "::error title=BLOCKED_MISSING_PRODUCT_STACK::R19 test-only backport lacks product and fixture dependencies"
+            printf 'Missing: %s\\n' "${missing[@]}"
+            echo 'R19 integration: BLOCKED_BY_MISSING_PRODUCT_STACK (not a product defect verdict; NOT_RUN)' >> "$GITHUB_STEP_SUMMARY"
+            printf 'Missing dependency: %s\\n' "${missing[@]}" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
       - name: Install browser automation runtime
         run: npm install --no-save --package-lock=false playwright-core@1.56.1
       - name: Check installed Chrome
@@ -122,6 +166,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Validate full stack requirements before running R19 tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            tests/brain-import-integrity.test.cjs
+            tests/fixtures/transactional-store.html
+            transactional-brain-store.mjs
+            world-model.html
+            tests/world-model-writer-lock-browser.test.cjs
+          )
+          missing=()
+          for file in "${required[@]}"; do
+            if [[ ! -f "$file" ]]; then missing+=("$file"); fi
+          done
+          if (( ${#missing[@]} )); then
+            echo "::error title=BLOCKED_MISSING_PRODUCT_STACK::R19 test-only backport lacks product and fixture dependencies"
+            printf 'Missing: %s\\n' "${missing[@]}"
+            echo 'R19 integration: BLOCKED_BY_MISSING_PRODUCT_STACK (not a product defect verdict; NOT_RUN)' >> "$GITHUB_STEP_SUMMARY"
+            printf 'Missing dependency: %s\\n' "${missing[@]}" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
       - name: Install pinned WebKit automation runtime
         run: npm install --no-save --package-lock=false playwright@1.56.1 playwright-core@1.56.1
       - name: Install Linux WebKit and OS dependencies
