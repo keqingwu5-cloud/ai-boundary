@@ -432,3 +432,22 @@ test('isolated migration includes a separate provider intent timestamp',()=>{
  const migration=fs.readFileSync(path.join(__dirname,'../api/persistence-candidate.sql'),'utf8');
  assert.match(migration,/ADD COLUMN IF NOT EXISTS external_intent_at timestamptz/);
 });
+
+
+test('ACK cannot skip recorded execution even after provider intent was persisted',async()=>{
+ // RED regression: the intention marker is not an execution receipt.
+ const intentOnly={...event,state:'leased',current_attempt_id:UUID,
+   lease_until:'2026-10-20T06:01:00Z',external_intent_at:NOW};
+ const {store,calls}=harness(q=>{
+   if(q.includes('SELECT * FROM mainbrain_api.events'))return {rows:[intentOnly]};
+   if(q.includes('FROM mainbrain_api.grants'))return {rows:[grant]};
+   if(q.includes('UPDATE mainbrain_api.events'))return {rows:[{...intentOnly,state:'ack_received'}]};
+   return {rows:[]};
+ });
+ await assert.rejects(store.ack({event_id:'EV1',attempt_id:UUID,endpoint_id:'target',
+   channel:'api',payload_digest:event.payload_digest,payload_version:'1',
+   receipt_evidence:'unverified-string'}),/invalid attempt|must be executed/);
+ assert(!calls.some(x=>x.sql.includes('INSERT INTO mainbrain_api.receipts')));
+ assert(!calls.some(x=>x.sql.includes("SET state='ack_received'")));
+ assert(calls.some(x=>x.sql==='ROLLBACK'));
+});
