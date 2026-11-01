@@ -46,6 +46,7 @@ function createHttpTaskClient({baseUrl,tokenProvider,httpFetch=fetch}={}) {
   return {
     status,
     receive:()=>post('receive'),
+    intent:p=>post('intent',p),
     execute:p=>post('execute',p),
     ack:p=>post('ack',p),
     fail:p=>post('fail',p)
