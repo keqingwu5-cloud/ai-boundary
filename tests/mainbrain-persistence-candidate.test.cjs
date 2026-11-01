@@ -319,3 +319,40 @@ test('alert schema deduplicates by event ID and reason',()=>{
  assert.match(sql,/CREATE TABLE IF NOT EXISTS mainbrain_api\.alerts/);
  assert.match(sql,/PRIMARY KEY\(event_id, alert_code\)/);
 });
+
+test('watchdog quarantines expired leases without starting a worker',async()=>{
+ const {createLeaseWatchdog}=require('../api/lease-watchdog-candidate.cjs');
+ const expired={...event,state:'leased',current_attempt_id:UUID,
+   lease_until:'2026-10-20T05:59:00.000Z'};
+ const {store,calls}=harness(q=>{
+   if(q.includes('WITH stale AS'))return {rows:[expired]};
+   return {rows:[]};
+ });
+ const logger=[];
+ const watchdog=createLeaseWatchdog({store,destinationEndpointId:'target',logger:x=>logger.push(x)});
+ assert.deepEqual(await watchdog.runOnce(),
+   {state:'checked',quarantined:1,delivery:'inbox_only_not_pushed'});
+ assert(calls.some(x=>x.sql.includes('lease_expired_reconciliation_required')||
+   x.params?.includes('lease_expired_reconciliation_required')));
+ assert(calls.some(x=>x.sql.includes('INSERT INTO mainbrain_api.alerts')));
+ assert(!calls.some(x=>x.sql.includes('INSERT INTO mainbrain_api.attempts')));
+ assert(!calls.some(x=>x.sql.includes("state='queued' AND next_attempt_at")));
+ assert.equal(logger[0].delivery,'inbox_only_not_pushed');
+});
+test('watchdog never reports success after a failed sweep and never calls a model',async()=>{
+ const {createLeaseWatchdog}=require('../api/lease-watchdog-candidate.cjs');
+ const logger=[];
+ const watchdog=createLeaseWatchdog({
+   store:{sweepExpired:async()=>{throw Error('isolated database unavailable');}},
+   destinationEndpointId:'target',logger:x=>logger.push(x)
+ });
+ await assert.rejects(watchdog.runOnce(),/isolated database unavailable/);
+ assert.deepEqual(logger,[]);
+});
+test('standalone sweep refuses an empty destination and never leases new work',async()=>{
+ const {store,calls}=harness(q=>({rows:[]}));
+ await assert.rejects(store.sweepExpired({destination_endpoint_id:''}),/required/);
+ assert.equal(await store.sweepExpired({destination_endpoint_id:'target'}),0);
+ assert(calls.some(x=>x.sql.includes('WITH stale AS')));
+ assert(!calls.some(x=>x.sql.includes('INSERT INTO mainbrain_api.attempts')));
+});
