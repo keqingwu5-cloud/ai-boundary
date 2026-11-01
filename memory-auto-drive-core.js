@@ -72,16 +72,27 @@
   // New events are normally unshifted; restored/imported audit may be reordered.
   // Choose the later dated event per ref without changing immutable history.
   // Missing/tied timestamps preserve first-entry (normal newest-first) priority.
-  const latestByRef=new Map();
+  const latestByRef=new Map(), ambiguousRefs=new Set();
   for(const x of state.audit){
    if(!x||x.kind!=="workflow.recorded"||!valid(x.ref))continue;
    const prior=latestByRef.get(x.ref);
    if(!prior){latestByRef.set(x.ref,x);continue;}
    const priorTime=Date.parse(prior.at),nextTime=Date.parse(x.at);
-   if(Number.isFinite(priorTime)&&Number.isFinite(nextTime)&&nextTime>priorTime)
-    latestByRef.set(x.ref,x);
+   if(Number.isFinite(priorTime)&&Number.isFinite(nextTime)&&nextTime!==priorTime){
+    if(nextTime>priorTime)latestByRef.set(x.ref,x);
+   }else if(prior.status!==x.status||prior.reason!==x.reason||prior.nextAction!==x.nextAction){
+    ambiguousRefs.add(x.ref);
+   }
   }
   for(const x of latestByRef.values()){
+   if(ambiguousRefs.has(x.ref)){
+    add({id:"workflow:"+x.ref,ref:x.ref,type:"audit_ambiguity",status:"idea_draft",
+     title:trunc(x.taskTitle||"事件先後順序未驗證"),
+     reason:"事件時間缺失或相同，無法安全判定最新狀態",
+     next:"回查原始事件及版本，再決定 blocked/done；不自動執行",
+     source:"audit.workflow.recorded",_matchText:trunc(x.taskTitle||"",200)});
+    continue;
+   }
    if(!["blocked","refused"].includes(x.status))continue;
    add({id:"workflow:"+x.ref,ref:x.ref,type:"blocked_research",status:"idea_draft",
     title:trunc(x.taskTitle||"未解工作"),reason:trunc(x.reason||"需要原始證據"),
