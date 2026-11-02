@@ -1,0 +1,119 @@
+name: TCVL 15-minute read-only monitoring candidate
+on:
+  schedule:
+    # Only starts after separately authorized inclusion on the default branch.
+    # Offset from :00 to reduce load; GitHub cron execution may be delayed/dropped.
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+  # Intentionally omit push: open PR validation already runs on each update.
+  # Duplicate push+PR triggers competed for one checkpoint and cancelled pending runs.
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'scripts/monitor-15min-candidate.cjs'
+      - 'scripts/monitor-operational-baseline.cjs'
+      - 'scripts/monitor-task-evidence.cjs'
+      - 'tests/monitor-15min-candidate.test.cjs'
+      - 'tests/monitor-operational-baseline.test.cjs'
+      - 'tests/monitor-task-evidence.test.cjs'
+      - 'docs/monitor-15min-candidate-20261027.md'
+      - 'docs/monitor-15min-security-g2-handoff-20261027.md'
+      - 'docs/monitor-purpose-baseline-r7-20261027.md'
+      - 'docs/monitor-task-evidence-r8-20261027.md'
+      - '.github/workflows/monitor-15min-candidate.yml'
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
+
+concurrency:
+  # PR checks and branch pushes share the same evidence checkpoint lineage.
+  group: tcvl-monitor-15m-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Contract and negative tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run launcher, memory, task-aware baseline and monitor regressions
+        run: node --test tests/*.test.cjs
+
+  monitor-preview:
+    name: Read-only monitor; report only, never dispatch
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore the most recent same-branch monitor checkpoint if available
+        shell: bash
+        env:
+          GH_TOKEN: '${{ github.token }}'
+          GH_REPO: '${{ github.repository }}'
+        run: |
+          mkdir -p prior
+          monitor_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          monitor_branch_encoded="$(jq -rn --arg v "$monitor_branch" '$v|@uri')"
+          if gh api "/repos/$GH_REPO/actions/runs?branch=$monitor_branch_encoded&per_page=30" --jq '.workflow_runs[] | select(.name == "TCVL 15-minute read-only monitoring candidate" and (.conclusion == "success" or .conclusion == "failure")) | .id' > previous-run-ids.txt; then
+            while IFS= read -r run_id; do
+              [[ "$run_id" =~ ^[0-9]+$ ]] || continue
+              if gh run download "$run_id" --name monitor-15min-state --dir prior >/dev/null 2>&1 && [ -s prior/state.json ]; then
+                echo "Prior checkpoint restored; it is revalidated by the monitor."
+                break
+              fi
+              echo "::warning::Failed to download a valid monitor checkpoint from prior run $run_id; trying older."
+              rm -f prior/state.json
+            done < previous-run-ids.txt
+          else
+            echo "::warning::Cannot list previous monitor runs; baseline-only coverage until recovered."
+          fi
+          if [ ! -s prior/state.json ]; then
+            if [ -s previous-run-ids.txt ]; then
+              echo "::error::Previous monitor runs exist but no checkpoint could be restored. Failing closed to prevent silent skipped changes."
+              exit 2
+            fi
+            echo "No trusted prior checkpoint available: initial bootstrap, no historic alerts."
+          fi
+          rm -f previous-run-ids.txt
+      - name: Poll public GitHub metadata and configured private Notion metadata
+        env:
+          GITHUB_TOKEN: '${{ github.token }}'
+          # G0/G1 safety: no Notion credential can be injected by this
+          # public-repository candidate. A future protected, separately
+          # approved Notion runner needs an independent design and PR.
+          NOTION_MONITOR_TOKEN: ''
+          NOTION_MONITOR_PAGE_IDS: '${{ vars.NOTION_MONITOR_PAGE_IDS }}'
+          NOTION_MONITOR_DATA_SOURCE_IDS: '${{ vars.NOTION_MONITOR_DATA_SOURCE_IDS }}'
+        run: node scripts/monitor-15min-candidate.cjs
+      - name: Upload redacted evidence report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitor-15min-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: monitor-output/report.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Upload checkpoint without raw private content
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitor-15min-state
+          path: monitor-output/state.json
+          if-no-files-found: warn
+          retention-days: 14
