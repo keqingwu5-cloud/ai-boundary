@@ -1,6 +1,7 @@
 /* 3D 動態認知大腦 v1 — plain Three.js (ES modules, vendored), no build step. */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { validateBrainImport, commitBrainImport } from './brain-import-guard.mjs';
 
 /* ================= constants ================= */
 const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
@@ -67,7 +68,25 @@ function seedState(){
   return st;
 }
 function valid(s){ return s && Array.isArray(s.brains) && Array.isArray(s.nodes) && Array.isArray(s.links) && Array.isArray(s.history) && s.brains.some(b => b.id === 'main'); }
-function load(){ try { const s = JSON.parse(localStorage.getItem(KEY)); return valid(s) ? s : null; } catch(e){ return null; } }
+// Corrupt persisted data is quarantined in place, not silently replaced with seed data.
+let blockedStoredState = false, preservedRawState = null;
+let expectedMainRaw = null; // Raw main snapshot last loaded or persisted in this tab.
+function load(){
+  let raw;
+  try { raw = localStorage.getItem(KEY); expectedMainRaw = raw; }
+  catch(e){ blockedStoredState = true; return null; }
+  if (raw === null) return null;
+  try {
+    const saved = JSON.parse(raw);
+    const checked = validateBrainImport(saved);
+    if (!checked.ok) throw Error(checked.reason);
+    return saved;
+  } catch(e){
+    blockedStoredState = true;
+    preservedRawState = raw;
+    return null;
+  }
+}
 /* concept layer migration: adds concepts[] / processPattern to old saves without touching user edits */
 function seedKey(id){ const m = /^n_(q\d+)(?:_e(\d+))?$/.exec(id); return m ? (m[2] !== undefined ? m[1] + ':e' + m[2] : m[1]) : null; }
 function migrate(st){
@@ -106,22 +125,70 @@ function migrate(st){
 const CPAL = ['#5eead4','#a3e635','#fde047','#fdba74','#67e8f9','#f0abfc','#86efac','#c4b5fd','#f9a8d4','#fca5a5','#fb7185','#93c5fd','#fb923c','#f472b6','#cbd5e1','#bef264','#7dd3fc','#fcd34d','#d8b4fe','#99f6e4'];
 function pickColor(st){ const used = new Set(Object.values(st.concepts || {}).map(c => c.color)); return CPAL.find(c => !used.has(c)) || `hsl(${Math.floor(Math.random() * 360)},85%,72%)`; }
 let state = migrate(load() || seedState());
-let undoStack = []; try { undoStack = JSON.parse(localStorage.getItem(UKEY) || '[]'); } catch(e){ undoStack = []; }
+let undoStack = [];
+try {
+  const value = JSON.parse(localStorage.getItem(UKEY) || '[]');
+  if (Array.isArray(value) && value.length <= 12 && value.every(v => typeof v === 'string')) undoStack = value;
+} catch(e){ undoStack = []; }
 let saveT = 0;
+// Returns real persistence status. A partial localStorage write is not a successful save.
 function save(now = false){
+  if (blockedStoredState) return false; // UI warning is installed after startup.
   clearTimeout(saveT);
-  const f = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); localStorage.setItem(UKEY, JSON.stringify(undoStack.slice(-12))); flashSaved(); } catch(e){ toast('⚠ 儲存失敗：' + e.message); } };
-  now ? f() : (saveT = setTimeout(f, 250));
+  const result = commitBrainImport(localStorage, KEY, UKEY, state, undoStack.slice(-12), expectedMainRaw);
+  if (!result.ok){
+    toast('⚠ 儲存未完成：' + result.reason + (result.rollbackOk ? '' : '（回復失敗，請保留備份）'));
+    return false;
+  }
+  expectedMainRaw = JSON.stringify(state);
+  flashSaved();
+  return true;
 }
 save(true);
 const listeners = {};
 function emit(ev, data){ (listeners[ev] || []).forEach(f => { try { f(data); } catch(e){ console.error(e); } }); }
+function commitChange(proposed, nextUndo, successLabel){
+  if (blockedStoredState){ toast('⚠ 舊存檔待保護，禁止自動覆寫'); return false; }
+  const checked = validateBrainImport(proposed);
+  if (!checked.ok){ toast('⚠ 變更未保存：' + checked.reason); return false; }
+  const result = commitBrainImport(localStorage, KEY, UKEY, proposed, nextUndo, expectedMainRaw);
+  if (!result.ok){
+    toast('⚠ 變更未保存：' + result.reason + (result.rollbackOk ? '' : '（回復失敗，請保留備份）'));
+    return false;
+  }
+  state = proposed;
+  undoStack = nextUndo;
+  expectedMainRaw = JSON.stringify(proposed);
+  flashSaved();
+  if (successLabel) toast(successLabel);
+  return true;
+}
 function mutate(action, payload, fn){
-  undoStack.push(JSON.stringify(state)); if (undoStack.length > 12) undoStack.shift();
-  fn();
-  state.history.push({ ts:Date.now(), action, payload });
-  save(); sync(); renderHistory(); renderCrumbs();
+  if (blockedStoredState){ toast('⚠ 舊存檔待保護，暫停修改'); return false; }
+  let previous;
+  try { previous = JSON.stringify(state); }
+  catch(e){ toast('⚠ 無法建立變更快照'); return false; }
+  // Legacy change callbacks can close over node objects. Apply to the current
+  // graph, then roll back the in-memory graph if validation or persistence fails.
+  try {
+    fn();
+    state.history.push({ ts:Date.now(), action, payload });
+  } catch(e){
+    state = JSON.parse(previous);
+    toast('⚠ 變更失敗：' + (e && e.message || 'invalid_operation'));
+    sync(); renderHistory(); renderCrumbs();
+    return false;
+  }
+  const proposed = state;
+  const nextUndo = [...undoStack, previous].slice(-12);
+  if (!commitChange(proposed, nextUndo)){
+    state = JSON.parse(previous);
+    sync(); renderHistory(); renderCrumbs();
+    return false;
+  }
+  sync(); renderHistory(); renderCrumbs();
   emit('change', { action, payload });
+  return true;
 }
 const N = id => state.nodes.find(n => n.id === id);
 const B = id => state.brains.find(b => b.id === id);
@@ -279,13 +346,31 @@ function deleteNode(id){
   closePanel();
 }
 function undo(){
-  if (!undoStack.length){ toast('沒有可復原的步驟'); return; }
-  state = JSON.parse(undoStack.pop());
-  save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已復原');
+  if (!undoStack.length){ toast('沒有可復原的步驟'); return false; }
+  let proposed;
+  try { proposed = JSON.parse(undoStack[undoStack.length - 1]); }
+  catch(e){ toast('⚠ 復原快照無法讀取'); return false; }
+  const nextUndo = undoStack.slice(0, -1);
+  if (!commitChange(proposed, nextUndo)) return false;
+  sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已復原');
   if (!B(focusId)) focusBrain('main');
   emit('change', { action:'undo' });
+  return true;
 }
-function resetAll(){ undoStack.push(JSON.stringify(state)); state = seedState(); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); }
+function resetAll(){
+  let proposed;
+  try {
+    // Seed snapshots lack the concept/pattern dictionaries expected by the 3D renderer.
+    // Reset must pass through the same migration as first load and JSON import.
+    proposed = migrate(seedState());
+    proposed.history.push({ ts:Date.now(), action:'reset', payload:{} });
+  } catch(e){ toast('⚠ 重置資料建立失敗'); return false; }
+  const nextUndo = [...undoStack, JSON.stringify(state)].slice(-12);
+  if (!commitChange(proposed, nextUndo)) return false;
+  sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main');
+  emit('change', { action:'reset' });
+  return true;
+}
 function exportJSON(){
   const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ai-brain-' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.json';
@@ -293,10 +378,31 @@ function exportJSON(){
   toast('⇩ 已匯出 JSON');
 }
 function importJSON(obj){
-  if (!valid(obj)){ toast('⚠ 檔案格式不符'); return false; }
-  undoStack.push(JSON.stringify(state));
-  state = migrate(obj); state.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
-  save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入');
+  if (blockedStoredState){ toast('⚠ 舊存檔待保護；請先下載備份後處理'); return false; }
+  const checked = validateBrainImport(obj);
+  if (!checked.ok){ toast('⚠ 匯入資料檢查失敗：' + checked.reason); return false; }
+  let proposed;
+  try {
+    // Migrate a copy; a rejected import must not mutate the supplied snapshot.
+    proposed = migrate(JSON.parse(JSON.stringify(obj)));
+    proposed.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
+    const afterMigration = validateBrainImport(proposed);
+    if (!afterMigration.ok) throw Error('after_migration_' + afterMigration.reason);
+  } catch(e) {
+    toast('⚠ 匯入轉換失敗：' + (e && e.message || 'invalid_data'));
+    return false;
+  }
+  const nextUndo = [...undoStack, JSON.stringify(state)].slice(-12);
+  const written = commitBrainImport(localStorage, KEY, UKEY, proposed, nextUndo, expectedMainRaw);
+  if (!written.ok){
+    toast('⚠ 匯入未完成：' + written.reason + (written.rollbackOk ? '（原資料未變或已回復）' : '（回復失敗，請保留備份）'));
+    return false;
+  }
+  clearTimeout(saveT);
+  undoStack = nextUndo;
+  state = proposed;
+  expectedMainRaw = JSON.stringify(proposed);
+  sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入並驗證保存');
   return true;
 }
 
@@ -1018,3 +1124,51 @@ window.AIBrain = {
   on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); }
 };
 document.body.dataset.ready = '1';
+// If another tab writes while this tab is open, stop silent lost updates.
+function showConcurrentWarning(){
+  if(document.getElementById('brainConcurrentWarning'))return;
+  const banner=document.createElement('aside');
+  banner.id='brainConcurrentWarning';
+  banner.setAttribute('role','alert');
+  banner.style.cssText='position:fixed;z-index:100001;top:12px;left:12px;right:12px;padding:12px 16px;border:2px solid #f7ca83;border-radius:12px;background:#29241d;color:#fff4da;font:14px/1.5 system-ui';
+  const msg=document.createElement('span');
+  msg.textContent='另一分頁更新了主腦。為避免覆寫新資料，本分頁修改會被拒絕，請重新整理讀取最新內容。';
+  banner.append(msg);
+  const action=document.createElement('button');
+  action.type='button';
+  action.textContent='重新整理並讀取最新內容';
+  action.style.cssText='margin-left:10px;padding:4px 8px;border:1px solid #f7ca83;border-radius:8px;background:#453224;color:#fff4da';
+  action.addEventListener('click',()=>location.reload());
+  banner.append(action);
+  document.body.append(banner);
+}
+addEventListener('storage',event=>{
+  if(event.key===KEY && event.newValue!==expectedMainRaw)showConcurrentWarning();
+});
+
+// Keep the original damaged snapshot available to the person, without uploading it.
+if (blockedStoredState){
+  const banner = document.createElement('aside');
+  banner.id = 'brainRecoveryWarning';
+  banner.setAttribute('role', 'alert');
+  banner.style.cssText = 'position:fixed;z-index:100000;inset:auto 12px 12px 12px;padding:14px 18px;border:2px solid #f7ca83;border-radius:12px;background:#2b221b;color:#fff4da;box-shadow:0 8px 30px #000b;font:14px/1.6 system-ui';
+  const message = document.createElement('span');
+  message.textContent = '原有主腦存檔無法安全讀取，系統已禁止自動覆寫。現在畫面是暫時的初始資料，並非原有資料已恢復。';
+  banner.append(message);
+  if (preservedRawState !== null){
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = '下載原始存檔備份';
+    button.style.cssText = 'margin-left:12px;border:1px solid #f7ca83;border-radius:8px;padding:5px 9px;background:#453224;color:#fff4da;cursor:pointer';
+    button.addEventListener('click', () => {
+      const blob = new Blob([preservedRawState], {type:'text/plain;charset=utf-8'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ai-brain-preserved-original.txt';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
+    banner.append(button);
+  }
+  document.body.append(banner);
+}
