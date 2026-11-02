@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>世界模型・A001 劇本演員沙盒</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--panel:#151d30;--stroke:#2b3b55;--txt:#f1f6ff;--muted:#9caec8;--blue:#91d5f5;--gold:#f0d49c;--mint:#92e3c5}*{box-sizing:border-box}
+body{background:radial-gradient(ellipse at 70% -20%,#244461 0%,transparent 53%),var(--bg);color:var(--txt);font:15px/1.55 system-ui,"Noto Sans TC",sans-serif;margin:0}
+main{max-width:1160px;margin:auto;padding:23px 16px 50px}h1{font-size:23px;margin:0}h2{font-size:16px;margin:0 0 10px}h3{font-size:14px;margin:7px 0}p{margin:6px 0}.muted,small{color:var(--muted)}.top{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}.tag{display:inline-block;color:#cde9f5;background:#223b50;border:1px solid #35536a;padding:4px 9px;border-radius:20px;font-size:12px}.layout{display:grid;grid-template-columns:minmax(320px,1.15fr) minmax(270px,.85fr);gap:14px}.panel{background:var(--panel);border:1px solid var(--stroke);border-radius:17px;padding:17px;margin-bottom:14px;box-shadow:0 12px 24px #0002}.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.button,select{background:#22384f;border:1px solid #3e6381;color:var(--txt);font:inherit;border-radius:9px;padding:10px 12px}.button{cursor:pointer}.button.primary{background:#2b6a7f;border-color:#55a1af}.button:focus-visible,select:focus-visible{outline:2px solid var(--mint);outline-offset:2px}.button:hover{filter:brightness(1.15)}label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}.stage{position:relative;min-height:338px;background:linear-gradient(145deg,#202c41 0%,#172137 70%);border:1px solid #40506b;border-radius:13px;overflow:hidden;margin:11px 0}.floor{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 39px,#fff1 40px),repeating-linear-gradient(90deg,transparent 0 39px,#fff1 40px);transform:skewY(-5deg) scale(1.15)}.stage .obj{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:#263952;border:2px solid #6383a2;border-radius:13px;text-align:center;font-size:12px;padding:7px;color:#e4eefc}.obj strong{font-size:28px;line-height:1.2}.bed{left:7%;bottom:12%;width:37%;height:33%;background:#453754!important;border-color:#b78bb7!important}.desk{right:7%;top:16%;width:43%;height:40%;background:#3f3d39!important;border-color:#9a866f!important}.door{left:10%;top:12%;width:20%;height:20%}.actor{position:absolute;left:23%;bottom:24%;width:66px;height:100px;transition:left .65s,bottom .65s;filter:drop-shadow(0 14px 10px #0007);display:flex;flex-direction:column;align-items:center;z-index:2}.actor.at-desk{left:65%;bottom:16%}.head{width:43px;height:45px;border-radius:48% 48% 47% 47%;background:#e6bda1;border-top:14px solid #11131c;box-shadow:inset -6px -3px 0 #ad887455}.torso{background:#f0f1f3;border-radius:14px 14px 11px 11px;width:62px;height:47px;border:2px solid #c5cbd4;position:relative}.torso:before,.torso:after{content:"";position:absolute;top:4px;width:11px;height:33px;background:#deb297;border-radius:7px}.torso:before{left:-8px;transform:rotate(13deg)}.torso:after{right:-8px;transform:rotate(-15deg)}.where{position:absolute;bottom:4px;left:8px;background:#081b2abd;padding:5px 8px;border-radius:7px;font-size:12px}.summarygrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.metric{background:#10192a;border:1px solid var(--stroke);padding:11px;border-radius:10px;min-height:73px}.metric b{display:block;font-size:15px;line-height:1.35}.metric small{display:block}.timeline{display:flex;flex-direction:column;gap:8px;max-height:330px;overflow:auto}.line{border-left:3px solid var(--mint);background:#10192a;border-radius:5px 10px 10px 5px;padding:9px 10px;font-size:13px}.line.env{border-color:var(--gold)}.line strong{color:var(--blue)}.line .kind{font-size:11px;color:var(--muted)}.line .unknown{color:#e8c99b;font-size:12px}.lognone{padding:12px;color:var(--muted);border:1px dashed var(--stroke);border-radius:9px}.disclaimer{border-left:3px solid var(--gold);padding:9px 12px;background:#5540212b;border-radius:2px 8px 8px 2px;font-size:13px}.facts{margin:0;padding-left:20px;font-size:13px}.facts li{margin:5px 0}.footer{color:var(--muted);font-size:12px;margin-top:12px;line-height:1.5}@media(max-width:750px){.layout{grid-template-columns:1fr}.stage{min-height:290px}h1{font-size:20px}.panel{padding:14px}}
+</style>
+<style>
+.doc-section{margin-top:20px;border-color:#58768b}.doc-intro{padding-bottom:14px;border-bottom:1px solid #41536e}.doc-intro h2{font-size:23px;margin:10px 0 8px}.doc-intro p{color:#b4c9de;max-width:780px}.doc-jump{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0}.doc-jump a{font-size:13px;color:#b5e4f4;background:#152e44;text-decoration:none;border:1px solid #365d73;border-radius:8px;padding:7px 10px}.live-narration{font-size:15px;color:#d5f2e6;line-height:1.8;padding:9px 0}
+.document-body{max-width:900px;margin:auto;font-size:15px;line-height:1.8;color:#dbe6f3}.document-body h1{font-size:25px;margin:22px 0 6px}.document-body h2{font-size:21px;margin:34px 0 14px;padding-left:12px;border-left:4px solid #8ccfe8;color:#f7fbff}.document-body h3{font-size:17px;margin:23px 0 8px;color:#cdeeff}.document-body p{margin:10px 0;line-height:1.85}.document-body ul,.document-body ol{padding-left:24px}.document-body li{margin:5px 0}.document-body strong{color:#f6e2ae}.document-body blockquote{border-left:3px solid #b9a572;margin:18px 0;padding:12px 16px;background:#2b292a;color:#dce0e7}.document-body table{display:block;width:100%;overflow:auto;border-collapse:collapse;margin:12px 0 22px;font-size:13px}.document-body th,.document-body td{border:1px solid #3b506b;padding:9px;vertical-align:top;text-align:left;min-width:85px}.document-body th{background:#25374c;color:#dceffd}.document-body pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#101724;border-radius:10px;border:1px solid #344456;padding:12px;font-size:12px;line-height:1.5}.document-body code{overflow-wrap:anywhere;color:#cce5f3}
+@media(max-width:750px){.document-body{font-size:14px}.document-body h1{font-size:22px}.document-body h2{font-size:18px}.document-body table{font-size:12px}.doc-intro h2{font-size:21px}}
+@media print{body{background:#fff;color:#111}.panel{background:#fff;box-shadow:none;border:0} .controls,.stage,.summarygrid,.top,.timeline,.doc-jump{display:none}.doc-section{display:block}.document-body{color:#111}.document-body h1,.document-body h2,.document-body h3,.document-body strong{color:#111}.document-body th,.document-body td{color:#111;border-color:#aaa}.document-body p{color:#111}}
+</style>
+</head><body><main>
+<div class="top"><div><h1>世界模型｜A001 劇本演員實驗室</h1><p class="muted">同一個人，劇本只是目標；環境會改變他的實際路徑。</p><p><a href="#production-bible" style="color:#92e3c5">閱讀完整創作計畫、分鏡劇本與宣傳文案 ↓</a></p></div><span class="tag">隔離原型 V0.3 ・ 計畫／文案已收錄</span></div>
+<div class="panel"><h2>情境控制</h2><div class="controls"><label>劇本分支<select id="scenario"><option value="interrupted">通知打斷</option><option value="quiet">安靜的一天</option><option value="branching">未知聲響</option></select></label><button class="button primary" id="next">▶ 下一個行動</button><button class="button" id="phone">＋ 手機通知</button><button class="button" id="door">＋ 門外聲響</button><button class="button" id="cup">＋ 水杯移位</button><button class="button" id="reset">↺ 重置</button><button class="button" id="export">匯出 JSON</button></div><p class="footer">按「＋」會在下一個步驟注入事件並立即演出；會在觀察紀錄中保留事件來源、未完成動作與未知資訊。每一步代表一個離散模擬節點，不等於真實分鐘。</p></div>
+<div class="layout"><div>
+<section class="panel"><div class="top"><h2>生活場景</h2><span class="tag" id="counter">第 0 步</span></div><div class="stage" role="img" aria-label="房間平面示意，人物可由床移動至桌邊"><div class="floor"></div><div class="obj door"><strong>🚪</strong>房門</div><div class="obj bed"><strong>🛏️</strong>床與枕頭</div><div class="obj desk"><strong>📒 ☕ 📱</strong>筆記、水杯、手機</div><div id="actor" class="actor"><div class="head"></div><div class="torso"></div></div><div class="where" id="where">A001 · 床邊</div></div><div class="summarygrid"><div class="metric"><small>角色目標</small><b id="goal"></b></div><div class="metric"><small>當前動作</small><b id="action"></b></div><div class="metric"><small>注意方向</small><b id="attention"></b></div><div class="metric"><small>劇本進度</small><b id="progress"></b></div></div></section>
+<section class="panel"><h2>此刻的演出旁白</h2><p id="liveNarration" class="live-narration">他只是想整理昨天的資料。世界卻不一定按照劇本的順序運作。</p><small>對應目前實際發生的步驟；只是創作用旁白，不是角色的真實心理。</small></section>
+<section class="panel"><h2>環境留下的痕跡</h2><ul class="facts" id="props"></ul></section>
+</div><div>
+<section class="panel"><h2>人物知道什麼？</h2><ul class="facts" id="known"></ul><p class="footer">角色的已知資訊不等於模擬器的全局資訊，例如看見螢幕亮起 ≠ 知道訊息內容。</p></section>
+<section class="panel"><h2>事件與因果紀錄</h2><div id="history" class="timeline" aria-live="polite"></div></section>
+<section class="panel"><h2>隔離與接線界線</h2><p class="disclaimer">本頁不讀取、不寫入 <code>aiBrain.v1</code>、<code>worldModel.verify.v1</code> 或任何瀏覽器記憶；不調用模型 API、不下單、不發送網路請求。</p><p class="footer">這是嵌入世界模型頁面中的隔離 2D 角色舞台，尚非正式世界模型資料引擎，也不是即時自主 AI。匯出的 <code>wm.actor.sandbox.v0.1</code> JSON 可作為下一階段角色與事件契約候選。</p></section>
+</div></div>
+
+<section class="panel doc-section" id="production-bible" aria-label="A001 完整計畫及演出文案">
+  <div class="doc-intro"><span class="tag">V0.3 內容母本｜可獨立使用</span><h2>角色計畫與劇本全文</h2><p>這裡是完整的計畫、S01–S05 演出分鏡、旁白、支線、宣傳文字、接線條件與驗收。可直接閱讀，不需要開其他文檔。</p></div>
+  <nav class="doc-jump" aria-label="文件章節"><a href="#chapter-2">演員卡</a><a href="#chapter-5">五步劇本</a><a href="#chapter-6">完整演出文案</a><a href="#chapter-15">宣傳文案</a><a href="#chapter-21">接線與驗收</a></nav>
+  <article class="document-body"><h1 id="chapter-0">第十三格｜A001 演員世界模型</h1>
+<p><strong>創作計畫、完整演出文案與驗收方案｜V0.3（隔離候選）</strong><br/>
+<strong>文件用途：</strong> 同時提供導演、編劇、角色設計、動畫師與世界模型實作人員使用。<br/>
+<strong>目前狀態：</strong> 單機離散步進實驗；不代表已接入正式世界模型，不會修改主腦記憶。<br/>
+<strong>身分與素材界線：</strong> 原始人物照片僅供造型參考；下列經歷、動機、性格、台詞、事件皆為虛構創作，不是對照片中真實人物的心理判斷。</p>
+<h2 id="chapter-1">01｜一句話計畫</h2>
+<p><strong>讓一位「被劇本安排演戲的人」，進入會持續自行發生事件的世界；比較他原本打算做的事、真正做出的動作、環境留下的痕跡，以及他當時不知道的資訊。</strong></p>
+<p>這不是給角色一段完整動畫，播放完就結束。劇本只提供目標與起始條件；人物會被干擾、停頓、調整，甚至錯過原本安排的動作。世界不需要等主角看見才開始運作。</p>
+<ul>
+<li><strong>表層：</strong> 一個普通人想整理昨天的筆記。</li>
+<li><strong>行為層：</strong> 起身、走向書桌、拿水杯、讀筆記、補寫、收拾。</li>
+<li><strong>非刻意層：</strong> 枕頭凹陷、衣服皺摺、未完成的伸手、視線短暫轉移。</li>
+<li><strong>環境層：</strong> 手機螢幕亮起、門外有人經過、水杯位置產生變化。</li>
+<li><strong>資訊層：</strong> 角色只知道自己實際看見或聽見的內容；觀察者可看見完整事件，但不應假裝角色也知道。</li>
+<li><strong>因果層：</strong> 每個行動與中斷都留下來源、當時資訊、物件變化和未確認原因。</li>
+</ul>
+<h2 id="chapter-2">02｜演員卡 A001</h2>
+<p><strong>代號：</strong> A001／第十三格・普通居民。<br/>
+<strong>影像辨識：</strong> 黑色短髮、白色日常上衣；臉部輪廓遵循使用者原始照片，不額外設定真實身分。<br/>
+<strong>角色定位：</strong> 普通居民，不是全知主角，也不是控制世界的上帝。<br/>
+<strong>當日目標：</strong> 整理昨天留下的筆記，確認一個未解問題。<br/>
+<strong>初始地點：</strong> 房間床邊；書桌上有筆記本、水杯、手機，門保持關閉。<br/>
+<strong>可執行動作：</strong> 坐起、起身、移動、伸手、拿取、放下、閱讀、書寫、觀察、短暫停止、恢復。<br/>
+<strong>外部限制：</strong> 行動需要時間；雙手不能無原因同時佔用；物件位置持續存在；角色的知識不能超越感官與實際接收資訊。<br/>
+<strong>表現原則：</strong> 不把每個動作都解釋成情緒；不同事件下可以有不對稱、不完整、不戲劇化的反應。</p>
+<p><strong>可用但非強制的微動作素材：</strong> 坐起時先將重心移到手掌；後腦離開枕頭使凹陷慢慢恢復；衣服肩線隨動作移位；走到桌邊才調整站姿；伸向杯子的手在通知發生時停止；眼睛先轉向聲音，再讓頭部跟上；說完話後沒有立刻接下一句。</p>
+<h2 id="chapter-3">03｜世界與資料規則</h2>
+<p><strong>世界節點：</strong> 角色、床、粉紅色枕頭、書桌、筆記本、水杯、手機、房門、走廊。<br/>
+<strong>時間：</strong> 目前每次點擊推進一個「模擬節點」，不是固定幾秒鐘；事件先後順序必須可重播。<br/>
+<strong>力量與傳導：</strong> 資訊（通知）→ 注意力切換 → 動作中斷 → 劇本延後；物理碰撞 → 杯子位置改變 → 下一個拿杯子的動作需要重新對位。<br/>
+<strong>資訊權限：</strong> 畫面上看到手機亮起，不等於看到內容；聽到門外聲音，不等於知道來者身分。<br/>
+<strong>留下的結果：</strong> 枕頭凹陷、杯子移位、筆記本開合、內頁新增文字；每個痕跡可隨後續動作改變或消失。<br/>
+<strong>證據分層：</strong> 「劇本命令」「環境事件」「角色觀察」「合理推論」「仍未知」分開記錄，禁止將推論寫成事實。</p>
+<h3 id="chapter-4">最小因果結構</h3>
+<p><strong>事件來源 → 可觀察刺激 → 角色當下可知資訊 → 選擇／反應 → 物件狀態變化 → 未完成事項 → 下一個節點。</strong></p>
+<p>例如「手機亮起」是可觀察事件；「角色停下伸手」是行為；「他對訊息感到焦慮」則是沒有證據的臆測，不得自動加入。</p>
+<h2 id="chapter-5">04｜原定五步劇本</h2>
+<table>
+<thead>
+<tr>
+<th>節點</th>
+<th>預計演出動作</th>
+<th>觀察者能記錄的物理後果</th>
+<th>仍然未知</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B01</td>
+<td>從床上坐起，起身走向書桌</td>
+<td>枕頭短暫留有凹陷，衣服摺痕改變</td>
+<td>是否因疲倦而慢起身</td>
+</tr>
+<tr>
+<td>B02</td>
+<td>伸手拿水杯，喝水後放回</td>
+<td>水杯被移動，桌面位置可能略變</td>
+<td>是否因口渴而喝水</td>
+</tr>
+<tr>
+<td>B03</td>
+<td>打開筆記本，讀昨天的標題</td>
+<td>筆記本由合上轉為打開</td>
+<td>他是否理解所有內容</td>
+</tr>
+<tr>
+<td>B04</td>
+<td>補上幾行註記</td>
+<td>內頁出現新文字</td>
+<td>他是否已經找到答案</td>
+</tr>
+<tr>
+<td>B05</td>
+<td>合上筆記，伸展肩膀</td>
+<td>筆記本合上，文字持續存在</td>
+<td>他下一步真正要做什麼</td>
+</tr>
+</tbody>
+</table>
+<p>劇本任務只算「確實完成」的節點。因手機通知而暫停時，不能自動把 B03 計入完成。</p>
+<h2 id="chapter-6">05｜完整演出文案：《原本只是要整理筆記》</h2>
+<p><strong>類型：</strong> 寫實生活短片／輕微懸念。<br/>
+<strong>場景長度：</strong> 主版約 60–90 秒；依鏡頭節奏調整，不把每個模擬節點等同真實秒數。<br/>
+<strong>聲音：</strong> 輕微風扇聲、布料摩擦、手機短促提示音、筆碰紙的聲音；不強制配樂。<br/>
+<strong>鏡頭規則：</strong> 鏡頭並不總是正對主角；可以看見沒有主角的物件，避免所有畫面都像擺拍。</p>
+<h3 id="chapter-7">場次 S01｜房間：劇本開始</h3>
+<p><strong>畫面：</strong> 床鋪佔去畫面的一角。粉紅色枕頭被壓住，主角穿白色上衣、黑色短髮，靠在枕頭上。房內不完全整齊，書桌上放著筆記本、手機和半杯水。窗外的光很普通。<br/>
+<strong>動作：</strong> 他看了一眼書桌，先用手撐住床墊，再坐起來。頭髮有一小撮翹起，他沒有整理。起身之後，枕頭仍保留淺淺的凹陷。<br/>
+<strong>旁白：</strong>「今天原本沒有什麼特別的事。他只是想把昨天的筆記整理完。」<br/>
+<strong>觀察紀錄：</strong> 人物由床邊移往書桌；枕頭因卸重開始恢復。<br/>
+<strong>不可推斷：</strong> 他是不是開心、疲倦或煩躁。</p>
+<h3 id="chapter-8">場次 S02｜桌邊：普通動作</h3>
+<p><strong>畫面：</strong> 鏡頭停留在桌面。水杯靠近筆記本，手機在另一側。<br/>
+<strong>動作：</strong> 他走近桌子，先伸手碰到杯子，稍微調整握持位置，拿起喝一口，再放下。手離開杯子後，杯身並沒有完全回到之前的角度。<br/>
+<strong>旁白：</strong>「有些事情做完了，會留下很小的痕跡。小到沒有人特別注意。」<br/>
+<strong>音效：</strong> 杯底輕碰桌面的聲音。<br/>
+<strong>觀察紀錄：</strong> 水杯位置更新、角色右手重新空出。</p>
+<h3 id="chapter-9">場次 S03｜通知：第一次偏離</h3>
+<p><strong>畫面：</strong> 主角的手剛伸向筆記本；桌邊手機螢幕突然亮起。鏡頭先拍亮起的螢幕邊緣，不顯示通知內容。<br/>
+<strong>動作：</strong> 手指停留在筆記本上方約一瞬，眼睛先移向手機，頭部稍後跟上。他沒有立即拿起手機，而是停下原本動作。<br/>
+<strong>音效：</strong> 一聲短促提示，隨後回到房間底噪。<br/>
+<strong>角色台詞（可選）：</strong>「欸？」<br/>
+<strong>旁白：</strong>「劇本要他翻開筆記。世界卻在這個時候，讓另一件事發生。」<br/>
+<strong>觀察紀錄：</strong> 通知作為外部事件進入；B03 尚未完成；角色知道手機亮起。<br/>
+<strong>不可推斷：</strong> 訊息來源、內容、人物是否焦慮或期待。</p>
+<h3 id="chapter-10">場次 S04｜恢復：他做了一個小選擇</h3>
+<p><strong>畫面：</strong> 手機螢幕變暗；角色重新看向筆記本。<br/>
+<strong>動作：</strong> 他將手移回筆記本，翻開封面。翻頁時，一張折過的紙角彈起。角色沒有特別處理，先看昨天寫下的標題。<br/>
+<strong>角色台詞（可選）：</strong>「先把這個弄完。」<br/>
+<strong>旁白：</strong>「同一個人，沒有變成另一種性格。他只是換了一次注意方向，又繼續做原本的事。」<br/>
+<strong>觀察紀錄：</strong> B03 現在才完成；筆記本已打開。</p>
+<h3 id="chapter-11">場次 S05｜痕跡：事情並沒有回到原樣</h3>
+<p><strong>畫面：</strong> 鏡頭從紙面拉遠。杯子的位置與最初不同，枕頭已慢慢恢復，手機仍放在桌邊。<br/>
+<strong>動作：</strong> 他補寫幾行字，合上筆記，抬起肩膀稍微伸展。沒有特別的勝利姿勢。<br/>
+<strong>旁白：</strong>「事情完成了。可是世界沒有回到第一格。杯子移動過，紙上多了字，還有一段被打斷的時間。」<br/>
+<strong>畫面字幕：</strong>「劇本說明他想做什麼；世界記錄真正發生了什麼。」<br/>
+<strong>觀察紀錄：</strong> B04、B05 完成；物件痕跡保留；仍不能斷言角色已解決筆記上的問題。</p>
+<h2 id="chapter-12">06｜另外兩種情境分支</h2>
+<h3 id="chapter-13">分支 A｜門外聲響</h3>
+<p>發生條件：第三個模擬節點時，門外傳來短暫聲音。<br/>
+<strong>演出：</strong> 角色的眼睛先看向門邊，手上的動作沒有完成；他停下、聽了一下，房門仍然關閉。聲音停止後，他再繼續翻筆記。<br/>
+<strong>短旁白：</strong>「他聽見了聲音，卻不知道是誰。對觀眾來說可能清楚的事，對房間裡的人未必清楚。」<br/>
+<strong>禁止：</strong> 不自動設定「朋友來訪」或「有人闖入」。</p>
+<h3 id="chapter-14">分支 B｜水杯被碰動</h3>
+<p>發生條件：某個事件使水杯在桌面上移位。<br/>
+<strong>演出：</strong> 角色發現杯子位置不同，原本的手部路徑需要重新調整。另一隻手可能正扶著筆記本，因此兩手動作不會鏡像一致。<br/>
+<strong>短旁白：</strong>「世界不是把道具擺好，等他來演。道具的位置，也會改變他下一步怎麼做。」<br/>
+<strong>禁止：</strong> 沒有碰撞或其他已知原因時，不憑空讓杯子大幅瞬移。</p>
+<h2 id="chapter-15">07｜可直接使用的宣傳文案</h2>
+<h3 id="chapter-16">一句話標語</h3>
+<p><strong>「劇本安排他的下一步，世界決定那一步能不能照原樣發生。」</strong></p>
+<h3 id="chapter-17">主介紹（適合世界模型功能頁）</h3>
+<p>這不是一段預先錄好的動畫。A001 是第一位被放進世界模型的虛構演員。他有原本的任務、有限的視野，也有會被打斷的行動。手機亮起、杯子移位、門外一聲響，都能改變他的下一個動作。系統保留劇本、可觀察結果、事件殘留與未知資訊，讓我們看見一個角色如何從「照著演」走向「在世界裡反應」。</p>
+<h3 id="chapter-18">15 秒短片文字</h3>
+<p>「他只想整理筆記。／但手機亮了。／手停下來，注意力改變了。／劇本沒有完成，世界卻繼續運作。／A001：第十三格，第一個演員。」</p>
+<h3 id="chapter-19">30 秒短片旁白</h3>
+<p>「我們通常先替角色安排動作，然後讓他照著演。但如果，世界也會自己發生事情呢？A001 原本只是起身、喝水、翻筆記。手機亮起的那一刻，他的手停住了。這不是一場精心安排的情緒表演，而是一個事件真正改變了下一步。照片記下表情；世界模型記下原因、結果，以及仍然不知道的部分。」</p>
+<h3 id="chapter-20">片尾與功能標籤</h3>
+<ul>
+<li><strong>主標：</strong> 第十三格｜世界中的第一位演員</li>
+<li><strong>副標：</strong> 原本的劇本，遇見沒有預先安排的世界</li>
+<li><strong>片尾：</strong> 不是每個動作都有意義；但每個事件都可能留下痕跡</li>
+<li><strong>功能標籤：</strong> 劇本／觀察／中斷／恢復／殘留／未知</li>
+</ul>
+<h2 id="chapter-21">08｜世界模型整合計畫（待核准）</h2>
+<p><strong>P0｜保存來源與隔離。</strong> 保留 A001 角色 ID、原始照片與虛構設定區分。實驗檔獨立，不碰正式 <code>aiBrain.v1</code>、<code>worldModel.verify.v1</code>、個人記憶或正式 DB。<br/>
+<strong>P1｜結構化劇本。</strong> 建立 actor、goal、script_beats、objects、event_queue、actor_known、world_truth、event_log；每次步進保留順序與來源。<br/>
+<strong>P2｜因果與知識驗證。</strong> 測試通知打斷、未知聲響、杯子移位、兩手物理一致性、物件位置延續、無證據情緒不得進入事實層。<br/>
+<strong>P3｜互動與世界視角。</strong> 將劇本視角、人物視角、上帝視角切成不同的畫面；人物只能讀到取得的資訊。現階段 2D 原型可驗證流程，尚未提供真正 3D 人體動畫。<br/>
+<strong>P4｜申請正式接線。</strong> 完成資料契約比對、舊資料兼容、負向測試、重播一致性、失敗與回滾文件後，另行提交給你確認。<strong>未取得許可不合併、不部署。</strong></p>
+<h3 id="chapter-22">建議事件紀錄格式</h3>
+<pre><code class="language-json">{
+  "actor_id": "A001",
+  "time_step": 3,
+  "source_type": "environment_event",
+  "event": "phone_screen_lit",
+  "actor_observed": "手機螢幕亮起",
+  "actor_known": ["手機亮起"],
+  "actor_unknown": ["發送者", "訊息內容", "心理動機"],
+  "interrupted_script_beat": "B03",
+  "script_beat_completed": false,
+  "object_effects": [{"object": "phone", "state": "screen_on"}],
+  "evidence_status": "simulated"
+}
+</code></pre>
+<h3 id="chapter-23">驗收條件</h3>
+<ol>
+<li>安靜情境必須依序完成五個劇本節點。</li>
+<li>中斷發生時不能偷算原節點完成；下一次應能繼續或依規則改變。</li>
+<li>重播同一情境與事件順序，得到相同結果。</li>
+<li>訊息內容、門外來源、人物動機等未知資訊不能被自動補全。</li>
+<li>同一物件的狀態要在後續場次延續，除非另有事件使其改變。</li>
+<li>公開展示時不能把虛構角色素材當成照片人物的真實個人資料。</li>
+<li>隔離原型不得改寫既有主腦／正式世界模型狀態；匯出僅為使用者主動操作。</li>
+<li>完成上述驗收也<strong>不等於</strong>正式網站已連線或已部署。</li>
+</ol>
+<h2 id="chapter-24">09｜如何使用本素材包</h2>
+<p><strong>純閱讀：</strong> 開 PDF，依次閱讀角色設定、計畫、五場演出文案、宣傳文案及驗收。<br/>
+<strong>互動實驗：</strong> 開 HTML，先讀「計畫與演出文案」，再切到控制區選情境、逐步播放或插入事件；觀察劇本進度、人物已知資訊與因果紀錄。<br/>
+<strong>影片製作：</strong> 直接抽取 S01–S05 分鏡，把每場的畫面、動作、旁白、音效、證據界線交給動畫流程。<br/>
+<strong>世界模型研究：</strong> 以 A001 JSON 為資料候選，先跑單人沙盒；下一版再加入第二個居民與公共環境，以測試人際資訊傳遞。</p>
+<blockquote>
+<p><strong>版本聲明：</strong> V0.3 補充完整的計畫與演出文字。互動模擬仍為規則驅動的離散步進原型，並不是影片播放器、AI 即時角色或正式主腦部署。</p>
+</blockquote>
+</article>
+</section>
+</main><script>
+/* 世界模型人物沙盒 A001 V0.1 — deterministic, isolated; no storage/network. */
+(function(root, factory){
+  const api=factory();
+  if (typeof module !== 'undefined' && module.exports) module.exports=api;
+  if (root) root.ActorSandbox=api;
+})(typeof window !== 'undefined' ? window : null, function(){
+'use strict';
+const schema='wm.actor.sandbox.v0.1';
+const scenes={
+ quiet:'安靜的一天',
+ interrupted:'通知打斷',
+ branching:'未知聲響'
+};
+const beats=[
+ {goal:'走向桌邊',action:'從床上坐起，走向桌邊',position:'desk',prop:'pillow',effect:'枕頭保留短暫凹陷'},
+ {goal:'喝口水',action:'拿起水杯、喝水，再放回桌上',position:'desk',prop:'cup',effect:'杯子回到桌面，位置略有改變'},
+ {goal:'閱讀筆記',action:'打開筆記本，確認昨天寫下的標題',position:'desk',prop:'notebook',effect:'筆記本被打開'},
+ {goal:'補充筆記',action:'在筆記本上補上幾行註記',position:'desk',prop:'notebook',effect:'新增幾行文字'},
+ {goal:'結束工作',action:'合上筆記，稍微伸展肩膀',position:'desk',prop:'notebook',effect:'筆記本合上，保留剛才的書寫'}
+];
+const byId={notification:{kind:'notification',visible:'手機螢幕亮起',reaction:'停止原本動作，轉頭看向手機',knowledge:'知道手機亮起；不知道訊息內容',trace:'螢幕出現通知提示'},door:{kind:'door',visible:'門外傳來聲響',reaction:'短暫停頓，視線轉向門口',knowledge:'知道門外有聲音；不知道是誰發出的',trace:'聲音已消失，沒有留下確定來源'},cup:{kind:'cup',visible:'水杯被碰動',reaction:'調整手部方向，確認杯子位置',knowledge:'看到水杯移動；尚不知道原因',trace:'水杯偏離原位置'}};
+function initial(scene='interrupted'){
+ if(!scenes[scene]) throw new Error('未知劇本');
+ return {schema,scenario:scene,actor:{id:'A001',label:'第十三格・普通居民',position:'bed',goal:'整理昨天的資料',currentAction:'靠在枕頭上休息',attention:'房間',known:[],energy:'普通'},world:{pillow:'受壓',cup:'桌面原位',notebook:'合上',phone:'桌面待機',door:'關閉'},clock:0,beatIndex:0,queue:[],history:[],status:'進行中'};
+}
+function log(s,origin,observation,causation,unknown){s.history.push({step:s.clock,origin,observation,causation,unknown:unknown||'無法從目前資訊確定'});}
+function cue(s,type){if(!byId[type])throw new Error('未知事件');if(s.status==='完成')throw new Error('劇本已完成');s.queue.push(type);return s;}
+function step(s){
+ if(s.status==='完成')return s;
+ s.clock++;
+ // Scheduled situations are scenario conditions, never universal behavior.
+ if(s.scenario==='interrupted'&&s.clock===3)s.queue.push('notification');
+ if(s.scenario==='branching'&&s.clock===3)s.queue.push('door');
+ if(s.queue.length){
+   const event=byId[s.queue.shift()];
+   s.actor.currentAction=event.reaction;
+   s.actor.attention=event.kind==='door'?'門口':event.kind==='cup'?'水杯':'手機';
+   s.actor.known.push(event.knowledge);
+   if(event.kind==='notification')s.world.phone='螢幕亮起，內容未讀';
+   if(event.kind==='cup')s.world.cup='桌面偏移';
+   log(s,'環境事件',event.visible,'事件打斷目前劇本節點；原節點沒有被完成',event.kind==='notification'?'訊息內容與發送者未知':event.kind==='door'?'聲音來源未知':'碰動原因未知');
+   return s;
+ }
+ const beat=beats[s.beatIndex];
+ if(!beat){s.status='完成';return s;}
+ s.actor.currentAction=beat.action;
+ s.actor.attention=beat.prop==='pillow'?'桌面':beat.prop==='notebook'?'筆記本':'水杯';
+ s.actor.position=beat.position;
+ if(s.beatIndex===0)s.world.pillow='離開後仍有凹陷';
+ if(s.beatIndex===1)s.world.cup='使用後移回桌面';
+ if(s.beatIndex===2)s.world.notebook='打開';
+ if(s.beatIndex===3)s.world.notebook='打開且新增註記';
+ if(s.beatIndex===4)s.world.notebook='合上，內頁保留新文字';
+ if(s.beatIndex>=2 && s.beatIndex<=4 && !s.actor.known.includes('看到筆記標題'))s.actor.known.push('看到筆記標題');
+ log(s,'劇本指令',beat.action,beat.goal+' → '+beat.effect,'角色內心意圖不由外部動作直接證明');
+ s.beatIndex++;
+ if(s.beatIndex===beats.length)s.status='完成';
+ return s;
+}
+function snapshot(s){return JSON.parse(JSON.stringify(s));}
+return {schema,scenes,beats,initial,cue,step,snapshot};
+});
+
+</script><script>
+'use strict';
+const $=s=>document.querySelector(s);const model=window.ActorSandbox;
+let state=model.initial($('#scenario').value);
+function line(parent,t){const li=document.createElement('li');li.textContent=t;parent.append(li)}
+function render(){
+ $('#counter').textContent='第 '+state.clock+' 步';
+ $('#actor').classList.toggle('at-desk',state.actor.position==='desk');
+ $('#where').textContent='A001 · '+(state.actor.position==='desk'?'桌邊':'床邊');
+ $('#goal').textContent=state.actor.goal;
+ $('#action').textContent=state.actor.currentAction;
+ $('#attention').textContent=state.actor.attention;
+ $('#progress').textContent=state.beatIndex+' / '+model.beats.length+(state.status==='完成'?'（完成）':'');
+ const last = state.history[state.history.length-1];
+ const words = {
+  '從床上坐起，走向桌邊':'他從床邊起身。枕頭保留了剛才的重量，房間沒有因此停下來。',
+  '拿起水杯、喝水，再放回桌上':'水杯回到桌面，位置卻不一定和剛才一模一樣。',
+  '打開筆記本，確認昨天寫下的標題':'他終於打開了筆記；這一步並沒有因剛才的中斷而自動完成。',
+  '在筆記本上補上幾行註記':'文字留在紙上。這是觀察得到的結果，不代表所有問題都有答案。',
+  '合上筆記，稍微伸展肩膀':'工作告一段落，但世界並沒有回到原點。',
+  '手機螢幕亮起':'螢幕亮了。角色停下動作；他知道有提示，卻不知道訊息內容。',
+  '門外傳來聲響':'聲音從門外傳來。他聽到了，卻無從知道是誰。',
+  '水杯被碰動':'杯子移動了。他需要重新調整手的位置，但原因仍待查明。'
+ };
+ $('#liveNarration').textContent=last?(words[last.observation]||'事件正在改變人物的行動；還有一些資訊未被確認。'):'他只是想整理昨天的資料。世界卻不一定按照劇本的順序運作。';
+ $('#next').disabled=state.status==='完成';
+ ['phone','door','cup'].forEach(id=>$('#'+id).disabled=state.status==='完成');
+ $('#known').replaceChildren();if(!state.actor.known.length)line($('#known'),'尚未取得劇本以外的確定資訊');else state.actor.known.forEach(k=>line($('#known'),k));
+ $('#props').replaceChildren();Object.entries(state.world).forEach(([k,v])=>line($('#props'),({pillow:'枕頭',cup:'水杯',notebook:'筆記本',phone:'手機',door:'房門'}[k]||k)+'：'+v));
+ $('#history').replaceChildren();if(!state.history.length){const d=document.createElement('p');d.className='lognone';d.textContent='開始後，這裡會記錄劇本行為與突發事件。';$('#history').append(d)}
+ [...state.history].reverse().forEach(e=>{const d=document.createElement('div');d.className='line '+(e.origin==='環境事件'?'env':'');const a=document.createElement('strong');a.textContent='第 '+e.step+' 步｜'+e.observation;const b=document.createElement('p');b.textContent='因果：'+e.causation;const c=document.createElement('div');c.className='unknown';c.textContent='未知：'+e.unknown;const h=document.createElement('div');h.className='kind';h.textContent='資料類型：'+e.origin;d.append(h,a,b,c);$('#history').append(d)});
+}
+$('#next').addEventListener('click',()=>{model.step(state);render()});
+['phone','door','cup'].forEach(id=>$('#'+id).addEventListener('click',()=>{const key={phone:'notification',door:'door',cup:'cup'}[id];model.cue(state,key);model.step(state);render()}));
+function reset(){state=model.initial($('#scenario').value);render()}
+$('#scenario').addEventListener('change',reset);$('#reset').addEventListener('click',reset);
+$('#export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(model.snapshot(state),null,2)],{type:'application/json'});const href=URL.createObjectURL(blob);const a=document.createElement('a');a.href=href;a.download='world-actor-A001-v0.1.json';a.click();setTimeout(()=>URL.revokeObjectURL(href),300)});render();
+</script></body></html>

@@ -1,0 +1,81 @@
+{
+  "schema": "wm.actor.candidate.v0.1",
+  "id": "A001",
+  "name": "第十三格｜普通居民",
+  "kind": "fictional_scripted_actor",
+  "source_type": "fictional_derivative_of_user_provided_photo",
+  "status": "isolated_candidate_not_deployed",
+  "identity": {
+    "visual_reference": "user-provided photo (not stored in public repo)",
+    "clothing": "日常白色上衣",
+    "hair": "黑色短髮",
+    "limits": "保留原始外貌；由創作新增的習慣、情緒、性格不得視為真實個人事實"
+  },
+  "role": "世界中的普通居民；非全知主角",
+  "goal": "整理昨天的資料",
+  "scene": {
+    "id": "room_01",
+    "objects": [
+      "bed",
+      "pillow",
+      "desk",
+      "phone",
+      "cup",
+      "notebook",
+      "door"
+    ],
+    "clock_type": "discrete_simulation_tick"
+  },
+  "script": [
+    {
+      "order": 1,
+      "goal": "走到桌旁",
+      "action": "起身並走到桌邊"
+    },
+    {
+      "order": 2,
+      "goal": "喝水",
+      "action": "拿起並放下水杯"
+    },
+    {
+      "order": 3,
+      "goal": "查看資料",
+      "action": "打開並閱讀筆記"
+    },
+    {
+      "order": 4,
+      "goal": "整理資料",
+      "action": "補寫筆記"
+    },
+    {
+      "order": 5,
+      "goal": "完成整理",
+      "action": "合起筆記"
+    }
+  ],
+  "interruptions": [
+    "notification",
+    "door_sound",
+    "cup_moved"
+  ],
+  "invariants": [
+    "中斷不能被誤記成劇本進度",
+    "可知資訊必須受觀察與取得時間限制",
+    "不可由外顯動作直接推斷心理動機",
+    "物件狀態和位置沿時間延續",
+    "劇本/環境/觀察/推論/未知各自留痕",
+    "不可寫入 aiBrain.v1 或世界模型正式記憶"
+  ],
+  "acceptance": {
+    "tests": [
+      "安靜路徑",
+      "通知打斷",
+      "未知聲響",
+      "中斷不偷推劇本",
+      "可重播",
+      "狀態隔離"
+    ],
+    "runtime_connection": "not_connected",
+    "approval_required_before_integration": true
+  }
+}
