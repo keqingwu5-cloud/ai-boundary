@@ -45,14 +45,46 @@ test("R19 real two-tab Web Lock: concurrent journal write denied, stale tab bloc
   const resumed=await b.evaluate(r=>window.WorldVerifyHistory.append({
    type:"create",row:r,reason:"B fresh after reload"}),row("r19-b"));
   assert.equal(resumed,true);
+  // R19 diagnostic: a successful B write must be visible to the *writing*
+  // tab before making any claim about A's cross-process storage propagation.
+  // The old assertion only read A immediately, so it could not distinguish
+  // delayed visibility from durable loss or a stale-writer integrity defect.
+  const views=await Promise.all([a,b].map(p=>p.evaluate(async()=>{
+   const m=await import("/world-verification-ledger.mjs");
+   const s=m.readWorldLedger(localStorage);
+   return {ok:s.ok,reason:s.reason,eventCount:s.events.length,
+    ids:s.rows.map(x=>x.id),rawV2:s.rawV2};
+  })));
+  console.log("WORLD_MODEL_R19_TWO_TAB_READBACK engine="+WORLD_LOCK_BROWSER+
+   " observer="+views[0].eventCount+" writer="+views[1].eventCount+
+   " rawEqual="+(views[0].rawV2===views[1].rawV2));
+  assert.equal(views[1].ok,true,"writing tab must read its committed journal");
+  assert.equal(views[1].eventCount,2,"B acknowledged a commit but did not retain both events");
+  assert.deepEqual(views[1].ids,["r19-a","r19-b"]);
+
+  // Critical fail-closed check: A still holds its pre-B snapshot, regardless
+  // of when its localStorage cache receives B's storage update. It MUST NOT
+  // replace B's journal event. This cannot be waived by merely reloading A.
+  const staleFromA=await a.evaluate(r=>window.WorldVerifyHistory.append({
+   type:"create",row:r,reason:"A stale after B commit"}),row("r19-a-unexpected"));
+  console.log("WORLD_MODEL_R19_STALE_A_WRITE engine="+WORLD_LOCK_BROWSER+
+   " allowed="+staleFromA+" observerWasBehind="+(views[0].eventCount<2));
+  assert.equal(staleFromA,false,
+   "R19 integrity failure: stale A writer overwrote/competed with B's committed journal");
+
+  // Re-read from both pages after explicit reload, rather than silently
+  // treating eventual WebKit visibility as atomic localStorage consistency.
+  await a.reload({waitUntil:"domcontentloaded"});await ready(a);
   const state=await a.evaluate(async()=>{
    const m=await import("/world-verification-ledger.mjs");
    return m.readWorldLedger(localStorage);
   });
-  assert.equal(state.events.length,2);
+  assert.equal(state.ok,true,"reloaded observer cannot read journal");
+  assert.equal(state.events.length,2,"two committed events did not survive observer reload");
   assert.deepEqual(state.rows.map(x=>x.id),["r19-a","r19-b"]);
   assert.deepEqual(errors,[]);
-  console.log("WORLD_MODEL_R19_COOPERATIVE_LOCK_PASS engine="+WORLD_LOCK_BROWSER+" busy=1 stale=1 reload=1 history=2");
+  console.log("WORLD_MODEL_R19_COOPERATIVE_LOCK_PASS engine="+WORLD_LOCK_BROWSER+
+   " busy=1 stale=1 reload=1 history=2 writerReadback=1 staleARejected=1");
  }finally{await ctx.close();await browser.close();}
 });
 test("R19 browser missing Web Locks must not fall back to unsafe journal writes",async()=>{
