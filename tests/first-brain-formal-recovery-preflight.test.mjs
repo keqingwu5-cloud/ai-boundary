@@ -33,7 +33,9 @@ function assertBlocked(r){
 }
 test('R24 valid candidate never auto-approves real restoration, even with missing IDB',async()=>{
  const f=await fixture(),r=await inspectFormalRecoveryCandidate(f);
- assertBlocked(r);assert.equal(r.candidateVerified,true);
+ assertBlocked(r);assert.equal(r.candidateVerified,false);
+ assert.equal(r.backupBytesVerified,true);
+ assert.ok(r.reasons.includes('current_snapshot_trusted_observation_required'));
  assert.ok(r.reasons.includes('independent_reviewer_ack_required'));
  assert.ok(r.reasons.includes('physical_apple_safari_evidence_required'));
  assert.ok(r.reasons.includes('explicit_owner_recovery_permission_required'));
@@ -71,6 +73,28 @@ test('R24 exported files do not silently become production restore authorization
  const r=await inspectFormalRecoveryCandidate({...f,storage,
   reviewer:{approved:true},device:{type:'simulated',passed:true},
   owner:{approved:true},permission:true,merge:true});
- assertBlocked(r);assert.equal(r.candidateVerified,true);
+ assertBlocked(r);assert.equal(r.candidateVerified,false);
+ assert.equal(r.backupBytesVerified,true);
  assert.equal(reads,0);assert.equal(writes,0);
+});
+test('R24-A self-claimed independent observation cannot certify missing IDB',async()=>{
+ const f=await fixture();
+ const r=await inspectFormalRecoveryCandidate({...f,observerVerified:true,
+   independentObservation:{verified:true,proof:'caller-supplied'}});
+ assertBlocked(r);assert.equal(r.candidateVerified,false);
+ assert.equal(r.backupBytesVerified,true);
+ assert.ok(r.reasons.includes('current_snapshot_trusted_observation_required'));
+});
+test('R24-B calendar-invalid and far-future timestamps reject recomputed SHA',async()=>{
+ for(const exportedAt of ['2099-99-99T99:99:99.000Z','2099-01-01T00:00:00.000Z']){
+  const f=await fixture();f.backup.exportedAt=exportedAt;
+  const payload=JSON.stringify({schema:f.backup.schema,key:f.backup.key,
+    revision:f.backup.revision,exportedAt,mainRaw:f.backup.mainRaw,
+    undoRaw:f.backup.undoRaw,legacyFence:f.backup.legacyFence});
+  f.backup.sha256.payload=await sha(payload);
+  const r=await inspectFormalRecoveryCandidate(f);
+  assertBlocked(r);assert.equal(r.candidateVerified,false);
+  assert.equal(r.backupBytesVerified,false);
+  assert.ok(r.reasons.includes('backup_backup_format_invalid'));
+ }
 });

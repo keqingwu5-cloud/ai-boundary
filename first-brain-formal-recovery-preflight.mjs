@@ -11,8 +11,9 @@ const digest=async raw=>{
  const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw));
  return Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('');
 };
-const blocked=(reasons,verified=false)=>({
+const blocked=(reasons,verified=false,backupVerified=false)=>({
  schema:FORMAL_RECOVERY_GATE,status:'blocked',candidateVerified:verified,
+ backupBytesVerified:backupVerified,
  restoreAuthorized:false,mergeAuthorized:false,deploymentAuthorized:false,
  reasons:[...new Set(reasons)]});
 /* An independent observer must establish currentSnapshot and original legacy
@@ -43,10 +44,13 @@ export async function inspectFormalRecoveryCandidate({
  if(!reasons.length){
   // Preconditions can be *candidate* evidence for independent human review,
   // never a proof that Safari/old writers/reviewers/owner have approved.
-  return blocked(['physical_apple_safari_evidence_required',
+  // Caller-provided null snapshot cannot certify real IDB is missing.
+  // Trusted independent observation adapter is not yet implemented; fail closed.
+  return blocked(['current_snapshot_trusted_observation_required',
+   'physical_apple_safari_evidence_required',
    'independent_reviewer_ack_required','old_writer_shutdown_evidence_required',
    'explicit_owner_recovery_permission_required',
-   'verified_external_backup_provenance_required'],true);
+   'verified_external_backup_provenance_required'],false,checked.ok);
  }
- return blocked(reasons,false);
+ return blocked(reasons,false,checked.ok);
 }
