@@ -1,0 +1,115 @@
+{
+  "schema": "first-brain-r18-release-gates/v1",
+  "auditedAt": "2026-10-29",
+  "repository": "keqingwu5-cloud/ai-boundary",
+  "intent": "read_only_review_snapshot_not_merge_authorization",
+  "readiness": "blocked",
+  "mainMergeAuthorized": false,
+  "deploymentAuthorized": false,
+  "upstreamInOrder": [
+    68,
+    71,
+    72,
+    74,
+    75
+  ],
+  "pullRequests": [
+    {
+      "number": 68,
+      "base": "main",
+      "head": "fix/brain-import-integrity-isolated-20261027",
+      "headSha": "de9f33f5bc42d00756c338fdebb1e425b945d074",
+      "ciRun": 40384311895,
+      "ci": "success",
+      "draft": true,
+      "approvals": 0
+    },
+    {
+      "number": 71,
+      "base": "fix/brain-import-integrity-isolated-20261027",
+      "head": "integrate/brain-research-navigation-20261027",
+      "headSha": "8a0ddbc8b937c811940aa97cf870ec4fdc4ce04c",
+      "ciRun": 40459535444,
+      "ci": "success",
+      "draft": true,
+      "approvals": 0
+    },
+    {
+      "number": 72,
+      "base": "integrate/brain-research-navigation-20261027",
+      "head": "test/dual-brain-worldmodel-events-20261027",
+      "headSha": "d4c7622951329aec41647d5dacf5545f4cb42393",
+      "ciRun": 40463783525,
+      "ci": "success",
+      "draft": true,
+      "approvals": 0
+    },
+    {
+      "number": 74,
+      "base": "test/dual-brain-worldmodel-events-20261027",
+      "head": "fix/world-verification-history-isolated-20261027",
+      "headSha": "5654ec24ddf83b744ef48bdac9f6a28d577e7c76",
+      "ciRun": 40467857902,
+      "ci": "success",
+      "draft": true,
+      "approvals": 0
+    },
+    {
+      "number": 75,
+      "base": "fix/world-verification-history-isolated-20261027",
+      "head": "test/legacy-concept-reuse-compat-20261027",
+      "headSha": "60b4c6652946ee2d3f7751b46f81f7fc40eb85a4",
+      "ciRun": 40781657907,
+      "ci": "success",
+      "draft": true,
+      "approvals": 0
+    }
+  ],
+  "aggregateDiffFromMain": {
+    "commitCount": 173,
+    "filesChanged": 50,
+    "mergeBase": "7b7b77e8c06ce3ed348e2d5c086ff086da64f95a"
+  },
+  "gates": {
+    "stackedDependencyOrder": {
+      "status": "passed",
+      "evidence": "compare each PR base_sha to head_sha: ahead_only, zero behind; 2026-10-29"
+    },
+    "headCI": {
+      "status": "passed_at_audited_shas",
+      "evidence": "GH Actions IDs listed above; does not cover newer commits until rechecked"
+    },
+    "independentReview": {
+      "status": "blocked",
+      "evidence": null
+    },
+    "physicalAppleSafari": {
+      "status": "blocked",
+      "evidence": null
+    },
+    "realHistoryDataset": {
+      "status": "blocked",
+      "evidence": null
+    },
+    "uncooperativeOldWriterCompleteQuiescence": {
+      "status": "blocked",
+      "evidence": null
+    },
+    "worldModelCrossTabAtomicJournal": {
+      "status": "blocked",
+      "evidence": null
+    },
+    "releasePermissionAndRollback": {
+      "status": "blocked",
+      "evidence": null
+    }
+  },
+  "notes": [
+    "CI PASS is not independent reviewer approval.",
+    "The legacy writer fingerprint detects divergence, but cannot stop obsolete JS writing localStorage.",
+    "worldModel.verify.events.v2 uses non-atomic localStorage append and cannot guarantee cross-tab CAS.",
+    "No physical iPhone/iPad Safari evidence or permission to use real private history.",
+    "This is a captured audit snapshot; PR changes require revalidation before any merge.",
+    "No main merge, deployment, memory migration or schema promotion was authorized."
+  ]
+}

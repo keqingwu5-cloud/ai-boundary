@@ -189,16 +189,19 @@ runVerifyAudit();
 
 <script type="module" src="./world-verification-ui.mjs"></script>
 <script type="module">
-import { fromWorldModelQuery, readNodeContext, brainHref, feedHref, exportResearchReference } from './research-context-bridge.mjs';
+import { fromWorldModelQuery, readAuthoritativeNodeContext, brainHref, feedHref, exportResearchReference } from './research-context-bridge.mjs';
 const id=fromWorldModelQuery(location.search);
 const askedForNode=new URLSearchParams(location.search).has("node");
-const ref=id?readNodeContext(localStorage,id):{status:askedForNode?"invalid":"no_source",node:null};
+const referenceReady=id?readAuthoritativeNodeContext(localStorage,id):Promise.resolve({status:askedForNode?"invalid":"no_source",node:null});
+window.BrainResearchLinkReady=referenceReady;
+const ref=await referenceReady;
 const status=document.getElementById('researchLinkStatus');
 const title=document.getElementById('researchNodeTitle');
 const toBrain=document.getElementById('researchToBrain');
 const toFeed=document.getElementById('researchToFeed');
 const back=document.getElementById('worldBackHeader');
 toBrain.href=brainHref(ref.status==="linked"?id:null);
+try{if(localStorage.getItem("aiBrain.v1.persistence.authority")==="idb")toBrain.href=toBrain.href.replace("index.html","index.html?brainTx=1");}catch(_){}
 toFeed.href=feedHref(ref.status==="linked"?id:null);
 back.href=toBrain.href;
 if(ref.status==="linked"){
@@ -217,13 +220,14 @@ document.body.dataset.researchLink=ref.status;
 </script>
 
 <script type="module">
-import { readNodeContext } from './research-context-bridge.mjs';
+import { readAuthoritativeNodeContext } from './research-context-bridge.mjs';
 import { syntheticResearchCase,validateEventChain,knowledgeAt,diagnoseTwoSystems } from './research-event-chain.mjs';
 const el=id=>document.getElementById(id);
-function runDualAudit(){
+async function runDualAudit(){
+  if(window.BrainResearchLinkReady)await window.BrainResearchLinkReady;
   const fromLink=window.BrainResearchLink;
   const candidate=fromLink?.status==='linked'?fromLink.sourceNodeId:null;
-  const brain=candidate?readNodeContext(localStorage,candidate):{status:fromLink?.status||'no_source',node:null};
+  const brain=candidate?await readAuthoritativeNodeContext(localStorage,candidate):{status:fromLink?.status||'no_source',node:null};
   const timeline=syntheticResearchCase(candidate||'n_q1');
   const graph=validateEventChain(timeline);
   const before=knowledgeAt(timeline,'2026-07-01');
@@ -261,7 +265,7 @@ function runDualAudit(){
   document.body.dataset.dualAuditReady='1';
   return out;
 }
-el('runDualAudit').addEventListener('click',runDualAudit);
-runDualAudit();
+el('runDualAudit').addEventListener('click',()=>{void runDualAudit();});
+void runDualAudit();
 </script>
 </body></html>

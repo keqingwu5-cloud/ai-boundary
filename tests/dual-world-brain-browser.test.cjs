@@ -76,11 +76,13 @@ test("06 new world-model v2 status edit preserves complete prior history",()=>wi
  await page.locator("#verifyDate").fill("2026-03-01");
  await page.locator("#verifyDeadline").fill("2026-12-31");
  await page.locator("#verifyForm button[type=submit]").click();
+ await page.waitForFunction("window.WorldVerifyHistory.view().events.length===1");
  const first=await page.evaluate(()=>window.WorldVerifyHistory.view());
  assert.equal(first.ok,true);assert.equal(first.rows.length,1);
  assert.equal(first.rows[0].status,"待驗證");assert.equal(first.events.length,1);
  await page.locator("details:has(#verifyList) > summary").click();
  await page.locator("#verifyList select").selectOption("證據不足");
+ await page.waitForFunction("window.WorldVerifyHistory.view().events.length===2");
  const second=await page.evaluate(()=>window.WorldVerifyHistory.view());
  assert.equal(second.ok,true);assert.equal(second.rows[0].status,"證據不足");
  assert.equal(second.events.length,2);
@@ -108,11 +110,13 @@ test("07 legacy v1 remains untouched after v2 edit and version rollback",()=>wit
  const initial=await page.evaluate(()=>localStorage.getItem("worldModel.verify.v1"));
  await page.locator("details:has(#verifyList) > summary").click();
  await page.locator("#verifyList select").selectOption("證據不足");
+ await page.waitForFunction("window.WorldVerifyHistory.view().rows[0].status==='證據不足'");
  assert.equal(await page.evaluate(()=>window.WorldVerifyHistory.view().rows[0].status),"證據不足");
  assert.equal(await page.evaluate(()=>localStorage.getItem("worldModel.verify.v1")),initial);
  await page.locator("#worldHistoryPanel > summary").click();
  page.once("dialog",d=>d.accept());
  await page.locator("#worldHistoryVersionZero").click();
+ await page.waitForFunction("window.WorldVerifyHistory.view().events.length===2");
  const after=await page.evaluate(()=>window.WorldVerifyHistory.view());
  assert.equal(after.rows[0].status,"待驗證");
  assert.equal(after.events.length,2);
@@ -145,6 +149,9 @@ test("09 two tabs reject stale history edits instead of replacing events",async(
   await a.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await ready(a);
   await b.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await ready(b);
   assert.equal(await a.evaluate(r=>window.WorldVerifyHistory.append({type:"create",row:r,reason:"A creates"}),row("a")),true);
+  // Test the advertised stale-state guard only *after* B sees the other-tab event.
+  // An unobserved truly concurrent write remains an open race on localStorage.
+  await b.waitForFunction(()=>document.querySelector('#worldHistoryStatus')?.textContent?.includes('其他分頁已修改研究'),null,{timeout:15000});
   assert.equal(await b.evaluate(r=>window.WorldVerifyHistory.append({type:"create",row:r,reason:"B old tab"}),row("b")),false);
   assert.equal(await a.evaluate(()=>window.WorldVerifyHistory.view().rows[0].id),"a");
   await b.reload({waitUntil:"domcontentloaded"});await ready(b);
@@ -164,12 +171,14 @@ test("10 delete from list, restore as new event, then export full backup",()=>wi
  await page.locator("details:has(#verifyList) > summary").click();
  page.once("dialog",d=>d.accept());
  await page.locator("#verifyList button").click();
+ await page.waitForFunction("window.WorldVerifyHistory.view().events.length===2");
  const deleted=await page.evaluate(()=>window.WorldVerifyHistory.view());
  assert.equal(deleted.rows.length,0);assert.equal(deleted.events.length,2);
  assert.equal(deleted.events[1].type,"delete");
  await page.locator("#worldHistoryPanel > summary").click();
  page.once("dialog",d=>d.accept());
  await page.locator("#worldHistoryList button").last().click();
+ await page.waitForFunction("window.WorldVerifyHistory.view().events.length===3");
  const restored=await page.evaluate(()=>window.WorldVerifyHistory.view());
  assert.equal(restored.rows[0].id,"hyp-del");
  assert.equal(restored.events.length,3);assert.equal(restored.events.at(-1).type,"restore");
@@ -209,14 +218,14 @@ test("11 import old compatible JSON into version history without touching origin
 test("12 real browser quota injection does not report a successful journal write",()=>withBrowser(async(page,errs)=>{
  await page.goto(root+"/world-model.html",{waitUntil:"domcontentloaded"});await readyWorld(page);
  await page.waitForFunction("window.WorldVerifyHistory && document.body.dataset.ledgerReady === '1'");
- const outcome=await page.evaluate(()=>{
+ const outcome=await page.evaluate(async()=>{
   const previous=Storage.prototype.setItem;
   Storage.prototype.setItem=function(k,v){
    if(k==="worldModel.verify.events.v2")throw new DOMException("full","QuotaExceededError");
    return previous.call(this,k,v);
   };
   try{
-   const success=window.WorldVerifyHistory.append({
+   const success=await window.WorldVerifyHistory.append({
     type:"create",row:{id:"quota",hypothesis:"合成",falsifier:"反例",
       createdOn:"2026-10-01",deadline:"2026-12-31",status:"待驗證"},
     reason:"配額測試"});

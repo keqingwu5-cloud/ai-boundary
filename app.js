@@ -3,6 +3,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { worldModelHref } from './research-context-bridge.mjs';
 import { validateBrainImport, commitBrainImport } from './brain-import-guard.mjs';
+import {prepareLearningObservation,markLearningReviewed,findReusableLessons,analyzeLearningEvidence} from './brain-learning-feedback.mjs';
+import {bindLearningPanel} from './brain-learning-ui.mjs';
+import { readTransactional3D, commitTransactional3D, stageLegacy3D, inspectLegacy3D, verifyStagedLegacy3D } from './first-brain-idb-adapter.mjs';
+import {exportVerifiedTransactionalBackup} from './first-brain-transactional-backup.mjs';
 
 /* ================= constants ================= */
 const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
@@ -132,8 +136,19 @@ try {
   if (Array.isArray(value) && value.length <= 12 && value.every(v => typeof v === 'string')) undoStack = value;
 } catch(e){ undoStack = []; }
 let saveT = 0;
+// Opt-in preview only. Existing First Brain remains in its legacy mode by default.
+const TX_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('brainTx') === '1';
+const TX_DB = 'aiBrain.firstBrain.transaction.r1', TX_AUTH_KEY = 'aiBrain.v1.persistence.authority';
+let txRevision = 0, txReady = false, txBusy = false, txLoadError = null, txCommitConfirmed = false;
+let txLastWrite = Promise.resolve(false);
+const txChannel=TX_MODE && typeof BroadcastChannel==='function'?new BroadcastChannel('first-brain-idb-r1'):null;
+function legacyMayWrite(){
+  try { return localStorage.getItem(TX_AUTH_KEY) === null; }
+  catch(_) { return false; }
+}
 // Returns real persistence status. A partial localStorage write is not a successful save.
 function save(now = false){
+  if (TX_MODE || !legacyMayWrite()) return false;
   if (blockedStoredState) return false; // UI warning is installed after startup.
   clearTimeout(saveT);
   const result = commitBrainImport(localStorage, KEY, UKEY, state, undoStack.slice(-12), expectedMainRaw);
@@ -145,10 +160,46 @@ function save(now = false){
   flashSaved();
   return true;
 }
-save(true);
+// R16: opening a valid historical snapshot MUST NOT rewrite its raw bytes,
+// format, custom fields, Undo, or version. Persist seed only on a genuinely
+// empty legacy store; subsequent explicit user actions do normal validation.
+if(expectedMainRaw===null && !blockedStoredState)save(true);
 const listeners = {};
 function emit(ev, data){ (listeners[ev] || []).forEach(f => { try { f(data); } catch(e){ console.error(e); } }); }
 function commitChange(proposed, nextUndo, successLabel){
+  if (TX_MODE){
+    if (!txReady || txBusy){ toast('⚠ 交易式保存尚未就緒，或仍有提交進行中'); return Promise.resolve(false); }
+    const checked = validateBrainImport(proposed);
+    if (!checked.ok){ toast('⚠ 變更未保存：' + checked.reason); return Promise.resolve(false); }
+    txBusy = true;
+    txCommitConfirmed = false;
+    toast('◌ 第一大腦交易提交中…');
+    const write = commitTransactional3D(TX_DB, txRevision, proposed, nextUndo)
+      .then(result => {
+        if (!result.ok){
+          if(result.reason?.startsWith('legacy_writer_detected')||
+             result.reason==='legacy_fence_missing_or_invalid'){
+            txReady=false;txLoadError=result.reason;
+            document.querySelector('#brainPersistenceBanner')?.setAttribute('data-legacy-conflict','blocked');
+          }
+          toast('⚠ 交易未完成：' + result.reason);
+          if(result.reason === 'stale_revision')showConcurrentWarning();
+          return false;
+        }
+        txRevision = result.revision;
+        txChannel?.postMessage({schema:'firstBrain:idb:updated',revision:txRevision});
+        txCommitConfirmed = true;
+        state = proposed;
+        undoStack = nextUndo;
+        flashSaved();
+        if(successLabel)toast(successLabel);
+        return true;
+      }).catch(err => {toast('⚠ 交易失敗：' + (err?.message || 'unknown'));return false;})
+      .finally(() => {txBusy = false;txCommitConfirmed = false;});
+    txLastWrite = write;
+    return write;
+  }
+  if (!legacyMayWrite()){toast('⚠ 交易資料已成權威，請切換至交易模式');return false;}
   if (blockedStoredState){ toast('⚠ 舊存檔待保護，禁止自動覆寫'); return false; }
   const checked = validateBrainImport(proposed);
   if (!checked.ok){ toast('⚠ 變更未保存：' + checked.reason); return false; }
@@ -165,6 +216,27 @@ function commitChange(proposed, nextUndo, successLabel){
   return true;
 }
 function mutate(action, payload, fn){
+  if (TX_MODE){
+    if (!txReady || txBusy){toast('⚠ 提交尚未完成或交易模式未啟動');return Promise.resolve(false);}
+    let previous;
+    try{previous = JSON.stringify(state); fn();state.history.push({ts:Date.now(),action,payload});}
+    catch(e){
+      if(previous)state=JSON.parse(previous);
+      toast('⚠ 變更失敗：' + (e?.message || 'invalid_operation'));
+      sync();renderHistory();renderCrumbs();return Promise.resolve(false);
+    }
+    const proposed = JSON.parse(JSON.stringify(state));
+    state = JSON.parse(previous); // No uncommitted graph can be shown as saved.
+    const nextUndo = [...undoStack,previous].slice(-12);
+    const operation = commitChange(proposed,nextUndo).then(ok=>{
+      if(ok){sync();renderHistory();renderCrumbs();emit('change',{action,payload});}
+      else{sync();renderHistory();renderCrumbs();}
+      return ok;
+    });
+    txLastWrite = operation;
+    return operation;
+  }
+  if (!legacyMayWrite()){toast('⚠ 交易資料已成權威，禁止舊版寫入');return false;}
   if (blockedStoredState){ toast('⚠ 舊存檔待保護，暫停修改'); return false; }
   let previous;
   try { previous = JSON.stringify(state); }
@@ -211,7 +283,7 @@ function addQuestion(d){
     pos: jitter(isMain ? (REGION[d.type] || REGION['其他']) : [0, 0.08, 0], isMain ? 0.12 : 0.35) });
   const exts = (d.extensions || []).filter(e => e && e.title);
   n.concepts = [...new Set((d.concepts || []).map(c => String(c).trim()).filter(Boolean))];
-  mutate('add', { nodeId:n.id, title:n.title, brainId:brain }, () => {
+  const pendingAdd = mutate('add', { nodeId:n.id, title:n.title, brainId:brain }, () => {
     n.concepts.forEach(c => ensureConcept(c, n.createdBy));
     state.nodes.push(n);
     if (n.parentId){ n.kind = 'extension'; state.links.push({ id:uid('l'), from:n.parentId, to:n.id, kind:'derived', createdAt:Date.now() }); }
@@ -219,6 +291,7 @@ function addQuestion(d){
       state.nodes.push(c); state.links.push({ id:uid('l'), from:n.id, to:c.id, kind:'derived', createdAt:Date.now() }); });
   });
   pendingBursts.push(n.id);
+  if(TX_MODE && pendingAdd?.then)void pendingAdd.then(ok=>{if(ok)select(n.id);});
   return n.id;
 }
 function splitNode(id, items, createdBy = 'merlin', kind = 'extension'){
@@ -299,7 +372,7 @@ function makeSubBrain(id){
   }
   const bid = uid('b');
   const sub = descendants(id, true);
-  mutate('subbrain', { nodeId:id, title:n.title, brainId:bid, from:parent.id }, () => {
+  const pendingSubbrain = mutate('subbrain', { nodeId:id, title:n.title, brainId:bid, from:parent.id }, () => {
     state.brains.push({ id:bid, name:n.title, parentBrainId:parent.id, position:pos, scale:parent.scale * 0.5, regionColor:nodeColor(n), rootNodeId:id, createdAt:Date.now() });
     n.brainId = bid; n.pos = [0, 0.1, 0]; n.collapsed = false;
     // radial re-layout of the subtree inside the new brain
@@ -309,7 +382,9 @@ function makeSubBrain(id){
       s.brainId = bid; s.pos = clampInside([Math.sin(a) * 0.2 * d, 0.1 + (i % 2 ? 0.12 : -0.1) * Math.min(d, 2), Math.cos(a) * 0.3 * d]); }); });
   });
   pendingFly.set(bid, id);
-  focusBrain(bid, 1400);
+  if(TX_MODE && pendingSubbrain?.then){
+    void pendingSubbrain.then(ok=>{if(ok)focusBrain(bid,1400);else pendingFly.delete(bid);});
+  }else focusBrain(bid,1400);
   return bid;
 }
 function mergeBrain(bid){
@@ -335,6 +410,36 @@ function crossLink(a, b){
 }
 function setCollapsed(id, v){ const n = N(id); if (!n) return; mutate(v ? 'collapse' : 'expand', { nodeId:id, title:n.title }, () => { n.collapsed = v; }); }
 function setStatus(id, s){ const n = N(id); if (!n || !STATUS[s]) return; mutate('status', { nodeId:id, title:n.title, status:s }, () => { n.status = s; }); }
+
+/* R11: A success/failure report is a contextual observation, not a truth claim.
+ * Keep its revision lineage in the existing graph and Undo/transaction path.
+ */
+function recordLearningFeedback(nodeId,input){
+ const node=N(nodeId);
+ if(!node)return false;
+ const item=prepareLearningObservation(input,uid('learn'),Date.now());
+ if(!item){toast('⚠ 經驗記錄不完整或超過欄位限制');return false;}
+ if((node.learningRecords||[]).length>=40){toast('⚠ 此節點經驗已達上限，請整理後再新增');return false;}
+ return mutate('learning_observed',{nodeId,feedbackId:item.id,outcome:item.outcome,conditions:item.conditions},()=>{
+   const target=N(nodeId);
+   target.learningRecords=Array.isArray(target.learningRecords)?target.learningRecords:[];
+   target.learningRecords.push(item);
+ });
+}
+function reviewLearningFeedback(nodeId,feedbackId){
+ const node=N(nodeId),item=node?.learningRecords?.find(x=>x.id===feedbackId);
+ if(!item)return false;
+ const reviewed=markLearningReviewed(item,Date.now());
+ if(!reviewed){toast('⚠ 需先附上可追溯證據，再進行人工審閱');return false;}
+ return mutate('learning_review',{nodeId,feedbackId},()=>{
+   const list=N(nodeId).learningRecords,at=list.findIndex(x=>x.id===feedbackId);
+   if(at<0)throw Error('learning_record_missing');
+   list[at]=reviewed;
+ });
+}
+function findLearningLessons(conditions){return findReusableLessons(state,conditions);}
+function analyzeLearningLessons(conditions){return analyzeLearningEvidence(state,conditions);}
+
 function addCounterEvidence(id, text, createdBy = 'merlin', source = ''){ const n = N(id); if (!n || !text) return;
   mutate('counter', { nodeId:id, title:n.title, text }, () => n.counterEvidence.push({ id:uid('c'), text, source, createdBy, ts:Date.now() })); }
 function setMedia(id, kind, url){ const n = N(id); if (!n) return false; url = String(url || '').trim(); if (!safeUrl(url)) return false; mutate('media', { nodeId:id, kind, url }, () => { n.media[kind] = url; }); return true; }
@@ -352,6 +457,15 @@ function undo(){
   try { proposed = JSON.parse(undoStack[undoStack.length - 1]); }
   catch(e){ toast('⚠ 復原快照無法讀取'); return false; }
   const nextUndo = undoStack.slice(0, -1);
+  if(TX_MODE){
+    const p = commitChange(proposed,nextUndo).then(ok=>{
+      if(!ok)return false;
+      sync();renderHistory();renderCrumbs();closePanel();toast('↶ 已復原');
+      if(!B(focusId))focusBrain('main');
+      emit('change',{action:'undo'});return true;
+    });
+    txLastWrite=p;return p;
+  }
   if (!commitChange(proposed, nextUndo)) return false;
   sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已復原');
   if (!B(focusId)) focusBrain('main');
@@ -367,6 +481,14 @@ function resetAll(){
     proposed.history.push({ ts:Date.now(), action:'reset', payload:{} });
   } catch(e){ toast('⚠ 重置資料建立失敗'); return false; }
   const nextUndo = [...undoStack, JSON.stringify(state)].slice(-12);
+  if(TX_MODE){
+    const p=commitChange(proposed,nextUndo).then(ok=>{
+      if(!ok)return false;
+      sync();renderHistory();renderCrumbs();closePanel();focusBrain('main');
+      emit('change',{action:'reset'});return true;
+    });
+    txLastWrite=p;return p;
+  }
   if (!commitChange(proposed, nextUndo)) return false;
   sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main');
   emit('change', { action:'reset' });
@@ -379,6 +501,7 @@ function exportJSON(){
   toast('⇩ 已匯出 JSON');
 }
 function importJSON(obj){
+  if (typeof TX_MODE !== 'undefined' && !TX_MODE && typeof legacyMayWrite === 'function' && !legacyMayWrite()){toast('⚠ 請使用交易模式匯入');return false;}
   if (blockedStoredState){ toast('⚠ 舊存檔待保護；請先下載備份後處理'); return false; }
   const checked = validateBrainImport(obj);
   if (!checked.ok){ toast('⚠ 匯入資料檢查失敗：' + checked.reason); return false; }
@@ -394,6 +517,15 @@ function importJSON(obj){
     return false;
   }
   const nextUndo = [...undoStack, JSON.stringify(state)].slice(-12);
+  if(typeof TX_MODE !== 'undefined' && TX_MODE){
+    const p=commitChange(proposed,nextUndo).then(ok=>{
+      if(!ok)return false;
+      clearTimeout(saveT);sync();renderHistory();renderCrumbs();closePanel();
+      focusBrain('main');toast('⇧ 已匯入並驗證交易保存');
+      emit('change',{action:'import'});return true;
+    });
+    txLastWrite=p;return p;
+  }
   const written = commitBrainImport(localStorage, KEY, UKEY, proposed, nextUndo, expectedMainRaw);
   if (!written.ok){
     toast('⚠ 匯入未完成：' + written.reason + (written.rollbackOk ? '（原資料未變或已回復）' : '（回復失敗，請保留備份）'));
@@ -831,7 +963,11 @@ canvas.addEventListener('pointermove', e => {
 /* ================= UI ================= */
 const panel = $('#panel'), pBody = $('#pBody');
 let toastT = 0;
-function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200); }
+function toast(msg){
+  // Legacy UI handlers sometimes optimistically announce success before an IDB commit.
+  // Do not display those messages until the actual transaction is confirmed.
+  if(TX_MODE && txBusy && !txCommitConfirmed && !String(msg).startsWith('⚠') && !String(msg).startsWith('◌'))return;
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200); }
 function flashSaved(){ const s = $('#saved'); s.classList.add('on'); clearTimeout(flashSaved.t); flashSaved.t = setTimeout(() => s.classList.remove('on'), 1200); }
 const tag = t => `<span class="tag" style="--c:${colorOf(t)}">${iconOf(t)} ${esc(t)}</span>`;
 const nodeLink = n => n ? `<a href="#" class="nl" data-n="${esc(n.id)}" style="--c:${colorOf(n.type)}">${esc(n.title)}</a>` : '';
@@ -911,6 +1047,14 @@ function select(id){
       <form id="ceF"><input id="ceI" placeholder="新增反證…" maxlength="200"><button>＋</button></form></div>
     <div class="lbl">🎞 媒體</div>${videoBox(n)}<div class="media">${slot('image', n.media.image)}</div>
     ${hist.length ? `<div class="lbl">🕘 紀錄</div><div class="mh">${hist.map(h => `<div>${fmt(h.ts)} ${ACT[h.action] || h.action}</div>`).join('')}</div>` : ''}`;
+  bindLearningPanel(pBody,{
+    nodeId:id,entries:Array.isArray(n.learningRecords)?n.learningRecords:[],
+    onRecord:input=>recordLearningFeedback(id,input),
+    onReview:feedbackId=>reviewLearningFeedback(id,feedbackId),
+    onSearch:conditions=>findLearningLessons(conditions),
+    onAnalyze:conditions=>analyzeLearningLessons(conditions),
+    onRefresh:()=>{select(id);const panel=document.getElementById('learnPanel');if(panel)panel.open=true;}
+  });
   pBody.querySelectorAll('.nl').forEach(a => a.onclick = ev => { ev.preventDefault(); select(a.dataset.n); });
   pBody.querySelectorAll('[data-cf]').forEach(b => b.onclick = () => { focusConcept('c:' + b.dataset.cf); select(id); });
   pBody.querySelectorAll('[data-pf]').forEach(b => b.onclick = () => { focusConcept('p:' + b.dataset.pf); select(id); });
@@ -1086,6 +1230,23 @@ function frame(){
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
+if(TX_MODE){
+  const found = await readTransactional3D(TX_DB);
+  let declaredAuthority;
+  try{declaredAuthority=localStorage.getItem(TX_AUTH_KEY);}
+  catch(_){declaredAuthority='unreadable';}
+  // Never allow both a legacy writer and an IDB writer to be active.
+  if(found.ok && declaredAuthority === 'idb'){
+    state=migrate(found.graph);
+    undoStack=found.undo;
+    txRevision=found.revision;
+    txReady=true;
+    blockedStoredState=false;
+  }else{
+    txLoadError=found.ok?'transactional_authority_mismatch':found.reason;
+    txReady=false;
+  }
+}
 sync(); initDone = true; renderHistory(); renderCrumbs();
 camera.position.set(0, 2.6, 0).add(new THREE.Vector3(0, 0.22, 1).normalize().multiplyScalar(fitDist(WORLD * 0.85)));
 $('#bHome').classList.add('hide');
@@ -1123,9 +1284,16 @@ window.AIBrain = {
   addConcept, removeConcept, setProcessPattern, getConcepts, getConceptThreads:() => JSON.parse(JSON.stringify(threads)), getConceptLinks:() => conceptLinks.map(l => ({ from:l.from, to:l.to, kind:'concept', concept:l.concept, threadKind:l.threadKind })),
   suggestConcepts, focusConcept, showConcepts, _debug:debug, mergeBrain, crossLink, setStatus, addCounterEvidence, setCollapsed, setMedia, deleteNode,
   focusBrain, focusNode, overview, select, undo, exportJSON, importJSON, reset:resetAll,
-  on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); }
+  on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); },
+  recordLearningFeedback,reviewLearningFeedback,findLearningLessons,analyzeLearningLessons,
+  persistence:()=>({mode:TX_MODE?'transactional':'legacy',ready:TX_MODE?txReady:(legacyMayWrite()&&!blockedStoredState),revision:TX_MODE?txRevision:null,
+    pending:txBusy,reason:txLoadError}),
+  whenIdle:()=>txLastWrite
 };
 document.body.dataset.ready = '1';
+if(txChannel)txChannel.onmessage=event=>{
+  if(event.data?.schema==='firstBrain:idb:updated'&&event.data.revision>txRevision)showConcurrentWarning();
+};
 // If another tab writes while this tab is open, stop silent lost updates.
 function showConcurrentWarning(){
   if(document.getElementById('brainConcurrentWarning'))return;
@@ -1174,3 +1342,154 @@ if (blockedStoredState){
   }
   document.body.append(banner);
 }
+
+
+/* Transactional First Brain activation is explicit and non-destructive.
+ * This page continues to be a self-contained 3D main brain, not a second UI.
+ */
+function installFirstBrainPersistenceBanner(){
+  const banner=document.createElement('aside');
+  banner.id='brainPersistenceBanner';
+  banner.setAttribute('role','status');
+  banner.style.cssText='position:fixed;z-index:100002;top:12px;right:12px;max-width:440px;padding:12px 14px;border:1px solid #88c8dc;border-radius:12px;background:#162633;color:#f0fbff;font:13px/1.6 system-ui;box-shadow:0 8px 26px #0009';
+  const message=document.createElement('div');
+  message.textContent=TX_MODE
+    ? (txReady?'第一大腦交易式儲存（隔離候選）｜版本 '+txRevision+'。主圖與 Undo 同步交易；舊 localStorage 保留備份。'
+      :(txLoadError==='transactional_snapshot_missing' && !legacyMayWrite()
+        ?'⚠ 先前已啟用的交易式主腦快照遺失。舊 localStorage 只代表切換前備份，可能缺少較新的修改；禁止用它直接重建交易資料。請保留兩份證據並進行人工恢復。'
+        :'交易式儲存尚未啟用（'+(txLoadError||'no_snapshot')+'）。目前是原主腦唯讀預覽，任何編輯均不保存。'))
+    :'第一大腦交易資料已成權威，此舊版頁面禁止修改。請切換至交易模式。';
+  banner.append(message);
+  if(TX_MODE&&txReady){
+    // R21 explicit user-initiated export of the CURRENT authoritative IDB
+    // graph and Undo. Do not fall back to the pre-cutover legacy backup.
+    const currentBackup=document.createElement('button');
+    currentBackup.id='brainTxCurrentBackup';
+    currentBackup.type='button';
+    currentBackup.textContent='下載目前交易版本備份（主圖＋Undo）';
+    currentBackup.style.cssText='display:block;margin-top:8px;padding:5px 9px;border:1px solid #88c8dc;border-radius:6px;background:#224356;color:#fff;cursor:pointer';
+    currentBackup.onclick=async()=>{
+      if(!txReady||txBusy){toast('⚠ 交易尚未就緒，不能匯出權威備份');return;}
+      currentBackup.disabled=true;
+      try{
+        const result=await exportVerifiedTransactionalBackup(TX_DB,localStorage,
+          {expectedRevision:txRevision});
+        if(!result.ok){
+          if(result.reason==='transactional_snapshot_missing'||
+             result.reason==='stored_snapshot_invalid'||
+             result.reason?.startsWith('legacy_writer_detected')){
+            txReady=false;txLoadError=result.reason;
+            message.textContent='⚠ 交易資料無法安全備份（'+result.reason+'）；已停止編輯。不得以舊備份取代目前版本。';
+          }
+          toast('⚠ 目前交易備份未建立：'+result.reason);return;
+        }
+        const blob=new Blob([JSON.stringify(result.backup,null,2)],
+          {type:'application/json'});
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download='first-brain-idb-revision-'+result.backup.revision+'-verified.json';
+        document.body.append(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(a.href),1200);
+        toast('已產生版本 '+result.backup.revision+' 的驗證備份。內含主腦資料，請自行安全保存；尚未進行還原。');
+      }catch(_){toast('⚠ 交易備份失敗，沒有將舊資料冒充新版本');}
+      finally{currentBackup.disabled=!txReady;}
+    };
+    banner.append(currentBackup);
+  }
+  if(!TX_MODE){
+    const link=document.createElement('a');
+    link.href='index.html?brainTx=1'+location.hash;
+    link.textContent='切換交易模式';
+    link.style.cssText='color:#a7eafa;text-decoration:underline';
+    banner.append(link);
+  }else if(!txReady){
+    let backupDownloaded=false,exportedLegacy=null;
+    const backup=document.createElement('button');
+    backup.id='brainTxBackup';
+    backup.textContent='① 下載舊主腦原始備份';
+    backup.style.cssText='margin-top:8px;padding:5px 9px;border:1px solid #88c8dc;border-radius:6px;background:#224356;color:#fff;cursor:pointer';
+    const activate=document.createElement('button');
+    activate.id='brainTxActivate';
+    activate.textContent='② 確認切換到交易式保存';
+    activate.disabled=true;
+    activate.style.cssText='margin:8px 0 0 6px;padding:5px 9px;border:1px solid #88c8dc;border-radius:6px;background:#224356;color:#fff;cursor:pointer';
+    backup.onclick=()=>{
+      // Preserve raw bytes, not a regenerated or potentially corrupted in-memory graph.
+      let mainRaw,undoRaw;
+      try{mainRaw=localStorage.getItem(KEY);undoRaw=localStorage.getItem(UKEY);}
+      catch(e){toast('⚠ 舊資料無法讀取，不能產生備份');return;}
+      if(mainRaw===null){toast('⚠ 無舊主腦快照；禁止無來源自動啟動');return;}
+      const blob=new Blob([JSON.stringify({schema:'aiBrain.legacy.raw.backup.v1',mainRaw,undoRaw,
+        exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+      a.download='first-brain-legacy-raw-backup.json';document.body.append(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1200);
+      exportedLegacy={mainRaw,undoRaw:undoRaw===null?'[]':undoRaw};
+      backupDownloaded=true;
+      // A prior 'idb' authority may have newer graph/Undo history than the
+      // preserved legacy bytes. A fresh copy is never a safe disaster restore.
+      activate.disabled=txLoadError==='transactional_snapshot_missing'&&!legacyMayWrite();
+      if(activate.disabled)activate.title='交易快照遺失：只能下載舊備份，禁止直接重建';
+      toast(activate.disabled
+        ?'⚠ 舊資料備份已保留，但先前交易快照遺失，禁止由舊版自動重建'
+        :'舊主腦備份已準備，可自行保存到安全位置');
+    };
+    activate.onclick=async()=>{
+      if(!backupDownloaded||!exportedLegacy||txBusy)return;
+      if(!confirm('已確認備份原始資料，將在隔離版啟用交易式保存？不刪除舊檔，但舊寫入入口會禁止使用。'))return;
+      const inspected=inspectLegacy3D(localStorage);
+      if(!inspected.ok){toast('⚠ 舊資料無法安全接入：'+inspected.reason);return;}
+      if(inspected.mainRaw!==exportedLegacy.mainRaw||inspected.undoRaw!==exportedLegacy.undoRaw){
+        toast('⚠ 備份後的舊主腦已改變，請先重新下載並審查新的備份');
+        return;
+      }
+      activate.disabled=true;
+      try{
+        // If authority is already IDB, NEVER stage a fresh copy from legacy:
+        // eviction may have destroyed later graph/Undo revisions. Only an
+        // existing, revision-one, byte-for-byte staged copy may be resumed.
+        const declared=localStorage.getItem(TX_AUTH_KEY);
+        if(declared!==null&&declared!=='idb'){
+          toast('⚠ 保存權威標記不明，禁止切換：authority_marker_invalid');return;
+        }
+        let result;
+        if(declared==='idb'){
+          result=await verifyStagedLegacy3D(TX_DB,localStorage,{confirmed:true,
+            expectedMainRaw:exportedLegacy.mainRaw,expectedUndoRaw:exportedLegacy.undoRaw});
+        }else{
+          // Block updated legacy tabs before copying. Failure leaves the
+          // cutover marker intact: never silently reactivate a stale writer.
+          localStorage.setItem(TX_AUTH_KEY,'idb');
+          result=await stageLegacy3D(TX_DB,localStorage,{confirmed:true,
+            expectedMainRaw:exportedLegacy.mainRaw,expectedUndoRaw:exportedLegacy.undoRaw});
+          if(!result.ok&&result.reason==='transactional_snapshot_exists'){
+            result=await verifyStagedLegacy3D(TX_DB,localStorage,{confirmed:true,
+              expectedMainRaw:exportedLegacy.mainRaw,expectedUndoRaw:exportedLegacy.undoRaw});
+          }
+        }
+        if(!result.ok){toast('⚠ 交易初始化失敗：'+result.reason+'；原始備份與停止寫入標記仍保留');return;}
+        location.reload();
+      }catch(e){toast('⚠ 初始化失敗，未允許舊資料被覆寫：'+(e?.message||'unknown'));}
+    };
+    banner.append(backup,activate);
+  }
+  document.body.append(banner);
+}
+// R15: legacy applications from old code may ignore the new authority marker.
+// A storage event is an early warning, not a transactional lock. The IDB seal
+// is checked again in read/commit, including after reload and before writes.
+if(TX_MODE){
+  window.addEventListener('storage',async ev=>{
+    if(!['aiBrain.v1','aiBrain.v1.undo'].includes(ev.key))return;
+    const check=await readTransactional3D(TX_DB);
+    if(check.ok)return;
+    txReady=false;txLoadError=check.reason;
+    const banner=document.querySelector('#brainPersistenceBanner');
+    if(banner){
+      banner.setAttribute('data-legacy-conflict','blocked');
+      banner.firstElementChild.textContent='⚠ 舊版本可能已改動主腦資料（'+check.reason+'）。交易編輯已停止，請保存兩份版本供人工核對。';
+    }
+    toast('⚠ 舊版寫入衝突：已停止交易編輯，禁止自動覆寫');
+  });
+}
+if(TX_MODE||!legacyMayWrite())installFirstBrainPersistenceBanner();

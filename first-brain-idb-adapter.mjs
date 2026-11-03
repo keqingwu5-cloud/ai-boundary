@@ -1,0 +1,142 @@
+/* First Brain 3D => transactional storage adapter, R03-05 first integration gate.
+ * Explicit opt-in only. This does NOT switch app.js writers or delete localStorage.
+ */
+import {validateBrainImport} from './brain-import-guard.mjs';
+import {readSnapshot,writeSnapshot} from './transactional-brain-store.mjs';
+import {makeLegacyFence,verifyLegacyFence} from './first-brain-legacy-fence.mjs';
+
+export const MAIN_KEY='aiBrain.v1',UNDO_KEY='aiBrain.v1.undo';
+const fail=reason=>({ok:false,reason});
+function readGraph(raw){
+  if(typeof raw!=='string')return fail('graph_raw_missing');
+  let graph;
+  try{graph=JSON.parse(raw);}catch(_){return fail('graph_json_invalid');}
+  const checked=validateBrainImport(graph);
+  if(!checked.ok)return fail('graph_'+checked.reason);
+  return {ok:true,graph};
+}
+function readUndo(raw){
+  if(typeof raw!=='string')return fail('undo_raw_missing');
+  let undo;
+  try{undo=JSON.parse(raw);}catch(_){return fail('undo_json_invalid');}
+  if(!Array.isArray(undo)||undo.length>12||undo.some(x=>typeof x!=='string'))
+    return fail('undo_shape_invalid');
+  for(const item of undo){
+    const test=readGraph(item);
+    if(!test.ok)return fail('undo_'+test.reason);
+  }
+  return {ok:true,undo};
+}
+// Read ONLY existing stored bytes. Never seed, repair or migrate without explicit consent.
+export function inspectLegacy3D(storage){
+  let mainRaw,undoRaw;
+  try{
+    mainRaw=storage.getItem(MAIN_KEY);
+    undoRaw=storage.getItem(UNDO_KEY);
+  }catch(_){return fail('legacy_storage_unreadable');}
+  if(mainRaw===null)return fail('legacy_main_missing');
+  const main=readGraph(mainRaw);
+  if(!main.ok)return main;
+  const undo=readUndo(undoRaw===null?'[]':undoRaw);
+  if(!undo.ok)return undo;
+  return {ok:true,reason:'ok',mainRaw,undoRaw:undoRaw===null?'[]':undoRaw,
+    graph:main.graph,undo:undo.undo};
+}
+export async function readTransactional3D(databaseName){
+  const result=await readSnapshot(databaseName,MAIN_KEY);
+  if(!result.ok)return result;
+  if(result.snapshot===null)return fail('transactional_snapshot_missing');
+  // Fail closed on old/uncooperative writers modifying legacy localStorage.
+  // This detects divergence; it cannot prevent the old writer's own write.
+  if(typeof localStorage!=='undefined'){
+    const protection=await verifyLegacyFence(localStorage,result.snapshot.legacyFence);
+    if(!protection.ok)return protection;
+  }
+  const main=readGraph(result.snapshot.mainRaw);
+  if(!main.ok)return main;
+  const undo=readUndo(result.snapshot.undoRaw);
+  if(!undo.ok)return undo;
+  return {ok:true,revision:result.snapshot.revision,graph:main.graph,
+    undo:undo.undo,mainRaw:result.snapshot.mainRaw,undoRaw:result.snapshot.undoRaw};
+}
+// The caller must explicitly opt in. Copy is non-destructive and not activated
+// as an authority in the main UI; only tests or an approved migration flow call this.
+export async function stageLegacy3D(databaseName,storage,{confirmed=false,expectedMainRaw,expectedUndoRaw}={}){
+  if(confirmed!==true)return fail('explicit_confirmation_required');
+  const source=inspectLegacy3D(storage);
+  if(!source.ok)return source;
+  // The person may have downloaded a backup before another tab updated the
+  // legacy graph. Reject a staged copy that differs from those exported bytes.
+  if(expectedMainRaw!==undefined&&source.mainRaw!==expectedMainRaw)
+    return fail('legacy_source_changed_since_backup');
+  if(expectedUndoRaw!==undefined&&source.undoRaw!==expectedUndoRaw)
+    return fail('legacy_undo_changed_since_backup');
+  // An existing transactional snapshot is never replaced by an old legacy copy.
+  const previous=await readSnapshot(databaseName,MAIN_KEY);
+  if(!previous.ok)return previous;
+  if(previous.snapshot!==null)return fail('transactional_snapshot_exists');
+  const seal=await makeLegacyFence(storage,source.mainRaw,source.undoRaw);
+  if(!seal.ok)return seal;
+  const outcome=await writeSnapshot(databaseName,MAIN_KEY,0,source.mainRaw,source.undoRaw,
+    {legacyFence:seal.fence});
+  if(!outcome.ok)return outcome;
+  // Check for an observable external legacy edit during the async stage. If
+  // detected, do not switch the UI authority; preserve both snapshots for
+  // explicit review. This is a risk-reduction check, not cross-version CAS.
+  const after=inspectLegacy3D(storage);
+  if(!after.ok)return fail('legacy_source_unreadable_after_stage');
+  if(after.mainRaw!==source.mainRaw||after.undoRaw!==source.undoRaw)
+    return fail('legacy_source_changed_during_stage');
+  return {ok:true,revision:outcome.revision,reason:'copy_staged_legacy_untouched'};
+}
+
+// Recover an interrupted, explicitly approved migration ONLY when the staged
+// single-transaction snapshot still exactly matches the exported legacy bytes.
+// Never discard an existing transactional graph or auto-promote later revisions.
+export async function verifyStagedLegacy3D(databaseName,storage,
+  {confirmed=false,expectedMainRaw,expectedUndoRaw}={}){
+  if(confirmed!==true)return fail('explicit_confirmation_required');
+  if(typeof expectedMainRaw!=='string'||typeof expectedUndoRaw!=='string')
+    return fail('backup_snapshot_required');
+  const source=inspectLegacy3D(storage);
+  if(!source.ok)return source;
+  if(source.mainRaw!==expectedMainRaw||source.undoRaw!==expectedUndoRaw)
+    return fail('legacy_source_changed_since_backup');
+  const staged=await readTransactional3D(databaseName);
+  if(!staged.ok)return staged;
+  if(staged.revision!==1)return fail('staged_revision_not_initial');
+  if(staged.mainRaw!==expectedMainRaw||staged.undoRaw!==expectedUndoRaw)
+    return fail('staged_snapshot_differs_from_backup');
+  const after=inspectLegacy3D(storage);
+  if(!after.ok||after.mainRaw!==expectedMainRaw||after.undoRaw!==expectedUndoRaw)
+    return fail('legacy_source_changed_during_recovery');
+  return {ok:true,reason:'staged_snapshot_matches_backup',revision:1};
+}
+
+// Candidate Graph edits are committed atomically with their Undo stack.
+// Existing app.js and world-model UI continue to use their old authority until
+// a future switch covers ALL readers and writers and completes migration Gates.
+export async function commitTransactional3D(databaseName,expectedRevision,graph,undo){
+  const checked=validateBrainImport(graph);
+  if(!checked.ok)return fail('graph_'+checked.reason);
+  if(!Array.isArray(undo))return fail('undo_shape_invalid');
+  let mainRaw,undoRaw;
+  try{mainRaw=JSON.stringify(graph);undoRaw=JSON.stringify(undo);}
+  catch(_){return fail('serialization_failed');}
+  const history=readUndo(undoRaw);
+  if(!history.ok)return history;
+  const current=await readSnapshot(databaseName,MAIN_KEY);
+  if(!current.ok)return current;
+  if(!current.snapshot)return fail('transactional_snapshot_missing');
+  if(typeof localStorage==='undefined')return fail('legacy_fence_storage_unavailable');
+  const prior=await verifyLegacyFence(localStorage,current.snapshot.legacyFence);
+  if(!prior.ok)return prior;
+  const written=await writeSnapshot(databaseName,MAIN_KEY,expectedRevision,mainRaw,undoRaw);
+  if(!written.ok)return written;
+  // The legacy namespace is not atomic with IDB. If the old writer raced
+  // during the transaction, stop claiming safety; require manual resolution.
+  const after=await verifyLegacyFence(localStorage,current.snapshot.legacyFence);
+  if(!after.ok)return {ok:false,reason:'legacy_writer_detected_after_commit',
+    committedRevision:written.revision};
+  return written;
+}
