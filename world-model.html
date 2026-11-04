@@ -17,7 +17,7 @@
 .verify-good{color:#93e5c2}
 .verify-dim{color:#9fb0c6}
 @media(max-width:720px){.verify-controls{grid-template-columns:1fr}.verify-full{grid-column:auto}}
-</style></head>
+.qg-question{margin:10px 0;padding:11px;border:1px solid #334761;background:#111f33;border-radius:11px}.qg-question label{font-weight:500}.qg-question textarea{width:100%;min-height:63px;background:#0b1425;color:var(--txt);border:1px solid #3a4d65;border-radius:8px;padding:9px;font:inherit;resize:vertical}.qg-status{padding:7px 10px;border-left:3px solid #a6b6d0;margin-top:9px;background:#24304666}</style></head>
 <body><header><div><h1>🌐 世界模型 · 整合工作台</h1><small>AI 主腦內的單一研究入口 · 歷史重建版</small></div><a href="./index.html">← 回到 3D 主腦</a></header><main>
 <section class="panel"><div class="top"><h2>歷史回溯</h2><span class="pill" id="dateTag">2026/09</span></div><label for="month">移動時間，還原當時已公布的資料（以每月月底為截止；2026/10 以 10/12 為截止）</label><input id="month" type="range" min="0" max="12" value="11" step="1" aria-label="月份時間回溯"><div class="top fine"><span>2025/10</span><span>2026/10</span></div><div class="row"><button class="button" id="prev">← 上個月</button><button class="button" id="next">下個月 →</button><span class="pill">當時可得資料視角</span></div><p class="warning">重要：本頁是根據歷史資料重建的觀察畫面，不是當年實際封存的 AI 模型快照；不使用未到發布時間的資料。歷史月度價不能代替事件後 15/60 分鐘行情。</p></section>
 <section class="grid" aria-label="當時觀察數據"><div class="metric"><small>最近已發布 CPI 年增</small><b id="cpi">—</b><small id="cpiMeta">—</small></div><div class="metric"><small>最近 FOMC 目標利率</small><b id="fed">—</b><small id="fedMeta">—</small></div><div class="metric"><small>最近已結束月份市場</small><b id="market">—</b><small id="marketMeta">—</small></div></section>
@@ -35,8 +35,25 @@
  <details open><summary>已核對案例：通膨升高必然立即升息？</summary>
   <div id="verifiedExample"></div>
  </details>
- <details><summary>新增待驗證假設（僅儲存在這台裝置）</summary>
- <form id="verifyForm" class="verify-controls" autocomplete="off">
+ 
+ <details id="questionGateSection" open><summary>第一關：針對問題的五道反問（先質疑問題本身）</summary>
+ <p class="fine">先確認問題是否站得住腳；五問通過只是「研究設計完整」，並不代表命題為真。完成後才能新增正式待驗證假設。</p>
+ <div class="verify-controls">
+ <label class="verify-full">原始問題<textarea id="qgQuestion" maxlength="800" placeholder="例如：美國 AI 類股上漲後，台積電是否必然上漲？"></textarea></label>
+ <label>研究類型<select id="qgType"><option value="causal">因果關係</option><option value="forecast">市場預測</option><option value="supply">供應鏈傳導</option><option value="general">一般研究</option></select></label>
+ <div class="verify-actions"><button class="button" type="button" id="qgGenerate">產生五道針對性反問</button><button class="button" type="button" id="qgClear">清空本次反問</button></div>
+ </div><div id="qgPrompts"></div>
+ <div id="qgFinish" hidden><div class="verify-controls">
+ <label class="verify-full">修訂後的可驗證問題<textarea id="qgRevised" maxlength="1000" placeholder="明確定義事件、結果、期間與條件"></textarea></label>
+ <label>推翻條件<textarea id="qgFalsifier" maxlength="800" placeholder="在什麼情況下原假設會失效？"></textarea></label>
+ <label>測量標準<textarea id="qgMetric" maxlength="800" placeholder="對照組、期間、指標及檢驗方法"></textarea></label>
+ <label class="verify-full">來源或取得計畫<input id="qgSource" maxlength="900" placeholder="官方資料 URL 或具體可查找的資料取得計畫"></label>
+ </div><div class="verify-actions"><button class="button" type="button" id="qgReview">審查問題設計</button><button class="button" type="button" id="qgCommit" disabled>帶入正式驗證表單</button></div>
+ <p id="qgStatus" class="fine" role="status"></p></div>
+ </details>
+
+ <details id="verifyCreateSection"><summary>新增待驗證假設（僅儲存在這台裝置）</summary>
+ <p class="verify-note">需先完成上方五道反問並通過研究設計審查，才可新增正式驗證紀錄。既有紀錄不受影響。</p><form id="verifyForm" class="verify-controls" autocomplete="off">
   <label>假設或規則 <textarea id="verifyHypothesis" maxlength="800" placeholder="例：某種經濟條件出現後，特定市場一定會有某種反應" required></textarea></label>
   <label>可推翻條件 <textarea id="verifyFalsifier" maxlength="800" placeholder="例：若發生 X 但未出現 Y，則推翻絕對規則" required></textarea></label>
   <label>假設提出時間（當地日期）<input id="verifyDate" type="date" required></label>
@@ -57,6 +74,7 @@
  </ol></details>
 </section>
 <section class="panel"><h2>來源與資料限制</h2><div class="row"><a href="https://www.bls.gov/news.release/cpi.toc.htm" target="_blank" rel="noopener noreferrer">BLS · CPI</a><a href="https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm" target="_blank" rel="noopener noreferrer">Fed · FOMC</a><a href="https://alpaca.markets/" target="_blank" rel="noopener noreferrer">Alpaca · 市場月K</a></div><p class="fine">歷史數據取自既有《世界模型一年回溯第一版》工作簿；本頁為挑選後的靜態資料子集，不會自動抓取最新發布。美元 DXY、同日 2Y/10Y、台股 / ADR、事件前市場預期、當時模型原始快照仍待補齊。</p><div class="row"><button id="export" class="button">匯出目前研究狀態（JSON）</button><a class="button" href="./index.html" style="text-decoration:none">返回主腦</a></div></section></main>
+<script src="./question-gate-v2.js"></script>
 <script>
 'use strict';
 const months=['2025/10','2025/11','2025/12','2026/01','2026/02','2026/03','2026/04','2026/05','2026/06','2026/07','2026/08','2026/09','2026/10'];
@@ -118,6 +136,75 @@ $('#next').addEventListener('click',()=>{current=Math.min(12,current+1);$('#mont
 $('#export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({...model,simulation:{capital:$('#capital').value,allocationPct:$('#allocation').value,priceChangePct:$('#change').value,costPct:$('#cost').value,horizon:$('#horizon').value}},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='world-model-'+months[current].replace('/','-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
 render();calculate();
 
+
+/* Question gate lives apart from 3D brain storage and historical evidence records. */
+const QUESTION_GATE_KEY='worldModel.questionGate.v2';
+let activeGate=null, reviewedGate=null;
+function qgStore(){
+ if(!activeGate)return;
+ const state={...activeGate,revisedQuestion:$('#qgRevised').value,falsifier:$('#qgFalsifier').value,metric:$('#qgMetric').value,dataSource:$('#qgSource').value};
+ try{localStorage.setItem(QUESTION_GATE_KEY,JSON.stringify(state))}catch(e){$('#qgStatus').textContent='保存本機草稿失敗，請自行複製備份。'}
+}
+function qgMake(){
+ const raw=$('#qgQuestion').value,kind=$('#qgType').value;
+ try{activeGate=QuestionGateV2.build(raw,kind)}catch(e){$('#qgStatus').textContent=e.message;return}
+ reviewedGate=null;$('#qgCommit').disabled=true;$('#qgFinish').hidden=false;
+ $('#qgRevised').value='';$('#qgFalsifier').value='';$('#qgMetric').value='';$('#qgSource').value='';
+ qgRenderPrompts();$('#qgStatus').textContent='請先回答五題，再形成可反駁的修訂問題。';qgStore();
+}
+function qgRenderPrompts(){
+ const root=$('#qgPrompts');root.replaceChildren();
+ if(!activeGate){$('#qgFinish').hidden=true;return}
+ activeGate.prompts.forEach((prompt,i)=>{
+  const div=document.createElement('div');div.className='qg-question';
+  const lbl=document.createElement('label');lbl.setAttribute('for','qgAnswer'+i);lbl.textContent=(i+1)+' / 5 · '+activeGate.dimensions[i]+'：'+prompt;
+  const a=document.createElement('textarea');a.id='qgAnswer'+i;a.maxLength=1600;a.placeholder='寫出具體回答，必要時指出不知道的部分、下一步應查的資料';a.value=activeGate.answers[i]||'';
+  a.addEventListener('input',()=>{activeGate.answers[i]=a.value;reviewedGate=null;$('#qgCommit').disabled=true;$('#qgStatus').textContent='答案已修改，請重新審查。';qgStore()});
+  div.append(lbl,a);root.append(div);
+ })
+}
+$('#qgGenerate').addEventListener('click',qgMake);
+$('#qgClear').addEventListener('click',()=>{
+ if(!confirm('清空五問草稿？既有正式反驗證紀錄不受影響。'))return;
+ activeGate=null;reviewedGate=null;try{localStorage.removeItem(QUESTION_GATE_KEY)}catch(e){}
+ $('#qgQuestion').value='';$('#qgPrompts').replaceChildren();$('#qgFinish').hidden=true;$('#qgCommit').disabled=true;
+});
+['qgRevised','qgFalsifier','qgMetric','qgSource'].forEach(id=>$('#'+id).addEventListener('input',()=>{
+ reviewedGate=null;$('#qgCommit').disabled=true;$('#qgStatus').textContent='草稿已修改，請重新審查。';qgStore()
+}));
+$('#qgReview').addEventListener('click',()=>{
+ if(!activeGate)return;
+ const entry={...activeGate,revisedQuestion:$('#qgRevised').value,falsifier:$('#qgFalsifier').value,metric:$('#qgMetric').value,dataSource:$('#qgSource').value};
+ const check=QuestionGateV2.review(entry);reviewedGate=check.ready?entry:null;$('#qgCommit').disabled=!check.ready;
+ $('#qgStatus').textContent=check.ready?'5/5 已作答，且研究設計欄位完整；可帶入正式驗證。此處不判定命題正確。':check.completed+'/5 已回答。'+check.notes.join('；');
+ qgStore();
+});
+$('#qgCommit').addEventListener('click',()=>{
+ if(!reviewedGate||!QuestionGateV2.review(reviewedGate).ready)return;
+ $('#verifyHypothesis').value=reviewedGate.revisedQuestion;
+ $('#verifyFalsifier').value=reviewedGate.falsifier;
+ $('#verifyMetric').value=reviewedGate.metric;
+ const src=verifySafeUrl(reviewedGate.dataSource);
+ $('#verifySource').value=src||'';
+ $('#verifyCreateSection').open=true;
+ $('#verifyFormStatus').textContent=src?'已帶入經五問檢查的研究設計。':'已帶入研究設計；來源取得計畫不是 HTTPS 網址，請在正式紀錄另填來源 URL。';
+ $('#verifyCreateSection').scrollIntoView({behavior:'smooth',block:'start'});
+});
+try{
+ const saved=JSON.parse(localStorage.getItem(QUESTION_GATE_KEY)||'null');
+ if(saved&&saved.version===2&&saved.question&&Array.isArray(saved.prompts)&&saved.prompts.length===5&&Array.isArray(saved.answers)&&saved.answers.length===5){
+  activeGate=QuestionGateV2.build(saved.question,saved.type);
+  activeGate.answers=saved.answers.map(v=>String(v||'').slice(0,1600));
+  $('#qgQuestion').value=activeGate.question;$('#qgType').value=activeGate.type;
+  $('#qgRevised').value=String(saved.revisedQuestion||'').slice(0,1000);
+  $('#qgFalsifier').value=String(saved.falsifier||'').slice(0,800);
+  $('#qgMetric').value=String(saved.metric||'').slice(0,800);
+  $('#qgSource').value=String(saved.dataSource||'').slice(0,900);
+  $('#qgFinish').hidden=false;qgRenderPrompts();
+  $('#qgStatus').textContent='已載入本機五問草稿，請重新審查。';
+ }
+}catch(e){}
+
 /* first-party verification case: dates and URLs audited; no prediction or profit claim */
 const VERIFY_KEY='worldModel.verify.v1';
 const VERIFY_STATUSES=['待驗證','事件事實已確認（自評）','假設被反例推翻（自評）','證據不足'];
@@ -149,7 +236,7 @@ function renderVerifyRows(){
   const title=document.createElement('h3');title.textContent=r.hypothesis;
   const falsifier=document.createElement('p');falsifier.textContent='推翻條件：'+r.falsifier;
   const date=document.createElement('p');date.className='fine';date.textContent='提出 '+r.createdOn+' · 截止 '+r.deadline+' · 狀態：'+r.status;
-  item.append(title,falsifier,date);
+  item.append(title,falsifier,date);if(r.questionReview?.version===2){const q=document.createElement('p');q.className='fine';q.textContent='已記錄五問研究設計（僅通過格式完整性，未證實內容）';item.append(q)}
   if(r.metric){const metric=document.createElement('p');metric.className='fine';metric.textContent='測量：'+r.metric;item.append(metric)}
   if(r.source){const a=document.createElement('a');a.href=r.source;a.rel='noopener noreferrer';a.target='_blank';a.textContent='來源連結';item.append(a)}
   const buttons=document.createElement('div');buttons.className='verify-actions';
@@ -166,10 +253,13 @@ $('#verifyForm').addEventListener('submit',e=>{
  const hypothesis=$('#verifyHypothesis').value.trim(),falsifier=$('#verifyFalsifier').value.trim(),createdOn=$('#verifyDate').value,deadline=$('#verifyDeadline').value;
  const sourceRaw=$('#verifySource').value.trim(),source=sourceRaw?verifySafeUrl(sourceRaw):'';
  if(!hypothesis||!falsifier||!createdOn||!deadline||deadline<createdOn||(sourceRaw&&!source)){ $('#verifyFormStatus').textContent='請檢查日期、必填欄位或 https 來源網址。';return}
+ if(!reviewedGate||!QuestionGateV2.review(reviewedGate).ready||$('#verifyHypothesis').value.trim()!==reviewedGate.revisedQuestion||$('#verifyFalsifier').value.trim()!==reviewedGate.falsifier){
+  $('#verifyFormStatus').textContent='需先完成五道反問並帶入未修改的正式假設與推翻條件；如需修改，請回上一關重新審查。';return
+ }
  const rows=getVerifyRows();if(rows.length>=500){$('#verifyFormStatus').textContent='本機最多儲存 500 筆；請先匯出並清理。';return}
- rows.push({id:'v'+Date.now()+'-'+Math.random().toString(36).slice(2,8),hypothesis,falsifier,createdOn,deadline,source,metric:$('#verifyMetric').value.trim(),status:'待驗證',createdAt:new Date().toISOString()});
+ rows.push({id:'v'+Date.now()+'-'+Math.random().toString(36).slice(2,8),hypothesis,falsifier,createdOn,deadline,source,metric:$('#verifyMetric').value.trim(),status:'待驗證',questionReview:{version:2,type:reviewedGate.type,originalQuestion:reviewedGate.question,answers:reviewedGate.answers.slice(),revisedQuestion:reviewedGate.revisedQuestion,reviewedAt:new Date().toISOString(),reviewKind:'design_completeness_not_truth'},createdAt:new Date().toISOString()});
  if(!saveVerifyRows(rows)){ $('#verifyFormStatus').textContent='儲存失敗，請檢查瀏覽器儲存權限。';return}
- $('#verifyForm').reset();$('#verifyDate').value=new Date().toLocaleDateString('en-CA');$('#verifyFormStatus').textContent='已儲存在此裝置；請定期匯出備份。';renderVerifyRows();
+ $('#verifyForm').reset();reviewedGate=null;$('#qgCommit').disabled=true;$('#qgStatus').textContent='已建立正式驗證紀錄；下次需重新審查。';$('#verifyDate').value=new Date().toLocaleDateString('en-CA');$('#verifyFormStatus').textContent='已儲存在此裝置；請定期匯出備份。';renderVerifyRows();
 });
 $('#verifyExport').addEventListener('click',()=>{
  const blob=new Blob([JSON.stringify({schema:'worldModel.verify.v1',exportedAt:new Date().toISOString(),verifiedReference:verificationCase,records:getVerifyRows()},null,2)],{type:'application/json'});
@@ -180,7 +270,7 @@ $('#verifyImport').addEventListener('change',async e=>{
  const f=e.target.files?.[0];if(!f)return;
  if(f.size>1024*1024){alert('匯入檔案超過 1MB');return}
  try{const d=JSON.parse(await f.text());if(d.schema!=='worldModel.verify.v1'||!Array.isArray(d.records)||d.records.length>500)throw Error('格式不符');
- const clean=d.records.filter(r=>r&&typeof r.hypothesis==='string'&&typeof r.falsifier==='string'&&typeof r.createdOn==='string'&&typeof r.deadline==='string').map((r,i)=>({id:'import-'+Date.now()+'-'+i,hypothesis:r.hypothesis.slice(0,800),falsifier:r.falsifier.slice(0,800),createdOn:r.createdOn.slice(0,10),deadline:r.deadline.slice(0,10),source:r.source?verifySafeUrl(r.source):'',metric:String(r.metric||'').slice(0,800),status:VERIFY_STATUSES.includes(r.status)?r.status:'待驗證',createdAt:new Date().toISOString()}));
+ const clean=d.records.filter(r=>r&&typeof r.hypothesis==='string'&&typeof r.falsifier==='string'&&typeof r.createdOn==='string'&&typeof r.deadline==='string').map((r,i)=>({id:'import-'+Date.now()+'-'+i,hypothesis:r.hypothesis.slice(0,800),falsifier:r.falsifier.slice(0,800),createdOn:r.createdOn.slice(0,10),deadline:r.deadline.slice(0,10),source:r.source?verifySafeUrl(r.source):'',metric:String(r.metric||'').slice(0,800),status:VERIFY_STATUSES.includes(r.status)?r.status:'待驗證',questionReview:r.questionReview&&r.questionReview.version===2?{version:2,type:String(r.questionReview.type||'general').slice(0,20),originalQuestion:String(r.questionReview.originalQuestion||'').slice(0,800),answers:Array.isArray(r.questionReview.answers)?r.questionReview.answers.slice(0,5).map(v=>String(v||'').slice(0,1600)):[],revisedQuestion:String(r.questionReview.revisedQuestion||'').slice(0,1000),reviewedAt:String(r.questionReview.reviewedAt||'').slice(0,35),reviewKind:'design_completeness_not_truth'}:null,createdAt:new Date().toISOString()}));
  if(!confirm('匯入 '+clean.length+' 筆紀錄？將取代此裝置的反驗證紀錄（不影響 3D 主腦）。'))return;
  if(!saveVerifyRows(clean))throw Error('無法寫入本機儲存');renderVerifyRows();
  }catch(err){alert('無法匯入：'+err.message)}finally{e.target.value=''}
