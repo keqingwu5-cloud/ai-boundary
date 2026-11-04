@@ -4,6 +4,14 @@
 新增主題或節點：改下方 EP_META / LAB_META / OBJ_META。"""
 import csv, json, os, re, subprocess, time, datetime as dt
 from pathlib import Path
+# 手動確認已交付（不在網站 media/ 也不是 n_q 節點）
+DELIVERED_OVERRIDE={
+ 'EP07':'已交給 Merlin 與可可（2026-10-27）','EP07-CLEAN':'已交給 Merlin 與可可（2026-10-27）',
+ 'EP08':'已交給 Merlin 與可可（2026-10-27）','EP08-CLEAN':'已交給 Merlin 與可可（2026-10-27）',
+ 'EP08-CMP':'比較片，已交給 Merlin（2026-10-29）',
+ 'EP08-FEED':'短影音頁版，已交給 Merlin 與可可（2026-10-29）',
+}
+
 ROOT = Path('/workspace/影像導演'); S = ROOT/'ai-boundary-series'; OUT = ROOT/'代碼簿'
 TZ = dt.timezone(dt.timedelta(hours=8)); NOW = time.time()
 SITE_REPO = Path('/workspace/ai-boundary/media/videos')
@@ -97,17 +105,19 @@ for e in eps:
             if node.startswith('n_q'): st='已交付'; note=f'網站節點 {node} 的來源母片（網站版為 720 寬壓縮檔）'
             else: st='試片'; note='未見於網站 repo media/，交付狀態待確認'
         if site_md5.get(md5(p)): st='已交付'; note=f'與網站 {site_md5[md5(p)]}.mp4 完全相同'
-        add(f'EP{e:02d}{suf}','系列',t,node,p,burn,srt,cov,st,note)
+        code=f'EP{e:02d}{suf}'
+        if code in DELIVERED_OVERRIDE: st='已交付'; note=DELIVERED_OVERRIDE[code]
+        add(code,'系列',t,node,p,burn,srt,cov,st,note)
     if (S/f'ep{e:02d}.mp4').exists():
         add(f'EP{e:02d}-V0','系列',t,node,S/f'ep{e:02d}.mp4','待確認','—','—','舊版','早期短版（約 10 秒）')
     if (S/f'ep{e:02d}_rejected_v1.mp4').exists():
         add(f'EP{e:02d}-REJ','系列',t,node,S/f'ep{e:02d}_rejected_v1.mp4','待確認','—','—','舊版','退件 v1')
     if not any_file and not (S/f'ep{e:02d}.mp4').exists():
         add(f'EP{e:02d}','系列',t,node,None,'—',srt,cov,'製作中',f'尚無成品，只有分鏡片段 ep{e:02d}_60s_work/')
-    if hs is None and (S/f'ep{e:02d}_60s_clean.mp4').exists() and 2<=e<=7 and not (S/f'ep{e:02d}_60s_hq.mp4').exists():
+    if (S/f'ep{e:02d}_60s_clean.mp4').exists() and 2<=e<=7 and not (S/f'ep{e:02d}_60s_hq.mp4').exists():
         add(f'EP{e:02d}-HQ','系列',t,node,None,'—',srt,cov,'製作中','HQ 版尚未產出（batch_hq 排程 EP02–07）')
 for p,code,t in [(S/'series_ep01-06.mp4','EP01-06-ALL','EP01–06 合輯'),(S/'compare_ep01.mp4','EP01-CMP','EP01 標準版 vs HQ 比較片'),(S/'compare_ep08.mp4','EP08-CMP','EP08 標準版 vs HQ 比較片')]:
-    if p.exists(): add(code,'系列',t,'—',p,'待確認','—','—','試片' if 'CMP' in code else '舊版','合輯由 list.txt 串接早期短版 ep01–06' if 'ALL' in code else '比較用')
+    if p.exists(): add(code,'系列',t,'—',p,'待確認','—','—',(DELIVERED_OVERRIDE and '已交付' if code in DELIVERED_OVERRIDE else '試片') if 'CMP' in code else '舊版','合輯由 list.txt 串接早期短版 ep01–06' if 'ALL' in code else '比較用')
 # ---- 番外 ----
 L=ROOT/'語言是不是思考的邊界'/'output'
 for fn,code,burn,st,srt in [('語言是不是思考的邊界_v2_字幕版.mp4','SP-LANG','是','已交付','subtitles_v2.zh-TW.srt'),
