@@ -14,10 +14,18 @@ const { buildMockResult } = require('./mock-executor.cjs');
 const { mintToken } = require('./token.cjs');
 const { sha } = require(path.join(cfg.QUEUE_WT, 'api/mainbrain-api.cjs'));
 
-const EVIDENCE = path.resolve(__dirname, '../evidence/tests');
+const { resolveRunDir, writeManifest, repoGitCwd } = require('./run-dir.cjs');
+const RUN_DIR = resolveRunDir();
+const EVIDENCE = RUN_DIR; // live outputs → gitignored runs/; tracked evidence/ is fixed samples
 fs.mkdirSync(EVIDENCE, { recursive: true });
 const results = [];
 const startedTaipei = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Taipei' }) + ' Asia/Taipei';
+const OUTPUT_PATHS = [];
+function trackOut(rel) {
+  const abs = path.join(EVIDENCE, rel);
+  OUTPUT_PATHS.push(path.relative(path.resolve(__dirname, '..'), abs));
+  return abs;
+}
 
 function record(id, status, detail) {
   const row = {
@@ -405,7 +413,7 @@ async function run() {
     assert.ok(typeof parsed.totals.MOCK === 'number');
     assert.equal(parsed.totals.REAL, 0);
     assert.ok(parsed.note.includes('NOT_CONNECTED'));
-    fs.writeFileSync(path.join(EVIDENCE, 'view-sample.json'), view.stdout);
+    fs.writeFileSync(trackOut('view-sample.json'), view.stdout);
     record('reporting', 'PASS', { totals: parsed.totals });
   } catch (e) {
     record('reporting', 'FAIL', String(e.message || e));
@@ -450,12 +458,12 @@ async function run() {
       encoding: 'utf8',
       timeout: 20000,
     });
-    fs.writeFileSync(path.join(EVIDENCE, 'e2e-submit.out'), sub.stdout + '\n' + sub.stderr);
+    fs.writeFileSync(trackOut('e2e-submit.out'), sub.stdout + '\n' + sub.stderr);
     assert.equal(sub.status, 0, sub.stdout + sub.stderr);
     assert.ok(sub.stdout.includes('readback_exact_match'));
     assert.ok(sub.stdout.includes('"ok": true'));
 
-    fs.writeFileSync(path.join(EVIDENCE, 'e2e-readback-exact.json'), JSON.stringify({
+    fs.writeFileSync(trackOut('e2e-readback-exact.json'), JSON.stringify({
       event_id,
       instruction,
       expected: expectedResult,
@@ -777,9 +785,15 @@ function writeOut() {
   let tip_sha_live = 'UNKNOWN';
   try {
     tip_sha_live = require('node:child_process')
-      .execFileSync('git', ['rev-parse', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' })
+      .execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoGitCwd(), encoding: 'utf8' })
       .trim();
   } catch { /* */ }
+  const counts = {
+    PASS: results.filter((r) => r.status === 'PASS').length,
+    FAIL: results.filter((r) => r.status === 'FAIL').length,
+    BLOCKED: results.filter((r) => r.status === 'BLOCKED').length,
+    NOT_RUN: results.filter((r) => r.status === 'NOT_RUN').length,
+  };
   const summary = {
     started_at_taipei: startedTaipei,
     finished_at_taipei: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Taipei' }) + ' Asia/Taipei',
@@ -791,16 +805,24 @@ function writeOut() {
       ? fs.readFileSync(path.resolve(__dirname, '../evidence/pr86/fix-sha.txt'), 'utf8').trim()
       : null,
     results,
-    counts: {
-      PASS: results.filter((r) => r.status === 'PASS').length,
-      FAIL: results.filter((r) => r.status === 'FAIL').length,
-      BLOCKED: results.filter((r) => r.status === 'BLOCKED').length,
-      NOT_RUN: results.filter((r) => r.status === 'NOT_RUN').length,
-    },
+    counts,
+    run_dir: RUN_DIR,
   };
-  fs.writeFileSync(path.join(EVIDENCE, 'suite-summary.json'), JSON.stringify(summary, null, 2));
+  const summaryPath = trackOut('suite-summary.json');
+  fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
+  // Only write a suite-level manifest when this process owns the run dir (not a child of risk-tests).
+  if (!process.env.TESTENV_RISK_PARENT) {
+    writeManifest(RUN_DIR, {
+      command: 'cd testenv/loop && node run-tests.cjs',
+      environment: 'local MOCK testenv; Node; file-store; no Docker/PG/Supabase/OpenAI; Asia/Taipei',
+      counts,
+      output_paths: [...new Set(OUTPUT_PATHS)],
+      extra: { suite: true, tip_sha_file, tip_sha_live },
+    });
+  }
   console.log('\n=== SUMMARY ===');
   console.log(JSON.stringify(summary.counts, null, 2));
+  console.log('run_dir=' + RUN_DIR);
 }
 
 run().catch((e) => {

@@ -18,6 +18,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Test run-dir isolation and path escape guards
+        working-directory: testenv/loop
+        run: node --test run-dir.test.cjs
       - name: Stage pinned queue-wt API (no secrets)
         run: |
           set -euo pipefail
@@ -46,3 +49,15 @@ jobs:
         env:
           TESTENV_CI_SKIP_R9: "1"
         run: node risk-tests.cjs
+      - name: Tracked evidence must stay clean
+        if: always()
+        working-directory: testenv/loop
+        run: node check-evidence-clean.cjs
+      - name: Persist MOCK run logs (not trusted cross-AI evidence)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f05-mock-runs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: testenv/runs/
+          if-no-files-found: warn
+          retention-days: 14

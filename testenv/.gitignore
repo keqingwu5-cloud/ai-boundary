@@ -7,3 +7,6 @@ viewer/
 
 loop/data-risk-*/
 loop/data-test-*/
+
+# Per-run live outputs (tracked evidence/ stays fixed samples)
+runs/
