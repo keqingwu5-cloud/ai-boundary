@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>共同記憶管理｜AI 主腦</title>
+<title>記憶體體系｜本機加密管理</title>
 <style>
 :root{color-scheme:dark;--bg:#090d19;--panel:#151c2d;--line:#35405c;--txt:#eff3ff;--muted:#b3bfd9;--accent:#bbcbff}
 *{box-sizing:border-box}body{margin:0;font:15px/1.7 system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;color:var(--txt);background:radial-gradient(ellipse 830px 300px at 50% -70px,#263356,transparent 83%),var(--bg)}
@@ -36,10 +36,12 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 @media(max-width:720px){.cols,.grid3{grid-template-columns:1fr}.panel{padding:14px}main{padding:18px 12px 45px}header nav{padding:11px}header strong{width:100%}}
 </style>
 <script src="./memory-workflow-core.js?v=20261013" defer></script>
-<script src="./memory.js?v=20261013workflow01" defer></script>
+<script src="./memory-controls-core.js?v=20261022" defer></script>
+<script src="./memory-impact-core.js?v=20261023" defer></script>
+<script src="./memory.js?v=20261022controls01" defer></script>
 </head>
 <body>
-<header><nav><strong>🧠 主腦 · 共同記憶管理</strong><a href="./mainbrain.html">主腦控制台</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 大腦</a></nav></header>
+<header><nav><strong>記憶體體系 · 獨立管理</strong><a href="./mainbrain.html">主腦控制台</a><a href="./launcher.html">🚀 發射器</a><a href="./index.html">3D 大腦</a></nav></header>
 <main>
 <div class="kicker">MEMORY GOVERNANCE · LOCAL VAULT V1</div><h1>共同記憶審核與修正</h1>
 <p>先讓「提交候選 → 審核／拒絕 → 保留歷史 → 修正再提交 → 差異回顧」真正可操作。你是目前本機記憶庫的核准者。</p>
@@ -60,6 +62,7 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 <button type="button" role="tab" data-tab="review" aria-controls="tab-review" aria-selected="false">候選審核</button>
 <button type="button" role="tab" data-tab="memory" aria-controls="tab-memory" aria-selected="false">版本記憶</button>
 <button type="button" role="tab" data-tab="diff" aria-controls="tab-diff" aria-selected="false">差異與備份</button>
+<button type="button" role="tab" data-tab="controls" aria-controls="tab-controls" aria-selected="false">方向與門檻</button>
 </div>
 <section id="tab-overview" role="tabpanel"><div class="grid3">
 <div class="stat"><b id="countMemories">0</b><small>已核准記憶主題</small></div>
@@ -90,9 +93,15 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 <div><label for="proposer">提出者（人工標示，非身份驗證）</label><select id="proposer"><option value="user">使用者</option><option value="GPT1">GPT①</option><option value="GPT2">GPT②</option><option value="BOT3">BOT③</option><option value="other">其他</option></select></div>
 <div><label for="evidenceLevel">證據層級</label><select id="evidenceLevel"><option value="hypothesis">假設／待驗證</option><option value="fact">事實／有原始證據</option><option value="derived">計算或直接推導</option><option value="inference">推論</option><option value="forecast">條件預測</option></select></div>
 </div>
+<div class="cols">
+<div><label for="originSourceId">原始來源 ID（選填；人工填寫或從發射回報帶入，尚未驗證身分）</label><input id="originSourceId" maxlength="200" placeholder="command_id／task_id；不能以文字相似代替同一 ID"></div>
+<div><label for="directionRelation">與目前記憶方向的關係（人工標示，不會自動判定）</label><select id="directionRelation"><option value="unassessed">尚未評估</option><option value="aligned">人工判斷符合目前方向</option><option value="divergent_keep">方向不同但值得保留為候選</option></select></div>
+</div>
 <p class="small" id="typeHint">同一問題可修正答案，問題定義改變時應另建分支。</p>
+<div class="actions"><button type="button" id="previewMemoryImpact">先預演裂變與版本影響（唯讀）</button></div>
+<div id="memoryImpactPreview" class="help" role="status" aria-live="polite">尚未預演。本預演不更動加密記憶，也不自動核准或傳送資料。</div>
 <div class="actions"><button class="primary" type="submit">提交候選並加密儲存</button><button type="button" id="importReport">匯入發射器 AI 回報 JSON</button><button type="button" id="importMemoryPack">批次匯入 GPT① 記憶候選包</button><button type="button" id="resetProposal">清除表單</button></div>
-<p class="small">匯入 AI 回報只會填入草稿表單，不會自動核准或寫入權威記憶。請自行確認問題定義、目的、事件類別與資料來源。</p>
+<p class="small">預演只檢查結構、來源及版本衝突，無法自動判斷語意或真正授權。即使與方向不同，候選仍可保留待人工審核；發射器來源屬人工聲稱，無可信 ACK 不得稱為已驗證送達。</p>
 </form></div>
 </section>
 <section id="tab-review" role="tabpanel" hidden>
@@ -102,6 +111,28 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 </section>
 <section id="tab-memory" role="tabpanel" hidden>
 <div class="panel"><h2>權威版本（僅限本機）</h2><p>這裡的權威指「你在此裝置核准過的版本」，不代表客觀真理或雲端三方共識。</p><div id="memoryList"></div></div>
+</section>
+<section id="tab-controls" role="tabpanel" hidden>
+<div class="panel"><h2>記憶體方向｜由你動態調整</h2>
+<p>這是記憶體體系自己的方向設定，不屬於主腦中樞。由你填寫與更新，初始不預設方向。</p>
+<label for="memoryDirectionEditor">當前方向</label>
+<textarea id="memoryDirectionEditor" maxlength="6000" placeholder="由你定義：當前記憶體要優先保留、整理或強化什麼"></textarea>
+<p id="memoryDirectionVersion" class="small">尚未設定</p>
+<div class="actions"><button type="button" id="saveMemoryDirection" class="primary">儲存方向的新版本</button></div>
+</div>
+<div class="panel"><h2>記憶體門檻｜由你動態調整</h2>
+<p>先保存你的門檻內容及版本；目前不自動判定候選通過，更不會自動核准或覆寫正式記憶。</p>
+<label for="memoryThresholdEditor">目前候選使用／審查門檻</label>
+<textarea id="memoryThresholdEditor" maxlength="6000" placeholder="由你設定：來源、關聯、審查條件或使用界線；日後可再次修改"></textarea>
+<p id="memoryThresholdVersion" class="small">尚未設定</p>
+<div class="actions"><button type="button" id="saveMemoryThreshold" class="primary">儲存門檻的新版本</button></div>
+</div>
+<div class="panel"><h2>變更理由與版本歷史</h2>
+<p>每次修改任一項都要留下原因。修改不覆蓋之前的設定，也不自動改變候選、權限、發射或跨系統傳輸。</p>
+<label for="memoryControlReason">本次修改原因（兩項設定共用，保存時記在各自版本）</label>
+<textarea id="memoryControlReason" maxlength="1000" placeholder="為什麼要調整？當前條件或思考尺度發生什麼變化？"></textarea>
+<div id="memoryControlHistory" aria-live="polite"></div>
+</div>
 </section>
 <section id="tab-diff" role="tabpanel" hidden>
 <div class="panel"><h2>事件差異與變更歷史</h2>
@@ -116,5 +147,5 @@ summary{cursor:pointer}details{margin:10px 0}details>summary{padding:6px 0}
 <input id="backupInput" type="file" accept=".json,application/json" hidden>
 <input id="reportInput" type="file" accept=".json,application/json" hidden>
 <input id="memoryPackInput" type="file" accept=".json,application/json" hidden>
-<p class="footer">主腦記憶管理 V1 · 離線資料治理最小可用版 · 本機加密、手動審核與人工交接。跨裝置自動同步、其他 AI 自動接收及私人後端仍未接通。</p>
+<p class="footer">獨立記憶體管理 V1 · 離線資料治理最小可用版 · 本機加密、手動審核與人工交接。跨裝置自動同步、其他 AI 自動接收及私人後端仍未接通。</p>
 </main></body></html>
