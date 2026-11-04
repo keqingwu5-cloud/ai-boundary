@@ -50,16 +50,50 @@ function stampTaipei() {
   return `${g('year')}${g('month')}${g('day')}T${g('hour')}${g('minute')}${g('second')}`;
 }
 
+// Only direct children of testenv/runs may contain live output.
+function ensureRunsRoot() {
+  fs.mkdirSync(RUNS_ROOT, { recursive: true, mode: 0o700 });
+  const stat = fs.lstatSync(RUNS_ROOT);
+  if (!stat.isDirectory() || stat.isSymbolicLink()) {
+    throw new Error('RUN_DIR_ROOT_UNSAFE');
+  }
+  return fs.realpathSync(RUNS_ROOT);
+}
+
+function verifyRunDir(input) {
+  if (typeof input !== 'string' || !input.trim() ||
+      input.split(/[\\/]/).includes('..')) {
+    throw new Error('RUN_DIR_OUTSIDE_ROOT');
+  }
+  const rootReal = ensureRunsRoot();
+  const candidate = path.resolve(input);
+  const child = path.relative(RUNS_ROOT, candidate);
+  if (!child || child === '.' || child === '..' ||
+      child.startsWith('..' + path.sep) || path.isAbsolute(child) ||
+      child.includes(path.sep)) {
+    throw new Error('RUN_DIR_OUTSIDE_ROOT');
+  }
+  // An inherited run must already exist: risk-tests can reuse its own
+  // child suite directory, but untrusted paths are never created.
+  const stat = fs.lstatSync(candidate);
+  if (!stat.isDirectory() || stat.isSymbolicLink() ||
+      fs.realpathSync(candidate) !== path.join(rootReal, child)) {
+    throw new Error('RUN_DIR_SYMLINK_OR_NOT_DIRECTORY');
+  }
+  return candidate;
+}
+
 function resolveRunDir() {
+  ensureRunsRoot();
   if (process.env.TESTENV_RUN_DIR) {
-    const dir = path.resolve(process.env.TESTENV_RUN_DIR);
-    fs.mkdirSync(dir, { recursive: true });
-    return dir;
+    return verifyRunDir(process.env.TESTENV_RUN_DIR);
   }
   const sha = fullSha();
   const short = sha === 'UNKNOWN' ? 'unknown' : sha.slice(0, 12);
-  const dir = path.join(RUNS_ROOT, `${stampTaipei()}-${short}`);
-  fs.mkdirSync(dir, { recursive: true });
+  // mkdtemp uses atomic, exclusive directory creation with a random
+  // suffix, preventing same-second / concurrent run name collisions.
+  const dir = fs.mkdtempSync(path.join(RUNS_ROOT, stampTaipei() + '-' + short + '-'));
+  verifyRunDir(dir);
   process.env.TESTENV_RUN_DIR = dir;
   return dir;
 }
@@ -72,6 +106,7 @@ function writeManifest(runDir, {
   scope, // 'local' | 'ci'
   extra,
 } = {}) {
+  runDir = verifyRunDir(runDir);
   const sha = fullSha();
   const manifest = {
     commit_sha: sha,
