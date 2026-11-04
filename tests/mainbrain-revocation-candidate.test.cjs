@@ -99,3 +99,109 @@ test('P0-C outcome reporting cannot accept arbitrary reasons, oversized evidence
  }
  assert.equal(calls.length,0);
 });
+
+test('R03 Worker preserves bounded synthetic evidence after ACK timeout and revoked fail',async()=>{
+ const reports=[],calls=[];
+ const client={
+  receive:async()=>[row],intent:async()=>{calls.push('intent');},
+  authorize:async()=>({authorized:true}),execute:async()=>{calls.push('execute');},
+  ack:async()=>{calls.push('ack');throw Error('synthetic timeout');},
+  status:async()=>({...row,state:'executed'}),
+  fail:async()=>{calls.push('fail');throw Error('synthetic revoked');},
+  report:async p=>{reports.push(p);return {state:'blocked'};}
+ };
+ const worker=createPollingWorker({client,performTask:async()=>{
+  calls.push('provider');
+  return {execution_evidence:'synthetic:execution:123',receipt_evidence:'synthetic:receipt:456'};
+ }});
+ const out=await worker.runOnce();
+ assert.equal(out.state,'reconciliation_required');
+ assert.equal(calls.filter(x=>x==='provider').length,1);
+ assert.equal(reports.length,1);
+ assert.equal(reports[0].reason,'execution_outcome_unknown');
+ assert.equal(reports[0].evidence_reference,'synthetic:receipt:456');
+});
+test('R03 Worker does not invent a reference when provider fails before receipt',async()=>{
+ const reports=[];
+ const client={receive:async()=>[row],intent:async()=>{},
+  authorize:async()=>({authorized:true}),
+  execute:async()=>{throw Error('must not execute');},
+  ack:async()=>{throw Error('must not ACK');},
+  status:async()=>({...row,state:'leased'}),
+  fail:async()=>{throw Error('revoked');},
+  report:async p=>{reports.push(p);return {state:'blocked'};}};
+ const worker=createPollingWorker({client,performTask:async()=>{throw Error('provider result unknown');}});
+ assert.equal((await worker.runOnce()).state,'reconciliation_required');
+ assert.equal(reports.length,1);
+ assert.equal(Object.hasOwn(reports[0],'evidence_reference'),false);
+});
+test('R03 Store.get exposes only bounded current-attempt outcome pointers',async()=>{
+ const sample={attempt_id:UUID,report_id:'outcome-'+UUID,reason:'execution_outcome_unknown',
+   evidence_reference:'synthetic:receipt:456',received_at:NOW,
+   endpoint_id:'MUST_NOT_BE_EXPOSED',payload_digest:'MUST_NOT_BE_EXPOSED'};
+ const {store,calls}=harness((sql)=>{
+  if(sql.includes('FROM mainbrain_api.events'))return {rows:[{...row,state:'blocked'}]};
+  if(sql.includes('FROM mainbrain_api.outcome_reports'))return {rows:[sample]};
+  return {rows:[]};
+ });
+ const result=await store.get('EV1');
+ assert.equal(result.state,'blocked');
+ assert.equal(result.outcome_reports.length,1);
+ assert.equal(result.outcome_reports[0].evidence_reference,'synthetic:receipt:456');
+ assert.equal(Object.hasOwn(result.outcome_reports[0],'endpoint_id'),false);
+ assert.equal(Object.hasOwn(result.outcome_reports[0],'payload_digest'),false);
+ const q=calls.find(x=>x.sql.includes('FROM mainbrain_api.outcome_reports'));
+ assert(q,'missing outcome report query');
+ assert.match(q.sql,/event_id=\$1 AND attempt_id=\$2/);
+ assert.deepEqual(q.params,['EV1',UUID]);
+ assert.match(q.sql,/LIMIT 50/);
+});
+test('R03 Store.get does not query old outcomes if event has no current attempt',async()=>{
+ const {store,calls}=harness(sql=>
+  sql.includes('FROM mainbrain_api.events')?{rows:[{...row,state:'queued',current_attempt_id:null}]}:{rows:[]}
+ );
+ const result=await store.get('EV1');
+ assert.deepEqual(result.outcome_reports,[]);
+ assert(!calls.some(x=>x.sql.includes('FROM mainbrain_api.outcome_reports')));
+});
+test('R03 strong mutation kills Worker evidence assertion and Store readback assertion',async()=>{
+ const fs=require('node:fs'),path=require('node:path'),Module=require('node:module');
+ function mutated(relative,oldValue,newValue){
+  const filename=require.resolve(relative);
+  const source=fs.readFileSync(filename,'utf8');
+  assert.equal(source.split(oldValue).length-1,1,'mutation source marker changed');
+  const m=new Module(filename,module);
+  m.filename=filename;m.paths=Module._nodeModulePaths(path.dirname(filename));
+  m._compile(source.replace(oldValue,newValue),filename);
+  return m.exports;
+ }
+ const mutatedWorker=mutated('../api/polling-worker-candidate.cjs',
+  '...(outcomeReference ? {evidence_reference:outcomeReference} : {})',
+  '...(false ? {evidence_reference:outcomeReference} : {})').createPollingWorker;
+ const reports=[];
+ const client={receive:async()=>[row],intent:async()=>{},authorize:async()=>({authorized:true}),
+  execute:async()=>{},ack:async()=>{throw Error('timeout');},
+  status:async()=>({...row,state:'executed'}),
+  fail:async()=>{throw Error('revoked');},
+  report:async p=>{reports.push(p);return {state:'blocked'};}};
+ const worker=mutatedWorker({client,performTask:async()=>
+  ({execution_evidence:'synthetic:execution:123',receipt_evidence:'synthetic:receipt:456'})});
+ assert.equal((await worker.runOnce()).state,'reconciliation_required');
+ assert.equal(reports.length,1);
+ // The original strict positive contract MUST fail on the mutant.
+ assert.throws(()=>assert.equal(reports[0].evidence_reference,'synthetic:receipt:456'),
+  {code:'ERR_ASSERTION'});
+ const mutatedStore=mutated('../api/pg-store-candidate.cjs',
+  'evidence_reference:r.evidence_reference','evidence_reference:null').createPostgresStore;
+ const sample={attempt_id:UUID,report_id:'outcome-'+UUID,reason:'execution_outcome_unknown',
+  evidence_reference:'synthetic:receipt:456',received_at:NOW};
+ const query=async sql=>({
+  rows:sql.includes('FROM mainbrain_api.events')?[{...row,state:'blocked'}]:
+   sql.includes('FROM mainbrain_api.outcome_reports')?[sample]:[]
+ });
+ const store=mutatedStore({pool:{connect:async()=>({query,release:()=>{}}),query},clock:()=>NOW});
+ const record=await store.get('EV1');
+ assert.equal(record.outcome_reports.length,1);
+ assert.throws(()=>assert.equal(record.outcome_reports[0].evidence_reference,'synthetic:receipt:456'),
+  {code:'ERR_ASSERTION'});
+});
