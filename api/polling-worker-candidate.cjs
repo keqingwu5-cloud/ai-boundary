@@ -24,6 +24,9 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
       attempt_id:attemptId,payload:event.payload,payload_version:event.payload_version,
       payload_digest:event.payload_digest,execution_idempotency_key:executionKey});
     let phase='preflight';
+    // R03 draft: preserve only bounded synthetic test references in the
+    // fallback report. This is not a provider-origin authenticity guarantee.
+    let outcomeReference=null;
     async function checkCommittedAck() {
       if(typeof client.status!=='function')return false;
       try {
@@ -52,6 +55,10 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
       if(!r||typeof r.execution_evidence!=='string'||!r.execution_evidence.trim()||
          typeof r.receipt_evidence!=='string'||!r.receipt_evidence.trim())
         throw Error('task result requires execution and receipt evidence');
+      // Only capture an evidence reference after both execution and receipt
+      // evidence exist; never forward arbitrary raw provider output.
+      if(/^synthetic:receipt:[A-Za-z0-9_-]{1,80}$/.test(r.receipt_evidence))
+        outcomeReference=r.receipt_evidence;
       phase='execute';
       await client.execute({event_id:eventId,attempt_id:attemptId,execution_evidence:r.execution_evidence});
       phase='ack';
@@ -97,7 +104,8 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
           try {
             await client.report({event_id:eventId,attempt_id:attemptId,
               payload_digest:event.payload_digest,report_id:'outcome-'+attemptId,
-              reason:'execution_outcome_unknown'});
+              reason:'execution_outcome_unknown',
+              ...(outcomeReference ? {evidence_reference:outcomeReference} : {})});
             logger({action:'reconciliation_required_evidence_only',event_id:eventId,
               attempt_id:attemptId});
             return {state:'reconciliation_required',event_id:eventId,attempt_id:attemptId};
