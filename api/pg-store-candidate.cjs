@@ -326,7 +326,18 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
       const event=(await pool.query('SELECT * FROM '+E+' WHERE event_id=$1',[eventId])).rows[0];
       if(!event)return null;
       const alerts=(await pool.query('SELECT alert_code,severity,status,details,first_seen_at,last_seen_at,occurrences FROM '+AL+" WHERE event_id=$1 AND status='open' ORDER BY severity,first_seen_at",[eventId])).rows;
-      return {...event,alerts:alerts.map(a=>({...a,...(ALERT_GUIDE[a.alert_code]||{reason:'未分類事件，需人工查核',impact:'影響未確認',next_action:'檢查原始事件與錯誤日誌'}),delivery:'inbox_only_not_pushed'}))};
+      // Only return bounded evidence pointers for the current attempt.
+      // The API status route still enforces authenticated participant access.
+      const outcomeRows=event.current_attempt_id ?
+        (await pool.query('SELECT attempt_id,report_id,reason,evidence_reference,received_at'+
+          ' FROM mainbrain_api.outcome_reports WHERE event_id=$1 AND attempt_id=$2'+
+          ' ORDER BY received_at DESC,report_id ASC LIMIT 50',
+          [eventId,event.current_attempt_id])).rows : [];
+      const outcome_reports=outcomeRows.map(r=>({
+        attempt_id:r.attempt_id,report_id:r.report_id,reason:r.reason,
+        evidence_reference:r.evidence_reference,received_at:r.received_at
+      }));
+      return {...event,alerts:alerts.map(a=>({...a,...(ALERT_GUIDE[a.alert_code]||{reason:'未分類事件，需人工查核',impact:'影響未確認',next_action:'檢查原始事件與錯誤日誌'}),delivery:'inbox_only_not_pushed'})),outcome_reports};
     }
   };
 }
