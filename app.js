@@ -1,4 +1,5 @@
 /* 3D 動態認知大腦 v1 — plain Three.js (ES modules, vendored), no build step. */
+import { openGuardedStore, backup, snapshot, validateGraph, verifyTopology } from './reliability/storage.mjs';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
@@ -105,12 +106,17 @@ function migrate(st){
 }
 const CPAL = ['#5eead4','#a3e635','#fde047','#fdba74','#67e8f9','#f0abfc','#86efac','#c4b5fd','#f9a8d4','#fca5a5','#fb7185','#93c5fd','#fb923c','#f472b6','#cbd5e1','#bef264','#7dd3fc','#fcd34d','#d8b4fe','#99f6e4'];
 function pickColor(st){ const used = new Set(Object.values(st.concepts || {}).map(c => c.color)); return CPAL.find(c => !used.has(c)) || `hsl(${Math.floor(Math.random() * 360)},85%,72%)`; }
-let state = migrate(load() || seedState());
-let undoStack = []; try { undoStack = JSON.parse(localStorage.getItem(UKEY) || '[]'); } catch(e){ undoStack = []; }
+const persistence = openGuardedStore(localStorage, migrate, seedState);
+let state = persistence.state;
+if (persistence.status().blocked) setTimeout(() => toast('⚠ 資料保護模式：原始存檔未覆寫，請匯出備份後處理'), 0);
+let undoStack = []; try {
+  const savedUndo = JSON.parse(localStorage.getItem(UKEY) || '[]');
+  if (Array.isArray(savedUndo)) undoStack = savedUndo.filter(raw => { try { validateGraph(JSON.parse(raw)); return true; } catch { return false; } });
+} catch(e){ undoStack = []; }
 let saveT = 0;
 function save(now = false){
   clearTimeout(saveT);
-  const f = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); localStorage.setItem(UKEY, JSON.stringify(undoStack.slice(-12))); flashSaved(); } catch(e){ toast('⚠ 儲存失敗：' + e.message); } };
+  const f = () => { if (persistence.status().blocked) return; try { persistence.save(state); localStorage.setItem(UKEY, JSON.stringify(undoStack.slice(-12))); flashSaved(); } catch(e){ setTimeout(() => toast('⚠ 儲存未完成，請匯出備份：' + e.message), 0); } };
   now ? f() : (saveT = setTimeout(f, 250));
 }
 save(true);
@@ -286,16 +292,25 @@ function undo(){
   emit('change', { action:'undo' });
 }
 function resetAll(){ undoStack.push(JSON.stringify(state)); state = seedState(); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); }
-function exportJSON(){
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
+function exportJSON(value = state){
+  // onclick passes a MouseEvent; preserve the original graph-export behavior.
+  if (!value || value instanceof Event) value = state;
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ai-brain-' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.json';
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   toast('⇩ 已匯出 JSON');
 }
 function importJSON(obj){
   if (!valid(obj)){ toast('⚠ 檔案格式不符'); return false; }
+  let candidate;
+  try {
+    validateGraph(obj); backup(localStorage, 'before-import');
+    candidate = migrate(JSON.parse(JSON.stringify(obj))); verifyTopology(obj, candidate);
+    candidate.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
+    persistence.save(candidate);
+  } catch { toast('⚠ 匯入未完成：原始資料保留'); return false; }
   undoStack.push(JSON.stringify(state));
-  state = migrate(obj); state.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
+  state = candidate;
   save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入');
   return true;
 }
@@ -1010,6 +1025,9 @@ setTimeout(handleHash, state.brains.length > 1 ? 400 : 100);
 
 /* ================= public API (hooks for future AI bots) ================= */
 window.AIBrain = {
+  persistenceStatus:() => persistence.status(),
+  getBackup:() => snapshot(localStorage),
+  exportBackup:() => exportJSON(snapshot(localStorage)),
   version:1, getState:() => JSON.parse(JSON.stringify(state)),
   addQuestion, splitNode, addDirection, makeSubBrain,
   addConcept, removeConcept, setProcessPattern, getConcepts, getConceptThreads:() => JSON.parse(JSON.stringify(threads)), getConceptLinks:() => conceptLinks.map(l => ({ from:l.from, to:l.to, kind:'concept', concept:l.concept, threadKind:l.threadKind })),
@@ -1018,3 +1036,4 @@ window.AIBrain = {
   on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); }
 };
 document.body.dataset.ready = '1';
+
