@@ -182,17 +182,20 @@ function commitChange(proposed, nextUndo, successLabel){
             txReady=false;txLoadError=result.reason;
             document.querySelector('#brainPersistenceBanner')?.setAttribute('data-legacy-conflict','blocked');
           }
-          toast('⚠ 交易未完成：' + result.reason);
+          toast(result.committedRevision
+            ? '⚠ 交易已保存，但偵測到舊版寫入衝突；已停止編輯，請保留兩份版本'
+            : '⚠ 交易未完成：' + result.reason);
           if(result.reason === 'stale_revision')showConcurrentWarning();
           return false;
         }
         txRevision = result.revision;
-        txChannel?.postMessage({schema:'firstBrain:idb:updated',revision:txRevision});
         txCommitConfirmed = true;
         state = proposed;
         undoStack = nextUndo;
-        flashSaved();
-        if(successLabel)toast(successLabel);
+        try { txChannel?.postMessage({schema:'firstBrain:idb:updated',revision:txRevision}); }
+        catch(err){ console.error('Saved transaction notification failed',err); }
+        try { flashSaved(); if(successLabel)toast(successLabel); }
+        catch(err){ console.error('Saved transaction display failed',err); }
         return true;
       }).catch(err => {toast('⚠ 交易失敗：' + (err?.message || 'unknown'));return false;})
       .finally(() => {txBusy = false;txCommitConfirmed = false;});
@@ -536,6 +539,57 @@ function importJSON(obj){
   state = proposed;
   expectedMainRaw = JSON.stringify(proposed);
   sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入並驗證保存');
+  return true;
+}
+
+/* Manual eight-dimension load, using the same transaction as edit and Undo. */
+async function loadEightDimensionPlan(){
+  let result;
+  try {
+    if (!TX_MODE || !txReady || txBusy || localStorage.getItem(TX_AUTH_KEY) !== 'idb') {
+      throw Error('請先啟用交易式保存並等候目前提交完成');
+    }
+    if (!globalThis.FirstBrainPlanCore || !globalThis.crypto?.subtle) {
+      throw Error('規劃驗證模組／安全雜湊不可用');
+    }
+    const response = await fetch('./data/first-brain-eight-dim-plan-20261030.json', {cache:'no-store'});
+    if (!response.ok) throw Error('規劃候選檔案尚未發布');
+    const raw = await response.text();
+    if (raw.length > 30000) throw Error('規劃檔案過大');
+    const packet = JSON.parse(raw);
+    const bytes = new TextEncoder().encode(raw);
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),x=>x.toString(16).padStart(2,'0')).join('');
+    const current = await readTransactional3D(TX_DB);
+    if (!current.ok) throw Error(current.reason);
+    if (!txReady || txBusy || current.revision !== txRevision || localStorage.getItem(TX_AUTH_KEY) !== 'idb') {
+      throw Error('儲存版本已變動或提交進行中，請重新整理後再試');
+    }
+    result = globalThis.FirstBrainPlanCore.preparePlan(current.graph,packet,{digest,now:Date.now()});
+    if (!result.changed) {
+      toast(result.currentStatus === 'modified_after_import'
+        ? '此版本曾載入，之後有節點刪除；保留你的修改'
+        : '此版本已有本機載入紀錄；未新增節點');
+      return true;
+    }
+    if (!confirm('將新增 1 個架構總節點與 8 個研究子節點，保留舊節點。是否載入？')) return false;
+    if (!txReady || txBusy || current.revision !== txRevision || localStorage.getItem(TX_AUTH_KEY) !== 'idb') {
+      throw Error('儲存版本已變動或提交進行中，請重新整理後再試');
+    }
+    const nextUndo = [...current.undo,current.mainRaw].slice(-12);
+    if (!await commitChange(migrate(result.state),nextUndo)) return false;
+  } catch(err){
+    toast('⚠ 規劃未載入：' + (err?.message || '未知錯誤'));
+    return false;
+  }
+  emit('change',{action:'plan.loaded',payload:result.receipt.payload});
+  try {
+    sync(); renderHistory(); renderCrumbs();
+    focusNode(result.receipt.payload.root_node_id);
+    toast('已保存 9 個本機候選節點；可從歷史回讀');
+  } catch(err){
+    console.error('Saved plan display failed',err);
+    toast('⚠ 規劃已保存，畫面更新失敗，請重新整理');
+  }
   return true;
 }
 
@@ -1136,6 +1190,11 @@ function renderHistory(){
   $('#hCount').textContent = state.history.length;
 }
 $('#bHist').onclick = () => { $('#hist').classList.toggle('open'); renderHistory(); };
+if(TX_MODE){
+  const planButton = $('#bPlan');
+  planButton.classList.remove('hide');
+  planButton.onclick = loadEightDimensionPlan;
+}
 $('#hX').onclick = () => $('#hist').classList.remove('open');
 $('#bUndo').onclick = undo;
 $('#bExport').onclick = exportJSON;

@@ -1,0 +1,51 @@
+{
+  "schema": "ai-boundary.first-brain-plan.v1",
+  "packet_id": "FB-8D-20261030-V1",
+  "source_id": "4009d611-eff6-8173-aee2-f23d5eda3350",
+  "source_url": "https://app.notion.com/p/4009d611eff68173aee2f23d5eda3350",
+  "source_revision": "2026-10-30T14:23:06.643Z",
+  "title": "第一大腦｜全系統八維架構審視",
+  "goal": "同時審視八維，逐步實作",
+  "dimensions": [
+    {
+      "id": "D1",
+      "title": "方向擴張與原因",
+      "question": "有哪些尚未想到的新方向？原因與價值是什麼？"
+    },
+    {
+      "id": "D2",
+      "title": "建構細節",
+      "question": "各模組的資料、接口、版本與風險如何具體落地？"
+    },
+    {
+      "id": "D3",
+      "title": "記憶驅動與自動化",
+      "question": "記憶變化如何產生需求，再合法交給自動化處理？"
+    },
+    {
+      "id": "D4",
+      "title": "演化方向",
+      "question": "新證據如何改變理解，同時保留原始事實與歷史？"
+    },
+    {
+      "id": "D5",
+      "title": "優先理由",
+      "question": "哪個第一斷點最值得先修，為什麼？"
+    },
+    {
+      "id": "D6",
+      "title": "實際通路",
+      "question": "哪些連接真實存在，哪些只是概念或測試？"
+    },
+    {
+      "id": "D7",
+      "title": "四 AI 整體地圖",
+      "question": "GPT①、GPT②、Gemini、BOT 如何共用來源與版本？"
+    },
+    {
+      "id": "D8",
+      "title": "Gemini 與 BOT 發揮",
+      "question": "如何避免重工，促進自主研究、互相挑戰與回饋？"
+    }
+  ]
+}

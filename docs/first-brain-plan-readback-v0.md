@@ -18,3 +18,10 @@
 - `plan.loaded` 是可隨 Undo／重置／整圖匯入而退出目前歷史的本機回執。摘要檔 SHA-256 可識別這份檔案。Notion 原件、來源身分、模型理解與遠端 ACK 各需自己的證據。
 - 以固定版原始函式及模擬儲存執行 12 項新增觀察和 7 項既有測試。新增案例重現七項異常：檢查後插入寫入導致遺失更新、舊頁保存覆蓋規劃、舊頁同版判斷跳過儲存讀回、Undo 寫入後主圖失敗、已保存後因畫面錯誤回報失敗、Undo 保存失敗仍說已復原、正常刪改與斷鏈顯示同一提示。19 項斷言成立表示觀察重現。當輪環境為 Node 與故障注入，瀏覽器與 iPad 尚未驗收。
 - 隔離續接以 [PR #75 的交易保存層](https://github.com/keqingwu5-cloud/ai-boundary/pull/75) 為基底，讓載入、一般變更、Undo 使用同一個版本化主圖／Undo 交易入口。分開回報交易提交、畫面刷新及本機事件。對照 [W02](https://github.com/keqingwu5-cloud/ai-boundary/pull/86#issuecomment-6537435167) 與[已可取得的完整性修補](https://github.com/keqingwu5-cloud/ai-boundary/commit/d6ceb5618615f79f3e8be027fb1bca245e8b3f40)，保留來源 ID 與碰撞防護，另驗合法刪除和結構錯誤。此項為隔離整合範圍。
+
+### 隔離整合候選
+
+- 以 PR #75 的 `aacbe68271533e540675eddcc038b810fb75bb8c` 為基底。沿用既有 `index.html?brainTx=1` 及其保存權威啟用流程。八維載入在交易模式可用，沿用 `commitChange` 將圖與 Undo 交給同一個 IndexedDB 交易。
+- 同版路徑先讀交易版本和現有圖。偵測舊版本、來源錨點異動或斷鏈時阻擋，保留已有的資料。找到可對應的本機刪除紀錄且結構一致時，保留修改和原始載入基準。
+- 提交、畫面更新和本機通知分開回報。若交易完成後才偵測舊版寫入衝突，顯示已保存但停止編輯。獨立舊版仍能改動自己的 localStorage，交易模式依既有防護偵測分歧。
+- 隔離 Node 驗證命令為 `node --test tests/first-brain-plan-core.test.cjs tests/first-brain-plan-core-l1-negative.test.cjs tests/first-brain-plan-persistence.test.cjs tests/brain-import-integrity.test.cjs`。共 47 項通過，含 9 項新保存層案例。新的保存測試使用原應用程式函式和模擬交易邊界。真瀏覽器兩分頁、Safari／iPad 與 Notion 原件真實性仍待驗證。

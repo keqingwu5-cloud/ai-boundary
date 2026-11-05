@@ -1,0 +1,13 @@
+"use strict";
+const test=require("node:test"),assert=require("node:assert/strict");
+const {preparePlan,validatePlan}=require("../first-brain-plan-core.js");
+const packet=require("../data/first-brain-eight-dim-plan-20261030.json");
+const digest="a".repeat(64),now=1793368800000;
+const start=()=>({version:2,brains:[{id:"main"}],nodes:[{id:"old",title:"舊資料"}],links:[],history:[{ts:1,action:"seed"}]});
+test("public eight-dimension packet valid",()=>assert.equal(validatePlan(packet),packet));
+test("adds nine nodes, one append-only receipt and preserves original",()=>{const s=start(),snap=JSON.stringify(s),r=preparePlan(s,packet,{digest,now});assert.equal(r.addedNodes,9);assert.equal(r.state.nodes.length,10);assert.equal(r.state.history.length,2);assert.equal(JSON.stringify(s),snap);assert.equal(r.receipt.payload.result,"local_candidate_loaded");});
+test("same version repeated: no duplicate",()=>{const once=preparePlan(start(),packet,{digest,now});const twice=preparePlan(once.state,packet,{digest,now:now+1});assert.equal(twice.changed,false);assert.equal(twice.state,once.state);});
+test("same packet ID and changed digest fail closed",()=>{const s=preparePlan(start(),packet,{digest,now}).state;assert.throws(()=>preparePlan(s,packet,{digest:"b".repeat(64),now:now+1}),/receipt_conflict/);});
+test("different node with reserved ID fail closed",()=>{const s=start();s.nodes.push({id:"n_fp_fb-8d-20261030-v1_root"});assert.throws(()=>preparePlan(s,packet,{digest,now}),/node_id_conflict/);});
+test("wrong source URL, missing dimension or duplicate dimension fail",()=>{assert.throws(()=>validatePlan({...packet,source_url:"javascript:alert(1)"}));assert.throws(()=>validatePlan({...packet,dimensions:packet.dimensions.slice(0,7)}));assert.throws(()=>validatePlan({...packet,dimensions:packet.dimensions.map((d,i)=>i===1?{...d,id:"D1"}:d)}));});
+test("bad state or digest is rejected",()=>{assert.throws(()=>preparePlan({},packet,{digest,now}));assert.throws(()=>preparePlan(start(),packet,{digest:"bad",now}));});
