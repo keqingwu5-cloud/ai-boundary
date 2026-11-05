@@ -32,3 +32,10 @@
 - 固定受測提交 `ded6ac5b73ee99e34236f9347737e40cbc72e617`，核對 5 個檔案的 Git blob 雜湊。監督程序共用 15 秒限時，只執行 1 次。
 - Chromium／WebKit 執行檔缺少，原生瀏覽器狀態為 `BLOCKED_NO_BROWSER`。改跑既有 Node VM 的單一案例，模擬另一分頁 Undo 後從過期分頁重載。過期分頁收到拒絕，儲存維持復原結果，沒有新增寫入。
 - 結果為 `PASS`，1/1，退出碼 0。Node 測試程序報告 172 ms，含檔案核對、環境檢查和本機檢查點的監督程序為 814 ms。此處只比較覆蓋範圍及本機耗時，帳戶用量未量測。
+
+
+### 真 Chromium 單次驗證｜2026-11-05
+
+- [GitHub Actions #41974384663](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/41974384663) 測試提交 `b455ad4989420d395bff289797543e51a4a54dbd`，Google Chrome 156.0.8078.47，單次執行，外層 30 秒上限。原始輸出與檢查點已保存於 [CI 證據](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/41974384663/artifacts/13390918648)。
+- 真瀏覽器成功由版本 1 載入到版本 2，IndexedDB 讀回 9 個規劃節點及 1 筆回執。測試約 21.9 秒，退出碼 1。B 分頁點 `#bUndo` 時被 `#brainPersistenceBanner` 攔截，5 秒後停止。Undo 與後續舊版本拒絕未執行。
+- 修正候選將交易狀態及跨分頁警告放到工具列下方，保留備份與重新整理按鈕。回歸腳本以滑鼠操作 Undo 和舊頁載入。修正後 app blob 為 `fd34728fb73ced2ffe72f9df799666c80c5c7d1d`，語法及差異檢查通過。真瀏覽器複驗仍待執行。

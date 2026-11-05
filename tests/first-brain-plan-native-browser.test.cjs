@@ -79,7 +79,7 @@ test('native 3D tabs reject a stale plan load after another tab undoes it', asyn
     console.log('PROBE_CHECKPOINT undo_saved revision=3');
 
     assert.equal(await a.evaluate(() => window.AIBrain.persistence().revision), 2);
-    await a.locator('#bPlan').press('Enter');
+    await a.locator('#bPlan').click();
     await a.waitForFunction(() => document.querySelector('#toast')?.textContent.includes('儲存版本已變動'));
     const after = await snapshot(a);
     assert.equal(after.revision, 3);

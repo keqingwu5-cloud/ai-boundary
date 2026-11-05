@@ -1359,7 +1359,7 @@ function showConcurrentWarning(){
   const banner=document.createElement('aside');
   banner.id='brainConcurrentWarning';
   banner.setAttribute('role','alert');
-  banner.style.cssText='position:fixed;z-index:100001;top:12px;left:12px;right:12px;padding:12px 16px;border:2px solid #f7ca83;border-radius:12px;background:#29241d;color:#fff4da;font:14px/1.5 system-ui';
+  banner.style.cssText='padding:12px 16px;border:2px solid #f7ca83;border-radius:12px;background:#29241d;color:#fff4da;font:14px/1.5 system-ui';
   const msg=document.createElement('span');
   msg.textContent='另一分頁更新了主腦。為避免覆寫新資料，本分頁修改會被拒絕，請重新整理讀取最新內容。';
   banner.append(msg);
@@ -1369,7 +1369,7 @@ function showConcurrentWarning(){
   action.style.cssText='margin-left:10px;padding:4px 8px;border:1px solid #f7ca83;border-radius:8px;background:#453224;color:#fff4da';
   action.addEventListener('click',()=>location.reload());
   banner.append(action);
-  document.body.append(banner);
+  $('#brainNotices').prepend(banner);
 }
 addEventListener('storage',event=>{
   if(event.key===KEY && event.newValue!==expectedMainRaw)showConcurrentWarning();
@@ -1410,7 +1410,7 @@ function installFirstBrainPersistenceBanner(){
   const banner=document.createElement('aside');
   banner.id='brainPersistenceBanner';
   banner.setAttribute('role','status');
-  banner.style.cssText='position:fixed;z-index:100002;top:12px;right:12px;max-width:440px;padding:12px 14px;border:1px solid #88c8dc;border-radius:12px;background:#162633;color:#f0fbff;font:13px/1.6 system-ui;box-shadow:0 8px 26px #0009';
+  banner.style.cssText='padding:12px 14px;border:1px solid #88c8dc;border-radius:12px;background:#162633;color:#f0fbff;font:13px/1.6 system-ui;box-shadow:0 8px 26px #0009';
   const message=document.createElement('div');
   message.textContent=TX_MODE
     ? (txReady?'第一大腦交易式儲存（隔離候選）｜版本 '+txRevision+'。主圖與 Undo 同步交易；舊 localStorage 保留備份。'
@@ -1532,7 +1532,7 @@ function installFirstBrainPersistenceBanner(){
     };
     banner.append(backup,activate);
   }
-  document.body.append(banner);
+  $('#brainNotices').append(banner);
 }
 // R15: legacy applications from old code may ignore the new authority marker.
 // A storage event is an early warning, not a transactional lock. The IDB seal

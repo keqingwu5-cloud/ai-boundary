@@ -19,6 +19,8 @@ button{font-family:inherit;color:inherit}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
 .glass{background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);box-shadow:0 0 30px rgba(110,130,255,.1),inset 0 1px 0 rgba(255,255,255,.06)}
 .bar{position:fixed;top:10px;left:10px;right:10px;z-index:30;display:flex;align-items:center;gap:8px;padding:6px 8px 6px 14px;border-radius:18px}
+#brainNotices{position:absolute;top:calc(100% + 8px);right:0;width:min(440px,100%);display:grid;gap:8px;pointer-events:none}
+#brainNotices>aside{pointer-events:auto}
 .bar h1{margin:0;font-size:15px;font-weight:900;white-space:nowrap;letter-spacing:1px;text-shadow:0 0 12px rgba(170,150,255,.7)}
 .bar h1 span{background:linear-gradient(90deg,#b9cbff,#d5b4ff,#ffe2a0);-webkit-background-clip:text;background-clip:text;color:transparent}
 #crumbs{display:flex;align-items:center;gap:4px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
@@ -223,6 +225,7 @@ a.ib{display:inline-grid;place-items:center;text-decoration:none;color:inherit}
     <button class="ib" id="bUndo" title="復原">↶</button>
     <button class="ib" id="bHist" title="歷史紀錄">🕘<sup id="hCount">0</sup></button>
   </div>
+  <div id="brainNotices"></div>
 </header>
 <div class="ctl">
   <button class="ib glass" id="bFit" title="總覽全部腦">◎</button>
@@ -264,7 +267,7 @@ a.ib{display:inline-grid;place-items:center;text-decoration:none;color:inherit}
   <div class="row"><button value="cancel" formnovalidate>取消</button><button value="ok" class="go">分裂 ❖</button></div>
 </form></dialog>
 <script src="./first-brain-plan-core.js?v=20261105plan2"></script>
-<script type="module" src="./app.js?v=20261105plan2"></script>
+<script type="module" src="./app.js?v=20261105plan3"></script>
 <script type="module" src="./knowledge-score.js?v=20261021b01"></script>
 <script type="module" src="./audio-lab-import.js?v=20261021b01"></script>
 </body>
