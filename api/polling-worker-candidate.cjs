@@ -16,9 +16,33 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
     const received=await client.receive();
     const tasks=Array.isArray(received)?received:received?[received]:[];
     if(tasks.length===0)return {state:'idle'};
+    // A single-lease API must never silently drop additional leased events.
+    // Fail closed: preserve each valid attempt via evidence-only reporting.
+    if(tasks.length>1){
+      const failures=[];
+      for(const e of tasks){
+        if(!e||typeof e.event_id!=='string'||!e.event_id||
+           typeof e.current_attempt_id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(e.current_attempt_id)||
+           typeof e.payload_digest!=='string'||!/^[0-9a-f]{64}$/i.test(e.payload_digest)){
+          failures.push('missing_or_invalid_identity');
+          continue;
+        }
+        try{
+          await client.report({event_id:e.event_id,attempt_id:e.current_attempt_id,
+            payload_digest:e.payload_digest,report_id:'batch-'+e.current_attempt_id,
+            reason:'dispatch_authorization_unconfirmed'});
+        }catch(error){
+          failures.push(e.event_id+':report_rejected');
+        }
+      }
+      if(failures.length)throw Error('batch lease reconciliation incomplete: '+failures.join(';'));
+      return {state:'reconciliation_required',reason:'unexpected_multiple_leases',count:tasks.length};
+    }
     const event=tasks[0],eventId=event.event_id,attemptId=event.current_attempt_id;
-    if(!eventId||!attemptId||!event.payload_digest)
-      throw Error('leased event missing authoritative attempt/payload identity');
+    if(typeof eventId!=='string'||!eventId ||
+       typeof attemptId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attemptId) ||
+       typeof event.payload_digest!=='string'||!/^[0-9a-f]{64}$/i.test(event.payload_digest))
+      throw Error('leased event missing or invalid authoritative attempt/payload identity');
     const executionKey=createHash('sha256').update(eventId+':'+event.payload_digest).digest('hex');
     const task=Object.freeze({event_id:eventId,task_id:event.task_id,
       attempt_id:attemptId,payload:event.payload,payload_version:event.payload_version,

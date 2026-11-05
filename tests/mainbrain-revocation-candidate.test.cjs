@@ -205,3 +205,63 @@ test('R03 strong mutation kills Worker evidence assertion and Store readback ass
  assert.throws(()=>assert.equal(record.outcome_reports[0].evidence_reference,'synthetic:receipt:456'),
   {code:'ERR_ASSERTION'});
 });
+
+// GPT2-P37: explicit CI-covered identity negative cases; keep legacy fixtures unchanged.
+async function assertLeaseIdentityRejectedBeforeIntent(event) {
+  const calls=[];
+  const client={receive:async()=>event,intent:async()=>calls.push('intent'),authorize:async()=>({authorized:true}),execute:async()=>calls.push('execute'),ack:async()=>calls.push('ack'),fail:async()=>calls.push('fail'),report:async()=>calls.push('report')};
+  const worker=createPollingWorker({client,performTask:async()=>{calls.push('provider');return {execution_evidence:'synthetic:execution:ok',receipt_evidence:'synthetic:receipt:ok'};}});
+  await assert.rejects(worker.runOnce(),/invalid authoritative attempt\/payload identity/);
+  assert.deepEqual(calls,[],'invalid lease must not reach intent or provider');
+}
+test('GPT2-P37-IDENTITY-001 rejects malformed attempt UUID before intent',async()=>{
+  await assertLeaseIdentityRejectedBeforeIntent({event_id:'EV1',current_attempt_id:'not-a-uuid',payload_digest:'a'.repeat(64)});
+});
+test('GPT2-P37-IDENTITY-002 rejects malformed SHA-256 before intent',async()=>{
+  await assertLeaseIdentityRejectedBeforeIntent({event_id:'EV1',current_attempt_id:'11111111-1111-4111-8111-111111111111',payload_digest:'invalid'});
+});
+
+test('GPT2-P40-BATCH-001 never silently abandons second lease',async()=>{const reports=[];const leases=[1,2].map(i=>({event_id:'EV'+i,current_attempt_id:'11111111-1111-4111-8111-'+String(i).padStart(12,'0'),payload_digest:'a'.repeat(64)}));const client={receive:async()=>leases,intent:async()=>assert.fail('intent forbidden'),authorize:async()=>({authorized:true}),execute:async()=>{},ack:async()=>{},fail:async()=>{},report:async p=>reports.push(p)};const worker=createPollingWorker({client,performTask:async()=>assert.fail('provider forbidden')});const result=await worker.runOnce();assert.equal(result.state,'reconciliation_required');assert.equal(reports.length,2)});
+
+test('GPT2-P41-BATCH-002 continues reports after first report rejects',async()=>{const reports=[];const leases=[1,2].map(i=>({event_id:'EV'+i,current_attempt_id:'11111111-1111-4111-8111-'+String(i).padStart(12,'0'),payload_digest:'a'.repeat(64)}));const client={receive:async()=>leases,intent:async()=>assert.fail('intent forbidden'),authorize:async()=>({authorized:true}),execute:async()=>{},ack:async()=>{},fail:async()=>{},report:async p=>{reports.push(p);if(reports.length===1)throw Error('reject')}};const worker=createPollingWorker({client,performTask:async()=>assert.fail('provider forbidden')});await assert.rejects(worker.runOnce(),/batch lease reconciliation incomplete/);assert.equal(reports.length,2)});
+
+test('GPT2-P42-STOP-001 revoked authorization prevents provider and ACK',async()=>{
+ const calls=[];const client={receive:async()=>[row],intent:async()=>calls.push('intent'),authorize:async()=>({authorized:false}),execute:async()=>calls.push('execute'),ack:async()=>calls.push('ack'),fail:async()=>calls.push('fail'),report:async()=>calls.push('report')};
+ const worker=createPollingWorker({client,performTask:async()=>calls.push('provider')});
+ assert.equal((await worker.runOnce()).state,'reconciliation_required');assert.deepEqual(calls,['intent','report']);
+});
+test('GPT2-P43-ACK-001 exact ACK readback avoids duplicate provider execution',async()=>{
+ const calls=[];const client={receive:async()=>[row],intent:async()=>calls.push('intent'),authorize:async()=>({authorized:true}),execute:async()=>calls.push('execute'),ack:async()=>{calls.push('ack');throw Error('timeout')},status:async()=>({...row,state:'ack_received'}),fail:async()=>calls.push('fail'),report:async()=>calls.push('report')};
+ const worker=createPollingWorker({client,performTask:async()=>{calls.push('provider');return {execution_evidence:'synthetic:execution:ok',receipt_evidence:'synthetic:receipt:ok'}}});
+ assert.equal((await worker.runOnce()).state,'processed_readback');assert.equal(calls.filter(x=>x==='provider').length,1);assert(!calls.includes('fail'));
+});
+test('GPT2-P44-ACK-002 mismatched ACK readback must not claim success',async()=>{
+ const calls=[];const client={receive:async()=>[row],intent:async()=>calls.push('intent'),authorize:async()=>({authorized:true}),execute:async()=>calls.push('execute'),ack:async()=>{throw Error('timeout')},status:async()=>({...row,state:'ack_received',payload_digest:'b'.repeat(64)}),fail:async()=>calls.push('fail'),report:async()=>calls.push('report')};
+ const worker=createPollingWorker({client,performTask:async()=>{calls.push('provider');return {execution_evidence:'synthetic:execution:ok',receipt_evidence:'synthetic:receipt:ok'}}});
+ assert.equal((await worker.runOnce()).state,'reconciliation_required');assert.equal(calls.filter(x=>x==='provider').length,1);assert(calls.includes('fail'));
+});
+test('GPT2-P45-EVIDENCE-001 untrusted receipt cannot be forwarded as fallback pointer',async()=>{
+ const reports=[];const client={receive:async()=>[row],intent:async()=>{},authorize:async()=>({authorized:true}),execute:async()=>{},ack:async()=>{throw Error('timeout')},status:async()=>({...row,state:'executed'}),fail:async()=>{throw Error('revoked')},report:async p=>reports.push(p)};
+ const worker=createPollingWorker({client,performTask:async()=>({execution_evidence:'synthetic:execution:ok',receipt_evidence:'raw-provider-output'})});
+ assert.equal((await worker.runOnce()).state,'reconciliation_required');assert.equal(reports.length,1);assert.equal(Object.hasOwn(reports[0],'evidence_reference'),false);
+});
+test('GPT2-P46-READBACK-001 status outage cannot be mistaken for committed ACK',async()=>{
+ const calls=[];const client={receive:async()=>[row],intent:async()=>{},authorize:async()=>({authorized:true}),execute:async()=>{},ack:async()=>{throw Error('timeout')},status:async()=>{throw Error('readback unavailable')},fail:async()=>calls.push('fail'),report:async()=>calls.push('report')};
+ const worker=createPollingWorker({client,performTask:async()=>({execution_evidence:'synthetic:execution:ok',receipt_evidence:'synthetic:receipt:ok'})});
+ assert.equal((await worker.runOnce()).state,'reconciliation_required');assert.deepEqual(calls,['fail']);
+});
+test('GPT2-P47-PREFLIGHT-001 local preparation failure must not call intent or provider',async()=>{
+ const calls=[];const client={receive:async()=>[row],intent:async()=>calls.push('intent'),authorize:async()=>({authorized:true}),execute:async()=>{},ack:async()=>{},fail:async()=>calls.push('fail'),report:async()=>calls.push('report')};
+ const worker=createPollingWorker({client,prepareTask:async()=>{throw Error('invalid local input')},performTask:async()=>calls.push('provider')});
+ assert.equal((await worker.runOnce()).state,'failed_attempt');assert.deepEqual(calls,['fail']);
+});
+test('GPT2-P48-BATCH-001 invalid lease in batch cannot reach provider',async()=>{
+ const reports=[];const events=[{...row},{...row,event_id:'EV2',current_attempt_id:'not-a-uuid'}];const client={receive:async()=>events,intent:async()=>assert.fail('intent'),authorize:async()=>({authorized:true}),execute:async()=>{},ack:async()=>{},fail:async()=>{},report:async p=>reports.push(p)};
+ const worker=createPollingWorker({client,performTask:async()=>assert.fail('provider')});
+ await assert.rejects(worker.runOnce(),/batch lease reconciliation incomplete/);assert.equal(reports.length,1);
+});
+test('GPT2-P49-BATCH-002 empty lease response is idle with no side effects',async()=>{
+ const client={receive:async()=>[],intent:async()=>assert.fail('intent'),authorize:async()=>({authorized:true}),execute:async()=>{},ack:async()=>{},fail:async()=>{},report:async()=>{}};
+ const worker=createPollingWorker({client,performTask:async()=>assert.fail('provider')});
+ assert.equal((await worker.runOnce()).state,'idle');
+});
