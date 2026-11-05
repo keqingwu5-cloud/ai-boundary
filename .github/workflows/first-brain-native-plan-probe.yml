@@ -1,0 +1,52 @@
+name: First Brain native plan probe
+on:
+  push:
+    branches:
+      - test/fb86-native-browser-20261105
+    paths:
+      - .github/workflows/first-brain-native-plan-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Record tested source
+        run: |
+          mkdir -p evidence
+          printf 'head=%s\napp_blob=%s\nattempt_limit=1\n' \
+            "$(git rev-parse HEAD)" "$(git rev-parse HEAD:app.js)" | tee evidence/checkpoint.txt
+          test "$(git rev-parse HEAD:app.js)" = 45fcc0f5e3dbd3134de0d5aa266d5ca41c6289ee
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Set up the existing Chrome runner
+        run: |
+          google-chrome --version | tee -a evidence/checkpoint.txt
+          timeout --kill-after=3s 60s npm install --no-save --package-lock=false --fetch-retries=0 playwright-core@1.56.1
+      - name: Run one native two-tab case
+        shell: bash
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > evidence/http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          sleep 1
+          curl --fail --silent --max-time 3 http://127.0.0.1:8765/index.html -o /dev/null
+          printf 'attempt=1 stage=browser_test\n' | tee -a evidence/checkpoint.txt
+          set +e
+          timeout --kill-after=3s 30s node --test --test-reporter=tap tests/first-brain-plan-native-browser.test.cjs | tee evidence/probe.tap
+          result=${PIPESTATUS[0]}
+          printf 'exit_code=%s\n' "$result" | tee -a evidence/checkpoint.txt
+          exit "$result"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: first-brain-native-plan-probe
+          path: evidence/
+          retention-days: 7
