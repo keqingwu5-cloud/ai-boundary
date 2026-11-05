@@ -322,22 +322,82 @@ function createPostgresStore({pool, clock=()=>new Date().toISOString(), makeAtte
           event_id:e.event_id,attempt_id:p.attempt_id,report_id:p.report_id};
       });
     },
-    async get(eventId) {
-      const event=(await pool.query('SELECT * FROM '+E+' WHERE event_id=$1',[eventId])).rows[0];
-      if(!event)return null;
-      const alerts=(await pool.query('SELECT alert_code,severity,status,details,first_seen_at,last_seen_at,occurrences FROM '+AL+" WHERE event_id=$1 AND status='open' ORDER BY severity,first_seen_at",[eventId])).rows;
-      // Only return bounded evidence pointers for the current attempt.
-      // The API status route still enforces authenticated participant access.
-      const outcomeRows=event.current_attempt_id ?
-        (await pool.query('SELECT attempt_id,report_id,reason,evidence_reference,received_at'+
-          ' FROM mainbrain_api.outcome_reports WHERE event_id=$1 AND attempt_id=$2'+
-          ' ORDER BY received_at DESC,report_id ASC LIMIT 50',
-          [eventId,event.current_attempt_id])).rows : [];
-      const outcome_reports=outcomeRows.map(r=>({
-        attempt_id:r.attempt_id,report_id:r.report_id,reason:r.reason,
-        evidence_reference:r.evidence_reference,received_at:r.received_at
-      }));
-      return {...event,alerts:alerts.map(a=>({...a,...(ALERT_GUIDE[a.alert_code]||{reason:'未分類事件，需人工查核',impact:'影響未確認',next_action:'檢查原始事件與錯誤日誌'}),delivery:'inbox_only_not_pushed'})),outcome_reports};
+    // Consistent readback: one connected client, REPEATABLE READ READ ONLY.
+    // Scattered pool.query() calls are intentionally not used here.
+    // outcome_reports are bounded (default/max 50); truncation is explicit.
+    async get(eventId, opts={}) {
+      const options=(opts&&typeof opts==='object')?opts:{};
+      let limit=50;
+      if(options.limit!==undefined){
+        if(!Number.isInteger(options.limit)||options.limit<1||options.limit>50)
+          throw error('BAD_REQUEST','outcome_reports limit must be an integer 1..50');
+        limit=options.limit;
+      }
+      if(options.report_id!==undefined){
+        if(typeof options.report_id!=='string'||!/^[A-Za-z0-9_-]{8,100}$/.test(options.report_id))
+          throw error('BAD_REQUEST','report_id must be a bounded identifier');
+      }
+      if(options.before!==undefined){
+        const b=options.before;
+        if(!b||typeof b!=='object'||typeof b.received_at!=='string'||!Number.isFinite(Date.parse(b.received_at))||
+           typeof b.report_id!=='string'||!/^[A-Za-z0-9_-]{8,100}$/.test(b.report_id))
+          throw error('BAD_REQUEST','before cursor requires received_at and report_id');
+      }
+      const c=await pool.connect();
+      try{
+        await c.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+        try{
+          const event=(await c.query('SELECT * FROM '+E+' WHERE event_id=$1',[eventId])).rows[0];
+          if(!event){
+            await c.query('COMMIT');
+            return null;
+          }
+          const alerts=(await c.query('SELECT alert_code,severity,status,details,first_seen_at,last_seen_at,occurrences FROM '+AL+" WHERE event_id=$1 AND status='open' ORDER BY severity,first_seen_at",[eventId])).rows;
+          // Only return bounded evidence pointers for the current attempt.
+          // The API status route still enforces authenticated participant access.
+          let raw=[];
+          let truncated=false;
+          if(event.current_attempt_id){
+            if(options.report_id){
+              raw=(await c.query('SELECT attempt_id,report_id,reason,evidence_reference,received_at'+
+                ' FROM mainbrain_api.outcome_reports WHERE event_id=$1 AND attempt_id=$2 AND report_id=$3',
+                [eventId,event.current_attempt_id,options.report_id])).rows;
+            }else if(options.before){
+              raw=(await c.query('SELECT attempt_id,report_id,reason,evidence_reference,received_at'+
+                ' FROM mainbrain_api.outcome_reports WHERE event_id=$1 AND attempt_id=$2'+
+                ' AND (received_at<$3::timestamptz OR (received_at=$3::timestamptz AND report_id>$4))'+
+                ' ORDER BY received_at DESC,report_id ASC LIMIT $5',
+                [eventId,event.current_attempt_id,options.before.received_at,options.before.report_id,limit+1])).rows;
+            }else{
+              raw=(await c.query('SELECT attempt_id,report_id,reason,evidence_reference,received_at'+
+                ' FROM mainbrain_api.outcome_reports WHERE event_id=$1 AND attempt_id=$2'+
+                ' ORDER BY received_at DESC,report_id ASC LIMIT $3',
+                [eventId,event.current_attempt_id,limit+1])).rows;
+            }
+            if(!options.report_id && raw.length>limit){
+              truncated=true;
+              raw=raw.slice(0,limit);
+            }
+          }
+          const outcome_reports=raw.map(r=>({
+            attempt_id:r.attempt_id,report_id:r.report_id,reason:r.reason,
+            evidence_reference:r.evidence_reference,received_at:r.received_at
+          }));
+          const last=outcome_reports[outcome_reports.length-1];
+          const outcome_reports_next_cursor=(truncated&&last)
+            ?{received_at:last.received_at,report_id:last.report_id}:null;
+          await c.query('COMMIT');
+          return {...event,
+            alerts:alerts.map(a=>({...a,...(ALERT_GUIDE[a.alert_code]||{reason:'未分類事件，需人工查核',impact:'影響未確認',next_action:'檢查原始事件與錯誤日誌'}),delivery:'inbox_only_not_pushed'})),
+            outcome_reports,
+            outcome_reports_truncated:truncated,
+            outcome_reports_has_more:truncated,
+            outcome_reports_next_cursor};
+        }catch(e){
+          try{await c.query('ROLLBACK');}catch{ /* preserve original error */ }
+          throw e;
+        }
+      }finally{c.release();}
     }
   };
 }
