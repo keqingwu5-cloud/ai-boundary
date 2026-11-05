@@ -25,3 +25,10 @@
 - 同版路徑先讀交易版本和現有圖。偵測舊版本、來源錨點異動或斷鏈時阻擋，保留已有的資料。找到可對應的本機刪除紀錄且結構一致時，保留修改和原始載入基準。
 - 提交、畫面更新和本機通知分開回報。若交易完成後才偵測舊版寫入衝突，顯示已保存但停止編輯。獨立舊版仍能改動自己的 localStorage，交易模式依既有防護偵測分歧。
 - 隔離 Node 驗證命令為 `node --test tests/first-brain-plan-core.test.cjs tests/first-brain-plan-core-l1-negative.test.cjs tests/first-brain-plan-persistence.test.cjs tests/brain-import-integrity.test.cjs`。共 47 項通過，含 9 項新保存層案例。新的保存測試使用原應用程式函式和模擬交易邊界。真瀏覽器兩分頁、Safari／iPad 與 Notion 原件真實性仍待驗證。
+
+
+### 單案例續跑檢查點｜2026-11-05
+
+- 固定受測提交 `ded6ac5b73ee99e34236f9347737e40cbc72e617`，核對 5 個檔案的 Git blob 雜湊。監督程序共用 15 秒限時，只執行 1 次。
+- Chromium／WebKit 執行檔缺少，原生瀏覽器狀態為 `BLOCKED_NO_BROWSER`。改跑既有 Node VM 的單一案例，模擬另一分頁 Undo 後從過期分頁重載。過期分頁收到拒絕，儲存維持復原結果，沒有新增寫入。
+- 結果為 `PASS`，1/1，退出碼 0。Node 測試程序報告 172 ms，含檔案核對、環境檢查和本機檢查點的監督程序為 814 ms。此處只比較覆蓋範圍及本機耗時，帳戶用量未量測。
