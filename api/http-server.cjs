@@ -5,7 +5,7 @@ const {createApi}=require('./mainbrain-api.cjs');
 const MAX_BODY=65536;
 function createHttpServer({store,authenticate,logger=()=>{}}){
  const api=createApi({store,authenticate});
- const routes={'POST /v1/tasks/send':'send','POST /v1/tasks/receive':'receive','POST /v1/tasks/execute':'execute','POST /v1/tasks/ack':'ack','POST /v1/tasks/fail':'fail'};
+ const routes={'POST /v1/tasks/send':'send','POST /v1/tasks/receive':'receive','POST /v1/tasks/intent':'intent','POST /v1/tasks/authorize':'authorize','POST /v1/tasks/report':'report','POST /v1/tasks/execute':'execute','POST /v1/tasks/ack':'ack','POST /v1/tasks/fail':'fail'};
  return http.createServer(async(req,res)=>{
   let action='unknown';
   try{

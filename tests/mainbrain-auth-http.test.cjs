@@ -31,3 +31,24 @@ test('HTTP does not expose unexpected internal error messages',async()=>{
   assert.deepEqual(await res.json(),{error:'INTERNAL_ERROR'});
  }finally{await new Promise(r=>server.close(r));}
 });
+
+test('HTTP intent endpoint preserves verified actor and rejects insufficient scope',async()=>{
+ const calls=[];
+ const store={markExternalIntent:async p=>{calls.push(p);return {...p,external_intent_at:'2026-11-01T00:00:00Z'};}};
+ const authenticate=async req=>({verified:true,endpoint_id:'worker2',
+   scopes:req.headers.authorization==='Bearer permitted'?['tasks:execute']:['tasks:receive']});
+ const server=createHttpServer({store,authenticate});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ try{
+  const url='http://127.0.0.1:'+server.address().port+'/v1/tasks/intent';
+  const body=JSON.stringify({event_id:'EV1',attempt_id:'ATT1',endpoint_id:'spoofed'});
+  let result=await fetch(url,{method:'POST',headers:{authorization:'Bearer limited','content-type':'application/json'},body});
+  assert.equal(result.status,401);
+  assert.equal(calls.length,0);
+  result=await fetch(url,{method:'POST',headers:{authorization:'Bearer permitted','content-type':'application/json'},body});
+  assert.equal(result.status,200);
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].endpoint_id,'worker2');
+  assert.equal(calls[0].attempt_id,'ATT1');
+ }finally{await new Promise(r=>server.close(r));}
+});

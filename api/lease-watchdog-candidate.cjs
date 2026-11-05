@@ -1,0 +1,35 @@
+'use strict';
+// Isolated, opt-in monitor; must run under a separate, authorised operator.
+// It does not fetch tasks, call AI providers, send messages, or restart attempts.
+// A real scheduler and delivered notifications are NOT included in this candidate.
+const {setTimeout: sleep}=require('node:timers/promises');
+function createLeaseWatchdog({store,destinationEndpointId,intervalMs=60_000,logger=()=>{}}={}){
+  if(!store||typeof store.sweepExpired!=='function')
+    throw new TypeError('a store with sweepExpired is required');
+  if(typeof destinationEndpointId!=='string'||!destinationEndpointId.trim())
+    throw new TypeError('destinationEndpointId required');
+  if(!Number.isInteger(intervalMs)||intervalMs<1_000||intervalMs>3_600_000)
+    throw new TypeError('watchdog interval must be 1s to 1h');
+  let running=false;
+  async function runOnce(){
+    const quarantined=await store.sweepExpired({destination_endpoint_id:destinationEndpointId});
+    if(!Number.isSafeInteger(quarantined)||quarantined<0)
+      throw new Error('invalid sweep result; no success should be claimed');
+    logger({action:'lease_sweep_completed',quarantined,destination_endpoint_id:destinationEndpointId,
+      delivery:'inbox_only_not_pushed'});
+    return {state:'checked',quarantined,delivery:'inbox_only_not_pushed'};
+  }
+  async function runUntilStopped({signal}={}){
+    if(running)throw new Error('watchdog already running');
+    running=true;
+    try{
+      while(!signal?.aborted){
+        await runOnce();
+        try {await sleep(intervalMs,undefined,{signal});}
+        catch(e){if(e.name==='AbortError'&&signal?.aborted)break;throw e;}
+      }
+    }finally{running=false;}
+  }
+  return {runOnce,runUntilStopped};
+}
+module.exports={createLeaseWatchdog};
