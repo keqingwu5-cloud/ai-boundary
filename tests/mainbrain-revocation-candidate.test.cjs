@@ -153,8 +153,10 @@ test('R03 Store.get exposes only bounded current-attempt outcome pointers',async
  const q=calls.find(x=>x.sql.includes('FROM mainbrain_api.outcome_reports'));
  assert(q,'missing outcome report query');
  assert.match(q.sql,/event_id=\$1 AND attempt_id=\$2/);
- assert.deepEqual(q.params,['EV1',UUID]);
- assert.match(q.sql,/LIMIT 50/);
+ assert.equal(q.params[0],'EV1');
+ assert.equal(q.params[1],UUID);
+ assert.match(q.sql,/LIMIT/i);
+ assert.ok(q.params.includes(51)||/LIMIT\s+51\b/.test(q.sql),'page peek uses limit+1 for truncation detect');
 });
 test('R03 Store.get does not query old outcomes if event has no current attempt',async()=>{
  const {store,calls}=harness(sql=>
