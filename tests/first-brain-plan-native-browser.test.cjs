@@ -215,3 +215,51 @@ test('native plan aborts after a successful put request and recovers on a new ac
     console.log('NATIVE_PLAN_ABORT_RECOVERY_PASS revision=2 nodes=9 receipts=1 reload_verified=1');
   });
 });
+
+test('native same-version reload preserves legal edits to an imported plan', async () => {
+  await withSeededBrowser(async ({ a }) => {
+    await clickPlan(a);
+    await waitToast(a, '已保存 9 個本機候選節點');
+    const imported = await snapshot(a);
+    assert.equal(imported.revision, 2);
+    assert.equal(imported.planNodes, 9);
+    assert.equal(imported.receipts, 1);
+    console.log('EDIT_CHECKPOINT plan_saved revision=2 nodes=9 receipts=1');
+
+    const counterText = 'synthetic research counterevidence';
+    const edits = await a.evaluate(async counterText => {
+      const brain = window.AIBrain;
+      const plan = brain.getState().nodes.filter(node => node.createdBy === 'plan_import_candidate');
+      const kept = plan.find(node => node.id.endsWith('_d3'));
+      const removed = plan.find(node => node.id.endsWith('_d4'));
+      if (!kept || !removed) throw Error('expected plan dimensions were absent');
+      brain.addCounterEvidence(kept.id, counterText);
+      const counterSaved = await brain.whenIdle();
+      if (!counterSaved) return { counterSaved };
+      brain.deleteNode(removed.id);
+      return {
+        keptId: kept.id, removedId: removed.id, counterSaved, deletionSaved: await brain.whenIdle()
+      };
+    }, counterText);
+    assert.equal(edits.counterSaved, true);
+    assert.equal(edits.deletionSaved, true);
+    const edited = await snapshot(a);
+    assert.equal(edited.revision, 4);
+    assert.equal(edited.receipts, 1);
+    assert.equal(edited.planNodes, 8);
+    const graph = JSON.parse(edited.mainRaw);
+    assert.ok(graph.nodes.find(node => node.id === edits.keptId).counterEvidence
+      .some(entry => entry.text === counterText));
+    assert.ok(!graph.nodes.some(node => node.id === edits.removedId));
+    assert.ok(!graph.links.some(link => link.from === edits.removedId || link.to === edits.removedId));
+    console.log('EDIT_CHECKPOINT user_edits_saved revision=4 nodes=8 receipts=1');
+
+    await a.reload({ waitUntil: 'domcontentloaded' });
+    await ready(a);
+    assertSameSnapshot(await snapshot(a), edited);
+    await a.locator('#bPlan').click();
+    await waitToast(a, '保留你的修改');
+    assertSameSnapshot(await snapshot(a), edited);
+    console.log('NATIVE_PLAN_EDIT_PRESERVATION_PASS revision=4 nodes=8 receipts=1 extra_writes=0');
+  });
+});
