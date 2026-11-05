@@ -12,7 +12,7 @@ permissions:
 jobs:
   chromium:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,7 +20,7 @@ jobs:
       - name: Record tested source
         run: |
           mkdir -p evidence
-          printf 'head=%s\napp_blob=%s\nattempt_limit=1\n' \
+          printf 'head=%s\napp_blob=%s\nbatch_limit_minutes=10\nattempt_limit_per_case=1\n' \
             "$(git rev-parse HEAD)" "$(git rev-parse HEAD:app.js)" | tee evidence/checkpoint.txt
           test "$(git rev-parse HEAD:app.js)" = fd34728fb73ced2ffe72f9df799666c80c5c7d1d
       - uses: actions/setup-node@v4
@@ -30,7 +30,7 @@ jobs:
         run: |
           google-chrome --version | tee -a evidence/checkpoint.txt
           timeout --kill-after=3s 60s npm install --no-save --package-lock=false --fetch-retries=0 playwright-core@1.56.1
-      - name: Run one native two-tab case
+      - name: Run bounded native plan cases
         shell: bash
         run: |
           python3 -m http.server 8765 --bind 127.0.0.1 > evidence/http.log 2>&1 &
@@ -38,12 +38,21 @@ jobs:
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           sleep 1
           curl --fail --silent --max-time 3 http://127.0.0.1:8765/index.html -o /dev/null
-          printf 'attempt=1 stage=browser_test\n' | tee -a evidence/checkpoint.txt
-          set +e
-          timeout --kill-after=3s 30s node --test --test-reporter=tap tests/first-brain-plan-native-browser.test.cjs | tee evidence/probe.tap
-          result=${PIPESTATUS[0]}
-          printf 'exit_code=%s\n' "$result" | tee -a evidence/checkpoint.txt
-          exit "$result"
+          batch_result=0
+          for probe in race abort; do
+            case "$probe" in
+              race) pattern='^native plan loses a same-revision race at the IndexedDB write gate$' ;;
+              abort) pattern='^native plan aborts after a successful put request and recovers on a new action$' ;;
+            esac
+            printf 'case=%s attempt=1 limit_seconds=45\n' "$probe" | tee -a evidence/checkpoint.txt
+            set +e
+            timeout --kill-after=3s 45s node --test --test-name-pattern="$pattern" --test-reporter=tap tests/first-brain-plan-native-browser.test.cjs | tee "evidence/$probe.tap"
+            result=${PIPESTATUS[0]}
+            set -e
+            printf 'case=%s exit_code=%s\n' "$probe" "$result" | tee -a evidence/checkpoint.txt
+            if [ "$result" -ne 0 ]; then batch_result=1; fi
+          done
+          exit "$batch_result"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
