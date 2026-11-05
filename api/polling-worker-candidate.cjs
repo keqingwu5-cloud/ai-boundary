@@ -17,8 +17,10 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
     const tasks=Array.isArray(received)?received:received?[received]:[];
     if(tasks.length===0)return {state:'idle'};
     const event=tasks[0],eventId=event.event_id,attemptId=event.current_attempt_id;
-    if(!eventId||!attemptId||!event.payload_digest)
-      throw Error('leased event missing authoritative attempt/payload identity');
+    if(typeof eventId!=='string'||!eventId ||
+       typeof attemptId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attemptId) ||
+       typeof event.payload_digest!=='string'||!/^[0-9a-f]{64}$/i.test(event.payload_digest))
+      throw Error('leased event missing or invalid authoritative attempt/payload identity');
     const executionKey=createHash('sha256').update(eventId+':'+event.payload_digest).digest('hex');
     const task=Object.freeze({event_id:eventId,task_id:event.task_id,
       attempt_id:attemptId,payload:event.payload,payload_version:event.payload_version,
