@@ -205,3 +205,18 @@ test('R03 strong mutation kills Worker evidence assertion and Store readback ass
  assert.throws(()=>assert.equal(record.outcome_reports[0].evidence_reference,'synthetic:receipt:456'),
   {code:'ERR_ASSERTION'});
 });
+
+// GPT2-P37: explicit CI-covered identity negative cases; keep legacy fixtures unchanged.
+async function assertLeaseIdentityRejectedBeforeIntent(event) {
+  const calls=[];
+  const client={receive:async()=>event,intent:async()=>calls.push('intent'),authorize:async()=>({authorized:true}),execute:async()=>calls.push('execute'),ack:async()=>calls.push('ack'),fail:async()=>calls.push('fail'),report:async()=>calls.push('report')};
+  const worker=createPollingWorker({client,performTask:async()=>{calls.push('provider');return {execution_evidence:'synthetic:execution:ok',receipt_evidence:'synthetic:receipt:ok'};}});
+  await assert.rejects(worker.runOnce(),/invalid authoritative attempt\/payload identity/);
+  assert.deepEqual(calls,[],'invalid lease must not reach intent or provider');
+}
+test('GPT2-P37-IDENTITY-001 rejects malformed attempt UUID before intent',async()=>{
+  await assertLeaseIdentityRejectedBeforeIntent({event_id:'EV1',current_attempt_id:'not-a-uuid',payload_digest:'a'.repeat(64)});
+});
+test('GPT2-P37-IDENTITY-002 rejects malformed SHA-256 before intent',async()=>{
+  await assertLeaseIdentityRejectedBeforeIntent({event_id:'EV1',current_attempt_id:'11111111-1111-4111-8111-111111111111',payload_digest:'invalid'});
+});
