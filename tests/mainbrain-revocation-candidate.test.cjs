@@ -220,3 +220,5 @@ test('GPT2-P37-IDENTITY-001 rejects malformed attempt UUID before intent',async(
 test('GPT2-P37-IDENTITY-002 rejects malformed SHA-256 before intent',async()=>{
   await assertLeaseIdentityRejectedBeforeIntent({event_id:'EV1',current_attempt_id:'11111111-1111-4111-8111-111111111111',payload_digest:'invalid'});
 });
+
+test('GPT2-P40-BATCH-001 never silently abandons second lease',async()=>{const reports=[];const leases=[1,2].map(i=>({event_id:'EV'+i,current_attempt_id:'11111111-1111-4111-8111-'+String(i).padStart(12,'0'),payload_digest:'a'.repeat(64)}));const client={receive:async()=>leases,intent:async()=>assert.fail('intent forbidden'),authorize:async()=>({authorized:true}),execute:async()=>{},ack:async()=>{},fail:async()=>{},report:async p=>reports.push(p)};const worker=createPollingWorker({client,performTask:async()=>assert.fail('provider forbidden')});const result=await worker.runOnce();assert.equal(result.state,'reconciliation_required');assert.equal(reports.length,2)});
