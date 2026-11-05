@@ -119,6 +119,23 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
           reason,code:failure.code||'ERROR'});
         throw failure; // Never claim that a remote quarantine succeeded.
       }
+      // B1: fail() resolve→blocked still must persist a bounded evidence pointer
+      // when ACK is unconfirmed and a compliant synthetic receipt exists.
+      // Save failure is never silent (p0_failure_receipt_unconfirmed + throw).
+      if(phase!=='preflight' && outcomeReference){
+        try {
+          await client.report({event_id:eventId,attempt_id:attemptId,
+            payload_digest:event.payload_digest,report_id:'outcome-'+attemptId,
+            reason:'execution_outcome_unknown',
+            evidence_reference:outcomeReference});
+          logger({action:'reconciliation_required_evidence_after_fail',event_id:eventId,
+            attempt_id:attemptId});
+        }catch(reportFailure){
+          logger({action:'p0_failure_receipt_unconfirmed',event_id:eventId,attempt_id:attemptId,
+            reason:'evidence_persist_after_fail_blocked',code:reportFailure.code||'ERROR'});
+          throw reportFailure;
+        }
+      }
       const state=phase==='preflight'?'failed_attempt':'reconciliation_required';
       logger({action:state,event_id:eventId,attempt_id:attemptId,reason,code:e.code||'WORKER_STEP_ERROR'});
       return {state,event_id:eventId,attempt_id:attemptId};
