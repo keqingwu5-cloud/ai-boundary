@@ -70,3 +70,13 @@
 - 真 Chrome 通過 1/1，退出碼 0，耗時 32.9 秒。受測提交 `2674150ae3878d6e64cbad128e2dc9f354f8f9da`。 [CI #41982260244](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/41982260244) · [原始 TAP](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/41982260244/artifacts/13394531869)
 - 重新整理並再按同版載入後，D3 的反證仍在，D4 與其關聯維持刪除。版本仍是 4，保存 8 個節點和 1 筆原始載入回執。主圖及 Undo 位元組一致，無額外保存。
 - 本輪三個新案例全數通過，已回填到 [R24 共用保存層回歸驗收](first-brain-r24-formal-acceptance.md#d-共用保存層回歸驗收)。
+
+
+### E02 → W02 反哺試跑｜2026-11-05
+
+依 [反哺規劃 v0.1](https://chatgpt.com/library?file_id=libfile_1aabc40a1bf881918425a90c7755442c&account_id=personal) 在隔離 Node 試跑。以固定基準 `aa1dd31c57b9808241014a663610dd60f1d8a694` 的六個原始模組核對 Git blob。執行 `node --test tests/first-brain-evidence-feedback.test.cjs`，4/4 通過，退出碼 0。
+
+- 以既有記憶包規劃與取回函式找回 E02 的受測提交及 CI，並分辨 E01 是初檢拒絕，E02 是原生寫入點拒絕。輸入留在模擬待審候選。
+- 由現有世界模型日誌建立 W02，再用唯讀預覽回查。預覽可提供 CI 網址提示，`evidence_refs` 仍為空，來源未自動驗證。試跑用手動指定的 E02 ID 對照完整證據。
+- 合成反例列為假說候選，同題內容不同時標記衝突，重送去重，原 E02 保留。W02 新增一筆 `證據不足` 狀態事件並記明需重驗，版本 1 的 `待驗證` 仍可讀回。這是演練狀態。
+- 缺鎖或來源節點不一致時拒絕。試跑以記憶體內儲存與模擬鎖執行，證據限於模組契約。下一道可驗收邊界是真瀏覽器的雙模組取回與人工審核。
