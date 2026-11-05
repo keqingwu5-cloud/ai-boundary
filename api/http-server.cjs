@@ -9,7 +9,8 @@ function createHttpServer({store,authenticate,logger=()=>{}}){
  return http.createServer(async(req,res)=>{
   let action='unknown';
   try{
-   const path=new URL(req.url,'http://localhost').pathname;
+   const url=new URL(req.url,'http://localhost');
+   const path=url.pathname;
    const match=/^\/v1\/tasks\/([A-Za-z0-9_-]{1,128})$/.exec(path);
    const method=routes[req.method+' '+path]||(req.method==='GET'&&match?'status':null);
    if(!method){res.writeHead(404);res.end(JSON.stringify({error:'NOT_FOUND'}));return;}
@@ -18,7 +19,9 @@ function createHttpServer({store,authenticate,logger=()=>{}}){
     let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>MAX_BODY)throw Object.assign(Error('body too large'),{code:'TOO_LARGE'});chunks.push(chunk);}
     try{body=JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');}catch{throw Object.assign(Error('invalid JSON'),{code:'BAD_REQUEST'});}
    }
-   const value=await api[method]({headers:req.headers,body,params:match?{event_id:match[1]}:{}});
+   const q=Object.fromEntries(url.searchParams.entries());
+   const params=match?{event_id:match[1],...q}:{};
+   const value=await api[method]({headers:req.headers,body,params});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({data:value}));
   }catch(e){
    const knownCodes=new Set(['UNAUTHORIZED','FORBIDDEN','NOT_FOUND','BAD_REQUEST','TOO_LARGE','IDEMPOTENCY_CONFLICT','EVENT_CONFLICT']);
