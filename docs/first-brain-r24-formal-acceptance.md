@@ -51,6 +51,16 @@ Apple 真機／受控預覽並非當前工具能憑空提供。若無實體設�
 
 在未明確分派 reviewer 之前，只把本檔作為可交付的審查工作包。提交後若程式變動，reviewer 必須核對新的 HEAD，不能沿用舊批准。
 
+## D. 共用保存層回歸驗收
+
+接入共用保存層的功能應按操作、提交與回讀分別驗收，並以固定提交及可追溯的瀏覽器證據登錄。
+
+1. 從實際操作入口觸發，確認按鈕可點且動作已送出。畫面阻擋應記錄為介面失敗，後續交易步驟保留待測。
+2. 讀回交易後的版本、主圖與 Undo。復原成功時，保存版本向前遞增，主圖與 Undo 內容回到預期快照。
+3. 以另一個仍持舊版本的分頁再次操作，確認收到過期提示。重新讀回版本、主圖與 Undo，確認拒絕後沒有額外寫入。
+
+PR #86 的雙分頁合成案例已在隔離 Chrome 通過以上三項。正式還原、實體 Apple 裝置與獨立審查各自依其驗收門檻判定。 [案例與證據](first-brain-plan-readback-v0.md#修正後雙分頁複驗2026-11-05)
+
 ## 統一 Release 判定
 
 `formalRestore=BLOCKED`、`physicalAppleSafari=BLOCKED`、`independentReview=BLOCKED`。另保留 `realHistoryDataset`、`uncooperativeOldWriterCompleteQuiescence`、`releasePermissionAndRollback` 等原 R18 阻塞條件。只有收齊外部可追溯證據，才由權責者決定是否進入正式整合；**CI 全綠不會觸發自動合併**。

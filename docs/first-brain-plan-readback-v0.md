@@ -46,3 +46,7 @@
 - 落子前採用的證據為原版反例、47 項 Node 基準，以及上一輪真 Chrome 已讀回 9 個節點和 1 筆本機回執。上一輪止於橫幅擋住 Undo，跨分頁復原及拒絕尚待真瀏覽器確認。
 - 產品與測試檔固定於 `eb6df1992f9883705c85fa5965f0333cf55e1e1b`，app blob 為 `fd34728fb73ced2ffe72f9df799666c80c5c7d1d`。沿用同一案例和 30 秒限時，只觸發一次。
 - 驗收分三項。B 的 Undo 由版本 2 提交到版本 3，主圖與 Undo 回讀和首次載入前一致。A 停在版本 2，以滑鼠按載入時收到過期版本拒絕。拒絕後再次回讀，版本 3、主圖與 Undo 內容全部維持一致。
+
+- 複驗通過 1/1，退出碼 0，單次測試程序耗時 22.4 秒。受測提交 `4857f94bea4b9830d9e14df0739368b76d87d916`，Google Chrome 156.0.8078.47。 [CI 執行 #41978009026](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/41978009026) · [原始 TAP 與檢查點](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/41978009026/artifacts/13392184601)
+- A 載入後保存為版本 2，讀回 9 個節點及 1 筆回執。B 用滑鼠點 Undo 後提交版本 3，主圖與 Undo 原始位元組皆與載入前一致。A 保持版本 2 再用滑鼠點載入，收到過期版本提示。其後回讀仍為版本 3，主圖與 Undo 位元組一致，新增寫入為 0，該規劃的節點與回執皆為 0。
+- 此案例納入 [R24 共用保存層回歸驗收](first-brain-r24-formal-acceptance.md#d-共用保存層回歸驗收)。本次證據範圍為隔離 Chrome 的單一雙分頁案例。
