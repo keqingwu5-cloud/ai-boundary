@@ -39,3 +39,10 @@
 - [GitHub Actions #41974384663](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/41974384663) 測試提交 `b455ad4989420d395bff289797543e51a4a54dbd`，Google Chrome 156.0.8078.47，單次執行，外層 30 秒上限。原始輸出與檢查點已保存於 [CI 證據](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/41974384663/artifacts/13390918648)。
 - 真瀏覽器成功由版本 1 載入到版本 2，IndexedDB 讀回 9 個規劃節點及 1 筆回執。測試約 21.9 秒，退出碼 1。B 分頁點 `#bUndo` 時被 `#brainPersistenceBanner` 攔截，5 秒後停止。Undo 與後續舊版本拒絕未執行。
 - 修正候選將交易狀態及跨分頁警告放到工具列下方，保留備份與重新整理按鈕。回歸腳本以滑鼠操作 Undo 和舊頁載入。修正後 app blob 為 `fd34728fb73ced2ffe72f9df799666c80c5c7d1d`，語法及差異檢查通過。真瀏覽器複驗仍待執行。
+
+
+### 修正後雙分頁複驗｜2026-11-05
+
+- 落子前採用的證據為原版反例、47 項 Node 基準，以及上一輪真 Chrome 已讀回 9 個節點和 1 筆本機回執。上一輪止於橫幅擋住 Undo，跨分頁復原及拒絕尚待真瀏覽器確認。
+- 產品與測試檔固定於 `eb6df1992f9883705c85fa5965f0333cf55e1e1b`，app blob 為 `fd34728fb73ced2ffe72f9df799666c80c5c7d1d`。沿用同一案例和 30 秒限時，只觸發一次。
+- 驗收分三項。B 的 Undo 由版本 2 提交到版本 3，主圖與 Undo 回讀和首次載入前一致。A 停在版本 2，以滑鼠按載入時收到過期版本拒絕。拒絕後再次回讀，版本 3、主圖與 Undo 內容全部維持一致。

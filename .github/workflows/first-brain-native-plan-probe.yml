@@ -22,7 +22,7 @@ jobs:
           mkdir -p evidence
           printf 'head=%s\napp_blob=%s\nattempt_limit=1\n' \
             "$(git rev-parse HEAD)" "$(git rev-parse HEAD:app.js)" | tee evidence/checkpoint.txt
-          test "$(git rev-parse HEAD:app.js)" = 45fcc0f5e3dbd3134de0d5aa266d5ca41c6289ee
+          test "$(git rev-parse HEAD:app.js)" = fd34728fb73ced2ffe72f9df799666c80c5c7d1d
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
