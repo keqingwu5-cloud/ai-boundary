@@ -1,0 +1,11 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {canonical,packageHandoff,inspectHandoff}=require('../api/handoff-multimodal-contract-candidate.cjs');
+const b={event_id:'E1',correlation_id:'C1',source:'GPT1',destination:'GPT2',version:'v1',structured:{task:'T1',status:'queued'}};
+test('canonical order independent',()=>assert.equal(canonical({b:2,a:1}),canonical({a:1,b:2})));
+test('text only verified candidate not ACK',()=>{const p=packageHandoff(b);assert.equal(inspectHandoff({sent:p,received:p.payload}).state,'reviewed_candidate');assert.equal(p.actual_ack,false)});
+test('tampered structured content blocked',()=>{const p=packageHandoff(b);assert.ok(inspectHandoff({sent:p,received:{...p.payload,structured:{task:'T2'}}}).errors.includes('content_mismatch'))});
+test('image missing blocked',()=>{const p=packageHandoff({...b,images:[{ref:'asset/1',sha256:'a'.repeat(64),purpose:'architecture'}]});assert.equal(inspectHandoff({sent:p,received:p.payload}).state,'blocked')});
+test('image checksum verified',()=>{const img={ref:'asset/1',sha256:'a'.repeat(64),purpose:'architecture'};const p=packageHandoff({...b,images:[img]});assert.equal(inspectHandoff({sent:p,received:p.payload,availableImages:[img]}).state,'reviewed_candidate')});
+test('invalid image digest blocked',()=>assert.equal(packageHandoff({...b,images:[{ref:'x',sha256:'invalid',purpose:'chart'}]}).state,'blocked'));
