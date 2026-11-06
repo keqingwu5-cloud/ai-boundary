@@ -1,0 +1,8 @@
+{
+  "testenv/loop/server.cjs": "196893bca3078f2e49a30facf83acf8b21a6671631dfba0a7c8f5645bbb9c76f",
+  "tests/testenv-worker-lifecycle.test.cjs": "305a63e87e76fe9223c89ccdb2df09644d3bc22ff3984077f84a4e6ba7d66e7b",
+  "tests/fixtures/worker-lifecycle.cjs": "27bdaaa76313df6ff550521e96ab04d0f9e4ef10b976f2fed65de09d4a51486e",
+  "docs/final-repair-20261106/receipt.md": "9e8d17c387c1160a44e011a75fdd512ce33b008725d0029097affa0a6f19dd6e",
+  "docs/final-repair-20261106/before.log": "c054e094837b85f479c2b27dcac9b2768fae2872745e851f50149d5796ccfdec",
+  "docs/final-repair-20261106/after.log": "e3f8cedc3d53b2d4481db8c896c5898a32ec3ca5b4242dfa0340397b26131c5e"
+}

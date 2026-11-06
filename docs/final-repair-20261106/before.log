@@ -1,0 +1,110 @@
+✖ worker reject closes HTTP and exits nonzero (2526.081752ms)
+✖ worker resolve closes HTTP and exits nonzero (2513.677993ms)
+✖ worker abort-error closes HTTP and exits nonzero (2512.775661ms)
+✖ worker throw closes HTTP and exits nonzero (131.970519ms)
+✔ SIGTERM stops normally and removes runtime (392.388825ms)
+✔ SIGINT stops normally and removes runtime (379.662197ms)
+✖ failure during shutdown preserves nonzero exit (393.533794ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 2
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9068.351215
+
+✖ failing tests:
+
+test at recovery/tests/testenv-worker-lifecycle.test.cjs:34:62
+✖ worker reject closes HTTP and exits nonzero (2526.081752ms)
+  AssertionError [ERR_ASSERTION]: worker stopped but process/HTTP remained alive: worker_error synthetic receive failure
+  
+  
+  true !== false
+  
+      at run (/workspace/scratch/22d536545ecf/recovery/tests/testenv-worker-lifecycle.test.cjs:23:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at recovery/tests/testenv-worker-lifecycle.test.cjs:34:62
+✖ worker resolve closes HTTP and exits nonzero (2513.677993ms)
+  AssertionError [ERR_ASSERTION]: worker stopped but process/HTTP remained alive: 
+  
+  true !== false
+  
+      at run (/workspace/scratch/22d536545ecf/recovery/tests/testenv-worker-lifecycle.test.cjs:23:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at recovery/tests/testenv-worker-lifecycle.test.cjs:34:62
+✖ worker abort-error closes HTTP and exits nonzero (2512.775661ms)
+  AssertionError [ERR_ASSERTION]: worker stopped but process/HTTP remained alive: 
+  
+  true !== false
+  
+      at run (/workspace/scratch/22d536545ecf/recovery/tests/testenv-worker-lifecycle.test.cjs:23:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at recovery/tests/testenv-worker-lifecycle.test.cjs:34:62
+✖ worker throw closes HTTP and exits nonzero (131.970519ms)
+  AssertionError [ERR_ASSERTION]: stale running marker
+  
+  true !== false
+  
+      at run (/workspace/scratch/22d536545ecf/recovery/tests/testenv-worker-lifecycle.test.cjs:26:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at recovery/tests/testenv-worker-lifecycle.test.cjs:36:1
+✖ failure during shutdown preserves nonzero exit (393.533794ms)
+  AssertionError [ERR_ASSERTION]: shutting_down SIGTERM
+  worker_error failure during shutdown
+  
+  
+  0 !== 1
+  
+      at run (/workspace/scratch/22d536545ecf/recovery/tests/testenv-worker-lifecycle.test.cjs:25:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

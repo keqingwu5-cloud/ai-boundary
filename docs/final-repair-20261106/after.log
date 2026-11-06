@@ -1,0 +1,15 @@
+✔ worker reject closes HTTP and exits nonzero (389.519888ms)
+✔ worker resolve closes HTTP and exits nonzero (333.789123ms)
+✔ worker abort-error closes HTTP and exits nonzero (350.85258ms)
+✔ worker throw closes HTTP and exits nonzero (332.83141ms)
+✔ SIGTERM stops normally and removes runtime (381.193313ms)
+✔ SIGINT stops normally and removes runtime (375.124384ms)
+✔ failure during shutdown preserves nonzero exit (378.851912ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2681.465052

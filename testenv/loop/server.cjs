@@ -81,6 +81,8 @@ const worker = createPollingWorker({
 
 const ac = new AbortController();
 let listening = false;
+let stopping = false;
+let shutdownCode = 0;
 
 function ensureBootstrapGrant() {
   const snap = store.snapshot();
@@ -122,22 +124,38 @@ server.listen(cfg.PORT, cfg.HOST, () => {
     )
   );
   console.log(JSON.stringify({ ok: true, port: cfg.PORT, mode: 'MOCK', grant_id: grant.grant_id }));
-  worker.runUntilStopped({ signal: ac.signal }).catch((e) => {
-    if (e.name !== 'AbortError') {
-      console.error('worker_error', e.message);
-      process.exitCode = 1;
+  Promise.resolve().then(() => worker.runUntilStopped({ signal: ac.signal })).then(
+    () => { if (!stopping) shutdown('worker_stopped_unexpectedly', 1); },
+    (e) => {
+      // AbortError is expected only after this process requested shutdown.
+      if (!(stopping && ac.signal.aborted && e?.name === 'AbortError')) {
+        console.error('worker_error', e?.message || 'unknown');
+        shutdown('worker_failed', 1);
+      }
     }
-  });
+  );
 });
 
-function shutdown(sig) {
+function shutdown(sig, code = 0) {
+  shutdownCode = Math.max(shutdownCode, code);
+  process.exitCode = shutdownCode;
+  if (stopping) return;
+  stopping = true;
   console.error('shutting_down', sig);
   ac.abort();
   if (listening) server.close();
-  try { fs.unlinkSync(path.join(cfg.DATA, 'runtime.json')); } catch { /* */ }
-  setTimeout(() => process.exit(0), 200);
+  try { fs.unlinkSync(path.join(cfg.DATA, 'runtime.json')); } catch (e) {
+    if (e.code !== 'ENOENT') { shutdownCode = 1; console.error('runtime_cleanup_failed', e.code); }
+  }
+  // Bound lingering HTTP sockets; a supervisor can observe the nonzero exit.
+  // This does not authorize re-dispatch of tasks with unknown outcomes.
+  setTimeout(() => {
+    server.closeAllConnections?.();
+    process.exit(shutdownCode);
+  }, 200);
 }
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 module.exports = { store, api, server, cfg };
+
