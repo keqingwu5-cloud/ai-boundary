@@ -29,4 +29,22 @@ function verifyAck({prepared,reviewed,ack}){
   if(!ack||!ack.independent_receipt_ref||!ack.verified_identity)errors.push('unverified_receiver_ack');
   return {state:errors.length?'blocked':'ack_candidate_requires_external_verification',errors,actual_ack:false};
 }
-module.exports={prepare,review,verifyAck};
+// Direction-neutral wrappers: either peer may originate an event and must review the return path.
+function exchange({sender,receiver,forward,reverse}){
+  const errors=[];
+  if(!sender||!receiver||sender===receiver)errors.push('invalid_peers');
+  const inspect=(event,from,to,label)=>{
+    if(!event)return {state:'blocked',errors:['missing_'+label]};
+    const prepared=prepare(event);
+    if(prepared.state!=='queued')return prepared;
+    if(prepared.envelope.source!==from||prepared.envelope.destination!==to)return {state:'blocked',errors:['direction_mismatch']};
+    return prepared;
+  };
+  const outbound=inspect(forward,sender,receiver,'forward');
+  const inbound=inspect(reverse,receiver,sender,'reverse');
+  if(outbound.state!=='queued')errors.push('forward_not_ready');
+  if(inbound.state!=='queued')errors.push('reverse_not_ready');
+  if(outbound.digest&&inbound.digest&&outbound.envelope.event_id===inbound.envelope.event_id)errors.push('event_id_reused_across_directions');
+  return {state:errors.length?'blocked':'bidirectional_queued_candidate',errors,forward:outbound,reverse:inbound,actual_ack:false};
+}
+module.exports={prepare,review,verifyAck,exchange};
