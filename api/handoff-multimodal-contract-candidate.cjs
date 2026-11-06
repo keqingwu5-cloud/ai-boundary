@@ -27,6 +27,7 @@ function packageHandoff({event_id,correlation_id,source,destination,version,stru
 function inspectHandoff({sent,received,availableImages=[]}){
   const errors=[];
   if(sent?.state!=='candidate_ready'||!sent.payload)errors.push('sender_not_ready');
+  else try{if(digest(canonical(sent.payload))!==sent.sha256)errors.push('sender_snapshot_modified')}catch(e){errors.push('invalid_sender_snapshot')}
   if(!received||typeof received!=='object'||Array.isArray(received))errors.push('missing_received_payload');
   else try{if(digest(canonical(received))!==sent?.sha256)errors.push('content_mismatch')}catch(e){errors.push('invalid_received_json')}
   const manifests=received?.images;
@@ -41,4 +42,12 @@ function inspectHandoff({sent,received,availableImages=[]}){
   }}
   return {state:errors.length?'blocked':'reviewed_candidate',errors,actual_ack:false};
 }
-module.exports={canonical,packageHandoff,inspectHandoff};
+// A matching checksum establishes byte integrity, not authority or identity.
+function inspectProvenance({sent,receiverEvidence,sourceEvidence}){
+  const errors=[];
+  if(sent?.state!=='candidate_ready')errors.push('sender_not_ready');
+  if(typeof sourceEvidence!=='string'||!sourceEvidence.trim())errors.push('missing_source_provenance');
+  if(typeof receiverEvidence!=='string'||!receiverEvidence.trim())errors.push('missing_receiver_provenance');
+  return {state:errors.length?'blocked':'pending_independent_identity_verification',errors,identity_verified:false,actual_ack:false};
+}
+module.exports={canonical,packageHandoff,inspectHandoff,inspectProvenance};
