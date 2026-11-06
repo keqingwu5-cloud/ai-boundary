@@ -20,7 +20,8 @@ function createHttpServer({store,authenticate,logger=()=>{}}){
     try{body=JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');}catch{throw Object.assign(Error('invalid JSON'),{code:'BAD_REQUEST'});}
    }
    const q=Object.fromEntries(url.searchParams.entries());
-   const params=match?{event_id:match[1],...q}:{};
+   // The path event ID is authoritative; B2 query options must not replace it.
+   const params=match?{...q,event_id:match[1]}:{};
    const value=await api[method]({headers:req.headers,body,params});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({data:value}));
   }catch(e){
