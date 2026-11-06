@@ -455,3 +455,4 @@ test('ACK cannot skip recorded execution even after provider intent was persiste
  assert(!calls.some(x=>x.sql.includes("SET state='ack_received'")));
  assert(calls.some(x=>x.sql==='ROLLBACK'));
 });
+

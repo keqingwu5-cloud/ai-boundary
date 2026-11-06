@@ -17,3 +17,4 @@ function createHmacAuth({keys,clock=()=>Date.now(),audience='mainbrain-api',maxA
  };
 }
 module.exports={createHmacAuth};
+

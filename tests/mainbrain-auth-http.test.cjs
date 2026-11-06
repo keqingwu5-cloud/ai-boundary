@@ -52,3 +52,4 @@ test('HTTP intent endpoint preserves verified actor and rejects insufficient sco
   assert.equal(calls[0].attempt_id,'ATT1');
  }finally{await new Promise(r=>server.close(r));}
 });
+

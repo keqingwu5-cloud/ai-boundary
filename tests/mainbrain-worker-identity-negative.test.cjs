@@ -17,3 +17,4 @@ test('GPT2-P35-IDENTITY-001 rejects malformed attempt UUID before intent',async(
 test('GPT2-P35-IDENTITY-002 rejects malformed SHA-256 digest before intent',async()=>{
   await assertRejectedBeforeDispatch({event_id:'EV1',current_attempt_id:UUID,payload_digest:'invalid'});
 });
+

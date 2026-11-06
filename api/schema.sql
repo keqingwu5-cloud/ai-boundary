@@ -32,3 +32,4 @@ revoke all on schema mainbrain_api from public, anon, authenticated;
 revoke all on all tables in schema mainbrain_api from public, anon, authenticated;
 -- A production adapter must atomically lease with FOR UPDATE SKIP LOCKED,
 -- use a transaction for receipt+state+log, and retry with bounded backoff.
+

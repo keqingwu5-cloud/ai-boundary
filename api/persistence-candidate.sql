@@ -77,3 +77,4 @@ CREATE TABLE IF NOT EXISTS mainbrain_api.alerts (
 CREATE INDEX IF NOT EXISTS alerts_open_idx ON mainbrain_api.alerts(status, severity, last_seen_at)
   WHERE status='open';
 REVOKE ALL ON mainbrain_api.alerts FROM PUBLIC, anon, authenticated;
+

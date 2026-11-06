@@ -51,3 +51,4 @@ test('report evidence uses separate scope and authenticated endpoint',async()=>{
  assert.equal(checked.endpoint_id,'worker2');
  assert.equal(seen[1][0],'authorize');
 });
+
