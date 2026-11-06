@@ -1,0 +1,45 @@
+name: P0-6 before-after defect reproduction
+on:
+  push:
+    branches: [fix/p0-6-task-discovery-20261106]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Execute same defects against immutable before and current candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/p0-6-before
+          git show 766591abbc2f3e50471d3d164a067bf54e63d96c:api/task-locator-candidate.cjs > /tmp/p0-6-before/locator.cjs
+          cp api/task-locator-candidate.cjs /tmp/p0-6-before/locator-after.cjs
+          node <<'JS'
+          const assert=require('node:assert/strict');
+          const old=require('/tmp/p0-6-before/locator.cjs');
+          const fixed=require('/tmp/p0-6-before/locator-after.cjs');
+          function revision(mod){
+            let calls=0;
+            return mod.discover({seeds:[41],fetchIssue:()=>({url:'issue/41',body:++calls===1?'old':'new',comments:0,updated_at:'v'+calls}),fetchComments:()=>({items:[],complete:true})});
+          }
+          function duplicate(mod){
+            return mod.discover({seeds:[41],fetchIssue:()=>({url:'issue/41',body:'ok',comments:2,updated_at:'v1'}),fetchComments:()=>({items:[{id:7,url:'a',body:'a'},{id:7,url:'b',body:'b'}],complete:true})});
+          }
+          for(const [name,scenario,error] of [['revision',revision,'source_version_changed'],['duplicate',duplicate,'duplicate_or_invalid_comment_id']]){
+            const before=scenario(old),after=scenario(fixed);
+            console.log(JSON.stringify({name,before:{complete:before.complete,errors:before.errors},after:{complete:after.complete,errors:after.errors}}));
+            assert.equal(before.complete,true,'defect must reproduce in original');
+            assert.equal(after.complete,false,'fixed code must fail closed');
+            assert.equal(after.errors[0].error,error);
+          }
+          console.log('2/2 historical reproductions and 2/2 fixed comparisons PASS');
+          JS
