@@ -1,0 +1,32 @@
+name: B4 real-PG E2E (isolated self-test, scoped)
+# Scoped to the B4 test branch only. Isolated DB via temporary secret; NOT acceptance, NOT deploy.
+on:
+  push:
+    branches:
+      - 'test/b4-worker-pg-e2e-20261106'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: b4-real-pg-e2e
+  cancel-in-progress: false
+jobs:
+  e2e:
+    if: github.ref == 'refs/heads/test/b4-worker-pg-e2e-20261106'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Unit / isolation regression (same as candidate CI + B2/B3)
+        run: node --test tests/mainbrain-api.test.cjs tests/mainbrain-auth-http.test.cjs tests/mainbrain-persistence-candidate.test.cjs tests/mainbrain-revocation-candidate.test.cjs tests/mainbrain-store-readback-b2.test.cjs tests/mainbrain-worker-abort-b3.test.cjs tests/mainbrain-worker-identity-negative.test.cjs
+      - name: Install pg (test-only, not committed)
+        run: npm install --no-save --no-package-lock pg@8
+      - name: Real-PG E2E (Node pg -> Store -> HTTP -> Worker)
+        env:
+          DATABASE_URL: ${{ secrets.B4_TMP_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "B4_TMP_DATABASE_URL secret missing"; exit 1; fi
+          node --test --test-reporter=spec tests/mainbrain-b4-real-pg-e2e.test.cjs
