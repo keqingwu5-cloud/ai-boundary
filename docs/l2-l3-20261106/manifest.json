@@ -1,0 +1,7 @@
+{
+  "testenv/loop/supervisor.cjs": "ab8ee3e754ba7dabf1e690071ba605de0a42e2612c5773c20a7d6a419a2080a4",
+  "tests/testenv-supervisor.test.cjs": "9d8327662c5c3bfa2015c3cdbce01dc703b624d2e27d8fdb2bcec85f08525100",
+  "tests/fixtures/supervisor-child.cjs": "b4cd4052f1491d61a827c8bf9fe33642a94156b502183951c948564088b6f4b4",
+  "docs/l2-l3-20261106/receipt.md": "3bf26f4d8dcb053b24e74bee07c1f2cf160bd8bbfa863d4329c8d5912b165c8c",
+  "docs/l2-l3-20261106/tests.log": "dc7c9065ef9ff433e40469e988bccf79eb0cf60c8c7cff28ee9a08b041221a8e"
+}
