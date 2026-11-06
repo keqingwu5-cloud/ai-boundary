@@ -1,0 +1,10 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {prepare,review,verifyAck}=require('../api/handoff-mutual-review-candidate.cjs');
+const base={event_id:'E1',correlation_id:'C1',source:'GPT1',destination:'GPT2',payload_version:'1',payload:{task:'T1',status:'queued'},source_evidence:'github:issue/41'};
+test('sender blocks missing provenance',()=>{assert.equal(prepare({...base,source_evidence:''}).state,'blocked')});
+test('receiver independently rejects altered payload',()=>{const p=prepare(base);const r=review({prepared:p,received:{...p.envelope,payload:{task:'T2'}},receiver:'GPT2',receiver_evidence:'read/1'});assert.equal(r.state,'blocked');assert.ok(r.contradictions.includes('payload_mismatch'))});
+test('receiver rejects wrong identity and missing receipt',()=>{const p=prepare(base);const r=review({prepared:p,received:p.envelope,receiver:'GPT1'});assert.equal(r.state,'blocked');assert.ok(r.contradictions.includes('wrong_receiver'))});
+test('matching self reviews do not manufacture real ACK',()=>{const p=prepare(base);const r=review({prepared:p,received:p.envelope,receiver:'GPT2',receiver_evidence:'read/1'});assert.equal(r.state,'reviewed_candidate');assert.equal(r.actual_ack,false);const a=verifyAck({prepared:p,reviewed:r,ack:{event_id:'E1',correlation_id:'C1',digest:p.digest,source:'GPT2',destination:'GPT1',independent_receipt_ref:'read/1',verified_identity:true}});assert.equal(a.actual_ack,false);assert.equal(a.state,'ack_candidate_requires_external_verification')});
+test('unverified ACK fails closed',()=>{const p=prepare(base);const r=review({prepared:p,received:p.envelope,receiver:'GPT2',receiver_evidence:'read/1'});assert.equal(verifyAck({prepared:p,reviewed:r,ack:{event_id:'E1',correlation_id:'C1',digest:p.digest,source:'GPT2',destination:'GPT1'}}).state,'blocked')});
