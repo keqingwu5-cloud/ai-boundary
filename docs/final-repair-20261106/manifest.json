@@ -1,0 +1,6 @@
+{
+  "api/polling-worker-candidate.cjs": "763b92ea60d81ce98191bb4e7615781f6ddf866010df6da5290596ef85c25b37",
+  "tests/mainbrain-worker-identity-negative.test.cjs": "ed4439a29b6b1bcb301c8544700374bb6206425afc137615b7c8fdc534c538a1",
+  "docs/final-repair-20261106/receipt.md": "9e8d17c387c1160a44e011a75fdd512ce33b008725d0029097affa0a6f19dd6e",
+  "docs/final-repair-20261106/worker-green.log": "8fd62e5c152bed3ba91460c25ab2a18deb5c4b06ce26f4485cc0209b226c043b"
+}

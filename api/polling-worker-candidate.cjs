@@ -50,9 +50,9 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
           continue;
         }
         try{
-          await client.report({event_id:e.event_id,attempt_id:e.current_attempt_id,
+          await runCleanup('report_batch',()=>client.report({event_id:e.event_id,attempt_id:e.current_attempt_id,
             payload_digest:e.payload_digest,report_id:'batch-'+e.current_attempt_id,
-            reason:'dispatch_authorization_unconfirmed'});
+            reason:'dispatch_authorization_unconfirmed'}));
         }catch(error){
           failures.push(e.event_id+':report_rejected');
         }
