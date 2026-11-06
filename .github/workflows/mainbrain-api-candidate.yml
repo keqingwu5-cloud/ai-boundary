@@ -5,6 +5,7 @@ on:
       - 'api/**'
       - 'tests/mainbrain-*.test.cjs'
       - 'tests/handoff-contract.test.cjs'
+      - 'tests/handoff-*.test.cjs'
       - 'tests/launcher-memory.test.cjs'
       - 'tests/memory-workflow-core.test.cjs'
       - 'docs/mainbrain-api-*.md'
@@ -25,3 +26,5 @@ jobs:
         run: node --test tests/mainbrain-api.test.cjs tests/mainbrain-auth-http.test.cjs tests/mainbrain-persistence-candidate.test.cjs tests/mainbrain-revocation-candidate.test.cjs
       - name: Existing handoff and launcher regression tests
         run: node --test tests/handoff-contract.test.cjs tests/launcher-memory.test.cjs tests/memory-workflow-core.test.cjs
+      - name: Bidirectional and multimodal handoff self-review regressions
+        run: node --test tests/handoff-mutual-review-candidate.test.cjs tests/handoff-multimodal-contract-candidate.test.cjs
