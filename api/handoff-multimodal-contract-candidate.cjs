@@ -26,13 +26,15 @@ function packageHandoff({event_id,correlation_id,source,destination,version,stru
 function inspectHandoff({sent,received,availableImages=[]}){
   const errors=[];
   if(sent?.state!=='candidate_ready'||!sent.payload)errors.push('sender_not_ready');
-  if(!received||typeof received!=='object')errors.push('missing_received_payload');
+  if(!received||typeof received!=='object'||Array.isArray(received))errors.push('missing_received_payload');
   else try{if(digest(canonical(received))!==sent?.sha256)errors.push('content_mismatch')}catch(e){errors.push('invalid_received_json')}
   const manifests=received?.images;
   if(!Array.isArray(manifests))errors.push('missing_image_manifest');
   else for(const img of manifests){
-    const found=availableImages.find(x=>x.ref===img.ref);
-    if(!found||found.sha256!==img.sha256)errors.push('image_unverified:'+img.ref);
+    const found=Array.isArray(availableImages)?availableImages.find(x=>x&&x.ref===img?.ref):null;
+    // Never trust a supplied sha256 assertion: compute digest from actual bytes.
+    if(!found||!Buffer.isBuffer(found.bytes)||digest(found.bytes)!==img?.sha256)
+      errors.push('image_unverified:'+String(img?.ref));
   }
   return {state:errors.length?'blocked':'reviewed_candidate',errors,actual_ack:false};
 }
