@@ -1,0 +1,22 @@
+name: P0-6 isolated HTTPS negative probe
+on:
+  push:
+    branches: [fix/p0-6-task-discovery-20261106]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: DNS TLS and unauthenticated JWT rejection
+        shell: bash
+        run: |
+          set -euo pipefail
+          host=lcpsfcfugmkhcgzmyuty.supabase.co
+          getent ahosts "$host" | head -3
+          code=$(curl --silent --show-error --max-time 15 --output /tmp/response.txt --write-out '%{http_code}' "https://$host/functions/v1/ai-boundary-p0-6-locator-isolated/lookup?q=P0-6")
+          echo "HTTP status: $code"
+          test "$code" = 401 || { echo "Expected 401 without JWT"; exit 1; }
+          echo "JWT negative probe passed. Authenticated 200 and GitHub search remain unverified."
