@@ -153,8 +153,10 @@ test('R03 Store.get exposes only bounded current-attempt outcome pointers',async
  const q=calls.find(x=>x.sql.includes('FROM mainbrain_api.outcome_reports'));
  assert(q,'missing outcome report query');
  assert.match(q.sql,/event_id=\$1 AND attempt_id=\$2/);
- assert.deepEqual(q.params,['EV1',UUID]);
- assert.match(q.sql,/LIMIT 50/);
+ assert.equal(q.params[0],'EV1');
+ assert.equal(q.params[1],UUID);
+ assert.match(q.sql,/LIMIT/i);
+ assert.ok(q.params.includes(51)||/LIMIT\s+51\b/.test(q.sql),'page peek uses limit+1 for truncation detect');
 });
 test('R03 Store.get does not query old outcomes if event has no current attempt',async()=>{
  const {store,calls}=harness(sql=>
@@ -206,6 +208,167 @@ test('R03 strong mutation kills Worker evidence assertion and Store readback ass
   {code:'ERR_ASSERTION'});
 });
 
+// ===== B1: ACK 未確認時 fail() resolve→blocked 與 reject 皆須保存合規證據 =====
+// Case IDs（本批自訂穩定 ID；對應既有 R03 名稱）:
+//   CASE_B1_FAIL_RESOLVE_EVIDENCE ↔ fail() 成功轉 blocked 仍須 report 保存
+//   CASE_B1_FAIL_REJECT_EVIDENCE  ↔ 既有 R03 Worker preserves…（reject 路徑）
+//   CASE_B1_ACK_READBACK_NO_EVIDENCE ↔ ACK 成功讀回不走 fail/report
+//   CASE_B1_ILLEGAL_FORMAT_NO_EVIDENCE ↔ 非法格式不得當 evidence_reference
+//   CASE_B1_REPORT_FAIL_EXPLICIT ↔ 保存失敗明示（不可默默漏報）
+//   CASE_B1_REPLAY_IDEMPOTENT_REPORT_ID ↔ report_id 以 attempt 為冪等鍵
+
+test('CASE_B1_FAIL_RESOLVE_EVIDENCE: fail resolve→blocked still persists bounded evidence',async()=>{
+ // RED expected before B1 patch: successful fail() returns without report(evidence_reference).
+ const reports=[],calls=[],logs=[];
+ const client={
+  receive:async()=>[row],intent:async()=>{calls.push('intent');},
+  authorize:async()=>({authorized:true}),
+  execute:async()=>{calls.push('execute');},
+  ack:async()=>{calls.push('ack');throw Error('synthetic ack timeout');},
+  status:async()=>({...row,state:'executed'}),
+  fail:async p=>{calls.push('fail:'+p.reason);return {state:'blocked'};},
+  report:async p=>{reports.push(p);return {state:'blocked',recorded:true};}
+ };
+ const worker=createPollingWorker({client,logger:x=>logs.push(x),performTask:async()=>{
+  calls.push('provider');
+  return {execution_evidence:'synthetic:execution:abc',receipt_evidence:'synthetic:receipt:abc'};
+ }});
+ const out=await worker.runOnce();
+ assert.equal(out.state,'reconciliation_required');
+ assert.equal(calls.filter(x=>x==='provider').length,1);
+ assert.ok(calls.includes('fail:reconciliation_required'));
+ assert.equal(reports.length,1,'fail() resolve→blocked must still persist evidence via report');
+ assert.equal(reports[0].reason,'execution_outcome_unknown');
+ assert.equal(reports[0].evidence_reference,'synthetic:receipt:abc');
+ assert.equal(reports[0].payload_digest,row.payload_digest);
+ assert.equal(reports[0].attempt_id,UUID);
+ assert.equal(reports[0].report_id,'outcome-'+UUID);
+ assert.equal(reports[0].event_id,'EV1');
+});
+
+test('CASE_B1_FAIL_REJECT_EVIDENCE: reject path still persists (R03 alias)',async()=>{
+ // Alias of R03 reject path; kept as B1 Case ID anchor.
+ const reports=[];
+ const client={
+  receive:async()=>[row],intent:async()=>{},
+  authorize:async()=>({authorized:true}),execute:async()=>{},
+  ack:async()=>{throw Error('synthetic timeout');},
+  status:async()=>({...row,state:'executed'}),
+  fail:async()=>{throw Error('synthetic revoked');},
+  report:async p=>{reports.push(p);return {state:'blocked'};}
+ };
+ const worker=createPollingWorker({client,performTask:async()=>
+  ({execution_evidence:'synthetic:execution:r03',receipt_evidence:'synthetic:receipt:r03'})});
+ assert.equal((await worker.runOnce()).state,'reconciliation_required');
+ assert.equal(reports.length,1);
+ assert.equal(reports[0].evidence_reference,'synthetic:receipt:r03');
+});
+
+test('CASE_B1_ACK_READBACK_NO_EVIDENCE: committed ACK readback skips fail and report',async()=>{
+ const reports=[],calls=[];
+ const client={
+  receive:async()=>[row],intent:async()=>{calls.push('intent');},
+  authorize:async()=>({authorized:true}),
+  execute:async()=>{calls.push('execute');},
+  ack:async()=>{calls.push('ack');throw Error('timeout after commit');},
+  status:async()=>({...row,state:'ack_received',payload_digest:row.payload_digest,payload_version:row.payload_version}),
+  fail:async()=>{calls.push('fail');},
+  report:async p=>{reports.push(p);}
+ };
+ const worker=createPollingWorker({client,performTask:async()=>
+  ({execution_evidence:'synthetic:execution:ok',receipt_evidence:'synthetic:receipt:ok'})});
+ assert.equal((await worker.runOnce()).state,'processed_readback');
+ assert(!calls.includes('fail'));
+ assert.equal(reports.length,0);
+});
+
+test('CASE_B1_ILLEGAL_FORMAT_NO_EVIDENCE: non-synthetic receipt is not forwarded',async()=>{
+ const reports=[];
+ const client={
+  receive:async()=>[row],intent:async()=>{},
+  authorize:async()=>({authorized:true}),execute:async()=>{},
+  ack:async()=>{throw Error('timeout');},
+  status:async()=>({...row,state:'executed'}),
+  fail:async()=>{return {state:'blocked'};},
+  report:async p=>{reports.push(p);return {state:'blocked'};}
+ };
+ const worker=createPollingWorker({client,performTask:async()=>
+  ({execution_evidence:'synthetic:execution:x',receipt_evidence:'provider-raw-output-NOT-ALLOWED'})});
+ const out=await worker.runOnce();
+ assert.equal(out.state,'reconciliation_required');
+ // Either no report, or report without evidence_reference — never arbitrary provider output.
+ if(reports.length>0){
+  assert.equal(Object.hasOwn(reports[0],'evidence_reference'),false);
+  assert.notEqual(reports[0].evidence_reference,'provider-raw-output-NOT-ALLOWED');
+ }
+});
+
+test('CASE_B1_REPORT_FAIL_EXPLICIT: evidence persist failure after blocked fail is not silent',async()=>{
+ const logs=[];
+ const client={
+  receive:async()=>[row],intent:async()=>{},
+  authorize:async()=>({authorized:true}),execute:async()=>{},
+  ack:async()=>{throw Error('timeout');},
+  status:async()=>({...row,state:'executed'}),
+  fail:async()=>{return {state:'blocked'};},
+  report:async()=>{throw Object.assign(Error('report unavailable'),{code:'UNAVAILABLE'});}
+ };
+ const worker=createPollingWorker({client,logger:x=>logs.push(x),performTask:async()=>
+  ({execution_evidence:'synthetic:execution:e',receipt_evidence:'synthetic:receipt:e'})});
+ await assert.rejects(worker.runOnce(),/report unavailable/);
+ assert(logs.some(x=>x.action==='p0_failure_receipt_unconfirmed'),
+  'persist failure must be explicit via p0_failure_receipt_unconfirmed');
+});
+
+test('CASE_B1_REPLAY_IDEMPOTENT_REPORT_ID: report_id stays attempt-scoped across resolve path',async()=>{
+ const reports=[];
+ const client={
+  receive:async()=>[row],intent:async()=>{},
+  authorize:async()=>({authorized:true}),execute:async()=>{},
+  ack:async()=>{throw Error('timeout');},
+  status:async()=>({...row,state:'executed'}),
+  fail:async()=>{return {state:'blocked'};},
+  report:async p=>{reports.push(p);return {state:'blocked',already_recorded:false};}
+ };
+ const worker=createPollingWorker({client,performTask:async()=>
+  ({execution_evidence:'synthetic:execution:id',receipt_evidence:'synthetic:receipt:id'})});
+ await worker.runOnce();
+ assert.equal(reports[0].report_id,'outcome-'+UUID);
+ assert.equal(reports[0].attempt_id,UUID);
+ assert.equal(reports[0].payload_digest,row.payload_digest);
+});
+
+test('CASE_B1 strong mutation: stripping resolve-path evidence attach must fail positive assert',async()=>{
+ const fs=require('node:fs'),path=require('node:path'),Module=require('node:module');
+ function mutated(relative,oldValue,newValue){
+  const filename=require.resolve(relative);
+  const source=fs.readFileSync(filename,'utf8');
+  assert.equal(source.split(oldValue).length-1,1,'B1 mutation marker must exist exactly once');
+  const m=new Module(filename,module);
+  m.filename=filename;m.paths=Module._nodeModulePaths(path.dirname(filename));
+  m._compile(source.replace(oldValue,newValue),filename);
+  return m.exports;
+ }
+ // Drop evidence attach after successful fail() while leaving reject-path intact.
+ const mutatedWorker=mutated('../api/polling-worker-candidate.cjs',
+  "if(phase!=='preflight' && outcomeReference){",
+  "if(false && phase!=='preflight' && outcomeReference){").createPollingWorker;
+ const reports=[];
+ const client={receive:async()=>[row],intent:async()=>{},authorize:async()=>({authorized:true}),
+  execute:async()=>{},ack:async()=>{throw Error('timeout');},
+  status:async()=>({...row,state:'executed'}),
+  fail:async()=>{return {state:'blocked'};},
+  report:async p=>{reports.push(p);return {state:'blocked'};}};
+ const worker=mutatedWorker({client,performTask:async()=>
+  ({execution_evidence:'synthetic:execution:m',receipt_evidence:'synthetic:receipt:m'})});
+ assert.equal((await worker.runOnce()).state,'reconciliation_required');
+ // Positive B1 contract MUST fail on the mutant (no report after resolve→blocked).
+ assert.throws(()=>assert.equal(reports[0]?.evidence_reference,'synthetic:receipt:m'),
+  {code:'ERR_ASSERTION'});
+});
+
+
+
 // GPT2-P37: explicit CI-covered identity negative cases; keep legacy fixtures unchanged.
 async function assertLeaseIdentityRejectedBeforeIntent(event) {
   const calls=[];
@@ -246,9 +409,14 @@ test('GPT2-P45-EVIDENCE-001 untrusted receipt cannot be forwarded as fallback po
  assert.equal((await worker.runOnce()).state,'reconciliation_required');assert.equal(reports.length,1);assert.equal(Object.hasOwn(reports[0],'evidence_reference'),false);
 });
 test('GPT2-P46-READBACK-001 status outage cannot be mistaken for committed ACK',async()=>{
- const calls=[];const client={receive:async()=>[row],intent:async()=>{},authorize:async()=>({authorized:true}),execute:async()=>{},ack:async()=>{throw Error('timeout')},status:async()=>{throw Error('readback unavailable')},fail:async()=>calls.push('fail'),report:async()=>calls.push('report')};
- const worker=createPollingWorker({client,performTask:async()=>({execution_evidence:'synthetic:execution:ok',receipt_evidence:'synthetic:receipt:ok'})});
- assert.equal((await worker.runOnce()).state,'reconciliation_required');assert.deepEqual(calls,['fail']);
+ const calls=[],reports=[];let providerCalls=0;const client={receive:async()=>[row],intent:async()=>{},authorize:async()=>({authorized:true}),execute:async()=>{},ack:async()=>{throw Error('timeout')},status:async()=>{throw Error('readback unavailable')},fail:async()=>calls.push('fail'),report:async p=>{calls.push('report');reports.push(p)}};
+ const worker=createPollingWorker({client,performTask:async()=>{providerCalls++;return {execution_evidence:'synthetic:execution:ok',receipt_evidence:'synthetic:receipt:ok'}}});
+ assert.equal((await worker.runOnce()).state,'reconciliation_required');assert.deepEqual(calls,['fail','report']);
+ assert.equal(providerCalls,1);assert.equal(reports.length,1);
+ assert.equal(reports[0].evidence_reference,'synthetic:receipt:ok');
+ assert.equal(reports[0].attempt_id,row.current_attempt_id);
+ assert.equal(reports[0].payload_digest,row.payload_digest);
+ assert.equal(reports[0].reason,'execution_outcome_unknown');
 });
 test('GPT2-P47-PREFLIGHT-001 local preparation failure must not call intent or provider',async()=>{
  const calls=[];const client={receive:async()=>[row],intent:async()=>calls.push('intent'),authorize:async()=>({authorized:true}),execute:async()=>{},ack:async()=>{},fail:async()=>calls.push('fail'),report:async()=>calls.push('report')};
@@ -265,3 +433,4 @@ test('GPT2-P49-BATCH-002 empty lease response is idle with no side effects',asyn
  const worker=createPollingWorker({client,performTask:async()=>assert.fail('provider')});
  assert.equal((await worker.runOnce()).state,'idle');
 });
+

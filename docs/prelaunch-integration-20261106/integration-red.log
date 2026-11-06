@@ -1,0 +1,130 @@
+✔ rejects unauthenticated sender (2.677942ms)
+✔ send uses authenticated identity, never body actor (1.181373ms)
+✔ same idempotency key returns same event; changed content conflicts (0.808521ms)
+✔ only destination can receive task (0.621788ms)
+✔ status access limited to endpoints (1.334384ms)
+✔ API ACK explicitly tagged as API, not ChatGPT read (0.585493ms)
+✔ ACK missing evidence rejected (0.429118ms)
+✔ execution requires attempt and evidence (0.54979ms)
+✔ intent rejects absent execute scope and uses authenticated identity (0.476229ms)
+✔ intent requires event and attempt identifiers (0.587187ms)
+✔ report evidence uses separate scope and authenticated endpoint (4.722207ms)
+✔ rejects forged signature and expired token (3.420582ms)
+✔ HTTP denies unauthenticated send and limits payload (60.650598ms)
+✔ HTTP returns 409 for known idempotency conflict from store (18.445178ms)
+✔ HTTP does not expose unexpected internal error messages (7.053344ms)
+✔ HTTP intent endpoint preserves verified actor and rejects insufficient scope (4.747275ms)
+✔ candidate migration requires grant+attempt history and revokes client access (3.397898ms)
+✔ store refuses a missing pg-compatible connection (1.088462ms)
+✔ no valid task grant rejects enqueue and rolls back without insertion (1.595007ms)
+✔ valid grant allows transactional enqueue with append-only event log (1.818715ms)
+✔ lease claims queued work atomically with FOR UPDATE SKIP LOCKED and durable attempt (1.313823ms)
+✔ revoked grant blocks leasing rather than running task (1.01381ms)
+✔ expired attempt quota fails task before any fresh lease (4.278417ms)
+✔ stale attempt ACK is rejected before receipts or status update (0.96073ms)
+✔ valid ACK records receipt, status and event log in one transaction (0.777974ms)
+✔ ACK rejects an expired or revoked grant (0.777704ms)
+✔ worker idle mode never creates phantom results (1.103856ms)
+✔ worker executes current attempt then returns API ACK (1.4375ms)
+✔ worker reports handler failure without acknowledging work (0.913588ms)
+✔ worker refuses receipt-free output and fails closed on unrecorded failure (0.855331ms)
+✔ HTTP worker client only accepts secure service roots (1.115403ms)
+✔ HTTP worker client transmits scoped bearer token without exposing it in result (0.578293ms)
+✔ HTTP worker client rejects missing credentials and server denial (0.752506ms)
+✔ uncertain ACK quarantines once; external handler is not retried (1.025137ms)
+✔ ACK transport timeout with committed receipt is confirmed by bound readback (0.592324ms)
+✔ unconfirmed failure receipt throws P0, never reports processed (1.402447ms)
+✔ store lease quarantines expired attempts and emits one durable alert record (0.826588ms)
+✔ uncertain fail is blocked and writes alert without a requeue (0.833899ms)
+✔ status readback is authenticated GET with strict event ID (0.992428ms)
+✔ authenticated status contains clear anomaly guidance without claiming notification delivery (0.680057ms)
+✔ lease timeout alert keeps execution outcome unknown (0.321846ms)
+✔ alert schema deduplicates by event ID and reason (0.276627ms)
+✔ watchdog quarantines expired leases without starting a worker (1.136395ms)
+✔ watchdog never reports success after a failed sweep and never calls a model (0.352492ms)
+✔ standalone sweep refuses an empty destination and never leases new work (0.861279ms)
+✔ pre-provider intent must commit before execution (0.723341ms)
+✔ a missing provider intent blocks execute and ACK with no receipts (0.787679ms)
+✔ external intent makes even a generic failure fail-closed (0.469889ms)
+✔ intent response timeout prevents provider invocation and mandates reconciliation (0.604893ms)
+✔ HTTP client sends intent using scoped bearer token (0.433514ms)
+✔ isolated migration includes a separate provider intent timestamp (0.25136ms)
+✔ ACK cannot skip recorded execution even after provider intent was persisted (0.56971ms)
+✔ P0-A dispatch authorization refuses revoked grant after committed intent (4.173368ms)
+✔ P0-A worker never calls provider if last pre-dispatch authorization fails (3.59102ms)
+✔ P0-C reporting after grant revocation records bounded evidence without granting execution (1.705183ms)
+✔ P0-C forged or stale destination cannot append evidence (1.074482ms)
+✔ P0-C report idempotency returns original record but rejects changed replay (4.29381ms)
+✔ P0-C outcome reporting cannot accept arbitrary reasons, oversized evidence or missing digest (0.57635ms)
+✔ R03 Worker preserves bounded synthetic evidence after ACK timeout and revoked fail (1.794368ms)
+✔ R03 Worker does not invent a reference when provider fails before receipt (1.242996ms)
+✔ R03 Store.get exposes only bounded current-attempt outcome pointers (0.92086ms)
+✔ R03 Store.get does not query old outcomes if event has no current attempt (0.441436ms)
+✔ R03 strong mutation kills Worker evidence assertion and Store readback assertion (5.642996ms)
+✔ CASE_B1_FAIL_RESOLVE_EVIDENCE: fail resolve→blocked still persists bounded evidence (0.772295ms)
+✔ CASE_B1_FAIL_REJECT_EVIDENCE: reject path still persists (R03 alias) (0.569199ms)
+✔ CASE_B1_ACK_READBACK_NO_EVIDENCE: committed ACK readback skips fail and report (0.400664ms)
+✔ CASE_B1_ILLEGAL_FORMAT_NO_EVIDENCE: non-synthetic receipt is not forwarded (0.809973ms)
+✔ CASE_B1_REPORT_FAIL_EXPLICIT: evidence persist failure after blocked fail is not silent (0.703792ms)
+✔ CASE_B1_REPLAY_IDEMPOTENT_REPORT_ID: report_id stays attempt-scoped across resolve path (0.611723ms)
+✔ CASE_B1 strong mutation: stripping resolve-path evidence attach must fail positive assert (1.750743ms)
+✔ GPT2-P37-IDENTITY-001 rejects malformed attempt UUID before intent (0.925927ms)
+✔ GPT2-P37-IDENTITY-002 rejects malformed SHA-256 before intent (0.244259ms)
+✔ GPT2-P40-BATCH-001 never silently abandons second lease (0.405632ms)
+✔ GPT2-P41-BATCH-002 continues reports after first report rejects (0.30441ms)
+✔ GPT2-P42-STOP-001 revoked authorization prevents provider and ACK (0.416979ms)
+✔ GPT2-P43-ACK-001 exact ACK readback avoids duplicate provider execution (0.418021ms)
+✔ GPT2-P44-ACK-002 mismatched ACK readback must not claim success (0.867429ms)
+✔ GPT2-P45-EVIDENCE-001 untrusted receipt cannot be forwarded as fallback pointer (0.471191ms)
+✖ GPT2-P46-READBACK-001 status outage cannot be mistaken for committed ACK (0.76205ms)
+✔ GPT2-P47-PREFLIGHT-001 local preparation failure must not call intent or provider (0.261364ms)
+✔ GPT2-P48-BATCH-001 invalid lease in batch cannot reach provider (0.194113ms)
+✔ GPT2-P49-BATCH-002 empty lease response is idle with no side effects (0.092199ms)
+✔ CASE_B2_RR_SNAPSHOT: get opens REPEATABLE READ READ ONLY on one client and releases (3.605611ms)
+✔ CASE_B2_RR_SNAPSHOT: get rolls back and releases when a snapshot query throws (1.256347ms)
+✔ CASE_B2_TRUNCATE_FLAG: more than 50 reports sets explicit truncated/has_more and cursor (1.327964ms)
+✔ CASE_B2_TRUNCATE_FLAG: <=50 reports is not truncated (0.394606ms)
+✔ CASE_B2_PAGE_READ: keyset before-cursor returns the next older page (1.126841ms)
+✔ CASE_B2_PAGE_READ: report_id targeted re-read returns that bounded pointer only (0.842932ms)
+✔ CASE_B2_NON_PARTICIPANT_DENY: status refuses stranger; participant still allowed (0.608318ms)
+✔ CASE_B2 strong mutation: dropping truncated flag must fail positive assert (9.039613ms)
+✔ CASE_B3_ABORT_BEFORE_DISPATCH: aborted signal before intent skips dispatch entirely (6.050171ms)
+✔ CASE_B3_ABORT_BEFORE_DISPATCH: runUntilStopped abort mid-prepare does not dispatch (1.188974ms)
+✔ CASE_B3_ABORT_IN_FLIGHT: abort after intent still cleans up without claiming remote stop (2.903742ms)
+✔ CASE_B3_ABORT_DURING_CLEANUP: fail/report ignore external abort; timeout is visible (202.888833ms)
+✔ CASE_B3_ABORT_DURING_CLEANUP: fail completes under abort signal (signal not forwarded) (1.27904ms)
+✔ CASE_B3_STOP_NOT_REMOTE: every abort outcome keeps remote_stop_confirmed false (0.323778ms)
+✔ CASE_B3 strong mutation: stripping pre-dispatch abort check must fail positive assert (2.647145ms)
+✔ GPT2-P35-IDENTITY-001 rejects malformed attempt UUID before intent (4.060378ms)
+✔ GPT2-P35-IDENTITY-002 rejects malformed SHA-256 digest before intent (0.576891ms)
+ℹ tests 99
+ℹ suites 0
+ℹ pass 98
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 975.924927
+
+✖ failing tests:
+
+test at tests/mainbrain-revocation-candidate.test.cjs:411:1
+✖ GPT2-P46-READBACK-001 status outage cannot be mistaken for committed ACK (0.76205ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'fail',
+  +   'report'
+    ]
+  
+      at TestContext.<anonymous> (/workspace/scratch/22d536545ecf/takeover/integrated/tests/mainbrain-revocation-candidate.test.cjs:414:80)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'fail', 'report' ],
+    expected: [ 'fail' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
