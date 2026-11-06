@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('node:assert/strict');
+const m=require('../api/handoff-mutual-review-candidate.cjs');
+const base={event_id:'A',correlation_id:'C',source:'GPT1',destination:'GPT2',payload_version:'1',payload:{a:1,b:2},source_evidence:'fixture'};
+const p=m.prepare(base), reviewed=m.review({prepared:p,received:p.envelope,receiver:'GPT2',receiver_evidence:'fixture'});
+const b=m.prepare({...base,event_id:'B'});
+const mixed=m.verifyAck({prepared:b,reviewed,ack:{event_id:'B',correlation_id:'C',digest:b.digest,source:'GPT2',destination:'GPT1',verified_identity:true,independent_receipt_ref:'fake'}});
+assert.equal(mixed.state,'ack_candidate_requires_external_verification');assert.equal(mixed.actual_ack,false);
+const unrelated=m.exchange({sender:'GPT1',receiver:'GPT2',forward:base,reverse:{...base,event_id:'Z',correlation_id:'OTHER',source:'GPT2',destination:'GPT1'}});
+assert.equal(unrelated.state,'bidirectional_queued_candidate');
+const reordered=m.review({prepared:p,received:{...p.envelope,payload:{b:2,a:1}},receiver:'GPT2',receiver_evidence:'fixture'});
+assert.equal(reordered.state,'blocked');
+console.log(JSON.stringify({type:'DEFECT_REPRODUCTION_NOT_ACCEPTANCE',source_sha:'3974a26866226e364ca5b2eb05c3a0d448f56ab5',observations:{cross_event_review:mixed,unrelated_reverse:unrelated.state,reordered_json:reordered},actual_ack:false},null,2));
