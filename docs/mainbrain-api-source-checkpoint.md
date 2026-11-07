@@ -28,3 +28,9 @@ Never treat this file as consent to merge `main`, deploy, process private vaults
 ## Safe rollback
 
 Remove the three cache steps in `.github/workflows/mainbrain-api-candidate.yml` and the new checkpoint helper/test. Original read-only CLI source checks continue working; no production database migration is required.
+
+## Cross-run verification evidence (2026-11-07)
+
+- [Run #42344210335](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/42344210335): live baseline generated; scoped cache entry saved.
+- [Run #42344273286](https://github.com/keqingwu5-cloud/ai-boundary/actions/runs/42344273286): restored that exact cursor, returned `RESTORED_VALID / NO_UPDATE / checkpoint_written=false`.
+- This document update triggers another PR CI run after the existing #41 evidence update, to check `CONTENT_CHANGED` in a genuine third run. Its result must be read from GitHub logs; no result is presumed here.
