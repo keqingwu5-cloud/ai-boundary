@@ -63,3 +63,11 @@ test('healthy no-update and failing read are different even with old digest',()=
   const original=e(good());const r=e({complete:false,read:[],records:[],errors:[{stage:'read',error:'HTTP 403'}],unresolved:[]},{previousDigest:original.source_digest});
   assert.equal(r.state,'MONITOR_UNHEALTHY');assert.equal(r.complete,false);assert.equal(r.errors,1);
 });
+
+test('healthy empty search means no matching work, not monitoring failure',()=>{
+  const empty={complete:true,read:[],records:[],errors:[],unresolved:[]};
+  const base=e(empty);assert.equal(base.complete,true);assert.equal(base.state,'BASELINE');
+  assert.match(base.one_line,/沒有符合的任務/);
+  assert.equal(e(empty,{previousDigest:base.source_digest}).state,'NO_UPDATE');
+  assert.equal(e(empty,{previousDigest:e(good()).source_digest}).state,'CONTENT_CHANGED');
+});
