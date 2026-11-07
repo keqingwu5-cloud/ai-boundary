@@ -45,9 +45,16 @@
    if(originId){
      const prior=state.candidates.find(x=>x&&x.originId===originId);
      if(prior){
-       if(same(prior.question,candidate.question)&&same(prior.content,candidate.content))
+       if(same(prior.question,candidate.question)&&same(prior.content,candidate.content)){
          warnings.push("EXACT_ORIGIN_DUPLICATE");
-       else blocks.push("SOURCE_ID_CONTENT_CONFLICT");
+         // A task/command ID can legitimately cover multiple source events.
+         // Keep the candidate reviewable, but never hide a changed source claim.
+         if(prior.evidence!==candidate.evidence||
+            prior.purpose!==candidate.purpose||
+            prior.eventType!==candidate.eventType||
+            prior.evidenceLevel!==candidate.evidenceLevel)
+           warnings.push("SOURCE_VARIANT_NEEDS_PROVENANCE_LINK");
+       }else blocks.push("SOURCE_ID_CONTENT_CONFLICT");
        affectedCandidates.push(prior.id);
      }
    } else warnings.push("SOURCE_ID_UNVERIFIED");
@@ -101,11 +108,33 @@
    if(older)warnings.push("OLDER_REVISION");
    if(controlRollback.length)warnings.push("CONTROL_VERSION_ROLLBACK");
    if(Object.values(counts).some(x=>x>0))warnings.push("HISTORY_REMOVAL");
+   // Presence of a stable ID does not prove the original evidence is unchanged.
+   // Sort object keys to avoid false differences caused only by serialization order.
+   function ordered(x){
+     if(Array.isArray(x))return x.map(ordered);
+     if(x&&typeof x==="object")
+       return Object.fromEntries(Object.keys(x).sort().map(k=>[k,ordered(x[k])]));
+     return x;
+   }
+   const stable=x=>JSON.stringify(ordered(x));
+   const changedCount=key=>{
+     const byId=new Map(incoming[key].filter(x=>x&&typeof x.id==="string").map(x=>[x.id,x]));
+     return current[key].filter(x=>x&&typeof x.id==="string"&&byId.has(x.id)&&
+       stable(x)!==stable(byId.get(x.id))).length;
+   };
+   const changedRecords={candidates:changedCount("candidates"),audit:changedCount("audit")};
+   if(changedRecords.candidates)warnings.push("SAME_ID_CANDIDATE_CONTENT_CHANGED");
+   if(changedRecords.audit)warnings.push("SAME_ID_AUDIT_CONTENT_CHANGED");
+   const a=current.memoryControls,b=incoming.memoryControls;
+   const sameControlVersions=!!(a&&b&&["direction","threshold"].every(k=>
+     (a[k]?.version??0)===(b[k]?.version??0)));
+   const sameVersionControlDivergence=sameControlVersions&&stable(a)!==stable(b);
+   if(sameVersionControlDivergence)warnings.push("SAME_VERSION_CONTROL_CONTENT_CHANGED");
    return {schema:"ai-boundary.memory-restore-preview.v1",operation:"restore",
      requiresHumanApproval:true,willMerge:false,
      currentVaultId:current.vaultId||null,incomingVaultId:incoming.vaultId||null,
      currentRevision:current.revision??null,incomingRevision:incoming.revision??null,
-     controlsRollingBack:controlRollback,counts,warnings};
+     controlsRollingBack:controlRollback,counts,changedRecords,sameVersionControlDivergence,warnings};
  }
  return {preview,previewRestore};
 });
