@@ -6,6 +6,7 @@ on:
       - 'tests/mainbrain-*.test.cjs'
       - 'tests/handoff-contract.test.cjs'
       - 'tests/handoff-*.test.cjs'
+      - 'tests/task-locator-*.test.cjs'
       - 'tests/launcher-memory.test.cjs'
       - 'tests/memory-workflow-core.test.cjs'
       - 'docs/mainbrain-api-*.md'
@@ -13,6 +14,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
 jobs:
   candidate:
     runs-on: ubuntu-latest
@@ -27,4 +29,9 @@ jobs:
       - name: Existing handoff and launcher regression tests
         run: node --test tests/handoff-contract.test.cjs tests/launcher-memory.test.cjs tests/memory-workflow-core.test.cjs
       - name: Bidirectional and multimodal handoff self-review regressions
-        run: node --test tests/handoff-mutual-review-candidate.test.cjs tests/handoff-multimodal-contract-candidate.test.cjs tests/task-locator-candidate.test.cjs
+        run: node --test tests/handoff-mutual-review-candidate.test.cjs tests/handoff-multimodal-contract-candidate.test.cjs tests/task-locator-candidate.test.cjs tests/task-locator-github-adapter.test.cjs
+      - name: Read public GitHub Issue 41 through actual REST source (no external agent ACK)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: keqingwu5-cloud/ai-boundary
+        run: node api/task-locator-github-adapter.cjs 41
