@@ -542,7 +542,7 @@ test("G2 isolation negative test: private bundle CSP blocks attempted outbound p
 });
 
 
-test("P0 RED: workflow write rejection restores both in-memory state and rendered workflow list", {timeout:90000},async()=>{
+test("P0: workflow write rejection restores both in-memory state and rendered workflow list", {timeout:90000},async()=>{
  const {server}=startServer();
  await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
  let browser;
@@ -588,7 +588,7 @@ test("P0 RED: workflow write rejection restores both in-memory state and rendere
  }
 });
 
-test("P0 RED: UI failure after durable workflow write cannot roll back in-memory state or report unsaved", {timeout:90000},async()=>{
+test("P0: UI failure after durable workflow write cannot roll back in-memory state or report unsaved", {timeout:90000},async()=>{
  const {server}=startServer();
  await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
  let browser;
@@ -635,6 +635,50 @@ test("P0 RED: UI failure after durable workflow write cannot roll back in-memory
   await page.locator('[data-tab="review"]').click();
   assert.match(await page.locator("#workflowList").innerText(),/P0-SYNTHETIC-COMMITTED-2/);
   assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),afterCipher);
+  await context.close();
+ }finally{
+  if(browser)await browser.close();
+  await new Promise(resolve=>server.close(resolve));
+ }
+});
+
+
+test("P0: failed candidate persistence retains the unsaved form and does not navigate as if accepted", {timeout:90000},async()=>{
+ const {server}=startServer();
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+  browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+  const context=await browser.newContext();
+  const page=await context.newPage();
+  page.on("dialog",d=>d.accept());
+  await page.goto("http://127.0.0.1:"+server.address().port+"/memory.html");
+  await page.locator("#passphrase").fill(PASS);
+  await page.locator("#confirmPassphrase").fill(PASS);
+  await page.locator("#unlockButton").click();
+  await unlocked(page);
+  await page.locator('[data-tab="propose"]').click();
+  const beforeCipher=await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+  await page.locator("#eventType").selectOption("new_question");
+  await page.locator("#originSourceId").fill("P0-CANDIDATE-1");
+  await page.locator("#question").fill("P0 question preserved on rejected write");
+  await page.locator("#purpose").fill("Synthetic P0 evidence retention");
+  await page.locator("#content").fill("P0 answer unsaved");
+  await page.locator("#reason").fill("Test prevents premature UI success");
+  await page.locator("#previewMemoryImpact").click();
+  await page.evaluate(()=>{
+   const original=Storage.prototype.setItem;
+   Storage.prototype.setItem=function(k,value){
+    if(k==="aiBoundary.privateMemory.v1")throw new DOMException("P0 rejected write","QuotaExceededError");
+    return original.call(this,k,value);
+   };
+  });
+  await page.locator('#candidateForm button[type="submit"]').click();
+  await page.waitForFunction(()=>document.getElementById("feedback").textContent.includes("操作未儲存"));
+  assert.equal(await page.locator("#question").inputValue(),"P0 question preserved on rejected write");
+  assert.equal(await page.locator('[data-tab="propose"]').getAttribute("aria-selected"),"true");
+  assert.equal(await page.locator("#countPending").innerText(),"0");
+  assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),beforeCipher);
   await context.close();
  }finally{
   if(browser)await browser.close();
