@@ -39,3 +39,36 @@ function prepareSourceHandoff({snapshot,repository,issue,sourceEndpointId,destin
   });
 }
 module.exports={prepareSourceHandoff};
+
+
+// Read-only public source preflight: prints no source body and dispatches NOTHING.
+if(require.main===module){
+  const {createGitHubReader,discoverGitHub}=require('./task-locator-github-adapter.cjs');
+  const repository=process.env.GITHUB_REPOSITORY||'keqingwu5-cloud/ai-boundary';
+  const issue=Number(process.env.BRIDGE_SOURCE_ISSUE||'41');
+  const reader=createGitHubReader({repository});
+  discoverGitHub({reader,seeds:[issue],followLinks:false,maxNodes:1}).then(snapshot=>{
+    const proposal=prepareSourceHandoff({
+      snapshot,repository,issue,
+      sourceEndpointId:'synthetic-source-reader',
+      destinationEndpointId:'synthetic-review-worker',
+      taskId:'synthetic-public-source-review',
+      eventId:'synthetic-public-source-event',
+      payloadVersion:'v1'
+    });
+    console.log(JSON.stringify({
+      state:proposal.state,
+      source_status:proposal.source_status,
+      source_digest:proposal.send_body.payload.source_digest,
+      record_count:proposal.send_body.payload.record_count,
+      idempotency_key:proposal.send_body.idempotency_key,
+      content_included:proposal.send_body.payload.content_included,
+      dispatch_permitted:proposal.dispatch_permitted,
+      explicit_human_grant_present:proposal.explicit_human_grant_present,
+      actual_remote_ack:proposal.actual_remote_ack
+    },null,2));
+  }).catch(e=>{
+    console.error('source_to_task_preflight_failed:'+String(e.message||e));
+    process.exitCode=2;
+  });
+}
