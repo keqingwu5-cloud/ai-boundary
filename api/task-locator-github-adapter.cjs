@@ -81,7 +81,11 @@ async function discoverGitHub({reader,seeds=[],query,maxNodes=20,followLinks=fal
       for(const item of found.items){if(!item||!validInt(item.number))throw Error('invalid_search_item');pending.push(item.number);}
     }catch(e){errors.push({stage:'search',error:String(e.message||e)});}
   }
-  if(!pending.length&&!errors.length)throw Error('seeds_or_query_required');
+  if(!pending.length&&!errors.length){
+    if(!query)throw Error('seeds_or_query_required');
+    // A complete search with zero matches is a normal, healthy empty result.
+    return {records:[],visited:[],read:[],unresolved:[],errors:[],complete:true,scope:'seeds_and_search_only'};
+  }
   if(!pending.length)return {records:[],visited:[],read:[],unresolved:[],errors,complete:false,scope:'seeds_and_search_only'};
   while(pending.length&&attempted.size<maxNodes){
     const n=pending.shift();
