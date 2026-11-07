@@ -112,12 +112,20 @@ module.exports={createGitHubReader,discoverGitHub,locate};
 // Example: node api/task-locator-github-adapter.cjs 41
 if(require.main===module){
   const repository=process.env.GITHUB_REPOSITORY||'keqingwu5-cloud/ai-boundary';
-  const seeds=String(process.argv[2]||'41').split(',').map(Number);
-  if(seeds.some(n=>!validInt(n)))throw Error('invalid_cli_seeds');
+  const input=String(process.argv[2]||'41');
+  const searching=input.startsWith('--query=');
+  const query=searching?input.slice('--query='.length).trim():null;
+  const seeds=searching?[]:input.split(',').map(Number);
+  const expectedArg=process.argv[3];
+  const expectedNumber=expectedArg?.startsWith('--expect=')?Number(expectedArg.slice('--expect='.length)):null;
+  if(!searching&&seeds.some(n=>!validInt(n)))throw Error('invalid_cli_seeds');
+  if(searching&&!query)throw Error('query_required');
+  if(expectedArg&&(!validInt(expectedNumber)))throw Error('invalid_cli_expect');
   const reader=createGitHubReader({repository});
-  discoverGitHub({reader,seeds,followLinks:false,maxNodes:Math.min(20,seeds.length)}).then(r=>{
-    // Deliberately exclude body text, full payloads, token, user IDs and secrets.
-    console.log(JSON.stringify({scope:r.scope,complete:r.complete,read:r.read,records:r.records.length,unresolved:r.unresolved,errors:r.errors,remote_agent_ack:'NOT_VERIFIED'},null,2));
-    if(!r.complete)process.exitCode=2;
+  discoverGitHub({reader,seeds,query,followLinks:false,maxNodes:Math.max(1,Math.min(20,searching?10:seeds.length))}).then(r=>{
+    // Never print body text, token, account identities or private task prompts.
+    const expectedFound=expectedNumber===null?null:r.read.includes(expectedNumber);
+    console.log(JSON.stringify({scope:r.scope,complete:r.complete,read:r.read,records:r.records.length,unresolved:r.unresolved,errors:r.errors,expected_issue_found:expectedFound,remote_agent_ack:'NOT_VERIFIED'},null,2));
+    if(!r.complete||expectedFound===false)process.exitCode=2;
   }).catch(e=>{console.error(`read_only_bridge_failed:${String(e.message||e)}`);process.exitCode=2;});
 }
