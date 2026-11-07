@@ -43,11 +43,20 @@
    const originId=candidate.originId;
    if(originId!==undefined&&(!str(originId)||!originId.trim()))blocks.push("INVALID_ORIGIN_ID");
    if(originId){
-     const prior=state.candidates.find(x=>x&&x.originId===originId);
-     if(prior){
-       if(same(prior.question,candidate.question)&&same(prior.content,candidate.content))
+     // Compare every same-origin record. Using only the first match lets
+     // collection order hide a content conflict behind an exact duplicate.
+     const priors=state.candidates.filter(x=>x&&x.originId===originId);
+     for(const prior of priors){
+       if(same(prior.question,candidate.question)&&same(prior.content,candidate.content)){
          warnings.push("EXACT_ORIGIN_DUPLICATE");
-       else blocks.push("SOURCE_ID_CONTENT_CONFLICT");
+         // A task/command ID can legitimately cover multiple source events.
+         // Keep the candidate reviewable, but never hide a changed source claim.
+         if(prior.evidence!==candidate.evidence||
+            prior.purpose!==candidate.purpose||
+            prior.eventType!==candidate.eventType||
+            prior.evidenceLevel!==candidate.evidenceLevel)
+           warnings.push("SOURCE_VARIANT_NEEDS_PROVENANCE_LINK");
+       }else blocks.push("SOURCE_ID_CONTENT_CONFLICT");
        affectedCandidates.push(prior.id);
      }
    } else warnings.push("SOURCE_ID_UNVERIFIED");
@@ -74,6 +83,14 @@
  function previewRestore(current,incoming){
    if(!current||!incoming||!["memories","candidates","audit"].every(k=>
      Array.isArray(current[k])&&Array.isArray(incoming[k])))throw Error("restore_impact_input_invalid");
+   // Sort object keys so serialization order is not treated as a content change.
+   function ordered(x){
+     if(Array.isArray(x))return x.map(ordered);
+     if(x&&typeof x==="object")
+       return Object.fromEntries(Object.keys(x).sort().map(k=>[k,ordered(x[k])]));
+     return x;
+   }
+   const stable=x=>JSON.stringify(ordered(x));
    const ids=(list)=>new Set(list.map(x=>x&&x.id).filter(x=>typeof x==="string"));
    const delta=(key)=>{
      const keep=ids(incoming[key]);
@@ -85,8 +102,8 @@
      if(!m||!Array.isArray(m.versions))continue;
      const newer=map.get(m.id);
      if(!newer||!Array.isArray(newer.versions)){lostVersions+=m.versions.length;continue;}
-     const recognized=new Set(newer.versions.map(x=>JSON.stringify(x)));
-     lostVersions+=m.versions.filter(x=>!recognized.has(JSON.stringify(x))).length;
+     const recognized=new Set(newer.versions.map(x=>stable(x)));
+     lostVersions+=m.versions.filter(x=>!recognized.has(stable(x))).length;
    }
    const differentVault=!!(current.vaultId&&incoming.vaultId&&current.vaultId!==incoming.vaultId);
    const older=Number.isSafeInteger(current.revision)&&Number.isSafeInteger(incoming.revision)&&incoming.revision<current.revision;
@@ -101,11 +118,25 @@
    if(older)warnings.push("OLDER_REVISION");
    if(controlRollback.length)warnings.push("CONTROL_VERSION_ROLLBACK");
    if(Object.values(counts).some(x=>x>0))warnings.push("HISTORY_REMOVAL");
+   // Presence of a stable ID does not prove the original evidence is unchanged.
+   const changedCount=key=>{
+     const byId=new Map(incoming[key].filter(x=>x&&typeof x.id==="string").map(x=>[x.id,x]));
+     return current[key].filter(x=>x&&typeof x.id==="string"&&byId.has(x.id)&&
+       stable(x)!==stable(byId.get(x.id))).length;
+   };
+   const changedRecords={candidates:changedCount("candidates"),audit:changedCount("audit")};
+   if(changedRecords.candidates)warnings.push("SAME_ID_CANDIDATE_CONTENT_CHANGED");
+   if(changedRecords.audit)warnings.push("SAME_ID_AUDIT_CONTENT_CHANGED");
+   const a=current.memoryControls,b=incoming.memoryControls;
+   const sameControlVersions=!!(a&&b&&["direction","threshold"].every(k=>
+     (a[k]?.version??0)===(b[k]?.version??0)));
+   const sameVersionControlDivergence=sameControlVersions&&stable(a)!==stable(b);
+   if(sameVersionControlDivergence)warnings.push("SAME_VERSION_CONTROL_CONTENT_CHANGED");
    return {schema:"ai-boundary.memory-restore-preview.v1",operation:"restore",
      requiresHumanApproval:true,willMerge:false,
      currentVaultId:current.vaultId||null,incomingVaultId:incoming.vaultId||null,
      currentRevision:current.revision??null,incomingRevision:incoming.revision??null,
-     controlsRollingBack:controlRollback,counts,warnings};
+     controlsRollingBack:controlRollback,counts,changedRecords,sameVersionControlDivergence,warnings};
  }
  return {preview,previewRestore};
 });

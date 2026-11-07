@@ -115,3 +115,6 @@ test("encryption failure releases lock and rolls back revision without overwriti
  const second=first.persistCandidate();
  await assert.rejects(second,/SYNTHETIC_ENCRYPTION_FAILURE/);
 });
+
+// P0 queueChange failure-path tests run within the existing CI Node file list.
+require("./memory-p0-commit-boundary.test.cjs");

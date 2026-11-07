@@ -540,3 +540,216 @@ test("G2 isolation negative test: private bundle CSP blocks attempted outbound p
   fs.rmSync(tmp,{recursive:true,force:true});
  }
 });
+
+
+test("P0: workflow write rejection restores both in-memory state and rendered workflow list", {timeout:90000},async()=>{
+ const {server}=startServer();
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+  browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+  const context=await browser.newContext();
+  const page=await context.newPage();
+  page.on("dialog",d=>d.accept());
+  await page.goto("http://127.0.0.1:"+server.address().port+"/memory.html");
+  await page.locator("#passphrase").fill(PASS);
+  await page.locator("#confirmPassphrase").fill(PASS);
+  await page.locator("#unlockButton").click();
+  await unlocked(page);
+  await page.locator('[data-tab="review"]').click();
+  const beforeCipher=await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+  const beforeList=await page.locator("#workflowList").innerText();
+  await page.locator("#workflowId").fill("P0-SYNTHETIC-REJECTED-1");
+  await page.locator("#workflowTitle").fill("P0 ghost workflow should be absent");
+  await page.locator("#workflowReason").fill("Synthetic quota rejection");
+  await page.locator("#workflowNext").fill("Keep original committed state");
+  await page.evaluate(()=>{
+   const original=Storage.prototype.setItem;
+   Storage.prototype.setItem=function(k,value){
+    if(k==="aiBoundary.privateMemory.v1")throw new DOMException("P0 synthetic quota","QuotaExceededError");
+    return original.call(this,k,value);
+   };
+  });
+  await page.locator("#workflowSave").click();
+  await page.waitForFunction(()=>document.getElementById("feedback").textContent.includes("操作未儲存"));
+  assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),beforeCipher);
+  assert.equal(await page.locator("#workflowList").innerText(),beforeList,
+    "failed commit must not leave a phantom entry in the visible workflow list");
+  await page.reload();
+  await page.locator("#passphrase").fill(PASS);
+  await page.locator("#unlockButton").click();
+  await unlocked(page);
+  await page.locator('[data-tab="review"]').click();
+  assert.equal(await page.locator("#workflowList").innerText(),beforeList);
+  await context.close();
+ }finally{
+  if(browser)await browser.close();
+  await new Promise(resolve=>server.close(resolve));
+ }
+});
+
+test("P0: UI failure after durable workflow write cannot roll back in-memory state or report unsaved", {timeout:90000},async()=>{
+ const {server}=startServer();
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+  browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+  const context=await browser.newContext();
+  const page=await context.newPage();
+  page.on("dialog",d=>d.accept());
+  await page.goto("http://127.0.0.1:"+server.address().port+"/memory.html");
+  await page.locator("#passphrase").fill(PASS);
+  await page.locator("#confirmPassphrase").fill(PASS);
+  await page.locator("#unlockButton").click();
+  await unlocked(page);
+  await page.locator('[data-tab="review"]').click();
+  const beforeCipher=await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+  // Trigger during renderAll's controls rendering. This occurs AFTER persist(),
+  // never during the legacy workflowRender() invoked before commit.
+  await page.evaluate(()=>{
+   const el=document.getElementById("memoryControlHistory");
+   const original=el.replaceChildren;
+   let once=true;
+   el.replaceChildren=function(...args){
+    if(once){once=false;throw Error("SYNTHETIC_UI_FAILURE_AFTER_COMMIT");}
+    return original.apply(this,args);
+   };
+  });
+  await page.locator("#workflowId").fill("P0-SYNTHETIC-COMMITTED-2");
+  await page.locator("#workflowTitle").fill("P0 committed despite UI failure");
+  await page.locator("#workflowReason").fill("Synthetic postcommit UI error");
+  await page.locator("#workflowNext").fill("Reopen and read back");
+  await page.locator("#workflowSave").click();
+  await page.waitForFunction(()=>document.getElementById("feedback").textContent.includes("畫面更新失敗")||
+    document.getElementById("feedback").textContent.includes("操作未儲存"));
+  const afterCipher=await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+  assert.notEqual(afterCipher,beforeCipher,"synthetic commit should be durable before display error");
+  assert.equal(await page.locator("#lockedState").isVisible(),true,
+    "a post-commit UI fault must fail closed rather than allow an older mutable state");
+  assert.match(await page.locator("#feedback").innerText(),/已加密保存.*畫面更新失敗/,
+    "durable write must never be reported as an unsaved operation");
+  await page.reload();
+  await page.locator("#passphrase").fill(PASS);
+  await page.locator("#unlockButton").click();
+  await unlocked(page);
+  await page.locator('[data-tab="review"]').click();
+  assert.match(await page.locator("#workflowList").innerText(),/P0-SYNTHETIC-COMMITTED-2/);
+  assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),afterCipher);
+  await context.close();
+ }finally{
+  if(browser)await browser.close();
+  await new Promise(resolve=>server.close(resolve));
+ }
+});
+
+
+test("P0: failed candidate persistence retains the unsaved form and does not navigate as if accepted", {timeout:90000},async()=>{
+ const {server}=startServer();
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+  browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+  const context=await browser.newContext();
+  const page=await context.newPage();
+  page.on("dialog",d=>d.accept());
+  await page.goto("http://127.0.0.1:"+server.address().port+"/memory.html");
+  await page.locator("#passphrase").fill(PASS);
+  await page.locator("#confirmPassphrase").fill(PASS);
+  await page.locator("#unlockButton").click();
+  await unlocked(page);
+  await page.locator('[data-tab="propose"]').click();
+  const beforeCipher=await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+  await page.locator("#eventType").selectOption("new_question");
+  await page.locator("#originSourceId").fill("P0-CANDIDATE-1");
+  await page.locator("#question").fill("P0 question preserved on rejected write");
+  await page.locator("#purpose").fill("Synthetic P0 evidence retention");
+  await page.locator("#content").fill("P0 answer unsaved");
+  await page.locator("#reason").fill("Test prevents premature UI success");
+  await page.locator("#previewMemoryImpact").click();
+  await page.evaluate(()=>{
+   const original=Storage.prototype.setItem;
+   Storage.prototype.setItem=function(k,value){
+    if(k==="aiBoundary.privateMemory.v1")throw new DOMException("P0 rejected write","QuotaExceededError");
+    return original.call(this,k,value);
+   };
+  });
+  await page.locator('#candidateForm button[type="submit"]').click();
+  await page.waitForFunction(()=>document.getElementById("feedback").textContent.includes("操作未儲存"));
+  assert.equal(await page.locator("#question").inputValue(),"P0 question preserved on rejected write");
+  assert.equal(await page.locator('[data-tab="propose"]').getAttribute("aria-selected"),"true");
+  assert.equal(await page.locator("#countPending").innerText(),"0");
+  assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),beforeCipher);
+  await context.close();
+ }finally{
+  if(browser)await browser.close();
+  await new Promise(resolve=>server.close(resolve));
+ }
+});
+
+test("G1 UI provenance warning and same-ID restore preview use synthetic AES without overwriting vault", {timeout:120000},async()=>{
+ const {server}=startServer();
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+  browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+  const context=await browser.newContext({acceptDownloads:true});
+  const page=await context.newPage();
+  await page.goto("http://127.0.0.1:"+server.address().port+"/memory.html");
+  await page.locator("#passphrase").fill(PASS);
+  await page.locator("#confirmPassphrase").fill(PASS);
+  await page.locator("#unlockButton").click();
+  await unlocked(page);
+
+  // Persist only one original candidate, without any automatic approval.
+  await submit(page,"G1 synthetic topic","G1 synthetic answer","G1-TASK-1");
+  await pending(page,1);
+  assert.equal(await page.locator("#countMemories").innerText(),"0");
+  const stored=await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+  const incoming=await decryptedSyntheticEnvelope(stored);
+  incoming.candidates[0].evidence="G1-ALTERED-EVIDENCE";
+  const encryptedModified=await syntheticEnvelope(incoming);
+
+  // A legitimate second event may share task ID, but must not hide source differences.
+  await page.locator('[data-tab="propose"]').click();
+  await page.locator("#eventType").selectOption("pitfall");
+  await page.locator("#originSourceId").fill("G1-TASK-1");
+  await page.locator("#directionRelation").selectOption("aligned");
+  await page.locator("#question").fill("G1 synthetic topic");
+  await page.locator("#purpose").fill("合成資料用例：不可將候選自動轉權威");
+  await page.locator("#content").fill("G1 synthetic answer");
+  await page.locator("#evidence").fill("G1-ALTERED-EVIDENCE");
+  await page.locator("#reason").fill("G1 second synthetic source event");
+  await page.locator("#previewMemoryImpact").click();
+  const preview=await page.locator("#memoryImpactPreview").innerText();
+  assert.match(preview,/SOURCE_VARIANT_NEEDS_PROVENANCE_LINK/);
+  assert.equal(await page.locator("#countPending").innerText(),"1");
+  assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),stored);
+
+  // Backup current ciphertext, then attempt a validly encrypted same-ID mutation.
+  // Dismiss the restore confirmation: the preview must reveal the mutation first.
+  await downloadJSON(page);
+  let resolveConfirmation;
+  const confirmed=new Promise(resolve=>{resolveConfirmation=resolve;});
+  page.on("dialog",async dialog=>{
+    if(dialog.type()==="prompt"){await dialog.accept(PASS);return;}
+    if(dialog.message().includes("覆蓋前預演")){
+      resolveConfirmation(dialog.message());
+      await dialog.dismiss();
+      return;
+    }
+    await dialog.accept();
+  });
+  await page.locator("#backupInput").setInputFiles({
+    name:"g1-mutated-but-authentic.json",mimeType:"application/json",
+    buffer:Buffer.from(encryptedModified)
+  });
+  const confirmText=await confirmed;
+  assert.match(confirmText,/SAME_ID_CANDIDATE_CONTENT_CHANGED/);
+  assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),stored,
+    "read-only restore preview must not overwrite authenticated ciphertext");
+  await context.close();
+ }finally{
+  if(browser)await browser.close();
+  await new Promise(resolve=>server.close(resolve));
+ }
+});
