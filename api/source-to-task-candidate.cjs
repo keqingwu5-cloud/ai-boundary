@@ -17,7 +17,7 @@ function prepareSourceHandoff({snapshot,repository,issue,sourceEndpointId,destin
   const officialUrl='https://github.com/'+repository+'/issues/'+issue;
   if(!issueRecord||issueRecord.url!==officialUrl)throw Error('source_provenance_not_verified');
   if(snapshot.records.some(x=>x.issue!==issue))throw Error('unexpected_cross_issue_scope');
-  if(snapshot.records.some(x=>x.kind==='comment'&&!x.url.startsWith(officialUrl+'#issuecomment-')))throw Error('comment_provenance_not_verified');
+  if(snapshot.records.some(x=>x.kind==='comment'&&(!Number.isSafeInteger(x.id)||x.id<1||x.url!==officialUrl+'#issuecomment-'+x.id)))throw Error('comment_provenance_not_verified');
   const payload=Object.freeze({
     kind:'SOURCE_REVIEW_METADATA_ONLY',
     repository,issue,source_url:officialUrl,

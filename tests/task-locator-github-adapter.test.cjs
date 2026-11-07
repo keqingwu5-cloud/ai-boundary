@@ -4,7 +4,7 @@ const {test}=require('node:test');
 const {createGitHubReader,discoverGitHub,locate}=require('../api/task-locator-github-adapter.cjs');
 const {discover}=require('../api/task-locator-candidate.cjs');
 function response(data,{status=200,link=''}={}){return {ok:status>=200&&status<300,status,headers:{get:key=>key==='link'?link:null},json:async()=>data};}
-function fixture({missingCommentBody=false,missingIssueBody=false,searchItems,searchIncomplete=false,revisions=false,commentNext=false,issueComments=1}={}){
+function fixture({missingCommentBody=false,missingIssueBody=false,searchItems,searchIncomplete=false,omitIncompleteResults=false,searchPages=null,pageSize=100,revisions=false,commentNext=false,issueComments=1}={}){
   let fetch41=0;
   const fetchImpl=async (url,req)=>{
     assert.equal(req.method,'GET');
@@ -21,10 +21,23 @@ function fixture({missingCommentBody=false,missingIssueBody=false,searchItems,se
       return response(v);
     }
     if(url.endsWith('/issues/33'))return response({number:33,html_url:'https://github.com/owner/repo/issues/33',body:'ACK blocked',comments:0,updated_at:'v1'});
-    if(url.startsWith('https://api.github.com/search/issues?'))return response({total_count:(searchItems||[{number:41,html_url:'https://github.com/owner/repo/issues/41'}]).length,incomplete_results:searchIncomplete,items:searchItems||[{number:41,html_url:'https://github.com/owner/repo/issues/41'}]});
+    if(url.startsWith('https://api.github.com/search/issues?')){
+      if(searchPages){
+        const page=Number(new URL(url).searchParams.get('page')||'1');
+        const entry=searchPages[page-1];
+        if(!entry)throw Error(`unexpected_search_page:${page}`);
+        const payload={total_count:entry.total_count,items:entry.items};
+        if(entry.omitIncompleteResults!==true)payload.incomplete_results=entry.incomplete_results??false;
+        return response(payload,{link:entry.next?'<https://api.github.com/search/issues?page=next>; rel="next"':''});
+      }
+      const items=searchItems||[{number:41,html_url:'https://github.com/owner/repo/issues/41'}];
+      const payload={total_count:items.length,items};
+      if(!omitIncompleteResults)payload.incomplete_results=searchIncomplete;
+      return response(payload);
+    }
     throw Error(`unexpected_route:${url}`);
   };
-  return createGitHubReader({repository:'owner/repo',fetchImpl,maxPages:2});
+  return createGitHubReader({repository:'owner/repo',fetchImpl,maxPages:2,pageSize});
 }
 test('real REST adapter + prefetch produces verified source records without ACK claim',async()=>{
   const r=await discoverGitHub({reader:fixture(),seeds:[41],followLinks:false});
@@ -92,4 +105,49 @@ test('empty GitHub issue search is a complete no-work result',async()=>{
   const r=await discoverGitHub({reader:fixture({searchItems:[]}),query:'in:title "nothing matches"',followLinks:false});
   assert.equal(r.complete,true);assert.deepEqual(r.records,[]);
   assert.deepEqual(r.read,[]);assert.deepEqual(r.errors,[]);
+});
+
+test('duplicate search hits across pages fail closed and do not claim a complete source',async()=>{
+  const r=await discoverGitHub({reader:fixture({pageSize:1,searchPages:[
+    {total_count:2,items:[{number:41,html_url:'https://github.com/owner/repo/issues/41'}],next:true},
+    {total_count:2,items:[{number:41,html_url:'https://github.com/owner/repo/issues/41'}]}
+  ]}),query:'P0-6',followLinks:false});
+  assert.equal(r.complete,false);assert.deepEqual(r.read,[]);
+  assert.ok(r.errors.some(e=>e.error==='duplicate_search_item'));
+});
+
+test('two distinct search pages remain a complete read',async()=>{
+  const r=await discoverGitHub({reader:fixture({pageSize:1,searchPages:[
+    {total_count:2,items:[{number:41,html_url:'https://github.com/owner/repo/issues/41'}],next:true},
+    {total_count:2,items:[{number:33,html_url:'https://github.com/owner/repo/issues/33'}]}
+  ]}),query:'P0-6',followLinks:false,maxNodes:3});
+  assert.equal(r.complete,true);assert.deepEqual(r.read,[41,33]);
+});
+
+test('foreign-repo search hit is not read as the local same-numbered issue',async()=>{
+  const r=await discoverGitHub({reader:fixture({searchItems:[{number:41,html_url:'https://github.com/other/repo/issues/41'}]}),query:'P0-6',followLinks:false});
+  assert.equal(r.complete,false);assert.deepEqual(r.read,[]);
+  assert.ok(r.errors.some(e=>e.error==='invalid_search_item'));
+});
+
+test('search hit with a non-issue path or mismatched number fails closed',async()=>{
+  let r=await discoverGitHub({reader:fixture({searchItems:[{number:41,html_url:'https://github.com/owner/repo/pull/41'}]}),query:'P0-6'});
+  assert.equal(r.complete,false);assert.deepEqual(r.read,[]);
+  assert.ok(r.errors.some(e=>e.error==='invalid_search_item'));
+  r=await discoverGitHub({reader:fixture({searchItems:[{number:41,html_url:'https://github.com/owner/repo/issues/99'}]}),query:'P0-6'});
+  assert.equal(r.complete,false);assert.deepEqual(r.read,[]);
+  assert.ok(r.errors.some(e=>e.error==='invalid_search_item'));
+});
+
+test('missing incomplete_results is not treated as a complete search',async()=>{
+  const r=await discoverGitHub({reader:fixture({omitIncompleteResults:true}),query:'P0-6',followLinks:false});
+  assert.equal(r.complete,false);assert.deepEqual(r.read,[]);
+  assert.ok(r.errors.some(e=>e.error==='search_incomplete'));
+});
+
+test('null or non-boolean incomplete_results is not treated as complete',async()=>{
+  let r=await discoverGitHub({reader:fixture({searchIncomplete:null}),query:'P0-6'});
+  assert.equal(r.complete,false);assert.ok(r.errors.some(e=>e.error==='search_incomplete'));
+  r=await discoverGitHub({reader:fixture({searchIncomplete:'false'}),query:'P0-6'});
+  assert.equal(r.complete,false);assert.ok(r.errors.some(e=>e.error==='search_incomplete'));
 });

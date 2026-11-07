@@ -28,7 +28,8 @@ function createGitHubReader({repository,fetchImpl=globalThis.fetch,token=process
   async function getIssue(number){
     if(!validInt(number))throw Error('invalid_issue_number');
     const {data:p}=await readJson(`${root}/issues/${number}`);
-    if(!p||p.number!==number||!Number.isSafeInteger(p.comments)||p.comments<0||!validUrl(p.html_url)||!p.updated_at)throw Error('invalid_issue_metadata');
+    const expectedIssueUrl=`https://github.com/${repository}/issues/${number}`;
+    if(!p||p.number!==number||!Number.isSafeInteger(p.comments)||p.comments<0||p.html_url!==expectedIssueUrl||!p.updated_at)throw Error('invalid_issue_metadata');
     return {number,body:validBody(p,'issue'),url:p.html_url,comments:p.comments,updated_at:p.updated_at};
   }
   async function paginate(urlFactory){
@@ -45,7 +46,8 @@ function createGitHubReader({repository,fetchImpl=globalThis.fetch,token=process
     if(!validInt(number))throw Error('invalid_issue_number');
     const batch=await paginate(page=>`${root}/issues/${number}/comments?per_page=${pageSize}&page=${page}`);
     const items=batch.items.map(p=>{
-      if(!p||!validInt(p.id)||!validUrl(p.html_url))throw Error('invalid_comment_metadata');
+      const expectedCommentUrl=`https://github.com/${repository}/issues/${number}#issuecomment-${p.id}`;
+      if(!p||!validInt(p.id)||p.html_url!==expectedCommentUrl)throw Error('invalid_comment_metadata');
       return {id:p.id,url:p.html_url,body:validBody(p,'comment'),updated_at:p.updated_at||p.created_at||null};
     });
     return {items,complete:batch.complete};
@@ -53,14 +55,22 @@ function createGitHubReader({repository,fetchImpl=globalThis.fetch,token=process
   async function searchIssues(query){
     if(typeof query!=='string'||!query.trim())throw Error('invalid_query');
     const q=encodeURIComponent(`repo:${repository} is:issue ${query}`);
-    const found=[]; let total=null; let incomplete=false;
+    const found=[]; let total=null; let incomplete=false; const seen=new Set();
     for(let page=1;page<=maxPages;page++){
       const {data,next}=await readJson(`https://api.github.com/search/issues?q=${q}&per_page=${pageSize}&page=${page}`);
       if(!data||!Array.isArray(data.items)||!Number.isSafeInteger(data.total_count)||data.total_count<0)throw Error('invalid_search_response');
       if(total===null)total=data.total_count;
       if(total!==data.total_count)throw Error('search_revision_changed');
-      incomplete ||= data.incomplete_results===true;
-      for(const p of data.items){if(!p||!validInt(p.number)||!validUrl(p.html_url))throw Error('invalid_search_item');found.push({number:p.number});}
+      // Only an explicit boolean false may count as a complete search page.
+      if(data.incomplete_results!==false)incomplete=true;
+      for(const p of data.items){
+        if(!p||!validInt(p.number)||!validUrl(p.html_url))throw Error('invalid_search_item');
+        const expectedHitUrl=`https://github.com/${repository}/issues/${p.number}`;
+        if(p.html_url!==expectedHitUrl)throw Error('invalid_search_item');
+        if(seen.has(p.number))throw Error('duplicate_search_item');
+        seen.add(p.number);
+        found.push({number:p.number,url:p.html_url});
+      }
       if(!next)return {items:found,complete:!incomplete&&found.length===total};
     }
     return {items:found,complete:false};

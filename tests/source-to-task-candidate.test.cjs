@@ -42,6 +42,12 @@ test('provenance mismatch or uninspected issue fails closed',()=>{
  const y=snapshot();y.records[1].url='https://github.com/other/repo/issues/41#issuecomment-3';
  assert.throws(()=>make({snapshot:y}),/comment_provenance_not_verified/);
 });
+test('comment URL must match the exact source comment id',()=>{
+ const x=snapshot();x.records[1].url='https://github.com/acme/repo/issues/41#issuecomment-999arbitrary';
+ assert.throws(()=>make({snapshot:x}),/comment_provenance_not_verified/);
+ const y=snapshot();y.records[1].url='https://github.com/acme/repo/issues/41#issuecomment-3extra';
+ assert.throws(()=>make({snapshot:y}),/comment_provenance_not_verified/);
+});
 test('other issue records and same actor are blocked',()=>{
  const s=snapshot();s.records.push({issue:33,kind:'issue',url:'https://github.com/acme/repo/issues/33',body:'other'});
  assert.throws(()=>make({snapshot:s}),/unexpected_cross_issue_scope/);
