@@ -35,3 +35,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: keqingwu5-cloud/ai-boundary
         run: node api/task-locator-github-adapter.cjs 41
+      - name: Discover public Issue 41 by GitHub search without a supplied task number
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: keqingwu5-cloud/ai-boundary
+        run: node api/task-locator-github-adapter.cjs '--query=in:title "共用交接入口"' --expect=41
