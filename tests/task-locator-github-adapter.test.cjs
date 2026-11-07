@@ -87,3 +87,9 @@ test('live search returns complete bounded snapshot and issue source',async()=>{
   assert.equal(r.records.length,2);assert.equal(r.scope,'seeds_and_search_only');
   assert.equal(locate(r,['P0-6']).matches.length,1);
 });
+
+test('empty GitHub issue search is a complete no-work result',async()=>{
+  const r=await discoverGitHub({reader:fixture({searchItems:[]}),query:'in:title "nothing matches"',followLinks:false});
+  assert.equal(r.complete,true);assert.deepEqual(r.records,[]);
+  assert.deepEqual(r.read,[]);assert.deepEqual(r.errors,[]);
+});
