@@ -44,7 +44,7 @@ function evaluateSourceSnapshot(result,{previousDigest=null}={}){
   const values=[...normalized.values()].sort((a,b)=>a.key.localeCompare(b.key,'en'));
   const digest=sha256(JSON.stringify(values));
   const state=previousDigest===null?'BASELINE':previousDigest===digest?'NO_UPDATE':'CONTENT_CHANGED';
-  const one_line=state==='BASELINE'? `首次完整來源基準：${issueCount} 個任務、${values.length} 筆去重來源；跨 AI 收件未驗證。`:
+  const one_line=values.length===0?(state==='CONTENT_CHANGED'?'完整搜尋中未找到任務；相較先前來源有所變動。':'完整搜尋中沒有符合的任務；不是讀取失敗。'):state==='BASELINE'? `首次完整來源基準：${issueCount} 個任務、${values.length} 筆去重來源；跨 AI 收件未驗證。`:
     state==='NO_UPDATE'? `來源內容沒有變更：${issueCount} 個任務、${values.length} 筆去重來源；無需重複通知。`:
     `來源內容有實質變動：${issueCount} 個任務、${values.length} 筆去重來源；需比對新差異。`;
   return {state,complete:true,source_digest:digest,
