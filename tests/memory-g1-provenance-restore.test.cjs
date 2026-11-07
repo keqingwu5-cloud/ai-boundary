@@ -66,9 +66,18 @@ test("same data in a different object-key order does not warn",()=>{
   const a=vault(),b=clone(a);
   b.candidates[0]=Object.fromEntries(Object.entries(b.candidates[0]).reverse());
   b.audit[0]=Object.fromEntries(Object.entries(b.audit[0]).reverse());
+  b.memories[0].versions[0]=Object.fromEntries(Object.entries(b.memories[0].versions[0]).reverse());
   const r=impact.previewRestore(a,b);
+  assert.equal(r.counts.lostVersions,0);
   assert.deepEqual(r.changedRecords,{candidates:0,audit:0});
   assert.deepEqual(r.warnings,[]);
+});
+test("same memory version with only key-insertion-order change is not HISTORY_REMOVAL",()=>{
+  const a=vault(),b=clone(a);
+  b.memories[0].versions[0]=Object.fromEntries(Object.entries(b.memories[0].versions[0]).reverse());
+  const r=impact.previewRestore(a,b);
+  assert.equal(r.counts.lostVersions,0);
+  assert.ok(!r.warnings.includes("HISTORY_REMOVAL"));
 });
 test("real missing candidate and audit IDs keep HISTORY_REMOVAL",()=>{
   const a=vault(),b=clone(a);b.candidates=[];b.audit=[];
@@ -113,6 +122,40 @@ test("same origin with different answer retains original blocking behavior",()=>
   const r=impact.preview(vault(),proposal({content:"Altered answer"}),{directionRelation:"aligned"});
   assert.ok(r.blocks.includes("SOURCE_ID_CONTENT_CONFLICT"));
   assert.equal(r.canSaveCandidate,false);
+});
+test("same-origin conflict is not hidden when an exact match appears first",()=>{
+  const a=vault();
+  a.candidates.push({id:"C-conflict",eventType:"new_question",parentId:null,
+    originId:"TASK-1",question:"Topic",purpose:"Purpose",
+    content:"Different answer",evidence:"EVIDENCE-X",evidenceLevel:"fact",
+    reason:"Other event",status:"pending"});
+  const incoming=proposal({content:"Answer",evidence:"EVIDENCE-A",
+    eventType:"new_question",purpose:"Purpose"});
+  const r1=impact.preview(a,incoming,{directionRelation:"aligned"});
+  const b=clone(a);b.candidates=[...a.candidates].reverse();
+  const r2=impact.preview(b,incoming,{directionRelation:"aligned"});
+  for(const r of [r1,r2]){
+    assert.ok(r.blocks.includes("SOURCE_ID_CONTENT_CONFLICT"));
+    assert.equal(r.canSaveCandidate,false);
+    assert.ok(r.affectedCandidateIds.includes("C1"));
+    assert.ok(r.affectedCandidateIds.includes("C-conflict"));
+  }
+});
+test("reordering multiple exact same-origin records does not invent a conflict",()=>{
+  const a=vault();
+  a.candidates.push({...a.candidates[0],id:"C1b"});
+  const incoming=proposal({eventType:"new_question",purpose:"Purpose",
+    evidence:"EVIDENCE-A",reason:"Original request"});
+  const r1=impact.preview(a,incoming,{directionRelation:"aligned"});
+  const b=clone(a);b.candidates=[...a.candidates].reverse();
+  const r2=impact.preview(b,incoming,{directionRelation:"aligned"});
+  for(const r of [r1,r2]){
+    assert.ok(r.warnings.includes("EXACT_ORIGIN_DUPLICATE"));
+    assert.ok(!r.blocks.includes("SOURCE_ID_CONTENT_CONFLICT"));
+    assert.equal(r.canSaveCandidate,true);
+    assert.ok(r.affectedCandidateIds.includes("C1"));
+    assert.ok(r.affectedCandidateIds.includes("C1b"));
+  }
 });
 test("restore preview and candidate preview are side-effect free",()=>{
   const a=vault(),b=clone(a),p=proposal();
