@@ -128,7 +128,44 @@ $("unlockButton").addEventListener("click",async()=>{
 });
 $("lockButton").addEventListener("click",async()=>{await writeChain.catch(()=>{});showLocked();feedback("已鎖定記憶庫。");});
 function evt(kind,ref,summary){state.audit.unshift({id:uid(),kind,ref,summary,at:utc()});}
-function queueChange(action){writeChain=writeChain.catch(()=>{}).then(async()=>{if(!state)return;const backup=JSON.stringify(state);try{const msg=await action();await persist();feedback(msg||"變更已加密儲存。");renderAll();}catch(e){state=JSON.parse(backup);feedback("操作未儲存："+(e.message==="vault_too_large"?"記憶庫容量已滿；下載備份不會釋放空間。請暫停新增並等待封存／清理功能。":(e.message||"未知錯誤")));}});}
+// Separate the durable AES commit from any UI side effects.
+// A post-commit display error must NEVER restore an old mutable vault snapshot.
+function queueChange(action,afterCommit){
+ writeChain=writeChain.catch(()=>{}).then(async()=>{
+  if(!state)return;
+  const backup=JSON.stringify(state);
+  let msg;
+  try{
+   msg=await action();
+   await persist();
+  }catch(e){
+   // No successful commit: restore the in-memory model and its derived views.
+   state=JSON.parse(backup);
+   try{renderAll();}
+   catch(viewError){
+    // A broken UI cannot be trusted to reflect the restored model.
+    showLocked();
+    feedback("操作未儲存，畫面無法同步；請重新開啟並核對內容。");
+    return;
+   }
+   feedback("操作未儲存："+(e.message==="vault_too_large"?
+     "記憶庫容量已滿；下載備份不會釋放空間。請暫停新增並等待封存／清理功能。":
+     (e.message||"未知錯誤")));
+   return;
+  }
+  // Persist has returned successfully: state and ciphertext are committed.
+  // A failed UI refresh is NOT a failed write and must not roll back the state.
+  try{
+   if(afterCommit)await afterCommit();
+   renderAll();
+   feedback(msg||"變更已加密儲存。");
+  }catch(e){
+   // Fail closed: force re-unlock/readback instead of allowing stale edits.
+   showLocked();
+   feedback("資料已加密保存，但畫面更新失敗；請重新開啟並核對內容。");
+  }
+ });
+}
 const node=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 function appendText(parent,tag,cls,text){const e=node(tag,cls,text);parent.append(e);return e;}
 function action(parent,title,callback,cls){const b=node("button",cls||"",title);b.type="button";b.addEventListener("click",callback);parent.append(b);return b;}
@@ -242,9 +279,10 @@ $("candidateForm").addEventListener("submit",e=>{
      thresholdVersion:latest.thresholdVersion,vaultRevision:latest.vaultRevision,
      directionRelation:latest.directionRelation,warnings:latest.warnings};
    state.candidates.unshift(c);evt("candidate.created",c.id,names[c.eventType]+"・"+c.question.slice(0,56));
+   return "候選已加密儲存，等待你的審核（未自動核准、封存或發射）。";
+ },()=>{
    resetForm();$("memoryImpactPreview").textContent="已建立待審候選；下次提出分支請重新預演。";
    selectTab("review");
-   return "候選已加密儲存，等待你的審核（未自動核准、封存或發射）。";
  });
 });
 function reviewApproval(c){
@@ -493,9 +531,8 @@ $("memoryPackInput").addEventListener("change",async e=>{
     state.candidates.unshift(c);evt("candidate.created",c.id,"GPT①記憶包 "+item.id+"・"+c.question.slice(0,50));
    }
    evt("memory.pack_imported",pack.schema,"新增 "+next.accepted.length+" 筆，跳過 "+next.duplicated.length+" 筆，待人工比較 "+next.conflicts.length+" 筆");
-   selectTab("review");
    return "已加密匯入 "+next.accepted.length+" 筆待審候選；無核心記憶覆寫。";
-  });
+  },()=>selectTab("review"));
  }catch(err){feedback("記憶包匯入失敗："+err.message);}
 });
 function workflowRender(){
@@ -522,7 +559,7 @@ $("workflowSave").addEventListener("click",()=>{
  if(!confirm("將這筆任務進度加密保存至本機記憶庫。此操作不代表其他AI已實際接收或完成任務。確定？"))return;
  queueChange(()=>{
   state.audit.unshift({id:uid(),kind:"workflow.recorded",ref,taskTitle,actor,status,reason,nextAction,at:utc(),summary:taskTitle+"｜"+status});
-  workflowRender();
+  // workflowRender() runs via renderAll() only after the encrypted commit succeeds.
   return "任務進度已加密保存，舊版本仍保留在事件歷史。";
  });
 });
