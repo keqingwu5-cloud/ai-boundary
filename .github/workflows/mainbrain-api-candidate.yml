@@ -6,6 +6,10 @@ on:
       - 'tests/mainbrain-*.test.cjs'
       - 'tests/handoff-contract.test.cjs'
       - 'tests/handoff-*.test.cjs'
+      - 'tests/task-locator-*.test.cjs'
+      - 'tests/task-source-summary.test.cjs'
+      - 'tests/task-source-checkpoint.test.cjs'
+      - 'tests/source-to-task-candidate.test.cjs'
       - 'tests/launcher-memory.test.cjs'
       - 'tests/memory-workflow-core.test.cjs'
       - 'docs/mainbrain-api-*.md'
@@ -13,6 +17,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
 jobs:
   candidate:
     runs-on: ubuntu-latest
@@ -27,4 +32,41 @@ jobs:
       - name: Existing handoff and launcher regression tests
         run: node --test tests/handoff-contract.test.cjs tests/launcher-memory.test.cjs tests/memory-workflow-core.test.cjs
       - name: Bidirectional and multimodal handoff self-review regressions
-        run: node --test tests/handoff-mutual-review-candidate.test.cjs tests/handoff-multimodal-contract-candidate.test.cjs tests/task-locator-candidate.test.cjs
+        run: node --test tests/handoff-mutual-review-candidate.test.cjs tests/handoff-multimodal-contract-candidate.test.cjs tests/task-locator-candidate.test.cjs tests/task-locator-github-adapter.test.cjs tests/task-source-summary.test.cjs tests/task-source-checkpoint.test.cjs tests/source-to-task-candidate.test.cjs
+      - name: Read public GitHub Issue 41 through actual REST source (no external agent ACK)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: keqingwu5-cloud/ai-boundary
+        run: node api/task-locator-github-adapter.cjs 41
+      - name: Discover public Issue 41 by GitHub search without a supplied task number
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: keqingwu5-cloud/ai-boundary
+        run: node api/task-locator-github-adapter.cjs '--query=in:title "共用交接入口"' --expect=41
+      - name: Prepare only a metadata handoff proposal from real Issue 41 (NO DISPATCH)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: keqingwu5-cloud/ai-boundary
+          BRIDGE_SOURCE_ISSUE: '41'
+        run: node api/source-to-task-candidate.cjs
+      - name: Restore prior complete-source cursor (cache is best effort)
+        id: restore_cursor
+        uses: actions/cache/restore@v4
+        with:
+          path: bridge-evidence/source-cursor.json
+          key: firstbrain-source-v1-pr${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            firstbrain-source-v1-pr${{ github.event.pull_request.number || 'manual' }}-
+      - name: Compare current public Issue 41 with last successful source cursor
+        id: cursor
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: keqingwu5-cloud/ai-boundary
+          BRIDGE_SOURCE_ISSUE: '41'
+        run: node api/task-source-checkpoint.cjs
+      - name: Cache cursor only after a complete changed read
+        if: ${{ success() && steps.cursor.outputs.checkpoint_written == 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: bridge-evidence/source-cursor.json
+          key: firstbrain-source-v1-pr${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-${{ github.run_attempt }}
