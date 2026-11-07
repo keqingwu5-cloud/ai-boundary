@@ -80,3 +80,10 @@ test('no-token request does not create authorization header',async()=>{
 test('non-GitHub origin blocked before reading token',()=>{
   assert.throws(()=>createGitHubReader({repository:'owner/repo',apiRoot:'https://evil.example',token:'secret'}),/non_github_api_origin_blocked/);
 });
+
+test('live search returns complete bounded snapshot and issue source',async()=>{
+  const r=await discoverGitHub({reader:fixture(),query:'in:title \"共用交接入口\"',followLinks:false,maxNodes:3});
+  assert.equal(r.complete,true);assert.deepEqual(r.read,[41]);
+  assert.equal(r.records.length,2);assert.equal(r.scope,'seeds_and_search_only');
+  assert.equal(locate(r,['P0-6']).matches.length,1);
+});
