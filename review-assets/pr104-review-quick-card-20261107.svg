@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+<title id="title">PR #104 聯合審查結果，第一輪，圖片交流測試</title>
+<desc id="desc">G1 與 P0 整合通過合成回歸，可送獨立反證，尚不可合併 main 或部署。Node 138/138，Chromium 14/14，Node memory 43/43。GPT① 獨立驗收與正式環境仍待確認。</desc>
+<rect width="1200" height="900" rx="26" fill="#f8fafc"/>
+<g font-family="Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif" fill="#172333">
+<text x="60" y="88" font-size="46" font-weight="750">PR #104｜聯合審查結果</text>
+<text x="60" y="129" font-size="23" fill="#546477">G1 + P0 整合候選 · 第一輪 · 溝通用摘要圖（非正式驗收）</text>
+<rect x="50" y="165" width="1100" height="104" rx="19" fill="#edf8f1" stroke="#98cba8" stroke-width="2"/>
+<circle cx="95" cy="217" r="24" fill="#248a45"/>
+<path d="M82 216 l9 9 l17 -19" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="136" y="227" font-size="27" font-weight="700" fill="#14532d">可進入 GPT① 獨立反證</text>
+<rect x="660" y="187" width="216" height="57" rx="14" fill="#fff4f3" stroke="#e9b2ad"/>
+<text x="681" y="224" font-size="23" font-weight="700" fill="#be2626">MAIN：NO-GO</text>
+<rect x="889" y="187" width="231" height="57" rx="14" fill="#fff4f3" stroke="#e9b2ad"/>
+<text x="908" y="224" font-size="23" font-weight="700" fill="#be2626">DEPLOY：NO-GO</text>
+<rect x="50" y="300" width="530" height="407" rx="20" fill="#ffffff" stroke="#9dcdb2" stroke-width="2"/>
+<rect x="50" y="300" width="530" height="70" rx="20" fill="#e3f4e8"/>
+<rect x="50" y="348" width="530" height="22" fill="#e3f4e8"/>
+<text x="82" y="347" font-size="30" font-weight="750" fill="#1d713f">已通過｜合成測試</text>
+<g font-size="25">
+<text x="82" y="416">✓  #102 來源保真修補保留</text>
+<text x="82" y="467">✓  #103 保存一致性修補保留</text>
+<text x="82" y="518">✓  測試案例已在同一 SHA 整合</text>
+<text x="82" y="569">✓  Node　138 / 138 PASS</text>
+<text x="82" y="620">✓  Chromium　14 / 14 PASS</text>
+<text x="82" y="671">✓  Node Memory　43 / 43 PASS</text>
+</g>
+<rect x="608" y="300" width="542" height="407" rx="20" fill="#ffffff" stroke="#e4bb68" stroke-width="2"/>
+<rect x="608" y="300" width="542" height="70" rx="20" fill="#fff3d8"/>
+<rect x="608" y="348" width="542" height="22" fill="#fff3d8"/>
+<text x="638" y="347" font-size="30" font-weight="750" fill="#956000">仍待處理｜不得當作驗收通過</text>
+<g font-size="23">
+<text x="638" y="415">!  跨來源匯入／批次來源關聯</text>
+<text x="638" y="471">!  舊記憶、撤權、舊備份政策</text>
+<text x="638" y="527">!  正式私人來源與 Safari 實機</text>
+<text x="638" y="583">!  GPT① 真實獨立反證與 ACK</text>
+<text x="638" y="647" fill="#a43223" font-size="20">* 同源其他頁面仍可讀取加密密文</text>
+</g>
+<rect x="50" y="733" width="1100" height="114" rx="18" fill="#eaf2fc" stroke="#a6c9ee" stroke-width="2"/>
+<text x="82" y="776" font-size="26" font-weight="700" fill="#225892">下一步：請對「圖片交接方式」給回應</text>
+<text x="82" y="816" font-size="23" fill="#1c426b">👍 適合　 👀 看得懂、要補充　 ❓ 不清楚　 ⚠️ 有風險</text>
+<text x="60" y="878" font-size="17" fill="#6b7585">固定 SHA：1204f57ace9349974cffae88ebdfcf4a254a17ca　·　圖卡只供閱讀，不等於權限、部署或身分驗證</text>
+</g>
+</svg>
