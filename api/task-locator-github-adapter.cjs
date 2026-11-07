@@ -3,6 +3,7 @@
 // This adapter never writes GitHub data, never claims remote-agent ACK,
 // and fails closed if search, pagination, or source fields are incomplete.
 const {discover,locate}=require('./task-locator-candidate.cjs');
+const {evaluateSourceSnapshot}=require('./task-source-summary.cjs');
 const own=(x,k)=>x && Object.prototype.hasOwnProperty.call(x,k);
 const validInt=n=>Number.isSafeInteger(n)&&n>0;
 const validUrl=s=>typeof s==='string' && /^https:\/\//.test(s);
@@ -116,16 +117,28 @@ if(require.main===module){
   const searching=input.startsWith('--query=');
   const query=searching?input.slice('--query='.length).trim():null;
   const seeds=searching?[]:input.split(',').map(Number);
-  const expectedArg=process.argv[3];
-  const expectedNumber=expectedArg?.startsWith('--expect=')?Number(expectedArg.slice('--expect='.length)):null;
+  const opts=process.argv.slice(3);
+  if(opts.some(x=>!x.startsWith('--expect=')&&!x.startsWith('--previous-digest=')))throw Error('unrecognized_cli_option');
+  if(opts.filter(x=>x.startsWith('--expect=')).length>1||opts.filter(x=>x.startsWith('--previous-digest=')).length>1)throw Error('duplicate_cli_option');
+  const expectedArg=opts.find(x=>x.startsWith('--expect='));
+  const digestArg=opts.find(x=>x.startsWith('--previous-digest='));
+  const expectedNumber=expectedArg?Number(expectedArg.slice('--expect='.length)):null;
+  const previousDigest=digestArg?digestArg.slice('--previous-digest='.length):null;
   if(!searching&&seeds.some(n=>!validInt(n)))throw Error('invalid_cli_seeds');
   if(searching&&!query)throw Error('query_required');
-  if(expectedArg&&(!validInt(expectedNumber)))throw Error('invalid_cli_expect');
+  if(expectedArg&&!validInt(expectedNumber))throw Error('invalid_cli_expect');
   const reader=createGitHubReader({repository});
   discoverGitHub({reader,seeds,query,followLinks:false,maxNodes:Math.max(1,Math.min(20,searching?10:seeds.length))}).then(r=>{
-    // Never print body text, token, account identities or private task prompts.
+    // Snapshot digest is an output cursor; no durable checkpoint is written in this CLI.
+    const summary=evaluateSourceSnapshot(r,{previousDigest});
     const expectedFound=expectedNumber===null?null:r.read.includes(expectedNumber);
-    console.log(JSON.stringify({scope:r.scope,complete:r.complete,read:r.read,records:r.records.length,unresolved:r.unresolved,errors:r.errors,expected_issue_found:expectedFound,remote_agent_ack:'NOT_VERIFIED'},null,2));
-    if(!r.complete||expectedFound===false)process.exitCode=2;
+    console.log(JSON.stringify({scope:r.scope,complete:summary.complete,read:r.read,
+      records:summary.records,source_digest:summary.source_digest,
+      previous_digest_accepted:summary.previous_digest_accepted,
+      change_state:summary.state,summary:summary.one_line,
+      duplicates:summary.duplicates,anomalies:summary.anomalies,
+      unresolved:r.unresolved,errors:r.errors,expected_issue_found:expectedFound,
+      remote_agent_ack:'NOT_VERIFIED'},null,2));
+    if(!summary.complete||expectedFound===false)process.exitCode=2;
   }).catch(e=>{console.error(`read_only_bridge_failed:${String(e.message||e)}`);process.exitCode=2;});
 }
