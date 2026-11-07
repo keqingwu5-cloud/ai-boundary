@@ -74,3 +74,6 @@ test("legacy backup with no vault ID or revision is explicitly warned before any
  assert.ok(r.warnings.includes("UNKNOWN_BACKUP_REVISION"));
  assert.equal(r.requiresHumanApproval,true);
 });
+
+// G1 synthetic source-integrity and restore-diff tests (explicit CI inclusion).
+require("./memory-g1-provenance-restore.test.cjs");
