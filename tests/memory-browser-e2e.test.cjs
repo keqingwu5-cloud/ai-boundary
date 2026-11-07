@@ -540,3 +540,72 @@ test("G2 isolation negative test: private bundle CSP blocks attempted outbound p
   fs.rmSync(tmp,{recursive:true,force:true});
  }
 });
+
+
+test("G1 UI provenance warning and same-ID restore preview use synthetic AES without overwriting vault", {timeout:120000},async()=>{
+ const {server}=startServer();
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+  browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+  const context=await browser.newContext({acceptDownloads:true});
+  const page=await context.newPage();
+  await page.goto("http://127.0.0.1:"+server.address().port+"/memory.html");
+  await page.locator("#passphrase").fill(PASS);
+  await page.locator("#confirmPassphrase").fill(PASS);
+  await page.locator("#unlockButton").click();
+  await unlocked(page);
+
+  // Persist only one original candidate, without any automatic approval.
+  await submit(page,"G1 synthetic topic","G1 synthetic answer","G1-TASK-1");
+  await pending(page,1);
+  assert.equal(await page.locator("#countMemories").innerText(),"0");
+  const stored=await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1"));
+  const incoming=await decryptedSyntheticEnvelope(stored);
+  incoming.candidates[0].evidence="G1-ALTERED-EVIDENCE";
+  const encryptedModified=await syntheticEnvelope(incoming);
+
+  // A legitimate second event may share task ID, but must not hide source differences.
+  await page.locator('[data-tab="propose"]').click();
+  await page.locator("#eventType").selectOption("pitfall");
+  await page.locator("#originSourceId").fill("G1-TASK-1");
+  await page.locator("#directionRelation").selectOption("aligned");
+  await page.locator("#question").fill("G1 synthetic topic");
+  await page.locator("#purpose").fill("合成資料用例：不可將候選自動轉權威");
+  await page.locator("#content").fill("G1 synthetic answer");
+  await page.locator("#evidence").fill("G1-ALTERED-EVIDENCE");
+  await page.locator("#reason").fill("G1 second synthetic source event");
+  await page.locator("#previewMemoryImpact").click();
+  const preview=await page.locator("#memoryImpactPreview").innerText();
+  assert.match(preview,/SOURCE_VARIANT_NEEDS_PROVENANCE_LINK/);
+  assert.equal(await page.locator("#countPending").innerText(),"1");
+  assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),stored);
+
+  // Backup current ciphertext, then attempt a validly encrypted same-ID mutation.
+  // Dismiss the restore confirmation: the preview must reveal the mutation first.
+  await downloadJSON(page);
+  let resolveConfirmation;
+  const confirmed=new Promise(resolve=>{resolveConfirmation=resolve;});
+  page.on("dialog",async dialog=>{
+    if(dialog.type()==="prompt"){await dialog.accept(PASS);return;}
+    if(dialog.message().includes("覆蓋前預演")){
+      resolveConfirmation(dialog.message());
+      await dialog.dismiss();
+      return;
+    }
+    await dialog.accept();
+  });
+  await page.locator("#backupInput").setInputFiles({
+    name:"g1-mutated-but-authentic.json",mimeType:"application/json",
+    buffer:Buffer.from(encryptedModified)
+  });
+  const confirmText=await confirmed;
+  assert.match(confirmText,/SAME_ID_CANDIDATE_CONTENT_CHANGED/);
+  assert.equal(await page.evaluate(()=>localStorage.getItem("aiBoundary.privateMemory.v1")),stored,
+    "read-only restore preview must not overwrite authenticated ciphertext");
+  await context.close();
+ }finally{
+  if(browser)await browser.close();
+  await new Promise(resolve=>server.close(resolve));
+ }
+});
