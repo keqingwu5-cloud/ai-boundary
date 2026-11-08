@@ -8,7 +8,7 @@ const id=x=>typeof x==='string' && /^[A-Za-z0-9_.:-]{1,120}$/.test(x);
 function prepareSourceHandoff({snapshot,repository,issue,sourceEndpointId,destinationEndpointId,taskId,eventId,payloadVersion='v1'}={}){
   if(typeof repository!=='string'||!/^[\w.-]+\/[\w.-]+$/.test(repository))throw Error('invalid_repository');
   if(!Number.isSafeInteger(issue)||issue<1)throw Error('invalid_issue');
-  if(![sourceEndpointId,destinationEndpointId,taskId,eventId,payloadVersion].every(id))throw Error('invalid_handoff_identity');
+  if(![sourceEndpointId,destinationEndpointId,taskId,payloadVersion].every(id))throw Error('invalid_handoff_identity');
   if(sourceEndpointId===destinationEndpointId)throw Error('same_endpoint');
   const summary=evaluateSourceSnapshot(snapshot);
   if(!summary.complete)throw Error('source_incomplete_no_dispatch');
@@ -26,12 +26,17 @@ function prepareSourceHandoff({snapshot,repository,issue,sourceEndpointId,destin
   });
   // Idempotency scope includes a pinned source digest; repeated source reads
   // generate the same key, while actual content revisions get a new key.
-  const idempotencyKey=sha(JSON.stringify({repository,issue,taskId,destinationEndpointId,payloadVersion,source_digest:summary.source_digest}));
+  const idempotencyKey=sha(JSON.stringify({repository,issue,sourceEndpointId,taskId,destinationEndpointId,payloadVersion,source_digest:summary.source_digest}));
+  // Event IDs are immutable in the queue. Distinct source revisions must not
+  // reuse a fixed event ID just because a caller supplied a static label.
+  const canonicalEventId='source:'+idempotencyKey;
+  if(eventId!==undefined && eventId!==canonicalEventId)
+    throw Error('event_id_must_match_source_revision');
   return Object.freeze({
     state:'READY_FOR_SYNTHETIC_TEST_ONLY',
     dispatch_permitted:false,explicit_human_grant_present:false,
     send_body:Object.freeze({
-      event_id:eventId,task_id:taskId,destination_endpoint_id:destinationEndpointId,
+      event_id:canonicalEventId,task_id:taskId,destination_endpoint_id:destinationEndpointId,
       payload_version:payloadVersion,idempotency_key:idempotencyKey,payload
     }),
     sender_endpoint_id:sourceEndpointId,
@@ -53,7 +58,6 @@ if(require.main===module){
       sourceEndpointId:'synthetic-source-reader',
       destinationEndpointId:'synthetic-review-worker',
       taskId:'synthetic-public-source-review',
-      eventId:'synthetic-public-source-event',
       payloadVersion:'v1'
     });
     console.log(JSON.stringify({
