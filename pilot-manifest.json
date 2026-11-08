@@ -1,0 +1,20 @@
+{
+  "type": "synthetic-read-only-pilot",
+  "source_repo": "keqingwu5-cloud/ai-boundary",
+  "source_pr": 127,
+  "source_head": "23d9845039a19015f671f512a1de4dba05c2f752",
+  "scope": "GH_PAGES_STAGING_ONLY",
+  "data": "synthetic",
+  "production_writes": false,
+  "server_api": false,
+  "credentials": false,
+  "ack": "NOT_VERIFIED",
+  "files": [
+    "preview/index.html",
+    "preview/app.mjs",
+    "preview/pilot-core.mjs",
+    "nary-composition.mjs",
+    "nary-transform.mjs",
+    "gap-aware-composition.mjs"
+  ]
+}
