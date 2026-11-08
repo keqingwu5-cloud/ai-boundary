@@ -25,6 +25,8 @@ const REVIEW_EVENTS=Object.freeze({
 });
 const validId=value=>typeof value==='string'&&ID.test(value);
 const fingerprint=obj=>createHash('sha256').update(stringify(obj),'utf8').digest('hex');
+// The separate UTF-8 source-string hash is for audit, not authenticity or a signature.
+const rawFingerprint=raw=>createHash('sha256').update(raw,'utf8').digest('hex');
 let validatorPromise;
 function validator(){
   if(!validatorPromise)validatorPromise=import('../brain-graph-integrity.mjs')
@@ -40,6 +42,7 @@ function output(source_id,state,reason,digests={}){
   return {source_id:validId(source_id)?source_id:null,state,reason,
     action:'NO_EXTERNAL_EFFECT',review_required:state!=='NO_CHANGE',
     approved:false,source_digest:digests.source_digest??null,
+    raw_source_digest:digests.raw_source_digest??null,
     content_digest:digests.content_digest??null,
     history_digest:digests.history_digest??null};
 }
@@ -49,6 +52,7 @@ function validateBaseline(baseline){
     !HEX.test(baseline.history_digest))return false;
   if(baseline.source_revision!=null&&!validId(baseline.source_revision))return false;
   if(baseline.purpose_id!=null&&!validId(baseline.purpose_id))return false;
+  if(baseline.raw_source_digest!=null&&!HEX.test(baseline.raw_source_digest))return false;
   return true;
 }
 async function scanEntry(entry,baseline=null){
@@ -80,6 +84,7 @@ async function scanEntry(entry,baseline=null){
     const withoutHistory={...graph};
     delete withoutHistory.history;
     digests={source_digest:fingerprint(graph),
+      raw_source_digest:rawFingerprint(entry.raw),
       content_digest:fingerprint(withoutHistory),
       history_digest:fingerprint(graph.history)};
   }catch{return output(id,move(state,'INVALID'),'DIGEST_FAILURE');}
@@ -90,20 +95,27 @@ async function scanEntry(entry,baseline=null){
   if(baseline.purpose_id!== (entry.purpose_id??null) &&
     (baseline.purpose_id!=null||entry.purpose_id!=null))
     return output(id,move(state,'CONFLICT'),'PURPOSE_MISMATCH',digests);
-  // A source revision cannot silently alter original bytes, even if only history changed.
-  if(entry.source_revision!=null&&baseline.source_revision!=null&&
-    entry.source_revision===baseline.source_revision&&(!sameContent||!sameHistory))
+  // Missing provenance must never silently pass as "no change".
+  // These are caller claims, not authenticated origin proofs.
+  if(!entry.purpose_id||!baseline.purpose_id)
+    return output(id,move(state,'CONFLICT'),'PURPOSE_CONTEXT_UNVERIFIED',digests);
+  if(!entry.source_revision||!baseline.source_revision)
+    return output(id,move(state,'CONFLICT'),'REVISION_CONTEXT_UNVERIFIED',digests);
+  // A source revision cannot silently alter canonical content/history.
+  if(entry.source_revision===baseline.source_revision&&(!sameContent||!sameHistory))
     return output(id,move(state,'CONFLICT'),'SAME_REVISION_DIFFERENT_CONTENT',digests);
+  // Optional raw source fingerprint protects representation fidelity for newer baselines.
+  // Older baselines with no raw_source_digest remain supported but can't detect this drift.
+  if(sameContent&&sameHistory&&baseline.raw_source_digest!=null&&
+    digests.raw_source_digest!==baseline.raw_source_digest&&
+    entry.source_revision===baseline.source_revision)
+    return output(id,move(state,'METADATA_CHANGED'),'SOURCE_BYTES_CHANGED_SAME_REVISION',digests);
   if(sameContent&&sameHistory){
     if(baseline.source_revision!=null&&entry.source_revision!=null&&
       baseline.source_revision!==entry.source_revision)
       return output(id,move(state,'METADATA_CHANGED'),'SOURCE_REVISION_CHANGED_ONLY',digests);
     return output(id,move(state,'SAME'),'NO_CHANGE',digests);
   }
-  if(!entry.purpose_id||!baseline.purpose_id)
-    return output(id,move(state,'CONFLICT'),'PURPOSE_CONTEXT_UNVERIFIED',digests);
-  if(!entry.source_revision||!baseline.source_revision)
-    return output(id,move(state,'CONFLICT'),'REVISION_CONTEXT_UNVERIFIED',digests);
   return sameContent
     ?output(id,move(state,'HISTORY_CHANGED'),'HISTORY_ONLY_CHANGED',digests)
     :output(id,move(state,'CONTENT_CHANGED'),'CONTENT_CHANGED',digests);
@@ -138,6 +150,7 @@ function reviewTransition(record,event){
   return {
     source_id:validId(record.source_id)?record.source_id:null,
     source_digest:record.source_digest??null,
+    raw_source_digest:record.raw_source_digest??null,
     content_digest:record.content_digest??null,
     history_digest:record.history_digest??null,
     previous_state:record.state,state:target,
