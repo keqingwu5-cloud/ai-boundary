@@ -1,0 +1,24 @@
+name: Brain local storage guard isolated candidate
+on:
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'brain-storage-guard.mjs'
+      - 'tests/brain-storage-guard.test.cjs'
+      - '.github/workflows/brain-storage-guard-candidate.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Candidate storage guard and existing memory regression
+        run: node --test tests/brain-storage-guard.test.cjs tests/launcher-memory.test.cjs tests/memory-workflow-core.test.cjs
+      - name: Verify independent ESM guard parses
+        run: node --check brain-storage-guard.mjs
