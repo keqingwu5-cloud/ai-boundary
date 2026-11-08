@@ -45,6 +45,9 @@ function createHttpTaskClient({baseUrl,tokenProvider,httpFetch=fetch}={}) {
   }
   return {
     status,
+    // Explicit caller action only; real dispatch requires server-authenticated sender
+    // and a task-scoped human grant at the persistent store. Never auto-send a preflight.
+    send:p=>post('send',p),
     receive:()=>post('receive'),
     intent:p=>post('intent',p),
     authorize:p=>post('authorize',p),
