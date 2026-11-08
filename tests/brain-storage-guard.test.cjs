@@ -1,0 +1,20 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const {readFileSync}=require('node:fs'),path=require('node:path');
+const {pathToFileURL}=require('node:url');
+const root=path.resolve(__dirname,'..');
+const fixture=()=>({brains:[{id:'main'}],nodes:[],links:[],history:[]});
+const valid=x=>x&&Array.isArray(x.brains)&&x.brains.some(b=>b.id==='main')&&Array.isArray(x.nodes)&&Array.isArray(x.links)&&Array.isArray(x.history);
+function storage(v){return{v,sets:[],getItem(){return this.v??null;},setItem(k,s){this.sets.push([k,s]);this.v=s;}};}
+let mod;
+test('AUTO-BOOT-00 importable guard module',async()=>{mod=await import(pathToFileURL(path.join(root,'brain-storage-guard.mjs')));assert.equal(typeof mod.createBrainStorageGuard,'function');});
+test('AUTO-BOOT-01 corrupt JSON is never overwritten',()=>{const st=storage('{broken'),g=mod.createBrainStorageGuard(st,'brain',valid);assert.equal(g.reason(),'INVALID_JSON');assert.equal(g.save(JSON.stringify(fixture())).ok,false);assert.equal(st.sets.length,0);assert.equal(st.v,'{broken');});
+test('AUTO-BOOT-02 invalid schema never overwritten',()=>{const st=storage('{"wrong":1'),g=mod.createBrainStorageGuard(st,'brain',valid);assert.equal(g.reason(),'INVALID_STRUCTURE');assert.equal(g.save('new').ok,false);assert.equal(st.sets.length,0);});
+test('AUTO-BOOT-03 missing key initialises normally',()=>{const st=storage(null),g=mod.createBrainStorageGuard(st,'brain',valid);assert.equal(g.origin,'ABSENT');assert.equal(g.save(JSON.stringify(fixture())).ok,true);assert.equal(st.sets.length,1);});
+test('AUTO-BOOT-04 valid data loaded intact',()=>{const raw=JSON.stringify(fixture()),st=storage(raw),g=mod.createBrainStorageGuard(st,'brain',valid);assert.deepEqual(g.state,fixture());assert.equal(st.sets.length,0);});
+test('AUTO-BOOT-05 cross-tab stale snapshot blocks write',()=>{const st=storage(JSON.stringify(fixture())),g=mod.createBrainStorageGuard(st,'brain',valid);st.v='OTHER_TAB_CHANGED';assert.equal(g.save('stale').reason,'CONCURRENT_CHANGE');assert.equal(st.v,'OTHER_TAB_CHANGED');assert.equal(st.sets.length,0);});
+test('AUTO-BOOT-06 unreadable storage remains blocked',()=>{const st={getItem(){throw Error('forbidden')},setItem(){throw Error('unreachable')}},g=mod.createBrainStorageGuard(st,'brain',valid);assert.equal(g.save('{}').reason,'STORAGE_READ_FAILED');});
+test('AUTO-BOOT-07 failed write blocks subsequent writes',()=>{let n=0;const st={getItem(){return null},setItem(){n++;throw Error('quota')}},g=mod.createBrainStorageGuard(st,'brain',valid);assert.equal(g.save('{}').reason,'STORAGE_WRITE_FAILED');assert.equal(g.save('{}').ok,false);assert.equal(n,1);});
+test('AUTO-BOOT-08 guard never silently fixes bad source',()=>{const st=storage('{bad');mod.createBrainStorageGuard(st,'brain',valid);assert.equal(st.v,'{bad');assert.equal(st.sets.length,0);});
+test('AUTO-BOOT-09 nonstring writes rejected',()=>{const g=mod.createBrainStorageGuard(storage(null),'brain',valid);assert.equal(g.save({x:1}).reason,'INVALID_WRITE');});
+test('AUTO-BOOT-10 app integration must check guard before modifying or saving',()=>{const app=readFileSync(path.join(root,'app.js'),'utf8');assert.match(app,/import\s+\{createBrainStorageGuard\}\s+from '\.\/brain-storage-guard\.mjs'/);assert.match(app,/const brainStorage=createBrainStorageGuard\(localStorage,KEY,valid\)/);assert.match(app,/const result=brainStorage\.save\(JSON\.stringify\(state\)\)/);assert.match(app,/function mutate\(action, payload, fn\)\{\s*if\(storageLocked\(\)\)return false;/);});
