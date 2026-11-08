@@ -133,13 +133,19 @@ function save(now = false){
   clearTimeout(saveT);
   if(storageLocked())return false;
   const f=()=>{
-    try{
-      const result=brainStorage.save(JSON.stringify(state));
-      if(!result.ok){showStorageWarning(result.reason);return false;}
-      localStorage.setItem(UKEY,JSON.stringify(undoStack.slice(-12)));
-      flashSaved();
-      return true;
-    }catch(e){showStorageWarning('SAVE_FAILED');return false;}
+    let result;
+    try{result=brainStorage.save(JSON.stringify(state));}
+    catch(e){showStorageWarning('SAVE_FAILED');return false;}
+    if(!result.ok){showStorageWarning(result.reason);return false;}
+    // The primary graph has now committed. Failure to persist optional undo
+    // history cannot roll that successful write back or be reported as failure.
+    try{localStorage.setItem(UKEY,JSON.stringify(undoStack.slice(-12)));}
+    catch(e){
+      document.body.dataset.brainUndoStorage='failed';
+      console.warn('Primary graph saved; undo history was not saved. Export a backup.');
+    }
+    flashSaved();
+    return true;
   };
   return now?f():(saveT=setTimeout(f,250),true);
 }
