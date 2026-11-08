@@ -41,6 +41,7 @@ module.exports = function (data, opts) {
             if (cycles) return JSON.stringify('__cycle__');
             throw new TypeError('Converting circular structure to JSON');
         }
+
         var seenIndex = seen.push(node) - 1;
         var keys = Object.keys(node).sort(cmp && cmp(node));
         out = '';
