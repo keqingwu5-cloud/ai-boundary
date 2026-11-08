@@ -1,0 +1,37 @@
+name: N-ary preserved gaps candidate (isolated)
+on:
+  pull_request:
+    paths:
+      - gap-aware-composition.mjs
+      - tests/gap-aware-composition.test.mjs
+      - tests/gap-aware-schema.test.mjs
+      - docs/gap-preservation-protocol-v16.md
+      - schemas/gap-aware-composition.preview.schema.json
+      - benchmarks/gap-aware-benchmark.mjs
+      - .github/workflows/gap-aware-composition-isolated.yml
+  workflow_dispatch:
+jobs:
+  gap-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check candidate syntax and JSON Schema structure
+        run: |
+          node --check gap-aware-composition.mjs
+          node --check benchmarks/gap-aware-benchmark.mjs
+          python3 -m json.tool schemas/gap-aware-composition.preview.schema.json > /dev/null
+      - name: Run V1.4 and V1.5 regression and V1.6 gap tests
+        run: node --test tests/nary-composition.test.mjs tests/nary-transform.test.mjs tests/nary-transform-schema.test.mjs tests/gap-aware-composition.test.mjs tests/gap-aware-schema.test.mjs
+      - name: Record local synthetic blank-preserving reference bytes
+        run: node benchmarks/gap-aware-benchmark.mjs benchmarks/v16-ci-measurements.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v16-gap-synthetic-measurement
+          path: benchmarks/v16-ci-measurements.json
+          retention-days: 14
