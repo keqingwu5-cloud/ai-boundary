@@ -24,7 +24,18 @@ function createLeaseWatchdog({store,destinationEndpointId,intervalMs=60_000,logg
     running=true;
     try{
       while(!signal?.aborted){
-        await runOnce();
+        try {await runOnce();}
+        catch(error){
+          // Sweep may have committed before its response failed. Never claim
+          // a successful scan or notification; independent monitoring required.
+          try {logger({action:'watchdog_loop_unhealthy',
+            destination_endpoint_id:destinationEndpointId,
+            code:typeof error?.code==='string'&&error.code?error.code:'SWEEP_ERROR',
+            sweep_completion_unknown:true,supervisor_required:true,
+            delivery:'not_delivered'});}
+          catch(_) { /* Keep original failure even if the logger fails. */ }
+          throw error;
+        }
         try {await sleep(intervalMs,undefined,{signal});}
         catch(e){if(e.name==='AbortError'&&signal?.aborted)break;throw e;}
       }
