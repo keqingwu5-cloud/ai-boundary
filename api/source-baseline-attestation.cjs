@@ -78,7 +78,9 @@ function baselineContract(p){
     (p.previous_seal_digest===null||hex(p.previous_seal_digest))&&
     typeof p.issued_at==='string'&&Number.isFinite(Date.parse(p.issued_at));
 }
-async function reviewTrustedSource({source,baseline=null,head=null,trust,now=new Date().toISOString()}={}){
+async function reviewTrustedSource({source,baseline=null,head=null,trust,now=new Date().toISOString(),expected_scope}={}){
+  // Caller pins the target resource independently; a signed statement cannot choose it.
+  if(typeof expected_scope!=='string'||!SCOPE.test(expected_scope))return denied('EXPECTED_SCOPE_REQUIRED');
   const overlap=policyOverlap(trust);
   if(overlap)return denied(overlap);
   if(typeof now!=='string'||!Number.isFinite(Date.parse(now)))return denied('CLOCK_INVALID');
@@ -86,6 +88,7 @@ async function reviewTrustedSource({source,baseline=null,head=null,trust,now=new
     !isObj(source.attestation)||!sourceContract(source.attestation.statement))
     return denied('SOURCE_INVALID_CONTRACT');
   const s=source.attestation.statement;
+  if(s.scope!==expected_scope)return denied('SOURCE_EXPECTED_SCOPE_MISMATCH');
   const sVerify=verify('source',source.attestation,trust.source_readers,s.scope);
   if(sVerify)return denied('SOURCE_'+sVerify);
   const nowMs=Date.parse(now),iat=Date.parse(s.issued_at),exp=Date.parse(s.expires_at);
