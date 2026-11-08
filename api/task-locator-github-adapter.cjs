@@ -104,12 +104,27 @@ async function discoverGitHub({reader,seeds=[],query,maxNodes=20,followLinks=fal
     try{
       const a=await reader.getIssue(n);
       const c=await reader.getComments(n);
+      // Best-effort, bounded stability check. Issue.updated_at is not treated
+      // as a sufficient proof that every comment remained unchanged.
+      // Two reads are NOT an atomic GitHub snapshot.
+      const d=await reader.getComments(n);
       const b=await reader.getIssue(n);
-      if(!a||!b||!c||c.complete!==true||!Array.isArray(c.items)||!Number.isSafeInteger(a.comments)||a.comments!==c.items.length)throw Error('incomplete_source');
+      if(!a||!b||!c||!d||c.complete!==true||d.complete!==true||
+        !Array.isArray(c.items)||!Array.isArray(d.items)||!Number.isSafeInteger(a.comments)||
+        a.comments!==c.items.length||a.comments!==d.items.length)throw Error('incomplete_source');
       if(a.updated_at!==b.updated_at||a.body!==b.body||a.comments!==b.comments||a.url!==b.url)throw Error('source_version_changed');
       if(typeof a.body!=='string'||!validUrl(a.url)||!a.updated_at)throw Error('invalid_issue_source');
-      const ids=new Set();
-      for(const v of c.items){if(!v||!validInt(v.id)||ids.has(v.id))throw Error('duplicate_or_invalid_comment_id');ids.add(v.id);if(typeof v.body!=='string'||!validUrl(v.url))throw Error('invalid_comment_source');}
+      function normalizeComments(batch){
+        const ids=new Set();
+        return batch.items.map(v=>{
+          if(!v||!validInt(v.id)||ids.has(v.id))throw Error('duplicate_or_invalid_comment_id');
+          ids.add(v.id);
+          if(typeof v.body!=='string'||!validUrl(v.url))throw Error('invalid_comment_source');
+          return {id:v.id,url:v.url,body:v.body,updated_at:v.updated_at??null};
+        }).sort((x,y)=>x.id-y.id);
+      }
+      if(JSON.stringify(normalizeComments(c))!==JSON.stringify(normalizeComments(d)))
+        throw Error('comment_snapshot_changed');
       issues.set(n,a);comments.set(n,c);
       if(followLinks)for(const text of [a.body,...c.items.map(v=>v.body)])for(const hit of text.matchAll(/(?:^|[^\w])#(\d{1,8})\b/g)){
         const k=Number(hit[1]);if(!attempted.has(k)&&!pending.includes(k))pending.push(k);
