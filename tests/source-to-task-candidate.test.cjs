@@ -90,7 +90,7 @@ function fixture(){
    report:body=>api.report({principal:principal(options.destinationEndpointId,['tasks:report']),body}),
    status:({event_id})=>api.status({principal:principal(options.destinationEndpointId,['tasks:status']),params:{event_id}})
  };
- return{api,sender,receiver,principal,calls,events};
+ return{api,sender,receiver,principal,calls,events,store};
 }
 test('synthetic source -> queue -> worker -> API ACK -> sender readback',async()=>{
  const f=fixture(),prepared=make();let invocation=0;
@@ -194,4 +194,102 @@ test('R05 integrated source reader rejects in-flight drift and revision identiti
  assert.equal(race.complete,false);
  assert.ok(race.errors.some(x=>x.error==='comment_snapshot_changed'));
  assert.throws(()=>prepare({...options,snapshot:race}),/source_incomplete_no_dispatch/);
+});
+
+
+// P0-10: One SHA / synthetic-only cross-module path. The synthetic fixture
+// below is NOT PostgreSQL, a real AI receiver, or a real task grant.
+test('P0-10 HTTP client source to ACK: explicit synthetic send, worker and sender readback',async()=>{
+ const crypto=require('node:crypto');
+ const {createHttpServer}=require('../api/http-server.cjs');
+ const {createHttpTaskClient}=require('../api/http-task-client-candidate.cjs');
+ const {createHmacAuth}=require('../api/auth-adapter.cjs');
+ const f=fixture(),prepared=make(),eventId=prepared.send_body.event_id;
+ assert.match(eventId,/^source:[0-9a-f]{64}$/);
+ assert.equal(prepared.dispatch_permitted,false);
+ assert.equal(prepared.explicit_human_grant_present,false);
+ assert.equal(prepared.actual_remote_ack,false);
+ assert.equal(f.events.size,0,'preflight must not enqueue work');
+ const keys={
+   [options.sourceEndpointId]:'synthetic-source-secret-value-for-hmac-2026',
+   [options.destinationEndpointId]:'synthetic-worker-secret-value-for-hmac-2026',
+   stranger:'synthetic-stranger-secret-value-for-hmac-2026'
+ };
+ const scopes={
+   [options.sourceEndpointId]:['tasks:send','tasks:status'],
+   [options.destinationEndpointId]:['tasks:receive','tasks:execute','tasks:ack','tasks:report','tasks:status'],
+   stranger:['tasks:status']
+ };
+ function token(endpoint){
+   const now=Math.floor(Date.now()/1000);
+   const claims={endpoint_id:endpoint,aud:'mainbrain-api',iat:now,exp:now+90,scopes:scopes[endpoint]};
+   const encoded=Buffer.from(JSON.stringify(claims)).toString('base64url');
+   const mac=crypto.createHmac('sha256',keys[endpoint]).update(encoded).digest('base64url');
+   return encoded+'.'+mac;
+ }
+ let syntheticGrant=false,grantedEnqueues=0;
+ const guardedStore={...f.store,async enqueue(p){
+   if(!syntheticGrant||p.task_id!==options.taskId||
+      p.source_endpoint_id!==options.sourceEndpointId||
+      p.destination_endpoint_id!==options.destinationEndpointId){
+     const e=Error('no matching synthetic scoped grant');e.code='FORBIDDEN';throw e;
+   }
+   grantedEnqueues++;
+   return f.store.enqueue(p);
+ }};
+ const server=createHttpServer({store:guardedStore,authenticate:createHmacAuth({keys})});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try{
+   const baseUrl='http://127.0.0.1:'+server.address().port+'/';
+   const client=(endpoint)=>createHttpTaskClient({baseUrl,tokenProvider:async()=>token(endpoint)});
+   const sender=client(options.sourceEndpointId),receiver=client(options.destinationEndpointId);
+   const stranger=client('stranger');
+
+   // Without the separately authorised grant, even a valid sender identity
+   // cannot enqueue a prepared candidate.
+   await assert.rejects(sender.send(prepared.send_body),e=>e.code==='FORBIDDEN');
+   assert.equal(f.events.size,0);
+   syntheticGrant=true;
+
+   const injected={...prepared.send_body,source_endpoint_id:'spoofed-source'};
+   const sent=await sender.send(injected);
+   assert.equal(sent.event_id,eventId);
+   assert.equal(sent.source_endpoint_id,options.sourceEndpointId,
+     'server derives origin from verified HMAC, never user-supplied body');
+   assert.equal(sent.payload.kind,'SOURCE_REVIEW_METADATA_ONLY');
+   assert.equal(sent.payload.content_included,false);
+   assert.equal(sent.state,'queued');
+   await assert.rejects(stranger.status({event_id:eventId}),e=>e.code==='FORBIDDEN');
+
+   let invoked=0;
+   const worker=createPollingWorker({client:receiver,performTask:async task=>{
+     invoked++;
+     assert.equal(task.event_id,eventId);
+     assert.equal(task.payload.content_included,false);
+     return {execution_evidence:'synthetic:execution:full-http',
+       receipt_evidence:'synthetic:receipt:full-http'};
+   }});
+   assert.equal((await worker.runOnce()).state,'processed');
+   assert.equal(invoked,1);
+   const back=await sender.status({event_id:eventId});
+   assert.equal(back.state,'ack_received');
+   assert.equal(back.current_attempt_id,UUID);
+   assert.equal(back.receipt_evidence,'synthetic:receipt:full-http');
+
+   // Idempotent re-send must not result in a second lease or execution.
+   assert.equal((await sender.send(prepared.send_body)).event_id,eventId);
+   assert.equal(f.events.size,1);
+   assert.equal((await worker.runOnce()).state,'idle');
+   assert.equal(invoked,1);
+   await assert.rejects(sender.send({...prepared.send_body,task_id:'unauthorised-task'}),
+     e=>e.code==='FORBIDDEN');
+   assert.equal(f.events.size,1);
+   assert.equal(grantedEnqueues,2,'only first and identical explicit sends reached queue');
+ }finally{
+   await new Promise(resolve=>server.close(resolve));
+ }
+ assert.deepEqual(f.calls,[
+   'queued','received_by_synthetic_endpoint','intent','synthetic_authorize',
+   'synthetic_execute','synthetic_ack'
+ ]);
 });
