@@ -11,7 +11,9 @@ function createHttpServer({store,authenticate,logger=()=>{}}){
   try{
    const url=new URL(req.url,'http://localhost');
    const path=url.pathname;
-   const match=/^\/v1\/tasks\/([A-Za-z0-9_-]{1,128})$/.exec(path);
+   // Whitelist revision-scoped source IDs; never generically decode URL segments.
+   const match=/^\/v1\/tasks\/([A-Za-z0-9_-]{1,128}|source(?::|%3[Aa])[0-9a-f]{64})$/.exec(path);
+   const pathEventId=match ? match[1].replace(/^source%3[Aa]/,'source:') : null;
    const method=routes[req.method+' '+path]||(req.method==='GET'&&match?'status':null);
    if(!method){res.writeHead(404);res.end(JSON.stringify({error:'NOT_FOUND'}));return;}
    action=method;let body={};
@@ -21,7 +23,7 @@ function createHttpServer({store,authenticate,logger=()=>{}}){
    }
    const q=Object.fromEntries(url.searchParams.entries());
    // The path event ID is authoritative; B2 query options must not replace it.
-   const params=match?{...q,event_id:match[1]}:{};
+   const params=match?{...q,event_id:pathEventId}:{};
    const value=await api[method]({headers:req.headers,body,params});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({data:value}));
   }catch(e){

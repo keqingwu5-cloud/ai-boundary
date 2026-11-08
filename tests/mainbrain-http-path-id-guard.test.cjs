@@ -42,3 +42,37 @@ test('P0_HTTP_PATH_ID_002: query injection cannot switch an inaccessible path ev
   });
   assert.deepEqual(calls,['EV_A'],'must never read EV_B when path identifies EV_A');
 });
+
+
+test('P0_HTTP_SOURCE_EVENT_001: revision-scoped source ID is readable by raw HTTP path',async()=>{
+  const eventId='source:'+'a'.repeat(64),calls=[];
+  const store={async get(id){calls.push(id);return {event_id:id,source_endpoint_id:'reader',destination_endpoint_id:'worker'};}};
+  await withServer(store,async base=>{
+    const response=await fetch(base+'/v1/tasks/'+eventId+'?event_id=EV_B');
+    assert.equal(response.status,200,'source:SHA256 event_id must survive the HTTP status route');
+    assert.equal((await response.json()).data.event_id,eventId);
+  });
+  assert.deepEqual(calls,[eventId],'path ID must override the injected query event_id');
+});
+
+test('P0_HTTP_SOURCE_EVENT_002: percent-encoded source colon is normalized to canonical ID',async()=>{
+  const eventId='source:'+'b'.repeat(64),calls=[];
+  const store={async get(id){calls.push(id);return {event_id:id,source_endpoint_id:'reader',destination_endpoint_id:'worker'};}};
+  await withServer(store,async base=>{
+    const response=await fetch(base+'/v1/tasks/'+encodeURIComponent(eventId));
+    assert.equal(response.status,200,'encoded source%3A... must reach canonical source:... record');
+    assert.equal((await response.json()).data.event_id,eventId);
+  });
+  assert.deepEqual(calls,[eventId]);
+});
+
+test('P0_HTTP_SOURCE_EVENT_003: malformed or double-encoded source IDs remain rejected',async()=>{
+  const calls=[],store={async get(id){calls.push(id);return {event_id:id,source_endpoint_id:'reader',destination_endpoint_id:'worker'};}};
+  await withServer(store,async base=>{
+    for(const id of ['source:'+'c'.repeat(63),'source%253A'+'c'.repeat(64),'source%3A'+'c'.repeat(64)+'%2Fescape']){
+      const response=await fetch(base+'/v1/tasks/'+id);
+      assert.equal(response.status,404,'malformed source event route must fail closed: '+id.slice(0,20));
+    }
+  });
+  assert.deepEqual(calls,[],'unrecognised URL encodings must never reach store');
+});
