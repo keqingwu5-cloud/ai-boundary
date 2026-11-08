@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/firstbrain/nary-composition.preview.v1.schema.json",
+  "title": "N-ary Composition Read Preview V1.4 — not an authority packet",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "kind", "id", "revision", "content_hash", "authority", "provenance_status", "declared_source_id", "payload"],
+      "properties": {
+        "schema": {"const": "firstbrain.nary-composition.preview.v1"},
+        "kind": {"const": "source"},
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+        "revision": {"type": "string", "minLength": 1},
+        "content_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "authority": {"const": "none"},
+        "provenance_status": {"const": "unverified"},
+        "declared_source_id": {"type": "string"},
+        "payload": {}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "kind", "id", "operation", "input_refs", "leaf_refs", "declared_source_id_count", "computed_value", "context_hash", "content_hash", "authority", "evidence_certification", "memory_approval", "real_ack", "stale"],
+      "properties": {
+        "schema": {"const": "firstbrain.nary-composition.preview.v1"},
+        "kind": {"const": "composition"},
+        "id": {"type": "string", "pattern": "^cmp:[a-f0-9]{64}$"},
+        "operation": {
+          "type": "object",
+          "required": ["type", "ruleId", "ruleVersion"],
+          "additionalProperties": false,
+          "properties": {
+            "type": {"enum": ["collect", "sequence", "compare", "derive", "sum_integers"]},
+            "ruleId": {"type": "string"},
+            "ruleVersion": {"type": "string"}
+          }
+        },
+        "input_refs": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/reference"}},
+        "leaf_refs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/reference"}},
+        "declared_source_id_count": {"type": "integer", "minimum": 1},
+        "computed_value": {"type": ["integer", "null"]},
+        "context_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "content_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "authority": {"const": "none"},
+        "evidence_certification": {"const": "UNVERIFIED"},
+        "memory_approval": {"const": "NOT_APPROVED"},
+        "real_ack": {"const": "NOT_VERIFIED"},
+        "stale": {"const": false}
+      }
+    }
+  ],
+  "$defs": {
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "fingerprint", "revision"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "revision": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
