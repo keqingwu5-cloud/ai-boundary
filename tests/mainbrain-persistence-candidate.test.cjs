@@ -492,3 +492,51 @@ test('AUTO_G2_WATCHDOG_SWEEP_ERROR: failed sweep is unhealthy, not a successful 
     'watchdog failure must require an independent supervisor');
   assert(!logs.some(e=>e.action==='lease_sweep_completed'));
 });
+
+// AUTO-G2 deadline cases: a pending Promise must not make a dead monitor look healthy.
+async function autoG2OutcomeWithin(promise,maximumMs=350){
+  let timer;
+  try{
+    return await Promise.race([
+      Promise.resolve(promise).then(value=>({kind:'fulfilled',value}),error=>({kind:'rejected',error})),
+      new Promise(resolve=>{timer=setTimeout(()=>resolve({kind:'hung'}),maximumMs);})
+    ]);
+  }finally{if(timer)clearTimeout(timer);}
+}
+
+test('AUTO_G2_WORKER_RECEIVE_HANG: receive deadline exits as unhealthy, never invokes provider',async()=>{
+  const logs=[];let receives=0,providers=0;
+  const client={
+    receive:()=>{receives+=1;return new Promise(()=>{});},
+    intent:async()=>{throw Error('unexpected intent');},
+    authorize:async()=>{throw Error('unexpected authorize');},
+    execute:async()=>{throw Error('unexpected execute');},
+    ack:async()=>{throw Error('unexpected ack');},
+    fail:async()=>{throw Error('unexpected fail');},
+    report:async()=>{throw Error('unexpected report');}
+  };
+  const worker=createPollingWorker({client,intervalMs:100,receiveTimeoutMs:100,
+    logger:e=>logs.push(e),performTask:async()=>{providers+=1;throw Error('unexpected provider');}});
+  const result=await autoG2OutcomeWithin(worker.runUntilStopped());
+  assert.equal(result.kind,'rejected','hung receive must be bounded, not silently suspended');
+  assert.equal(result.error.code,'RECEIVE_TIMEOUT');
+  assert.equal(receives,1);
+  assert.equal(providers,0,'unknown lease outcome must never be automatically executed/retried');
+  assert(logs.some(e=>e.action==='worker_loop_unhealthy'&&e.code==='RECEIVE_TIMEOUT'&&
+    e.supervisor_required===true&&e.remote_stop_confirmed===false));
+});
+
+test('AUTO_G2_WATCHDOG_SWEEP_HANG: blocked DB sweep must not claim health or notification',async()=>{
+  const {createLeaseWatchdog}=require('../api/lease-watchdog-candidate.cjs');
+  const logs=[];let sweeps=0;
+  const watchdog=createLeaseWatchdog({destinationEndpointId:'isolated-target',intervalMs:1000,
+    sweepTimeoutMs:100,store:{sweepExpired:()=>{sweeps+=1;return new Promise(()=>{});}},
+    logger:e=>logs.push(e)});
+  const result=await autoG2OutcomeWithin(watchdog.runUntilStopped());
+  assert.equal(result.kind,'rejected','hung sweep must be bounded, not silently suspended');
+  assert.equal(result.error.code,'SWEEP_TIMEOUT');
+  assert.equal(sweeps,1,'no blind scan retry');
+  assert(logs.some(e=>e.action==='watchdog_loop_unhealthy'&&e.code==='SWEEP_TIMEOUT'&&
+    e.sweep_completion_unknown===true&&e.supervisor_required===true));
+  assert(!logs.some(e=>e.action==='lease_sweep_completed'));
+});
