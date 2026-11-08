@@ -16,8 +16,9 @@ function slimRecord(row) {
 }
 /** Public, reproducible synthetic demonstration; no true attestation or identity. */
 export async function runPilot({a=4,b=6,cState='UNKNOWN',c=2}={}){
-  if (![a,b,c].every(Number.isSafeInteger) || [a,b,c].some(x=>x<0||x>1000000)) return error('INTEGER_RANGE_REQUIRED');
   if (!ALLOWED.has(cState)) return error('C_STATE_INVALID');
+  const validQuantity=x=>Number.isSafeInteger(x)&&x>=0&&x<=1000000;
+  if (![a,b].every(validQuantity) || (cState==='KNOWN'&&!validQuantity(c))) return error('INTEGER_RANGE_REQUIRED');
   const engine = createGapAwareEngine();
   const sourceRows=[];
   for (const [id,v] of [['A',a],['B',b]]){
