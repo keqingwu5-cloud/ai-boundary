@@ -87,3 +87,10 @@ test('untrusted request cannot convert old unsigned prior to review without keys
  assert.equal(r.attestationEvidence.trustRootConfigured,false);
  assert.equal(r.preflight.decisions[0].action,'TARGETED_VERIFY');
 });
+
+test('multiple signatures for one source are ambiguous and all rejected',()=>{
+ const a=signed();const r=fromSnapshot({...options,attestations:[a,a],trustedReviewerKeys:roots()});
+ assert.equal(r.attestationEvidence.accepted,0);
+ assert.equal(r.attestationEvidence.rejected,2);
+ assert.equal(r.preflight.decisions[0].action,'TARGETED_VERIFY');
+});
