@@ -16,6 +16,8 @@ function verifyReviewAttestations({attestations=[],trustedReviewerKeys={},nowMs}
  if(!Array.isArray(attestations)||attestations.length>1000)throw new TypeError('attestations_bounded_required');
  if(!validTime(nowMs)||!trustedReviewerKeys||typeof trustedReviewerKeys!=='object'||Array.isArray(trustedReviewerKeys))
   throw new TypeError('trusted_verifier_config_required');
+ const counts=new Map();
+ for(const a of attestations)if(validString(a?.sourceId))counts.set(a.sourceId,(counts.get(a.sourceId)||0)+1);
  const seen=new Set();const accepted=[];const rejected=[];
  for(const a of attestations) {
   let why=null;
@@ -38,6 +40,7 @@ function verifyReviewAttestations({attestations=[],trustedReviewerKeys={},nowMs}
     catch {why='INVALID_SIGNING_KEY';}
    }
   }
+  if(!why&&counts.get(a.sourceId)>1)why='AMBIGUOUS_SOURCE_ATTESTATION';
   if(!why&&seen.has(a.sourceId))why='DUPLICATE_SOURCE_ATTESTATION';
   if(why){rejected.push({sourceId:typeof a?.sourceId==='string'?a.sourceId:null,reason:why});continue;}
   seen.add(a.sourceId);
