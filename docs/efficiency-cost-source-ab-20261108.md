@@ -11,7 +11,7 @@
 ## 接線實際範圍
 `inspectGitHubAndPlan` 調用既有 `discoverGitHub`，保留完整性、GitHub issue/comment 頁數、前後版本和 comment drift 的既有檢查。`evaluateSourceSnapshot` 產生來源 content digest，`prepareSourceHandoff` 以 existing source-only contract 再確認 repo/issue/comment canonical URL。橋接另比對 issue/comment revision metadata，產生 `revisionFingerprint`。若任何來源不完整、已核對 issue 不在唯一 scope、版本缺失，回 `BLOCK_SOURCE`，而非沿用舊快取。
 
-預設風險 `high`，只輸出 `REVIEW_REQUIRED`；只有調用端明確提供 `risk:low` 的研究候選才可能產生 `TARGETED_VERIFY` 或 `REUSE_VERIFIED`。**目前沒有可信政策身份/簽章驗證層**；`prior.reviewed` 仍是 caller-supplied 的模擬先前審核，不可直接視為真正權威。此接口無自行派工/模型執行/外部寫入能力。
+預設風險 `high`，只輸出 `REVIEW_REQUIRED`；只有調用端明確提供 `risk:low` 的研究候選才可能產生 `TARGETED_VERIFY` 或 `REUSE_VERIFIED`。**已加入候選 Ed25519 審查證據驗簽與 reviewer 撤權／policy epoch／到期的 fail-closed 檢查**；裸露 `prior.reviewed=true` 在 GitHub 橋接端會被忽略。CI 使用執行當次生成的合成金鑰，未部署任何真實受信 key root、正式審查者／撤權服務。只有獲批准的執行端配置可信 reviewer 公鑰並固定來源時，驗簽結果才可能成為真正的可靠重用依據。此接口無自行派工/模型執行/外部寫入能力。
 
 ## 成本分母與測試結果的正確解釋
 - 檢查 GitHub 完整來源時仍必須實際呼叫 `getIssue`/`getComments`；本版 `sourceReadsSkipped:0`。讀取器函式呼叫 ≠ HTTP request（分頁可能更多），所以後者標為 NOT_MEASURED。
@@ -27,3 +27,10 @@
 5. 效益未證、或未獲使用者同意，不合併 main、不部署、不啟用付費 API。不將此候選替代 #41 真 GPT② ACK、真 PG／Safari 和安全治理 Gate。
 
 狀態：`SOURCE_BRIDGE_CANDIDATE / SYNTHETIC_AB_CANDIDATE / REAL_TOKEN_SAVINGS_UNKNOWN / INDEPENDENT_REVIEW_PENDING / DEPLOY_NO_GO`。
+
+
+## 2026-11-08 新增｜Review 信任邊界負向測試
+
+新增 `api/efficiency-review-attestation.cjs` 與獨立合成測試，避免不受信的 GitHub 來源或呼叫者自行填 `reviewed:true` 就得到 `REUSE_VERIFIED`。只有來源/目的/版本指紋匹配的 Ed25519 簽章、已配置的獨立可信 reviewer 公鑰、合理 epoch/有效時間、無撤銷狀態等全部滿足時，才可在**唯讀規劃層**返回重用候選；仍永遠 `deployPermitted:false`，不可據此發送或付費。多份相同來源簽章視為模糊資訊，全部拒絕。
+
+曾有合成負向測試揭露原橋接可被假 `reviewed` 誤導；修復版透過原始 PR 的 GitHub CI 重新跑原有接線、來源測試、A/B 和新的簽章/篡改/撤銷案例。要從合成驗證升級到真工程准入，仍缺：owner/審查者公鑰保管與輪替、獨立身份、審查者實際資格與核發授權、公開鑰匙來源可信性、獨立 reviewer 和完整回退政策。將這些驗證為真之前，`TRUSTED_REUSE_PRODUCTION=NO_GO`。
