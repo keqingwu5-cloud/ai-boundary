@@ -1,6 +1,7 @@
 /* 3D 動態認知大腦 v1 — plain Three.js (ES modules, vendored), no build step. */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import {createBrainStorageGuard} from './brain-storage-guard.mjs';
 
 /* ================= constants ================= */
 const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
@@ -67,7 +68,25 @@ function seedState(){
   return st;
 }
 function valid(s){ return s && Array.isArray(s.brains) && Array.isArray(s.nodes) && Array.isArray(s.links) && Array.isArray(s.history) && s.brains.some(b => b.id === 'main'); }
-function load(){ try { const s = JSON.parse(localStorage.getItem(KEY)); return valid(s) ? s : null; } catch(e){ return null; } }
+const brainStorage=createBrainStorageGuard(localStorage,KEY,valid);
+function load(){return brainStorage.state;}
+function showStorageWarning(reason){
+  document.body.dataset.brainStorage='blocked';
+  let node=document.getElementById('brain-storage-warning');
+  if(!node){
+    node=document.createElement('div');
+    node.id='brain-storage-warning';
+    node.setAttribute('role','alert');
+    node.style.cssText='position:fixed;bottom:0;left:0;right:0;z-index:2147483647;padding:14px 18px;background:#57212b;color:white;font:600 14px/1.6 sans-serif;box-shadow:0 -2px 12px #0008';
+    document.body.append(node);
+  }
+  node.textContent='⚠ 本機主腦資料需先檢查（'+String(reason||'UNKNOWN')+'）：本頁已停止修改與儲存。未自動重置或修復；畫面可能只是預設示意。請保留原始瀏覽器資料並由管理者協助復原。';
+}
+function storageLocked(){
+  if(brainStorage.canWrite())return false;
+  showStorageWarning(brainStorage.reason());
+  return true;
+}
 /* concept layer migration: adds concepts[] / processPattern to old saves without touching user edits */
 function seedKey(id){ const m = /^n_(q\d+)(?:_e(\d+))?$/.exec(id); return m ? (m[2] !== undefined ? m[1] + ':e' + m[2] : m[1]) : null; }
 function migrate(st){
@@ -106,17 +125,28 @@ function migrate(st){
 const CPAL = ['#5eead4','#a3e635','#fde047','#fdba74','#67e8f9','#f0abfc','#86efac','#c4b5fd','#f9a8d4','#fca5a5','#fb7185','#93c5fd','#fb923c','#f472b6','#cbd5e1','#bef264','#7dd3fc','#fcd34d','#d8b4fe','#99f6e4'];
 function pickColor(st){ const used = new Set(Object.values(st.concepts || {}).map(c => c.color)); return CPAL.find(c => !used.has(c)) || `hsl(${Math.floor(Math.random() * 360)},85%,72%)`; }
 let state = migrate(load() || seedState());
+if(!brainStorage.canWrite())showStorageWarning(brainStorage.reason());
 let undoStack = []; try { undoStack = JSON.parse(localStorage.getItem(UKEY) || '[]'); } catch(e){ undoStack = []; }
 let saveT = 0;
 function save(now = false){
   clearTimeout(saveT);
-  const f = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); localStorage.setItem(UKEY, JSON.stringify(undoStack.slice(-12))); flashSaved(); } catch(e){ toast('⚠ 儲存失敗：' + e.message); } };
-  now ? f() : (saveT = setTimeout(f, 250));
+  if(storageLocked())return false;
+  const f=()=>{
+    try{
+      const result=brainStorage.save(JSON.stringify(state));
+      if(!result.ok){showStorageWarning(result.reason);return false;}
+      localStorage.setItem(UKEY,JSON.stringify(undoStack.slice(-12)));
+      flashSaved();
+      return true;
+    }catch(e){showStorageWarning('SAVE_FAILED');return false;}
+  };
+  return now?f():(saveT=setTimeout(f,250),true);
 }
 save(true);
 const listeners = {};
 function emit(ev, data){ (listeners[ev] || []).forEach(f => { try { f(data); } catch(e){ console.error(e); } }); }
 function mutate(action, payload, fn){
+  if(storageLocked())return false;
   undoStack.push(JSON.stringify(state)); if (undoStack.length > 12) undoStack.shift();
   fn();
   state.history.push({ ts:Date.now(), action, payload });
@@ -279,20 +309,23 @@ function deleteNode(id){
   closePanel();
 }
 function undo(){
+  if(storageLocked())return;
   if (!undoStack.length){ toast('沒有可復原的步驟'); return; }
   state = JSON.parse(undoStack.pop());
   save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已復原');
   if (!B(focusId)) focusBrain('main');
   emit('change', { action:'undo' });
 }
-function resetAll(){ undoStack.push(JSON.stringify(state)); state = seedState(); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); }
+function resetAll(){if(storageLocked())return;undoStack.push(JSON.stringify(state)); state = seedState(); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); }
 function exportJSON(){
+  if(storageLocked())return;
   const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ai-brain-' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.json';
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   toast('⇩ 已匯出 JSON');
 }
 function importJSON(obj){
+  if(storageLocked())return false;
   if (!valid(obj)){ toast('⚠ 檔案格式不符'); return false; }
   undoStack.push(JSON.stringify(state));
   state = migrate(obj); state.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
