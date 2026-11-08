@@ -455,3 +455,40 @@ test('ACK cannot skip recorded execution even after provider intent was persiste
  assert(!calls.some(x=>x.sql.includes("SET state='ack_received'")));
  assert(calls.some(x=>x.sql==='ROLLBACK'));
 });
+
+// AUTO-G2: health failures must be visible without retrying unknown external work.
+test('AUTO_G2_WORKER_RECEIVE_ERROR: poll failure is unhealthy; no implicit retry or provider invocation',async()=>{
+  const logs=[];let receives=0,providers=0;
+  const client={
+    receive:async()=>{receives+=1;const e=Error('isolated transport offline');e.code='ECONNRESET';throw e;},
+    intent:async()=>{throw Error('unexpected intent');},
+    authorize:async()=>{throw Error('unexpected authorize');},
+    execute:async()=>{throw Error('unexpected execute');},
+    ack:async()=>{throw Error('unexpected ack');},
+    fail:async()=>{throw Error('unexpected fail');},
+    report:async()=>{throw Error('unexpected report');}
+  };
+  const worker=createPollingWorker({client,intervalMs:100,logger:e=>logs.push(e),
+    performTask:async()=>{providers+=1;throw Error('must not execute');}});
+  await assert.rejects(worker.runUntilStopped(),/isolated transport offline/);
+  assert.equal(receives,1,'no automatic receive retry after unknown transport error');
+  assert.equal(providers,0);
+  assert(logs.some(e=>e.action==='worker_loop_unhealthy'&&e.code==='ECONNRESET'&&
+    e.remote_stop_confirmed===false&&e.supervisor_required===true),
+    'operator must see an explicit fail-closed unhealthy event');
+  assert(!logs.some(e=>e.action==='processed_api_only'));
+});
+
+test('AUTO_G2_WATCHDOG_SWEEP_ERROR: failed sweep is unhealthy, not a successful heartbeat',async()=>{
+  const {createLeaseWatchdog}=require('../api/lease-watchdog-candidate.cjs');
+  const logs=[];let sweeps=0;
+  const watchdog=createLeaseWatchdog({destinationEndpointId:'isolated-target',intervalMs:1000,
+    store:{sweepExpired:async()=>{sweeps+=1;const e=Error('database offline');e.code='DB_OFFLINE';throw e;}},
+    logger:e=>logs.push(e)});
+  await assert.rejects(watchdog.runUntilStopped(),/database offline/);
+  assert.equal(sweeps,1,'no blind retry of an uncertain sweep');
+  assert(logs.some(e=>e.action==='watchdog_loop_unhealthy'&&e.code==='DB_OFFLINE'&&
+    e.sweep_completion_unknown===true&&e.supervisor_required===true),
+    'watchdog failure must require an independent supervisor');
+  assert(!logs.some(e=>e.action==='lease_sweep_completed'));
+});
