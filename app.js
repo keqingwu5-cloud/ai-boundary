@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {createBrainStorageGuard} from './brain-storage-guard.mjs';
+import {validateBrainGraph} from './brain-graph-integrity.mjs';
 
 /* ================= constants ================= */
 const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
@@ -67,7 +68,7 @@ function seedState(){
   st.history.push({ ts:now, action:'seed', payload:{ questions:QUESTIONS.length, nodes:st.nodes.length } });
   return st;
 }
-function valid(s){ return s && Array.isArray(s.brains) && Array.isArray(s.nodes) && Array.isArray(s.links) && Array.isArray(s.history) && s.brains.some(b => b.id === 'main'); }
+const valid=validateBrainGraph;
 const brainStorage=createBrainStorageGuard(localStorage,KEY,valid);
 function load(){return brainStorage.state;}
 function showStorageWarning(reason){
@@ -147,11 +148,24 @@ const listeners = {};
 function emit(ev, data){ (listeners[ev] || []).forEach(f => { try { f(data); } catch(e){ console.error(e); } }); }
 function mutate(action, payload, fn){
   if(storageLocked())return false;
-  undoStack.push(JSON.stringify(state)); if (undoStack.length > 12) undoStack.shift();
-  fn();
-  state.history.push({ ts:Date.now(), action, payload });
-  save(); sync(); renderHistory(); renderCrumbs();
-  emit('change', { action, payload });
+  const before=JSON.stringify(state), priorUndo=undoStack.slice();
+  try{
+    undoStack.push(before);if(undoStack.length>12)undoStack.shift();
+    fn();
+    state.history.push({ts:Date.now(),action,payload});
+    // Commit the validated graph immediately; do not render an unsaved mutation.
+    if(!save(true)){
+      state=JSON.parse(before);undoStack=priorUndo;
+      return false;
+    }
+  }catch(e){
+    state=JSON.parse(before);undoStack=priorUndo;
+    showStorageWarning('MUTATION_ERROR');
+    return false;
+  }
+  sync();renderHistory();renderCrumbs();
+  emit('change',{action,payload});
+  return true;
 }
 const N = id => state.nodes.find(n => n.id === id);
 const B = id => state.brains.find(b => b.id === id);
@@ -310,13 +324,22 @@ function deleteNode(id){
 }
 function undo(){
   if(storageLocked())return;
-  if (!undoStack.length){ toast('沒有可復原的步驟'); return; }
-  state = JSON.parse(undoStack.pop());
-  save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已復原');
-  if (!B(focusId)) focusBrain('main');
-  emit('change', { action:'undo' });
+  if(!undoStack.length){toast('沒有可復原的步驟');return;}
+  const before=JSON.stringify(state),priorUndo=undoStack.slice();
+  state=JSON.parse(undoStack.pop());
+  if(!save(true)){state=JSON.parse(before);undoStack=priorUndo;return;}
+  sync();renderHistory();renderCrumbs();closePanel();toast('↶ 已復原');
+  if(!B(focusId))focusBrain('main');
+  emit('change',{action:'undo'});
 }
-function resetAll(){if(storageLocked())return;undoStack.push(JSON.stringify(state)); state = seedState(); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); }
+function resetAll(){
+  if(storageLocked())return;
+  const before=JSON.stringify(state),priorUndo=undoStack.slice();
+  undoStack.push(before);state=seedState();
+  state.history.push({ts:Date.now(),action:'reset',payload:{}});
+  if(!save(true)){state=JSON.parse(before);undoStack=priorUndo;return;}
+  sync();renderHistory();renderCrumbs();closePanel();focusBrain('main');
+}
 function exportJSON(){
   if(storageLocked())return;
   const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
@@ -326,10 +349,14 @@ function exportJSON(){
 }
 function importJSON(obj){
   if(storageLocked())return false;
-  if (!valid(obj)){ toast('⚠ 檔案格式不符'); return false; }
-  undoStack.push(JSON.stringify(state));
-  state = migrate(obj); state.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
-  save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入');
+  if(!valid(obj)){toast('⚠ 檔案格式不符');return false;}
+  const before=JSON.stringify(state),priorUndo=undoStack.slice();
+  // Migrate a detached clone; the imported source object is never mutated.
+  undoStack.push(before);
+  state=migrate(JSON.parse(JSON.stringify(obj)));
+  state.history.push({ts:Date.now(),action:'import',payload:{nodes:obj.nodes.length,brains:obj.brains.length}});
+  if(!save(true)){state=JSON.parse(before);undoStack=priorUndo;return false;}
+  sync();renderHistory();renderCrumbs();closePanel();focusBrain('main');toast('⇧ 已匯入');
   return true;
 }
 
