@@ -8,6 +8,7 @@ function createHmacAuth({keys,clock=()=>Date.now(),audience='mainbrain-api',maxA
   const token=h.slice(7),parts=token.split('.');if(parts.length!==2)throw Error('UNAUTHORIZED');
   const [encoded,signature]=parts;let claims;
   try{claims=JSON.parse(Buffer.from(encoded,'base64url').toString('utf8'));}catch{throw Error('UNAUTHORIZED');}
+  if(!claims||typeof claims!=='object'||Array.isArray(claims)||typeof claims.endpoint_id!=='string'||!claims.endpoint_id)throw Error('UNAUTHORIZED');
   const secret=keys[claims.endpoint_id];if(typeof secret!=='string'||secret.length<32)throw Error('UNAUTHORIZED');
   const expected=crypto.createHmac('sha256',secret).update(encoded).digest('base64url');
   if(!timingEqual(expected,signature))throw Error('UNAUTHORIZED');
