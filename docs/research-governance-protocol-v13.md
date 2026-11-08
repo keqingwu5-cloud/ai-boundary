@@ -179,3 +179,9 @@
 ---
 
 **結論：完整協議是「建造圖」，純函式守門是「材料測試」，真 PR #75 路徑整合是「現場接管候選」，BOT③與使用者核准才是「正式使用執照」。**
+
+## 13. 可機器檢查的輸出契約（v1.3 補充）
+
+- `schemas/research-governance-bridge.preview.schema.json` 使用 JSON Schema Draft 2020-12，僅接受 `candidate_only` 或 `blocked`；`decision` 固定 `HOLD`，`claim_id/memory_record_id` 必須為 null，正式批准及真實接收 ACK 不可出現在本版資料類型。
+- `tests/research-governance-schema.test.mjs` 在 GitHub CI 檢查結構欄位一致性和禁止權威升格的常數；**不是**完整 JSON Schema 驗證器。完整 Draft 2020-12 語意驗證已在本地 Python `jsonschema` 隔離環境對代表性正例／負例執行。更多正式輸入、異常時間和跨版本相容仍需獨立審查。
+- JSON Schema 的 `format: date-time` 在部分實作只作註解，實際 as-of 邏輯必須繼續使用程式層的 UTC 時點檢查與原始來源核對。
