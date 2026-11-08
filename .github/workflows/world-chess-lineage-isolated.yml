@@ -1,0 +1,27 @@
+name: World-as-Chess N-ary lineage isolated candidate
+on:
+  pull_request:
+    paths:
+      - 'world-chess-lineage.mjs'
+      - 'tests/world-chess-lineage.test.mjs'
+      - 'docs/world-chess-lineage-isolated-v01.md'
+      - '.github/workflows/world-chess-lineage-isolated.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  world-chess-lineage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check source and isolated 21 tests
+        run: |
+          node --check world-chess-lineage.mjs
+          node --check tests/world-chess-lineage.test.mjs
+          node --test tests/world-chess-lineage.test.mjs
+      - name: Regress upstream N-ary V1.4-V1.6 tests
+        run: node --test tests/nary-composition.test.mjs tests/nary-transform.test.mjs tests/nary-transform-schema.test.mjs tests/gap-aware-composition.test.mjs tests/gap-aware-schema.test.mjs
