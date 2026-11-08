@@ -244,7 +244,16 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
     running=true;
     try {
       while(!signal?.aborted){
-        await runOnce({signal});
+        try {await runOnce({signal});}
+        catch(error){
+          // Observable failure is not successful recovery, delivery or remote stop.
+          // A separate authorised supervisor must react; never auto-redispatch.
+          try {logger({action:'worker_loop_unhealthy',
+            code:typeof error?.code==='string'&&error.code?error.code:'WORKER_LOOP_ERROR',
+            supervisor_required:true,remote_stop_confirmed:false});}
+          catch(_) { /* Preserve the original operational failure if logging fails. */ }
+          throw error;
+        }
         // After runOnce, abort may have been set mid-cycle; re-check before sleep.
         if(signal?.aborted)break;
         try {await sleep(intervalMs,undefined,{signal});}
