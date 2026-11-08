@@ -166,3 +166,97 @@ test("restore preview and candidate preview are side-effect free",()=>{
 test("invalid restore input still fails closed",()=>{
   assert.throws(()=>impact.previewRestore(vault(),{}),/restore_impact_input_invalid/);
 });
+
+// REVIEW-20261108: independently reproduced per-kind restore-control divergence
+const controlCore=require("../memory-controls-core.js");
+const controlEvent=(id,kind,version,before,after,reason="Synthetic review")=>({
+  id,kind,version,before,after,reason,at:"2026-11-08T00:00:00Z"
+});
+function controlPair(){
+ const base=vault(),D1=controlEvent("D1","direction",1,"","A"),
+   T1=controlEvent("T1","threshold",1,"","T1");
+ base.memoryControls={
+  direction:{text:"A",version:1},threshold:{text:"T1",version:1},
+  history:[D1,T1]
+ };
+ controlCore.view(base.memoryControls); // both sides must be legal, not corrupt fixtures
+ return {base,D1,T1};
+}
+test("restore flags same-version threshold mutation even as direction advances",()=>{
+ const {base,D1}=controlPair(),b=clone(base);
+ const changedT1=controlEvent("T1X","threshold",1,"","T2");
+ const D2=controlEvent("D2","direction",2,"A","B");
+ b.memoryControls={
+  direction:{text:"B",version:2},threshold:{text:"T2",version:1},
+  history:[D1,changedT1,D2]
+ };
+ controlCore.view(b.memoryControls);
+ const preview=impact.previewRestore(base,b);
+ assert.ok(preview.warnings.includes("SAME_VERSION_CONTROL_CONTENT_CHANGED"));
+ assert.deepEqual(preview.sameVersionDivergentKinds,["threshold"]);
+ assert.deepEqual(preview.controlHistoryDivergentKinds,[]);
+ assert.equal(preview.requiresHumanApproval,true);
+ assert.equal(preview.willMerge,false);
+});
+test("restore flags same-version direction mutation even as threshold advances",()=>{
+ const {base,T1}=controlPair(),b=clone(base);
+ const changedD1=controlEvent("D1X","direction",1,"","Z");
+ const T2=controlEvent("T2","threshold",2,"T1","T3");
+ b.memoryControls={
+  direction:{text:"Z",version:1},threshold:{text:"T3",version:2},
+  history:[changedD1,T1,T2]
+ };
+ controlCore.view(b.memoryControls);
+ const preview=impact.previewRestore(base,b);
+ assert.ok(preview.warnings.includes("SAME_VERSION_CONTROL_CONTENT_CHANGED"));
+ assert.deepEqual(preview.sameVersionDivergentKinds,["direction"]);
+ assert.deepEqual(preview.controlHistoryDivergentKinds,[]);
+});
+test("restore detects rewritten historical prefix despite higher direction version",()=>{
+ const {base,T1}=controlPair(),b=clone(base);
+ const oldD1Rewritten=controlEvent("D1-REWRITTEN","direction",1,"","Z");
+ const D2=controlEvent("D2","direction",2,"Z","B");
+ b.memoryControls={
+  direction:{text:"B",version:2},threshold:{text:"T1",version:1},
+  history:[oldD1Rewritten,T1,D2]
+ };
+ controlCore.view(b.memoryControls);
+ const preview=impact.previewRestore(base,b);
+ assert.ok(preview.warnings.includes("CONTROL_HISTORY_DIVERGENCE"));
+ assert.deepEqual(preview.controlHistoryDivergentKinds,["direction"]);
+ assert.ok(!preview.warnings.includes("SAME_VERSION_CONTROL_CONTENT_CHANGED"));
+});
+test("restore accepts legal direction-only version append without spurious warnings",()=>{
+ const {base,D1,T1}=controlPair(),b=clone(base);
+ b.memoryControls.direction={text:"B",version:2};
+ b.memoryControls.history=[D1,T1,controlEvent("D2","direction",2,"A","B")];
+ controlCore.view(b.memoryControls);
+ const preview=impact.previewRestore(base,b);
+ assert.deepEqual(preview.warnings,[]);
+ assert.deepEqual(preview.sameVersionDivergentKinds,[]);
+ assert.deepEqual(preview.controlHistoryDivergentKinds,[]);
+});
+test("restore accepts legal threshold-only version append without spurious warnings",()=>{
+ const {base,D1,T1}=controlPair(),b=clone(base);
+ b.memoryControls.threshold={text:"T3",version:2};
+ b.memoryControls.history=[D1,T1,controlEvent("T2","threshold",2,"T1","T3")];
+ controlCore.view(b.memoryControls);
+ const preview=impact.previewRestore(base,b);
+ assert.deepEqual(preview.warnings,[]);
+});
+test("restore flags same-version control history metadata tamper",()=>{
+ const {base}=controlPair(),b=clone(base);
+ b.memoryControls.history[1]={...b.memoryControls.history[1],reason:"Rewritten provenance"};
+ controlCore.view(b.memoryControls);
+ const preview=impact.previewRestore(base,b);
+ assert.ok(preview.warnings.includes("SAME_VERSION_CONTROL_CONTENT_CHANGED"));
+ assert.deepEqual(preview.sameVersionDivergentKinds,["threshold"]);
+});
+test("restore preserves legacy controls comparison without invented divergences",()=>{
+ const {base}=controlPair(),b=clone(base);
+ delete base.memoryControls;
+ const preview=impact.previewRestore(base,b);
+ assert.deepEqual(preview.sameVersionDivergentKinds,[]);
+ assert.deepEqual(preview.controlHistoryDivergentKinds,[]);
+ assert.ok(!preview.warnings.includes("SAME_VERSION_CONTROL_CONTENT_CHANGED"));
+});
