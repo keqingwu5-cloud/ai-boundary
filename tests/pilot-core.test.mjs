@@ -25,7 +25,7 @@ test('05 REDACTED does not create a visible result',async()=>{
   const r=await runPilot({cState:'REDACTED'});assert.equal(r.phase,'SAFE_BLOCK');assert.equal(r.y,null);assert.equal(r.reason,'ACCESS_DENIED_OR_UNAVAILABLE');
 });
 test('06 invalid numeric values and state fail closed',async()=>{
-  for(const params of [{a:-1},{b:1.2},{c:1000001},{cState:'MAGIC'}]) assert.equal((await runPilot(params)).ok,false);
+  for(const params of [{a:-1},{b:1.2},{cState:'KNOWN',c:1000001},{cState:'MAGIC'}]) assert.equal((await runPilot(params)).ok,false);
 });
 test('07 references are opaque, not memory authority',async()=>{
   const r=await runPilot({cState:'KNOWN'});assert.match(r.x.id,/^cmp:[0-9a-f]{64}$/);
