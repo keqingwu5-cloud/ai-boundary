@@ -38,3 +38,4 @@ test('conflicting usage id refused',()=>assert.throws(()=>summarizeUsage([{usage
 test('negative actual charges rejected from known sum',()=>{const r=summarizeUsage([{usageId:'u',eventId:'e',kind:'provider_meter',chargeMicros:-8}]);assert.equal(r.complete,false)});
 test('total cost overflow rejected',()=>assert.throws(()=>summarizeUsage([{usageId:'a',eventId:'e',kind:'provider_meter',chargeMicros:Number.MAX_SAFE_INTEGER},{usageId:'b',eventId:'e',kind:'provider_meter',chargeMicros:1}]),/usage_overflow/));
 test('budget never gives a model-runtime permit',()=>{const r=planPreflight(input({sources:[good({fingerprint:d('b')})]}));assert.equal(r.runtimeAllowed,false);assert.equal(r.autoDispatch,false);assert.equal(r.summary.modelCallsAuthorized,0)});
+test('malformed contradiction flag must fail closed',()=>assert.throws(()=>planPreflight(input({sources:[good({contradiction:'yes'})]})),/invalid_contradiction_flag/));
