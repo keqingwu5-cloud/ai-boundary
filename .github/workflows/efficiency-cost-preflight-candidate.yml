@@ -1,0 +1,21 @@
+name: Efficiency and cost preflight (candidate only)
+on:
+  pull_request:
+    paths:
+      - 'api/efficiency-cost-preflight.cjs'
+      - 'tests/efficiency-cost-preflight.test.cjs'
+      - 'docs/efficiency-cost-predeployment-20261108.md'
+      - '.github/workflows/efficiency-cost-preflight-candidate.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Offline deterministic and fail-closed tests
+        run: node --test tests/efficiency-cost-preflight.test.cjs
