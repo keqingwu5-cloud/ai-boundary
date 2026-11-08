@@ -52,3 +52,26 @@ test('HTTP intent endpoint preserves verified actor and rejects insufficient sco
   assert.equal(calls[0].attempt_id,'ATT1');
  }finally{await new Promise(r=>server.close(r));}
 });
+
+
+test('P0-11 signed null JSON claims reject with UNAUTHORIZED rather than throwing TypeError',async()=>{
+ const auth=createHmacAuth({keys:{worker:secret},clock:()=>1000000});
+ await assert.rejects(auth({headers:{authorization:'Bearer '+token(null)}}),/UNAUTHORIZED/);
+});
+
+test('P0-11 HTTP invalid null JSON bearer returns 401 and never reaches queue',async()=>{
+ let enqueueCount=0;
+ const server=createHttpServer({store:{async enqueue(){enqueueCount++;return {};}},
+   authenticate:createHmacAuth({keys:{worker:secret}})});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try{
+   const url='http://127.0.0.1:'+server.address().port+'/v1/tasks/send';
+   const response=await fetch(url,{method:'POST',headers:{
+     authorization:'Bearer '+token(null),'content-type':'application/json'},
+     body:JSON.stringify({event_id:'ev',task_id:'t',destination_endpoint_id:'dest',
+       idempotency_key:'key',payload_version:'v1',payload:{kind:'test'}})});
+   assert.equal(response.status,401,'invalid signed claims are client auth errors, not internal server faults');
+   assert.deepEqual(await response.json(),{error:'UNAUTHORIZED'});
+   assert.equal(enqueueCount,0,'invalid credentials must not enqueue');
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
