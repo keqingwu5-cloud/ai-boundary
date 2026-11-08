@@ -21,7 +21,7 @@ jobs:
       - name: Existing source adapter and P0-6 regressions
         run: node --test tests/task-locator-github-adapter.test.cjs tests/source-to-task-candidate.test.cjs
       - name: PR117 preflight and integrated source adapter A/B tests
-        run: node --test tests/efficiency-cost-preflight.test.cjs tests/efficiency-github-source-bridge.test.cjs tests/efficiency-cost-ab-benchmark.test.cjs
+        run: node --test tests/efficiency-cost-preflight.test.cjs tests/efficiency-github-source-bridge.test.cjs tests/efficiency-review-attestation.test.cjs tests/efficiency-cost-trust-guard.test.cjs tests/efficiency-cost-ab-benchmark.test.cjs
       - name: Print synthetic A/B diagnostics (not actual token savings)
         run: node tests/efficiency-cost-ab-benchmark.cjs
   public-source-readonly:
