@@ -1,0 +1,59 @@
+{
+  "study_id": "FB-NARY-V15-BENCH-20261108",
+  "kind": "LOCAL_SYNTHETIC_SINGLE_PROCESS_NOT_NETWORK",
+  "fixture": {
+    "document_count": 4,
+    "reuse_count": 50,
+    "non_english_utf8": true,
+    "unverified_synthetic": true
+  },
+  "transform": {
+    "rule": "record_project",
+    "selected_fields": [
+      "title",
+      "topic",
+      "source_status"
+    ],
+    "created_id": "cmp:07509121f058f0516b9ce5f91315b482c1e810430880c456f1fc5d71eb2433d0",
+    "result_bytes": 437,
+    "output_lossiness": "FIELDS_OMITTED"
+  },
+  "bytes": {
+    "kind": "LOCAL_JSON_UTF8_ESTIMATE_NOT_NETWORK",
+    "source_bytes_per_use": 51116,
+    "ref_bytes_per_use": 210,
+    "result_bootstrap_bytes": 1475,
+    "reuse_count": 50,
+    "baseline_bytes": 2555800,
+    "warm_reference_bytes": 10500,
+    "cold_with_bootstrap_bytes": 63091,
+    "warm_savings_bytes": 2545300,
+    "cold_savings_bytes": 2492709,
+    "cache_precondition": "SAME_AUTHORIZED_VERSIONED_SOURCE_AND_RESULT_AVAILABLE_TO_RECEIVER"
+  },
+  "local_node_cpu_ms": {
+    "creation": 1.6196,
+    "warm_recompose_read_p50": 0.2345,
+    "warm_recompose_read_p95": 0.3882,
+    "warm_recompose_read_min": 0.1868,
+    "warm_recompose_read_max": 0.4869
+  },
+  "stats": {
+    "source_count": 4,
+    "composition_count": 1,
+    "cache_hits": 50,
+    "cache_misses": 1,
+    "authority": "none",
+    "evaluations": 1,
+    "reuses": 50,
+    "typed_outcomes": 1
+  },
+  "limitations": [
+    "initial result must be transferred or deterministically regenerated on the receiver",
+    "actual receiver must already have authorized matching source and result",
+    "does not measure WAN/USB/Wi-Fi speed or end-to-end agent inference time",
+    "does not measure ChatGPT token usage or real API costs",
+    "record_project omits fields and is not semantic comprehension",
+    "caller-declared permissions are not a production identity system"
+  ]
+}

@@ -1,0 +1,38 @@
+name: N-ary typed transform candidate (isolated)
+on:
+  pull_request:
+    paths:
+      - nary-transform.mjs
+      - tests/nary-transform.test.mjs
+      - tests/nary-transform-schema.test.mjs
+      - docs/nary-typed-transform-protocol-v15.md
+      - schemas/nary-transform.preview.schema.json
+      - benchmarks/nary-transform-bench.mjs
+      - .github/workflows/nary-transform-isolated.yml
+  workflow_dispatch:
+jobs:
+  typed-transform:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check schema syntax and source files
+        run: |
+          python3 -m json.tool schemas/nary-transform.preview.schema.json > /dev/null
+          node --check nary-transform.mjs
+          node --check benchmarks/nary-transform-bench.mjs
+      - name: Run V1.4 regression plus new V1.5 isolated tests
+        run: node --test tests/nary-composition.test.mjs tests/nary-transform.test.mjs tests/nary-transform-schema.test.mjs
+      - name: Record bounded local synthetic benchmark (not network speed)
+        run: node benchmarks/nary-transform-bench.mjs benchmarks/v15-ci-measurements.json
+      - name: Store local benchmark evidence for this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: v15-local-synthetic-benchmark
+          path: benchmarks/v15-ci-measurements.json
+          retention-days: 14
