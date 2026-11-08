@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 
 const release=path.resolve('audit-current');
 const backup=path.resolve('audit-previous');
+const maintenance=path.resolve('audit-maintenance');
 const allowed=['.nojekyll','gap-aware-composition.mjs','index.html','nary-composition.mjs','nary-transform.mjs','pilot-manifest.json','preview/app.mjs','preview/index.html','preview/pilot-core.mjs'].sort();
 const expected={
   'preview/index.html':'0b3916a16738e9848be892f2fecd5925fd8f684b',
@@ -63,4 +64,16 @@ test('06 release manifest tracks original pilot, not this release; require human
   assert.equal(manifest.source_head,'23d9845039a19015f671f512a1de4dba05c2f752');
   assert.equal(manifest.production_writes,false);
   console.log('MANIFEST_SOURCE_HEAD_OUTDATED: manifest points to PR127, release is PR129');
+});
+
+test('07 emergency maintenance candidate has no executable UI (NOT DEPLOYED)',()=>{
+  assert.deepEqual(listFiles(maintenance),allowed);
+  const maintenanceHtml=fs.readFileSync(path.join(maintenance,'preview/index.html'),'utf8');
+  const maintenanceRoot=fs.readFileSync(path.join(maintenance,'index.html'),'utf8');
+  assert.match(maintenanceHtml,/隔離試用功能已暫停/);
+  assert.doesNotMatch(maintenanceHtml,/<script/i);
+  assert.doesNotMatch(maintenanceHtml,/<input|<form|<button/i);
+  assert.equal(shaBlob(Buffer.from(maintenanceHtml)),'c4feba343bd4babcad1a24eed56697f05690d355');
+  assert.equal(shaBlob(Buffer.from(maintenanceRoot)),'f59bc0d7b2a2e8058a9cd7e12d2c14afd8f5c95e');
+  console.log('MAINTENANCE_ISOLATED_CANDIDATE_ONLY; gh-pages NOT CHANGED');
 });
