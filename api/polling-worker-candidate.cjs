@@ -4,7 +4,7 @@
 // verified preflight failure may take the ordinary retry path.
 const {setTimeout: sleep}=require('node:timers/promises');
 const {createHash}=require('node:crypto');
-function createPollingWorker({client,performTask,prepareTask=async()=>{},intervalMs=1000,logger=()=>{},cleanupTimeoutMs=5000}={}) {
+function createPollingWorker({client,performTask,prepareTask=async()=>{},intervalMs=1000,logger=()=>{},cleanupTimeoutMs=5000,receiveTimeoutMs=30_000}={}) {
   if(!client || !['receive','intent','authorize','execute','ack','fail','report'].every(k=>typeof client[k]==='function'))
     throw new TypeError('authenticated client with receive/intent/authorize/execute/ack/fail/report is required');
   if(typeof performTask!=='function'||typeof prepareTask!=='function')
@@ -13,6 +13,8 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
     throw new TypeError('invalid polling interval');
   if(!Number.isInteger(cleanupTimeoutMs)||cleanupTimeoutMs<100||cleanupTimeoutMs>3600000)
     throw new TypeError('invalid cleanup timeout');
+  if(!Number.isInteger(receiveTimeoutMs)||receiveTimeoutMs<100||receiveTimeoutMs>3600000)
+    throw new TypeError('invalid receive timeout');
   let running=false;
   // fail/report cleanup must NOT inherit the external stop signal. Bounded
   // timeout + visible failure only; process kill / network drop still not
@@ -35,7 +37,23 @@ function createPollingWorker({client,performTask,prepareTask=async()=>{},interva
     }
   }
   async function runOnce({signal}={}) {
-    const received=await client.receive();
+    // A slow or hung receive might still have leased remotely: a local timeout
+    // does NOT cancel the HTTP/database operation or prove remote stop.
+    // Fail closed: the polling loop exits for independent reconciliation.
+    let receiveTimer;
+    let received;
+    try{
+      received=await Promise.race([
+        Promise.resolve().then(()=>client.receive()),
+        new Promise((_,reject)=>{
+          receiveTimer=setTimeout(()=>{
+            const error=Error('receive_timeout');
+            error.code='RECEIVE_TIMEOUT';
+            reject(error);
+          },receiveTimeoutMs);
+        })
+      ]);
+    }finally{if(receiveTimer)clearTimeout(receiveTimer);}
     const tasks=Array.isArray(received)?received:received?[received]:[];
     if(tasks.length===0)return {state:'idle'};
     // A single-lease API must never silently drop additional leased events.
