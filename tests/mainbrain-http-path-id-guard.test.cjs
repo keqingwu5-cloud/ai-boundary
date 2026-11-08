@@ -114,3 +114,70 @@ test('P0_HTTP_CLIENT_SOURCE_EVENT_003: legacy status ID behavior remains compati
   });
   assert.deepEqual(seen,['EV_A']);
 });
+
+
+// P0-9 RED: HTTP Server exposes send, but the first-party HTTP Client may not.
+// These are synthetic loopback tests, NOT actual human grants or real remote receipts.
+test('P0_HTTP_CLIENT_SEND_001: explicit client send preserves canonical source event into HTTP server',async()=>{
+  const {createHttpTaskClient}=require('../api/http-task-client-candidate.cjs');
+  const event_id='source:'+'e'.repeat(64),seen=[],tokenActions=[];
+  const store={async enqueue(p){seen.push(p);return p;}};
+  const authenticate=async req=>req.headers.authorization==='Bearer synthetic-test-only'
+    ? {verified:true,endpoint_id:'origin-synthetic',scopes:['tasks:send']} : null;
+  const server=createHttpServer({store,authenticate});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  try{
+    const client=createHttpTaskClient({
+      baseUrl:'http://127.0.0.1:'+server.address().port+'/',
+      tokenProvider:async action=>{tokenActions.push(action);return 'synthetic-test-only';}
+    });
+    const proposal={
+      event_id,task_id:'synthetic-task',destination_endpoint_id:'worker-synthetic',
+      idempotency_key:'e'.repeat(64),payload_version:'v1',
+      payload:{kind:'SOURCE_REVIEW_METADATA_ONLY',content_included:false}
+    };
+    const r=await client.send(proposal);
+    assert.equal(r.event_id,event_id);
+    assert.equal(r.source_endpoint_id,'origin-synthetic','server must use authenticated actor');
+    assert.equal(r.payload_digest.length,64);
+    assert.deepEqual(tokenActions,['send']);
+  }finally{await new Promise(resolve=>server.close(resolve));}
+  assert.equal(seen.length,1);
+  assert.equal(seen[0].event_id,event_id);
+});
+
+test('P0_HTTP_CLIENT_SEND_002: missing sender token never reaches HTTP',async()=>{
+  const {createHttpTaskClient}=require('../api/http-task-client-candidate.cjs');
+  let networkCalls=0;
+  const client=createHttpTaskClient({
+    baseUrl:'http://127.0.0.1:9999/',
+    tokenProvider:async action=>{assert.equal(action,'send');return '';},
+    httpFetch:async()=>{networkCalls++;throw Error('unexpected network send');}
+  });
+  await assert.rejects(client.send({event_id:'source:'+'f'.repeat(64)}),
+    /authenticated token required/);
+  assert.equal(networkCalls,0);
+});
+
+test('P0_HTTP_CLIENT_SEND_003: absent scoped human grant must fail closed at store boundary',async()=>{
+  const {createHttpTaskClient}=require('../api/http-task-client-candidate.cjs');
+  let attempts=0,queued=0;
+  const store={async enqueue(){attempts++;const e=Error('no effective task-scoped human grant');
+    e.code='FORBIDDEN';throw e;}};
+  const authenticate=async()=>({verified:true,endpoint_id:'origin-synthetic',scopes:['tasks:send']});
+  const server=createHttpServer({store,authenticate});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  try{
+    const client=createHttpTaskClient({
+      baseUrl:'http://127.0.0.1:'+server.address().port+'/',
+      tokenProvider:async()=> 'synthetic-test-only'
+    });
+    await assert.rejects(client.send({
+      event_id:'source:'+'b'.repeat(64),task_id:'synthetic-task',
+      destination_endpoint_id:'worker-synthetic',idempotency_key:'b'.repeat(64),
+      payload_version:'v1',payload:{content_included:false}
+    }),e=>e.code==='FORBIDDEN');
+  }finally{await new Promise(resolve=>server.close(resolve));}
+  assert.equal(attempts,1);
+  assert.equal(queued,0);
+});
