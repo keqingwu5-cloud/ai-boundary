@@ -7,6 +7,7 @@ on:
       - 'brain-graph-integrity.mjs'
       - 'api/auto-review-router.cjs'
       - 'api/source-baseline-attestation.cjs'
+      - 'docs/source-baseline-attestation-candidate-v0.1.md'
       - 'vendor/fast-json-stable-stringify-v2.1.0.cjs'
       - 'vendor/LICENSE-fast-json-stable-stringify.txt'
       - 'docs/auto-review-router-candidate-v0.1.md'
@@ -31,4 +32,4 @@ jobs:
       - name: Candidate storage guard and existing memory regression
         run: node --test tests/brain-storage-guard.test.cjs tests/brain-graph-integrity.test.cjs tests/auto-review-router.test.cjs tests/auto-review-efficacy.test.cjs tests/source-baseline-attestation.test.cjs tests/launcher-memory.test.cjs tests/memory-workflow-core.test.cjs
       - name: Verify independent ESM guard parses
-        run: node --check brain-storage-guard.mjs && node --check brain-graph-integrity.mjs && node --check api/auto-review-router.cjs && node --check vendor/fast-json-stable-stringify-v2.1.0.cjs
+        run: node --check brain-storage-guard.mjs && node --check brain-graph-integrity.mjs && node --check api/auto-review-router.cjs && node --check api/source-baseline-attestation.cjs && node --check vendor/fast-json-stable-stringify-v2.1.0.cjs
