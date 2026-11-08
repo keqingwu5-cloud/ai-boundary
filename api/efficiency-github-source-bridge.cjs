@@ -6,9 +6,10 @@ const {discoverGitHub}=require('./task-locator-github-adapter.cjs');
 const {evaluateSourceSnapshot}=require('./task-source-summary.cjs');
 const {prepareSourceHandoff}=require('./source-to-task-candidate.cjs');
 const {planPreflight}=require('./efficiency-cost-preflight.cjs');
+const {verifyReviewAttestations}=require('./efficiency-review-attestation.cjs');
 const digest=x=>crypto.createHash('sha256').update(x).digest('hex');
 const safeRepo=x=>typeof x==='string'&&/^[\w.-]+\/[\w.-]+$/.test(x);
-function fromSnapshot({snapshot,repository,issue,purposeDigest,prior=[],limits,nowMs,risk='high',contradiction=false,estimatedReadMicros=0}={}){
+function fromSnapshot({snapshot,repository,issue,purposeDigest,prior=[],attestations=[],trustedReviewerKeys={},limits,nowMs,risk='high',contradiction=false,estimatedReadMicros=0}={}){
   if(!safeRepo(repository)||!Number.isSafeInteger(issue)||issue<1)throw Error('invalid_source_identity');
   if(!['low','high'].includes(risk)||typeof contradiction!=='boolean')throw Error('invalid_risk_policy');
   const sourceId='github:'+repository+':issue:'+issue;
@@ -29,7 +30,10 @@ function fromSnapshot({snapshot,repository,issue,purposeDigest,prior=[],limits,n
     })).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b),'en'));
     fingerprint=digest(JSON.stringify({repository,issue,sourceDigest:summary.source_digest,revisions:revisionMap}));
   }
-  const preflight=planPreflight({purposeDigest,nowMs,prior,limits,sources:[{
+  // Ignore caller-supplied reviewed:true claims. Only configured pinned-key
+  // Ed25519 attestations can become trusted prior for a reuse suggestion.
+  const trust=verifyReviewAttestations({attestations,trustedReviewerKeys,nowMs});
+  const preflight=planPreflight({purposeDigest,nowMs,prior:trust.accepted,limits,sources:[{
     sourceId,status:scoped?'complete':'partial',risk,contradiction,
     fingerprint,estimatedReadMicros
   }]});
@@ -39,6 +43,8 @@ function fromSnapshot({snapshot,repository,issue,purposeDigest,prior=[],limits,n
     records:summary.records,sourceDigest:scoped?summary.source_digest:null,
     revisionFingerprint:fingerprint,
     sourceReadAttempted:true,sourceReadsSkipped:0,
+    attestationEvidence:{accepted:trust.accepted.length,rejected:trust.rejected.length,
+      rawPriorIgnored:Array.isArray(prior)?prior.length:1,trustRootConfigured:trust.trustRootConfigured},
     preflight,sourceEvidenceChecked:scoped,
     sourceProposal:proposal?{state:proposal.state,dispatch_permitted:proposal.dispatch_permitted,
       actual_remote_ack:proposal.actual_remote_ack}:null,
