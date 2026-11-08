@@ -59,6 +59,7 @@ function fixture(){
   async enqueue(p){
     const old=[...events.values()].find(x=>x.source_endpoint_id===p.source_endpoint_id&&x.idempotency_key===p.idempotency_key);
     if(old){if(old.payload_digest!==p.payload_digest)throw Error('idempotency_conflict');return old;}
+    if(events.has(p.event_id))throw Error('EVENT_CONFLICT');
     const record={...p,grant_id:'synthetic:grant:scope-only',current_attempt_id:null};
     events.set(p.event_id,record);calls.push('queued');return record;
   },
@@ -130,4 +131,17 @@ test('without a trusted sender principal the queue refuses the proposal',async()
  const f=fixture();
  await assert.rejects(f.api.send({body:make().send_body}),/Verified endpoint/);
  assert.equal(f.events.size,0);
+});
+
+test('P0 changed source revision produces distinct event ID, not just a new idempotency key',()=>{
+ const a=make(),b=make({snapshot:snapshot('second source revision')});
+ assert.notEqual(a.send_body.idempotency_key,b.send_body.idempotency_key);
+ assert.notEqual(a.send_body.event_id,b.send_body.event_id,
+   'a fixed event_id conflicts with distinct source revisions in the real PG queue');
+});
+test('P0 different source revisions enqueue as separate events with no ID conflict',async()=>{
+ const f=fixture();
+ await f.sender(make().send_body);
+ await f.sender(make({snapshot:snapshot('second source revision')}).send_body);
+ assert.equal(f.events.size,2);
 });
