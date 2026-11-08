@@ -1,0 +1,38 @@
+name: Efficiency/cost source adapter + A/B candidate
+on:
+  pull_request:
+    paths:
+      - 'api/efficiency-*.cjs'
+      - 'tests/efficiency-*.cjs'
+      - 'docs/efficiency-*.md'
+      - '.github/workflows/efficiency-cost-source-ab-candidate.yml'
+permissions:
+  contents: read
+  issues: read
+jobs:
+  isolated-contract-and-ab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Existing source adapter and P0-6 regressions
+        run: node --test tests/task-locator-github-adapter.test.cjs tests/source-to-task-candidate.test.cjs
+      - name: PR117 preflight and integrated source adapter A/B tests
+        run: node --test tests/efficiency-cost-preflight.test.cjs tests/efficiency-github-source-bridge.test.cjs tests/efficiency-cost-ab-benchmark.test.cjs
+      - name: Print synthetic A/B diagnostics (not actual token savings)
+        run: node tests/efficiency-cost-ab-benchmark.cjs
+  public-source-readonly:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read public Issue 41 with canonical source guards
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node tests/efficiency-cost-live-source-smoke.cjs
