@@ -28,6 +28,7 @@ function planPreflight(input) {
   const decisions = [];
   for (const source of sources) {
     if (!source || !nonempty(source.sourceId) || !VALID_STATUS.has(source.status) || !VALID_RISK.has(source.risk)) throw new TypeError('invalid_source');
+    if (source.contradiction !== undefined && typeof source.contradiction !== 'boolean') throw new TypeError('invalid_contradiction_flag');
     if (ids.has(source.sourceId)) throw new TypeError('duplicate_source_id');
     ids.add(source.sourceId);
     const row = { sourceId: source.sourceId, action: '', reason: '' };
