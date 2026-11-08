@@ -11,7 +11,7 @@ function snapshot(body='review the source'){
     {issue:41,kind:'comment',id:3,url:'https://github.com/acme/repo/issues/41#issuecomment-3',body:'source evidence only'}
   ]};
 }
-const options={repository:'acme/repo',issue:41,sourceEndpointId:'bridge-source',destinationEndpointId:'isolated-worker',taskId:'SOURCE-REVIEW-41',eventId:'synthetic-event-41'};
+const options={repository:'acme/repo',issue:41,sourceEndpointId:'bridge-source',destinationEndpointId:'isolated-worker',taskId:'SOURCE-REVIEW-41'};
 function make(overrides={}){return prepare({...options,snapshot:snapshot(),...overrides});}
 test('source yields only pinned metadata; no GitHub body or executable prompt',()=>{
  const p=make();assert.equal(p.state,'READY_FOR_SYNTHETIC_TEST_ONLY');
@@ -104,7 +104,7 @@ test('synthetic source -> queue -> worker -> API ACK -> sender readback',async()
    return {execution_evidence:'synthetic:execution:bridge',receipt_evidence:'synthetic:receipt:bridge'};
  }});
  const run=await worker.runOnce();assert.equal(run.state,'processed');assert.equal(invocation,1);
- const back=await f.api.status({principal:f.principal(options.sourceEndpointId,['tasks:status']),params:{event_id:options.eventId}});
+ const back=await f.api.status({principal:f.principal(options.sourceEndpointId,['tasks:status']),params:{event_id:make().send_body.event_id}});
  assert.equal(back.state,'ack_received');
  assert.equal(back.receipt_evidence,'synthetic:receipt:bridge');
  assert.equal((await worker.runOnce()).state,'idle');
@@ -124,8 +124,8 @@ test('wrong identity cannot receive or read sender status',async()=>{
  const f=fixture();await f.sender(make().send_body);
  const stranger=f.principal('unknown',['tasks:receive','tasks:status']);
  assert.deepEqual(await f.api.receive({principal:stranger}),[]);
- await assert.rejects(f.api.status({principal:stranger,params:{event_id:options.eventId}}),/event not accessible/);
- assert.equal(f.events.get(options.eventId).state,'queued');
+ await assert.rejects(f.api.status({principal:stranger,params:{event_id:make().send_body.event_id}}),/event not accessible/);
+ assert.equal(f.events.get(make().send_body.event_id).state,'queued');
 });
 test('without a trusted sender principal the queue refuses the proposal',async()=>{
  const f=fixture();
@@ -144,4 +144,15 @@ test('P0 different source revisions enqueue as separate events with no ID confli
  await f.sender(make().send_body);
  await f.sender(make({snapshot:snapshot('second source revision')}).send_body);
  assert.equal(f.events.size,2);
+});
+
+test('caller-supplied static event ID fails closed instead of aliasing revisions',()=>{
+ assert.throws(()=>make({eventId:'static-event-41'}),/event_id_must_match_source_revision/);
+});
+test('source route and content both scope the deterministic immutable event identity',()=>{
+ const a=make(),b=make({snapshot:snapshot('changed')});
+ assert.match(a.send_body.event_id,/^source:[a-f0-9]{64}$/);
+ assert.notEqual(a.send_body.event_id,b.send_body.event_id);
+ assert.equal(make().send_body.event_id,a.send_body.event_id);
+ assert.notEqual(make({sourceEndpointId:'another-source'}).send_body.event_id,a.send_body.event_id);
 });
