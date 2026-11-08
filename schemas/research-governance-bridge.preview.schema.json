@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/keqingwu5-cloud/ai-boundary/blob/research/three-system-governance-bridge-v13-20261108/schemas/research-governance-bridge.preview.schema.json",
+  "title": "First Brain read-only research bridge preview response",
+  "description": "Only candidate or blocked; never authority approval, receipt verification or memory writes. Semantic as-of and provenance must still be checked by implementation.",
+  "oneOf": [
+    {"$ref": "#/$defs/candidate"},
+    {"$ref": "#/$defs/blocked"}
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,160}$"},
+    "time": {"type": ["string", "null"], "format": "date-time"},
+    "reason_codes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 120}},
+    "base": {
+      "type": "object",
+      "required": ["status", "decision", "reason_codes", "packet"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {"enum": ["candidate_only", "blocked"]},
+        "decision": {"const": "HOLD"},
+        "reason_codes": {"$ref": "#/$defs/reason_codes"},
+        "packet": {}
+      }
+    },
+    "candidate": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "properties": {
+            "status": {"const": "candidate_only"},
+            "packet": {"$ref": "#/$defs/packet"}
+          }
+        }
+      ]
+    },
+    "blocked": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "properties": {
+            "status": {"const": "blocked"},
+            "packet": {"type": "null"}
+          }
+        }
+      ]
+    },
+    "reference_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "subject_id": {"type": ["string", "null"], "maxLength": 240},
+        "object_id": {"type": ["string", "null"], "maxLength": 240},
+        "comparison_metric": {"type": ["string", "null"], "maxLength": 240},
+        "comparison_class": {"type": ["string", "null"], "maxLength": 240},
+        "unit": {"type": ["string", "null"], "maxLength": 240},
+        "observer": {"type": ["string", "null"], "maxLength": 240},
+        "population": {"type": ["string", "null"], "maxLength": 240},
+        "valid_at": {"$ref": "#/$defs/time"},
+        "jurisdiction": {"type": ["string", "null"], "maxLength": 240},
+        "normative_standard": {"type": ["string", "null"], "maxLength": 240},
+        "scope": {"type": ["string", "null"], "maxLength": 240}
+      }
+    },
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "authority", "provenance", "node_id", "source_record_id", "source_event_id", "journal_version", "claim_id", "memory_record_id", "memory_approval", "context_relation", "relation_domain", "semantic_certification", "causal_certification", "reference_frame", "scenario_ids", "as_of", "source_available_at_hint", "source_independently_verified", "evidence_refs", "ack", "proposed_operation", "source_preview_schema"],
+      "properties": {
+        "schema": {"const": "firstbrain.research-bridge.preview.v1"},
+        "authority": {"const": "none"},
+        "provenance": {"const": "LOCAL_PREVIEW_UNVERIFIED"},
+        "node_id": {"$ref": "#/$defs/id"},
+        "source_record_id": {"$ref": "#/$defs/id"},
+        "source_event_id": {"$ref": "#/$defs/id"},
+        "journal_version": {"type": "integer", "minimum": 1},
+        "claim_id": {"type": "null"},
+        "memory_record_id": {"type": "null"},
+        "memory_approval": {"const": "NOT_APPROVED"},
+        "context_relation": {
+          "type": "object", "additionalProperties": false,
+          "required": ["type", "from", "to"],
+          "properties": {
+            "type": {"const": "context_reference"},
+            "from": {"$ref": "#/$defs/id"},
+            "to": {"$ref": "#/$defs/id"}
+          }
+        },
+        "relation_domain": {"enum": ["navigation", "evidence", "world_hypothesis", "relative_semantics", "normative", "simulation"]},
+        "semantic_certification": {"const": "UNVERIFIED"},
+        "causal_certification": {"const": "NOT_PROVEN"},
+        "reference_frame": {"$ref": "#/$defs/reference_frame"},
+        "scenario_ids": {"type": "array", "maxItems": 24, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "as_of": {"$ref": "#/$defs/time"},
+        "source_available_at_hint": {"$ref": "#/$defs/time"},
+        "source_independently_verified": {"const": false},
+        "evidence_refs": {"type": "array", "maxItems": 0},
+        "ack": {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "receiver_id", "receipt_id"],
+          "properties": {
+            "status": {"const": "NOT_VERIFIED"},
+            "receiver_id": {"type": "null"},
+            "receipt_id": {"type": "null"}
+          }
+        },
+        "proposed_operation": {"const": "READ_ONLY_RESEARCH_PREVIEW"},
+        "source_preview_schema": {"const": "tcvl.claim-ref-preview.v0.1"}
+      }
+    }
+  }
+}

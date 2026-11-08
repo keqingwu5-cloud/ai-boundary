@@ -1,0 +1,26 @@
+name: Research governance bridge candidate (isolated)
+on:
+  pull_request:
+    paths:
+      - research-governance-bridge.mjs
+      - research-governance-integration.mjs
+      - tests/research-governance-bridge.test.mjs
+      - tests/research-governance-integration.test.mjs
+      - docs/research-governance-protocol-v13.md
+      - schemas/research-governance-bridge.preview.schema.json
+      - tests/research-governance-schema.test.mjs
+      - .github/workflows/research-bridge-isolated.yml
+  workflow_dispatch:
+jobs:
+  bridge-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run isolated bridge contract against actual PR75 source
+        run: node --test tests/research-governance-bridge.test.mjs tests/research-governance-integration.test.mjs tests/research-governance-schema.test.mjs tests/concept-reuse-compat.test.mjs
