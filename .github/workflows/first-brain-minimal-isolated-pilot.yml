@@ -6,8 +6,11 @@ on:
       - preview/app.mjs
       - preview/pilot-core.mjs
       - tests/pilot-core.test.mjs
+      - tests/pilot-release-review.test.mjs
       - tests/pilot-browser.test.cjs
+      - tests/pilot-browser-review.test.cjs
       - docs/minimal-isolated-pilot-v01.md
+      - docs/pilot-review-gates-v02.md
       - .github/workflows/first-brain-minimal-isolated-pilot.yml
   workflow_dispatch:
 permissions:
@@ -25,7 +28,7 @@ jobs:
         run: |
           node --check preview/pilot-core.mjs
           node --check preview/app.mjs
-          node --test tests/nary-composition.test.mjs tests/nary-transform.test.mjs tests/nary-transform-schema.test.mjs tests/gap-aware-composition.test.mjs tests/gap-aware-schema.test.mjs tests/pilot-core.test.mjs
+          node --test tests/nary-composition.test.mjs tests/nary-transform.test.mjs tests/nary-transform-schema.test.mjs tests/gap-aware-composition.test.mjs tests/gap-aware-schema.test.mjs tests/pilot-core.test.mjs tests/pilot-release-review.test.mjs
       - name: Upload isolated static preview (not production deploy)
         uses: actions/upload-artifact@v4
         with:
@@ -59,4 +62,4 @@ jobs:
           done
           exit 1
       - name: Run Chromium true-browser interactions
-        run: node --test tests/pilot-browser.test.cjs
+        run: node --test tests/pilot-browser.test.cjs tests/pilot-browser-review.test.cjs
