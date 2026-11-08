@@ -31,7 +31,7 @@ test('existing reader read produces source-revision-scoped targeted preflight',a
  assert.equal(result.readerMethodCalls.getComments,2);
  assert.equal(result.apiHttpRequests,'NOT_MEASURED_PAGINATION_HIDDEN');
 });
-test('unchanged reviewed synthetic prior yields reuse suggestion only AFTER complete re-read',async()=>{
+test('unsigned caller-reviewed prior is ignored even AFTER complete re-read',async()=>{
  const baseline=await inspectGitHubAndPlan(opts(reader()));
  const again=await inspectGitHubAndPlan(opts(reader(),{prior:[priorFrom(baseline)]}));
  assert.equal(again.preflight.decisions[0].action,'REUSE_VERIFIED');
