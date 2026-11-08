@@ -36,7 +36,7 @@ let initial;
 async function originBaseline(){
  initial ||= await (async()=>{
   const src=makeSource();
-  const res=await reviewTrustedSource({source:src,trust,now});
+  const res=await reviewTrustedSource({source:src,trust,now,expected_scope:scope});
   assert.equal(res.state,'WAIT_BASELINE');
   return {source:src,review:res};
  })();
@@ -53,8 +53,8 @@ async function makePackage(){
  const head={scope,source_id:'source-1',sequence:1,seal_digest:sealDigest(attestation)};
  return {attestation,head};
 }
-const run=async({source=makeSource(),baseline,head,registry=trust,time=now}={})=>
-  reviewTrustedSource({source,baseline,head,trust:registry,now:time});
+const run=async({source=makeSource(),baseline,head,registry=trust,time=now,targetScope=scope}={})=>
+  reviewTrustedSource({source,baseline,head,trust:registry,now:time,expected_scope:targetScope});
 test('TRUST-00 valid attested source absent baseline cannot persist itself',async()=>{
  const r=await run();assert.equal(r.state,'WAIT_BASELINE');assert.equal(r.approved,false);
  assert.equal(r.action,'NO_EXTERNAL_EFFECT');assert.equal(r.real_source_verified,false);
@@ -100,7 +100,7 @@ test('TRUST-08 future source attestation is refused',async()=>{
 test('TRUST-09 cross-issue statement despite valid signature rejected by scope',async()=>{
  const src=makeSource();src.attestation.statement.scope='github:keqingwu5-cloud/ai-boundary:issue:32';
  src.attestation.signature=sign('source',src.attestation.statement,sourceKeys.privateKey);
- const r=await run({source:src});assert.equal(r.reason,'SOURCE_SCOPE_DENIED');
+ const r=await run({source:src});assert.equal(r.reason,'SOURCE_EXPECTED_SCOPE_MISMATCH');
 });
 test('TRUST-10 curator baseline without anchored trusted head never becomes authority',async()=>{
  const {attestation}=await makePackage();
@@ -155,4 +155,24 @@ test('TRUST-19 signed but non-member scope key is not trusted',async()=>{
  registry.source_readers['reader-test-1'].allowed_scopes=['github:other/repository:issue:99'];
  const r=await run({source:src,registry});
  assert.equal(r.reason,'SOURCE_SCOPE_DENIED');
+});
+
+test('TRUST-20 caller must fix expected scope; signed statement cannot self-scope',async()=>{
+ const r=await reviewTrustedSource({source:makeSource(),trust,now});
+ assert.equal(r.state,'QUARANTINED');
+ assert.equal(r.reason,'EXPECTED_SCOPE_REQUIRED');
+});
+test('TRUST-21 even an allowlisted cross-issue statement cannot override caller target',async()=>{
+ const foreign='github:keqingwu5-cloud/ai-boundary:issue:32';
+ const src=makeSource();src.attestation.statement.scope=foreign;
+ src.attestation.signature=sign('source',src.attestation.statement,sourceKeys.privateKey);
+ const registry=structuredClone(trust);
+ registry.source_readers['reader-test-1'].allowed_scopes.push(foreign);
+ const r=await run({source:src,registry});
+ assert.equal(r.reason,'SOURCE_EXPECTED_SCOPE_MISMATCH');
+});
+test('TRUST-22 valid signed source with invalid graph still quarantined by graph validator',async()=>{
+ const invalid=graph();invalid.links.push({id:'z1',from:'n1',to:'missing',kind:'cross'});
+ const r=await run({source:makeSource(JSON.stringify(invalid))});
+ assert.equal(r.state,'QUARANTINED');assert.equal(r.reason,'GRAPH_INVALID');
 });
