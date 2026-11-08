@@ -128,15 +128,37 @@
    if(changedRecords.candidates)warnings.push("SAME_ID_CANDIDATE_CONTENT_CHANGED");
    if(changedRecords.audit)warnings.push("SAME_ID_AUDIT_CONTENT_CHANGED");
    const a=current.memoryControls,b=incoming.memoryControls;
-   const sameControlVersions=!!(a&&b&&["direction","threshold"].every(k=>
-     (a[k]?.version??0)===(b[k]?.version??0)));
-   const sameVersionControlDivergence=sameControlVersions&&stable(a)!==stable(b);
+   const kinds=["direction","threshold"];
+   const comparable=!!(a&&b&&kinds.every(k=>
+     Number.isSafeInteger(a[k]?.version)&&Number.isSafeInteger(b[k]?.version)));
+   const forKind=(controls,k)=>Array.isArray(controls?.history)?
+     controls.history.filter(h=>h&&h.kind===k):null;
+   // A changed threshold at v1 must not disappear when direction advances to v2.
+   const sameVersionDivergentKinds=comparable?kinds.filter(k=>{
+     if(a[k].version!==b[k].version)return false;
+     if(stable(a[k])!==stable(b[k]))return true;
+     const oldHistory=forKind(a,k),newHistory=forKind(b,k);
+     return oldHistory!==null&&newHistory!==null&&stable(oldHistory)!==stable(newHistory);
+   }):[];
+   // Preserve the existing whole-object warning for both versions staying equal.
+   const sameControlVersions=comparable&&kinds.every(k=>a[k].version===b[k].version);
+   const sameVersionControlDivergence=sameVersionDivergentKinds.length>0||
+     (sameControlVersions&&stable(a)!==stable(b));
    if(sameVersionControlDivergence)warnings.push("SAME_VERSION_CONTROL_CONTENT_CHANGED");
+   // Version increase is not proof that the prior chain remains authentic.
+   const controlHistoryDivergentKinds=comparable?kinds.filter(k=>{
+     if(b[k].version<=a[k].version)return false;
+     const oldHistory=forKind(a,k),newHistory=forKind(b,k);
+     if(oldHistory===null||newHistory===null)return false;
+     return stable(oldHistory)!==stable(newHistory.slice(0,oldHistory.length));
+   }):[];
+   if(controlHistoryDivergentKinds.length)warnings.push("CONTROL_HISTORY_DIVERGENCE");
    return {schema:"ai-boundary.memory-restore-preview.v1",operation:"restore",
      requiresHumanApproval:true,willMerge:false,
      currentVaultId:current.vaultId||null,incomingVaultId:incoming.vaultId||null,
      currentRevision:current.revision??null,incomingRevision:incoming.revision??null,
-     controlsRollingBack:controlRollback,counts,changedRecords,sameVersionControlDivergence,warnings};
+     controlsRollingBack:controlRollback,counts,changedRecords,sameVersionControlDivergence,
+     sameVersionDivergentKinds,controlHistoryDivergentKinds,warnings};
  }
  return {preview,previewRestore};
 });
