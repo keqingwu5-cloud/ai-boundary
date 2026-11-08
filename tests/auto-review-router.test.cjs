@@ -126,3 +126,33 @@ test('REVIEW-22 history-only same revision stays unresolved conflict',async()=>{
   const o=await scanEntry(source(g,'r1'),b);
   assert.equal(o.state,'NEED_COUNTEREVIDENCE');
 });
+
+test('REVIEW-23 source revision metadata-only change requires review instead of silent no-change',async()=>{
+  const b=await baseline();const o=await scanEntry(source(graph(),'r2'),b);
+  assert.equal(o.state,'REVIEW_METADATA');assert.equal(o.approved,false);
+});
+test('REVIEW-24 content change without reliable revision remains disputed',async()=>{
+  const b=await baseline(),g=graph();g.nodes[0].title='B';
+  const o=await scanEntry({...source(g),source_revision:null},b);
+  assert.equal(o.state,'NEED_COUNTEREVIDENCE');assert.equal(o.reason,'REVISION_CONTEXT_UNVERIFIED');
+});
+test('REVIEW-25 very large raw data quarantines without creating candidate',async()=>{
+  const e=source();e.raw+=' '.repeat(1_000_001);
+  const o=await scanEntry(e);assert.equal(o.state,'QUARANTINED');assert.equal(o.approved,false);
+});
+test('REVIEW-26 invalid source version rejected before comparison',async()=>{
+  const e=source();e.source_revision='../../secret';
+  const o=await scanEntry(e);assert.equal(o.reason,'INVALID_SOURCE_REVISION');
+});
+test('REVIEW-27 batch must not read inherited baseline or mutate baseline map',async()=>{
+  const inherited=Object.create({'source-1':await baseline()});
+  const before=JSON.stringify(inherited);
+  const out=await scanBatch([source()],inherited);
+  assert.equal(out[0].state,'WAIT_BASELINE');assert.equal(JSON.stringify(inherited),before);
+});
+test('REVIEW-28 spoofed review record approval cannot promote official status',()=>{
+  const o=reviewTransition({state:'REVIEW_CANDIDATE',source_id:'source-1',approved:true,raw:'SECRET'},
+    {type:'REJECT',actor_id:'claimed-bot',evidence_ref:'review-ref-28'});
+  assert.equal(o.approved,false);assert.equal(o.reviewer_identity_verified,false);
+  assert.doesNotMatch(JSON.stringify(o),/SECRET/);
+});
