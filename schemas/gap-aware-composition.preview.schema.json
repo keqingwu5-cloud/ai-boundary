@@ -1,0 +1,42 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://example.invalid/firstbrain/gap-aware-composition.preview.v1.schema.json",
+  "title":"V1.6 isolated blank-preserving read projection",
+  "oneOf":[
+    {"type":"object","additionalProperties":false,
+      "required":["status","decision","reason","packet"],
+      "properties":{"status":{"const":"blocked"},"decision":{"const":"HOLD"},"reason":{"type":"string","minLength":1},"packet":{"type":"null"}}},
+    {"type":"object","additionalProperties":false,
+      "required":["status","decision","packet"],
+      "properties":{"status":{"const":"candidate_only"},"decision":{"const":"HOLD"},"packet":{"oneOf":[
+        {"type":"object","additionalProperties":false,"required":["schema","kind","slot_id","revision","state","value","explanation_code","authority","evidence_certification","real_ack"],
+         "properties":{"schema":{"const":"firstbrain.nary-gap-aware.preview.v1"},"kind":{"const":"gap"},
+           "slot_id":{"$ref":"#/$defs/id"},"revision":{"$ref":"#/$defs/id"},
+           "state":{"enum":["MISSING","UNKNOWN","UNVERIFIED","INTENTIONALLY_OPEN","NOT_APPLICABLE"]},
+           "value":{"type":"null"},"explanation_code":{"oneOf":[{"type":"null"},{"type":"string","pattern":"^[A-Z0-9_]{1,60}$"}]},
+           "authority":{"const":"none"},"evidence_certification":{"const":"UNVERIFIED"},"real_ack":{"const":"NOT_VERIFIED"}}},
+        {"type":"object","additionalProperties":false,"required":["schema","kind","id","content_hash","authority","evidence_certification","real_ack"],
+          "properties":{"schema":{"const":"firstbrain.nary-gap-aware.preview.v1"},"kind":{"const":"known_source_ref"},"id":{"$ref":"#/$defs/id"},"content_hash":{"$ref":"#/$defs/digest"},"authority":{"const":"none"},"evidence_certification":{"const":"UNVERIFIED"},"real_ack":{"const":"NOT_VERIFIED"}}},
+        {"type":"object","additionalProperties":false,
+         "required":["schema","kind","id","rule","input_refs","known_input_ids","blanks","coverage","computed_value","reason","authority","evidence_certification","memory_approval","real_ack","information_loss","automatic_fill"],
+         "properties":{
+           "schema":{"const":"firstbrain.nary-gap-aware.preview.v1"},"kind":{"const":"partial_composition"},
+           "id":{"type":"string","pattern":"^gapcmp:[a-f0-9]{64}$"},
+           "rule":{"type":"object","additionalProperties":false,"required":["name","version","context"],"properties":{
+             "name":{"enum":["quantity_sum","quantity_mean","quantity_ratio","data_rate","record_project","collect_refs","derive_candidate","compare_refs","sequence_refs"]},
+             "version":{"$ref":"#/$defs/id"},"context":{"type":"object"}}},
+           "input_refs":{"type":"array","minItems":2,"maxItems":32,"items":{"type":"object","additionalProperties":false,"required":["id","fingerprint","kind"],"properties":{"id":{"$ref":"#/$defs/refId"},"fingerprint":{"$ref":"#/$defs/digest"},"kind":{"enum":["gap","known","partial","typed_result"]}}}},
+           "known_input_ids":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/refId"}},
+           "blanks":{"type":"array","uniqueItems":true,"items":{"type":"object","additionalProperties":false,"required":["slot_id","state","revision","explanation_code"],"properties":{
+             "slot_id":{"$ref":"#/$defs/id"},"state":{"enum":["MISSING","UNKNOWN","UNVERIFIED","INTENTIONALLY_OPEN","NOT_APPLICABLE"]},"revision":{"$ref":"#/$defs/id"},
+             "explanation_code":{"oneOf":[{"type":"null"},{"type":"string","pattern":"^[A-Z0-9_]{1,60}$"}]}}}},
+           "coverage":{"enum":["INCOMPLETE","REFERENCE_ONLY"]},"computed_value":{"type":"null"},
+           "reason":{"const":"BLANKS_NOT_FILLED_OR_REFERENCE_ONLY"},
+           "authority":{"const":"none"},"evidence_certification":{"const":"UNVERIFIED"},
+           "memory_approval":{"const":"NOT_APPROVED"},"real_ack":{"const":"NOT_VERIFIED"},
+           "information_loss":{"const":"NONE_FOR_EXPLICIT_BLANK_STATES"},"automatic_fill":{"const":false}
+         }}
+      ]}}}
+  ],
+  "$defs":{"id":{"type":"string","pattern":"^[A-Za-z0-9_.:-]{1,128}$"},"refId":{"type":"string","pattern":"^(gapcmp:[a-f0-9]{64}|cmp:[a-f0-9]{64}|[A-Za-z0-9_.:-]{1,128})$"},"digest":{"type":"string","pattern":"^[a-f0-9]{64}$"}}
+}
