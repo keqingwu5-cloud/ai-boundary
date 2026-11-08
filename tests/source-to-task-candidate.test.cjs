@@ -156,3 +156,42 @@ test('source route and content both scope the deterministic immutable event iden
  assert.equal(make().send_body.event_id,a.send_body.event_id);
  assert.notEqual(make({sourceEndpointId:'another-source'}).send_body.event_id,a.send_body.event_id);
 });
+
+// R05 cross-boundary: actual source snapshot validator -> revision-scoped event identity
+test('R05 integrated source reader rejects in-flight drift and revision identities cannot alias',async()=>{
+ const {discoverGitHub}=require('../api/task-locator-github-adapter.cjs');
+ const url='https://github.com/acme/repo/issues/41';
+ const mkReader=versions=>{
+   let reads=0;
+   return {
+     getIssue:async()=>({number:41,url,body:'review original issue',comments:1,updated_at:'2026-11-08T00:00:00Z'}),
+     getComments:async()=>({complete:true,items:[{
+       id:3,url:url+'#issuecomment-3',
+       body:versions[Math.min(reads++,versions.length-1)],
+       updated_at:'2026-11-08T00:00:00Z'
+     }]}),
+     searchIssues:async()=>({complete:true,items:[]})
+   };
+ };
+ const discover=versions=>discoverGitHub({reader:mkReader(versions),seeds:[41],followLinks:false,maxNodes:1});
+ const prior=await discover(['old source','old source']);
+ const updated=await discover(['new source','new source']);
+ assert.equal(prior.complete,true);
+ assert.equal(updated.complete,true);
+ const a=prepare({...options,snapshot:prior});
+ const b=prepare({...options,snapshot:updated});
+ assert.equal(a.dispatch_permitted,false);
+ assert.equal(b.dispatch_permitted,false);
+ assert.equal(a.actual_remote_ack,false);
+ assert.equal(b.actual_remote_ack,false);
+ assert.equal(a.send_body.payload.content_included,false);
+ assert.equal(b.send_body.payload.content_included,false);
+ assert.notEqual(a.send_body.payload.source_digest,b.send_body.payload.source_digest);
+ assert.notEqual(a.send_body.event_id,b.send_body.event_id);
+ assert.equal(a.send_body.event_id,prepare({...options,snapshot:prior}).send_body.event_id);
+ assert.throws(()=>prepare({...options,snapshot:updated,eventId:a.send_body.event_id}),/event_id_must_match_source_revision/);
+ const race=await discover(['old source','new source']);
+ assert.equal(race.complete,false);
+ assert.ok(race.errors.some(x=>x.error==='comment_snapshot_changed'));
+ assert.throws(()=>prepare({...options,snapshot:race}),/source_incomplete_no_dispatch/);
+});
