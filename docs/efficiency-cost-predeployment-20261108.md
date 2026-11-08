@@ -19,7 +19,7 @@
 
 ## 輸入限制
 
-可信來源層必須事先核對 sourceId、SHA256 指紋、原始研究目的 digest、審核來源身分及版本，再將非敏感 metadata 交給此模組。reviewed=true 不是可受信身分認證；沒有證據 ref 或超過時間上限就不准重用。estReadMicros 或 usage.chargeMicros 是估計／來源填值，不能當 provider 實際帳單；unknown 不能被填為 0。只使用非敏感 ID，不把私有記憶或原文送到 GitHub。
+可信來源層必須事先核對 sourceId、SHA256 指紋、原始研究目的 digest、審核來源身分及版本，再將非敏感 metadata 交給此模組。reviewed=true 不是可受信身分認證；沒有證據 ref 或超過時間上限就不准重用。estimatedReadMicros 或 usage.chargeMicros 是估計／來源填值，不能當 provider 實際帳單；unknown 不能被填為 0。只使用非敏感 ID，不把私有記憶或原文送到 GitHub。
 
 ## 可重現測試
 
