@@ -76,3 +76,41 @@ test('P0_HTTP_SOURCE_EVENT_003: malformed or double-encoded source IDs remain re
   });
   assert.deepEqual(calls,[],'unrecognised URL encodings must never reach store');
 });
+
+
+test('P0_HTTP_CLIENT_SOURCE_EVENT_001: authenticated HTTP client reads source:SHA256 event through server',async()=>{
+  const {createHttpTaskClient}=require('../api/http-task-client-candidate.cjs');
+  const eventId='source:'+'d'.repeat(64),seen=[];
+  const store={async get(id){seen.push(id);return {event_id:id,source_endpoint_id:'reader',destination_endpoint_id:'worker'};}};
+  await withServer(store,async base=>{
+    const client=createHttpTaskClient({baseUrl:base+'/',tokenProvider:async()=> 'test-only-token'});
+    const result=await client.status({event_id:eventId});
+    assert.equal(result.event_id,eventId);
+  });
+  assert.deepEqual(seen,[eventId],'client must preserve canonical ID through HTTP path into store');
+});
+
+test('P0_HTTP_CLIENT_SOURCE_EVENT_002: invalid and already-encoded IDs rejected before sending',async()=>{
+  const {createHttpTaskClient}=require('../api/http-task-client-candidate.cjs');
+  let externalCalls=0;
+  const client=createHttpTaskClient({
+    baseUrl:'http://127.0.0.1:9999/',
+    tokenProvider:async()=>{externalCalls++;return 'test-only-token';},
+    httpFetch:async()=>{externalCalls++;throw Error('unexpected HTTP fetch');}
+  });
+  const invalid=['source:'+'f'.repeat(63),'source%3A'+'f'.repeat(64),'source%253A'+'f'.repeat(64),'source:'+'g'.repeat(64),'source:'+'a'.repeat(64)+'/next'];
+  for(const event_id of invalid)
+    await assert.rejects(client.status({event_id}),/canonical event ID required/);
+  assert.equal(externalCalls,0,'invalid IDs must not request token or send network traffic');
+});
+
+test('P0_HTTP_CLIENT_SOURCE_EVENT_003: legacy status ID behavior remains compatible',async()=>{
+  const {createHttpTaskClient}=require('../api/http-task-client-candidate.cjs');
+  const seen=[];
+  const store={async get(id){seen.push(id);return {event_id:id,source_endpoint_id:'reader',destination_endpoint_id:'worker'};}};
+  await withServer(store,async base=>{
+    const client=createHttpTaskClient({baseUrl:base+'/',tokenProvider:async()=> 'test-only-token'});
+    assert.equal((await client.status({event_id:'EV_A'})).event_id,'EV_A');
+  });
+  assert.deepEqual(seen,['EV_A']);
+});
