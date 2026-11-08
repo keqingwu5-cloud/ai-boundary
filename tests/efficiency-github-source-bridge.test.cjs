@@ -34,7 +34,8 @@ test('existing reader read produces source-revision-scoped targeted preflight',a
 test('unsigned caller-reviewed prior is ignored even AFTER complete re-read',async()=>{
  const baseline=await inspectGitHubAndPlan(opts(reader()));
  const again=await inspectGitHubAndPlan(opts(reader(),{prior:[priorFrom(baseline)]}));
- assert.equal(again.preflight.decisions[0].action,'REUSE_VERIFIED');
+ assert.equal(again.preflight.decisions[0].action,'TARGETED_VERIFY');
+ assert.equal(again.attestationEvidence.rawPriorIgnored,1);
  assert.equal(again.sourceReadsSkipped,0);
  assert.equal(again.readerMethodCalls.getIssue,2);
  assert.equal(again.readerMethodCalls.getComments,2);
