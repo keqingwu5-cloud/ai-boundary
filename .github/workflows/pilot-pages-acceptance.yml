@@ -30,10 +30,17 @@ jobs:
           ref: 03fc52e052179c0bfb1a90c42165dddd68b6ff8e
           path: audit-previous
           persist-credentials: false
+      - name: Checkout PINNED maintenance-stop candidate (not deployed)
+        uses: actions/checkout@v4
+        with:
+          ref: a3a57a7e8e11b3f162a0b9e14f9e9552a26a82cb
+          path: audit-maintenance
+          persist-credentials: false
       - name: Verify exact version SHAs and run static gates
         run: |
           test "$(git -C audit-current rev-parse HEAD)" = 0d79eabe04db78f4b49b9dca25f952503c3e3f33
           test "$(git -C audit-previous rev-parse HEAD)" = 03fc52e052179c0bfb1a90c42165dddd68b6ff8e
+          test "$(git -C audit-maintenance rev-parse HEAD)" = a3a57a7e8e11b3f162a0b9e14f9e9552a26a82cb
           node --test tests/pilot-pages-snapshot-audit.test.mjs
   webkit-preview:
     runs-on: ubuntu-latest
