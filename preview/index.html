@@ -1,33 +1,8 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="color-scheme" content="dark" />
-<title>第一大腦｜最小隔離試運行</title>
-<style>
-:root{color-scheme:dark;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;font-size:15px;--bg:#090e19;--card:#141d2d;--fg:#edf3ff;--sub:#a2b3d0;--line:#33425c;--accent:#98d3fc;--success:#85e3bf}
-*{box-sizing:border-box}body{background:radial-gradient(ellipse at 15% 0,#213253 0,transparent 43%),var(--bg);color:var(--fg);margin:0;line-height:1.55}
-main{max-width:1050px;margin:0 auto;padding:28px 18px 45px}header{margin-bottom:22px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-start}
-h1{font-size:clamp(1.4rem,4vw,2rem);margin:6px 0 3px;font-weight:760}p{margin:5px 0 0;color:var(--sub)}small,.small{font-size:.8rem;color:var(--sub)}.eyebrow{color:var(--accent);font-weight:750;font-size:.79rem;letter-spacing:.1em}.pill{border:1px solid #37676b;border-radius:999px;padding:6px 11px;background:#133336;color:#a1ebdf;font-size:.78rem}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{background:rgba(20,29,45,.9);border:1px solid var(--line);border-radius:18px;padding:20px;min-width:0}.wide{grid-column:1/-1}h2{font-size:1.07rem;margin:0 0 11px}h3{font-size:.92rem;margin:0 0 6px;color:var(--accent)}.help{color:var(--sub);font-size:.85rem}
-.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:17px}label{font-size:.84rem;color:var(--sub);display:flex;flex-direction:column;gap:6px}input,select,button{font:inherit}input,select{background:#0b1525;color:var(--fg);border:1px solid #455470;padding:11px;border-radius:11px;width:100%;min-width:0}input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}button{border:0;border-radius:10px;padding:11px 14px;cursor:pointer;font-weight:650;background:#acdafa;color:#09213b}button.secondary{background:#283b56;color:var(--fg)}button:disabled{opacity:.55;cursor:not-allowed}button:hover:not(:disabled){filter:brightness(1.06)}[hidden]{display:none!important}
-.value{font-size:clamp(1.6rem,5vw,2.4rem);font-weight:800;margin:10px 0 4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.formula{background:#0c1728;border:1px solid #33445f;padding:11px 12px;border-radius:10px;color:#bdcde4;font-size:.9rem}.code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.72rem;overflow-wrap:anywhere;color:#97b0d6}.flow{display:flex;justify-content:center;gap:10px;align-items:stretch;flex-wrap:wrap}.chip{border-radius:12px;border:1px solid #48607c;padding:10px 15px;background:#1b2a42;min-width:100px;text-align:center}.flow strong{color:#ddf5ff} .flow .arrow{display:grid;place-items:center;color:#9bb3d8}.sources{list-style:none;margin:0;padding:0}.sources li{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid #293853;flex-wrap:wrap}.sources span{font: .8rem ui-monospace,monospace;color:#aec3df}pre{white-space:pre-wrap;word-break:break-word;font-size:.76rem;color:#b4cbe7;margin:0;max-height:270px;overflow:auto} .banner{padding:11px 13px;background:#182f3a;border:1px solid #315765;border-radius:12px;margin-top:10px;color:#d7f6ef}.banner b{color:var(--success)} footer{margin-top:22px;color:#8ea1bd;font-size:.78rem;text-align:center}
-@media(max-width:700px){.grid{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr}.card{padding:17px}.wide{grid-column:1}main{padding:21px 12px 40px}}
-</style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第一大腦隔離試用站｜暫停服務</title>
+<style>body{font-family:system-ui,-apple-system,sans-serif;background:#0b1423;color:#f3f7ff;margin:0;min-height:100vh;display:grid;place-items:center}main{max-width:560px;padding:30px;border:1px solid #536781;background:#17243a;border-radius:20px;margin:18px}h1{font-size:1.5rem}p{line-height:1.8;color:#c4d3e5}strong{color:#adf0de}</style>
 </head>
-<body>
-<main>
-<header><div><div class="eyebrow">FIRST BRAIN · ISOLATED PILOT 0.1</div><h1>第一大腦｜最小隔離試運行</h1><p>實際調用 V1.4～V1.6 底層，驗證「來源 → X → X＋C → 可回查」</p></div><span class="pill">僅合成資料 · 不寫正式記憶</span></header>
-<div class="grid">
-<section class="card wide" aria-labelledby="input-title"><h2 id="input-title">① 輸入資料與空白狀態</h2><p class="help">請輸入合成數值，單位統一為 MB。留空不等於 0；修改數值後，舊結果會失效。這個公開測試頁不連接真實第一大腦資料，請勿輸入私人或敏感資訊。</p><div class="formgrid"><label for="a">來源 A · MB<input id="a" type="number" min="0" max="1000000" step="1" value="4" /></label><label for="b">來源 B · MB<input id="b" type="number" min="0" max="1000000" step="1" value="6" /></label><label for="state">來源 C · 狀態<select id="state"><option value="UNKNOWN">未知</option><option value="KNOWN">已有確切數值</option><option value="MISSING">未提供</option><option value="UNVERIFIED">待驗證</option><option value="INTENTIONALLY_OPEN">刻意留白</option><option value="NOT_APPLICABLE">不適用</option><option value="REDACTED">權限受限</option></select></label><label id="c-field" for="c" hidden>C · MB<input id="c" type="number" min="0" max="1000000" step="1" value="2" /></label></div><div class="buttons"><button type="button" id="run">執行隔離測試</button><button type="button" id="reset" class="secondary">還原範例</button><button type="button" id="export" class="secondary" disabled>匯出本次證據 JSON</button></div></section>
-<p class="help wide">注意：每次按下「執行」都會新建一個隔離引擎；X 只在同一次操作中被 X＋C 引用，尚無跨重新整理、裝置或 AI 的永久快取。</p>
-<section class="card wide" aria-label="執行狀態"><div class="eyebrow">執行結果</div><h2 id="status" aria-live="polite">載入中…</h2><p id="status-note">準備底層模組</p></section>
-<section class="card" aria-label="X 合成結果"><h3>② A ＋ B → X</h3><div class="formula">quantity_sum · MB · source r1</div><div class="value" id="x-value">—</div><div class="code" id="x-ref">等待產生引用</div><p class="help">X 具有可回查的來源、版本和內容指紋；本範例仍屬未獨立驗真的合成資料。</p></section>
-<section class="card" aria-label="Y 增量結果"><h3>③ X ＋ C → Y</h3><div class="formula">重用 X · 必須保留 C 的原始空白</div><div class="value" id="y-value">—</div><p id="y-explain" class="help">不將空白當作 0。</p></section>
-<section class="card" aria-labelledby="sources-title"><h2 id="sources-title">④ 來源回溯 · <span id="source-count">0</span> 筆</h2><ul class="sources" id="source-list"></ul><div class="banner"><b>安全界線：</b> 不推定來源已驗真、因果已成立、記憶獲批准或遠端 AI 已收件。</div></section>
-<section class="card" aria-labelledby="audit-title"><h2 id="audit-title">⑤ 結果與拒絕證據</h2><pre id="audit" aria-label="原始執行結果 JSON">尚未執行</pre></section>
-</div><footer>僅限單次瀏覽器工作階段 · 無 localStorage / IndexedDB / 外部 API · 不代表正式部署或跨 AI ACK</footer>
-</main>
-<script type="module" src="./app.mjs"></script>
-</body>
-</html>
+<body><main><p><strong>FIRST BRAIN · SYNTHETIC PILOT</strong></p><h1>隔離試用功能已暫停</h1><p>這是安全停用頁面，不再執行 A＋B→X→X＋C 的網頁程式。沒有連接正式記憶體、私人資料或任何外部 AI。</p><p>目前沒有可供輸入的操作功能。請以經核對的版本與 GitHub 審查紀錄為準。</p></main></body></html>
