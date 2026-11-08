@@ -18,3 +18,20 @@ test('AUTO-BOOT-07 failed write blocks subsequent writes',()=>{let n=0;const st=
 test('AUTO-BOOT-08 guard never silently fixes bad source',()=>{const st=storage('{bad');mod.createBrainStorageGuard(st,'brain',valid);assert.equal(st.v,'{bad');assert.equal(st.sets.length,0);});
 test('AUTO-BOOT-09 nonstring writes rejected',()=>{const g=mod.createBrainStorageGuard(storage(null),'brain',valid);assert.equal(g.save({x:1}).reason,'INVALID_WRITE');});
 test('AUTO-BOOT-10 app integration must check guard before modifying or saving',()=>{const app=readFileSync(path.join(root,'app.js'),'utf8');assert.match(app,/import\s+\{createBrainStorageGuard\}\s+from '\.\/brain-storage-guard\.mjs'/);assert.match(app,/const brainStorage=createBrainStorageGuard\(localStorage,KEY,valid\)/);assert.match(app,/const result=brainStorage\.save\(JSON\.stringify\(state\)\)/);assert.match(app,/function mutate\(action, payload, fn\)\{\s*if\(storageLocked\(\)\)return false;/);});
+
+test('AUTO-BOOT-11 invalid JSON write must not corrupt prior valid graph',()=>{
+  const raw=JSON.stringify(fixture()),st=storage(raw),g=mod.createBrainStorageGuard(st,'brain',valid);
+  assert.equal(g.save('{broken').reason,'INVALID_WRITE_JSON');
+  assert.equal(st.v,raw);assert.equal(st.sets.length,0);
+});
+test('AUTO-BOOT-12 valid JSON with invalid graph must fail before write',()=>{
+  const raw=JSON.stringify(fixture()),st=storage(raw),g=mod.createBrainStorageGuard(st,'brain',valid);
+  assert.equal(g.save(JSON.stringify({brains:[],nodes:[],links:[],history:[]})).reason,'INVALID_WRITE_STRUCTURE');
+  assert.equal(st.v,raw);assert.equal(st.sets.length,0);
+});
+test('AUTO-BOOT-13 validator failure is not labelled JSON corruption',()=>{
+  const raw=JSON.stringify(fixture()),st=storage(raw);
+  const g=mod.createBrainStorageGuard(st,'brain',()=>{throw Error('validator offline')});
+  assert.equal(g.reason(),'VALIDATION_ERROR');
+  assert.equal(st.v,raw);assert.equal(st.sets.length,0);
+});
