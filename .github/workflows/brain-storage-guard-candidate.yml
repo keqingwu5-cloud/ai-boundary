@@ -4,7 +4,9 @@ on:
     paths:
       - 'app.js'
       - 'brain-storage-guard.mjs'
+      - 'brain-graph-integrity.mjs'
       - 'tests/brain-storage-guard.test.cjs'
+      - 'tests/brain-graph-integrity.test.cjs'
       - '.github/workflows/brain-storage-guard-candidate.yml'
   workflow_dispatch:
 permissions:
@@ -19,6 +21,6 @@ jobs:
         with:
           node-version: '22'
       - name: Candidate storage guard and existing memory regression
-        run: node --test tests/brain-storage-guard.test.cjs tests/launcher-memory.test.cjs tests/memory-workflow-core.test.cjs
+        run: node --test tests/brain-storage-guard.test.cjs tests/brain-graph-integrity.test.cjs tests/launcher-memory.test.cjs tests/memory-workflow-core.test.cjs
       - name: Verify independent ESM guard parses
-        run: node --check brain-storage-guard.mjs
+        run: node --check brain-storage-guard.mjs && node --check brain-graph-integrity.mjs
