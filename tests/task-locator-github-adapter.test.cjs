@@ -151,3 +151,64 @@ test('null or non-boolean incomplete_results is not treated as complete',async()
   r=await discoverGitHub({reader:fixture({searchIncomplete:'false'}),query:'P0-6'});
   assert.equal(r.complete,false);assert.ok(r.errors.some(e=>e.error==='search_incomplete'));
 });
+
+// RED 20261108: comment-level snapshot drift while issue metadata stays stable
+// GitHub's issue metadata is intentionally fixed: only the comments payload changes.
+// This is a deterministic source-race simulation, not proof GitHub updates timestamps this way.
+function driftReader(commentPasses,{onCommentRead}={}){
+ const issue=()=>({number:41,url:"https://github.com/owner/repo/issues/41",body:"review source",comments:commentPasses[0].length,updated_at:"2026-11-08T00:00:00Z"});
+ let reads=0;
+ return {
+  getIssue:async()=>issue(),
+  getComments:async()=>{
+   reads++;if(onCommentRead)onCommentRead(reads);
+   const pass=commentPasses[Math.min(reads-1,commentPasses.length-1)];
+   if(pass===null)throw Error("comment_rest_refresh_unavailable");
+   return {complete:true,items:pass};
+  },
+  searchIssues:async()=>({complete:true,items:[]}),
+  get reads(){return reads;}
+ };
+}
+const comment=(id,body,updated_at="2026-11-08T00:00:00Z")=>({
+ id,url:"https://github.com/owner/repo/issues/41#issuecomment-"+id,body,updated_at
+});
+test("P0-6 RED: comment body edited between passes must not produce complete source",async()=>{
+ const reader=driftReader([[comment(11,"before")],[comment(11,"after","2026-11-08T00:00:05Z")]]);
+ const result=await discoverGitHub({reader,seeds:[41],followLinks:false});
+ assert.equal(result.complete,false);
+ assert.deepEqual(result.read,[]);
+ assert.deepEqual(result.records,[]);
+ assert.ok(result.errors.some(e=>e.error==="comment_snapshot_changed"));
+ assert.equal(reader.reads,2);
+});
+test("P0-6 RED: same-count replacement of source comment identity must fail closed",async()=>{
+ const reader=driftReader([[comment(11,"before")],[comment(12,"after")]]);
+ const result=await discoverGitHub({reader,seeds:[41],followLinks:false});
+ assert.equal(result.complete,false);
+ assert.ok(result.errors.some(e=>e.error==="comment_snapshot_changed"));
+ assert.equal(reader.reads,2);
+});
+test("P0-6 RED: refresh unavailable after first complete read is not a successful snapshot",async()=>{
+ const reader=driftReader([[comment(11,"stable")],null]);
+ const result=await discoverGitHub({reader,seeds:[41],followLinks:false});
+ assert.equal(result.complete,false);
+ assert.deepEqual(result.read,[]);
+ assert.ok(result.errors.some(e=>e.error==="comment_rest_refresh_unavailable"));
+ assert.equal(reader.reads,2);
+});
+test("P0-6 legal comment order variation does not invent source revision conflict",async()=>{
+ const one=comment(11,"a"),two=comment(12,"b");
+ const reader=driftReader([[one,two],[two,one]]);
+ const result=await discoverGitHub({reader,seeds:[41],followLinks:false});
+ assert.equal(result.complete,true);
+ assert.deepEqual(result.read,[41]);
+ assert.equal(result.records.length,3);
+});
+test("P0-6 stable no-comment issue remains readable",async()=>{
+ const reader=driftReader([[],[]]);
+ const result=await discoverGitHub({reader,seeds:[41],followLinks:false});
+ assert.equal(result.complete,true);
+ assert.deepEqual(result.errors,[]);
+ assert.equal(result.records.length,1);
+});
