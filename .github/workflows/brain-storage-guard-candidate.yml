@@ -8,6 +8,7 @@ on:
       - 'api/auto-review-router.cjs'
       - 'api/source-baseline-attestation.cjs'
       - 'api/f05-attested-interface-bridge.cjs'
+      - 'docs/f05-attested-interface-bridge-v0.1.md'
       - 'docs/source-baseline-attestation-candidate-v0.1.md'
       - 'vendor/fast-json-stable-stringify-v2.1.0.cjs'
       - 'vendor/LICENSE-fast-json-stable-stringify.txt'
