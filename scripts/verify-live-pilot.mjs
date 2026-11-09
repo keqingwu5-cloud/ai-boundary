@@ -20,7 +20,7 @@ export async function verifyPublishedPilot({baseUrl,expectedSha,fetchImpl=fetch}
     const u=validateAddress(baseUrl);
     const manifestBuf=await readPinned(fetchImpl,new URL('pilot-manifest.json',u));
     let m;try{m=JSON.parse(manifestBuf.toString('utf8'));}catch{throw Error('MANIFEST_JSON_INVALID');}
-    if(m.schema!=='firstbrain.synthetic-public-preview.v0.4'||m.source_head!==expectedSha||m.authority!=='none'||m.production_writes!==false||m.external_api!==false||m.memory_approval!=='NOT_APPROVED'||m.real_ack!=='NOT_VERIFIED'||m.actual_execution!=='NOT_EXECUTED')throw Error('MANIFEST_VERSION_OR_AUTHORITY_MISMATCH');
+    if(m.schema!=='firstbrain.synthetic-public-preview.v0.4'||m.source_head!==expectedSha||m.authority!=='none'||m.production_writes!==false||m.external_api!==false||m.memory_approval!=='NOT_APPROVED'||m.real_ack!=='NOT_VERIFIED'||m.actual_execution!=='NOT_EXECUTED'||m.source_git_tree_matched!==true)throw Error('MANIFEST_VERSION_OR_AUTHORITY_MISMATCH');
     if(!Array.isArray(m.assets)||m.assets.length!==ASSET_PATHS.length||m.assets.some((a,i)=>a?.path!==ASSET_PATHS[i]||typeof a.sha256!=='string'||!/^[a-f0-9]{64}$/.test(a.sha256)||!Number.isSafeInteger(a.bytes)))throw Error('MANIFEST_ASSET_LIST_INVALID');
     for(const asset of m.assets){
       const buf=await readPinned(fetchImpl,new URL(asset.path,u));

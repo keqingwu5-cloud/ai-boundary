@@ -1,6 +1,7 @@
 /** Build an explicit allowlist-only synthetic preview package. No deploy or network. */
 import {createHash} from 'node:crypto';
-import {mkdir,readFile,writeFile,copyFile,lstat,readdir} from 'node:fs/promises';
+import {mkdir,readFile,writeFile,copyFile,lstat,readdir,realpath,rm} from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const MODULE_DIR=path.dirname(fileURLToPath(import.meta.url));
@@ -13,14 +14,47 @@ export const sha256=buffer=>createHash('sha256').update(buffer).digest('hex');
 export const SHA40=/^[0-9a-f]{40}$/;
 const LANDING=`<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; connect-src 'none'; object-src 'none'"><title>第一大腦｜隔離試用</title><style>body{background:#111a29;color:#e7f4ff;font-family:system-ui;padding:30px;max-width:720px;margin:auto}a{color:#9dcaff}</style></head><body><h1>第一大腦｜隔離試用</h1><p>僅供合成資料研究，沒有任何正式主腦、記憶寫入、跨 AI ACK 或部署批准能力。請勿輸入私人資料。</p><p><a href="./preview/index.html">N-ary 型別與空白預覽</a></p><p><a href="./preview/chess.html">世界如棋局分支溯源預覽</a></p></body></html>`;
 function assertUnderRoot(projectRoot,p) {const abs=path.resolve(projectRoot,p); if(!abs.startsWith(path.resolve(projectRoot)+path.sep))throw Error('PATH_ESCAPE');return abs;}
-/** Caller must pin an exact version SHA; otherwise refuse to label an artifact. */
+
+const BUILDER='scripts/build-isolated-pilot.mjs';
+async function pinGitInputs(projectRoot,sourceSha){
+  const root=path.resolve(projectRoot);
+  const run=(...args)=>execFileSync('git',['-C',root,...args],{maxBuffer:2*1024*1024,stdio:['ignore','pipe','pipe']});
+  let gitRoot,head;
+  try{
+    gitRoot=run('rev-parse','--show-toplevel').toString().trim();
+    head=run('rev-parse','--verify','HEAD^{commit}').toString().trim();
+  }catch{throw Error('SOURCE_GIT_REPOSITORY_REQUIRED');}
+  const realRoot=await realpath(root);
+  if(await realpath(gitRoot)!==realRoot)throw Error('SOURCE_GIT_ROOT_MISMATCH');
+  if(head!==sourceSha)throw Error('SOURCE_SHA_MISMATCH');
+  const fingerprints=new Map();
+  for(const name of [...ASSET_PATHS.filter(x=>x!=='index.html'),BUILDER]){
+    const file=assertUnderRoot(root,name);
+    let stat,real;
+    try{stat=await lstat(file);real=await realpath(file);}catch{throw Error('SOURCE_FILE_MISSING:'+name);}
+    if(!stat.isFile()||stat.isSymbolicLink()||!real.startsWith(realRoot+path.sep))throw Error('UNSAFE_SOURCE_FILE:'+name);
+    let committed;
+    try{committed=run('show','HEAD:'+name);}catch{throw Error('SOURCE_FILE_NOT_IN_HEAD:'+name);}
+    const current=await readFile(file);
+    if(committed.length!==current.length||sha256(committed)!==sha256(current))throw Error('SOURCE_ASSET_NOT_AT_HEAD:'+name);
+    fingerprints.set(name,sha256(committed));
+  }
+  const running=await readFile(fileURLToPath(import.meta.url));
+  if(sha256(running)!==fingerprints.get(BUILDER))throw Error('BUILDER_NOT_PINNED_TO_HEAD');
+  return fingerprints;
+}
+
+/** A pinned SHA must match the actual Git tree and builder. */
 export async function buildRelease({projectRoot=path.resolve(MODULE_DIR,'..'),outDir,sourceSha}={}){
   if(typeof sourceSha!=='string'||!SHA40.test(sourceSha))throw Error('SOURCE_SHA_REQUIRED');
   if(typeof outDir!=='string'||!outDir.length)throw Error('OUTPUT_DIRECTORY_REQUIRED');
   const out=path.resolve(outDir);
   if(out===path.resolve(projectRoot)||out.startsWith(path.resolve(projectRoot,'preview')+path.sep))throw Error('OUTPUT_INVALID');
-  await mkdir(out,{recursive:false});
-  const assets=[];
+  const pinned=await pinGitInputs(projectRoot,sourceSha);
+  let created=false;
+  try{
+    await mkdir(out,{recursive:false});created=true;
+    const assets=[];
   for(const name of ASSET_PATHS){
     const dest=assertUnderRoot(out,name);
     await mkdir(path.dirname(dest),{recursive:true});
@@ -32,17 +66,19 @@ export async function buildRelease({projectRoot=path.resolve(MODULE_DIR,'..'),ou
     }
     const content=await readFile(dest);
     if(content.length>1024*1024)throw Error('ASSET_TOO_LARGE:'+name);
+    if(name!=='index.html'&&sha256(content)!==pinned.get(name))throw Error('SOURCE_CHANGED_DURING_BUILD:'+name);
     assets.push({path:name,sha256:sha256(content),bytes:content.length});
   }
   const manifest={schema:'firstbrain.synthetic-public-preview.v0.4',source_repository:'keqingwu5-cloud/ai-boundary',source_head:sourceSha,
     scope:'GH_PAGES_ISOLATED_CANDIDATE',data:'SYNTHETIC_ONLY',authority:'none',memory_approval:'NOT_APPROVED',real_ack:'NOT_VERIFIED',
-    actual_execution:'NOT_EXECUTED',production_writes:false,external_api:false,credentials:false,source_independently_verified:false,
+    actual_execution:'NOT_EXECUTED',production_writes:false,external_api:false,credentials:false,source_independently_verified:false,source_git_tree_matched:true,
     assets};
   await writeFile(path.join(out,'pilot-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
   const finalFiles=await readdir(out,{recursive:true});
   const actualFiles=finalFiles.filter(x=>!x.endsWith('/') && ASSET_PATHS.includes(x));
   if(actualFiles.length!==ASSET_PATHS.length)throw Error('ASSET_COUNT_MISMATCH');
   return Object.freeze(manifest);
+  }catch(error){if(created)await rm(out,{recursive:true,force:true});throw error;}
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   const opt={};for(let i=2;i<process.argv.length;i+=2)opt[process.argv[i]]=process.argv[i+1];
