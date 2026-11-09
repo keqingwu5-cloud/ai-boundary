@@ -215,7 +215,9 @@
         "action_hash",
         "result_code",
         "identity",
-        "execution_verification"
+        "execution_verification",
+        "recorded_at_local",
+        "clock_status"
       ],
       "properties": {
         "action_id": {
@@ -243,6 +245,13 @@
         },
         "execution_verification": {
           "const": "NOT_VERIFIED"
+        },
+        "recorded_at_local": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "clock_status": {
+          "const": "LOCAL_UNVERIFIED"
         }
       }
     },
@@ -258,7 +267,9 @@
         "summary_code",
         "raw_text_stored",
         "identity",
-        "validation"
+        "validation",
+        "recorded_at_local",
+        "clock_status"
       ],
       "properties": {
         "log_id": {
@@ -297,6 +308,13 @@
         },
         "validation": {
           "const": "NOT_VERIFIED"
+        },
+        "recorded_at_local": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "clock_status": {
+          "const": "LOCAL_UNVERIFIED"
         }
       }
     },
@@ -312,7 +330,9 @@
         "reviewed_revision",
         "role_separation",
         "independent_identity",
-        "approval"
+        "approval",
+        "recorded_at_local",
+        "clock_status"
       ],
       "properties": {
         "review_id": {
@@ -351,6 +371,13 @@
         },
         "approval": {
           "const": "NOT_GRANTED"
+        },
+        "recorded_at_local": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "clock_status": {
+          "const": "LOCAL_UNVERIFIED"
         }
       }
     }
