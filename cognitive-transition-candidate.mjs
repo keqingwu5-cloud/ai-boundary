@@ -7,7 +7,7 @@
  *
  * Hardening (research branch):
  * - Side-state mutations (arrays, times) only after successful append → status/log consistent.
- * - Reject stale / version-mismatched proof packages at open.
+ * - Reject stale / version-mismatched proof packages at open (distinct reasons).
  * - Freeze pushed candidate objects; read paths always deep-copy.
  */
 import {sha256, stableJson} from './nary-composition.mjs';
@@ -86,8 +86,9 @@ export function createCognitiveTransition({
     const ev = control.readEvent(record.event_id);
     if (ev.status !== 'candidate_only') return denied('CONTROL_EVENT_NOT_FOUND');
     const pr = audit.readProof(record.proof_id);
-    if (pr.status !== 'candidate_only' || pr.event_id !== record.event_id ||
-        pr.control_snapshot_stale || pr.control_version !== ev.version)
+    if (pr.status !== 'candidate_only' || pr.event_id !== record.event_id)
+      return denied('PROOF_MISMATCH');
+    if (pr.control_snapshot_stale || pr.control_version !== ev.version)
       return denied('PROOF_VERSION_STALE');
 
     if (transitions.has(record.transition_id))
