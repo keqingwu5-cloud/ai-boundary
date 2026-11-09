@@ -1,0 +1,38 @@
+name: First Brain keyword history reconciliation (READ_ONLY)
+on:
+  pull_request:
+    paths:
+      - 'data/problem-keywords.v01.json'
+      - 'scripts/keyword-historical-audit.mjs'
+      - 'tests/keyword-historical-audit.test.mjs'
+      - '.github/workflows/keyword-history-isolated.yml'
+      - 'docs/keyword-history-v01-review.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  keyword-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and catalog checks
+        run: |
+          node --check scripts/keyword-historical-audit.mjs
+          node -e "const c=require('./data/problem-keywords.v01.json');if(c.problems.length!==17||c.production_gate!=='NO_GO')process.exit(1)"
+      - name: Historical keyword and false-ACK negative regression
+        run: node --test tests/keyword-historical-audit.test.mjs
+      - name: Real historical keyword smoke (INDEX ONLY; NOT LIVE SOURCE TRUTH)
+        run: |
+          node scripts/keyword-historical-audit.mjs 'ACK' > /tmp/ack-search.json
+          node scripts/keyword-historical-audit.mjs '#41' > /tmp/issue-search.json
+          node scripts/keyword-historical-audit.mjs '記憶' > /tmp/memory-search.json
+          node scripts/keyword-historical-audit.mjs 'PR #140' > /tmp/release-search.json
+          node -e "const fs=require('node:fs');const a=JSON.parse(fs.readFileSync('/tmp/ack-search.json'));const b=JSON.parse(fs.readFileSync('/tmp/issue-search.json'));if(a.results[0].problem_id!=='FB-P0-01'||!b.results.some(x=>x.problem_id==='FB-P0-01')||a.decision!=='PRODUCTION_NO_GO')process.exit(1)"
+          echo 'KEYWORD_INDEX_SMOKE_PASS (not remote ACK, not deployed)'

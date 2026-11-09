@@ -1,0 +1,26 @@
+{
+  "schema": "firstbrain.keyword-history.v0.1",
+  "source": "firstbrain-global-keyword-audit-2026-11-09 (human-reviewed index candidate, not original KGE-001 214 terms)",
+  "review_date": "2026-11-09",
+  "authority": "READ_ONLY_CANDIDATE",
+  "production_gate": "NO_GO",
+  "problems": [
+    {"id":"FB-P0-01","priority":"P0","title":"真跨 AI 收送與 ACK","aliases":["ack","ack_received","received","posted_not_ack","real_ack","attempt_id","task_id","webhook","gpt②","bot③","跨 ai","真實 ack","收件"],"issues":[41,56,137],"prs":[42,46,47,48,52,80,81,97,98,101,105,110,111,112,113,114,115,116],"gate":"BLOCKED","missing":"獨立目的端收件與身分、可回讀真 ACK、無人工轉送的 E2E"},
+    {"id":"FB-P0-02","priority":"P0","title":"身分、授權與信任根","aliases":["auth","acl","rls","grant","scoped grant","hmac","ed25519","key rotation","revoke","capability","t08","授權","金鑰"],"issues":[41,109],"prs":[29,69,70,113,115,128],"gate":"BLOCKED","missing":"真信任根與金鑰註冊撤銷、實環境權限/RLS 檢查"},
+    {"id":"FB-P0-03","priority":"P0","title":"Worker、STOP 與恢復","aliases":["stop","timeout","watchdog","lease","retry","reconciliation","outbox","cas","late completion","worker","重試","撤權","停止","恢復"],"issues":[41,109],"prs":[46,47,48,49,50,52,91,93,94,95,96,97,116,133],"gate":"BLOCKED","missing":"遠端執行未決、持久對帳、撤權/STOP/重啟實測"},
+    {"id":"FB-P0-04","priority":"P0","title":"記憶核准、回憶與版本","aliases":["memory","originid","command_id","recall","restore","rejected","web locks","g1","記憶","舊備份","撤回"],"issues":[54,55],"prs":[18,20,21,25,27,58,59,61,62,64,102,103,104,107],"gate":"BLOCKED","missing":"真私人 origin、備份版本遷移、跨頁原子交易、完整權限核准"},
+    {"id":"FB-P0-05","priority":"P0","title":"3D 主腦寫入與原子保存","aliases":["aibrain.v1","3d","undo","seed","localstorage","indexeddb","old writer","r03","parentbrainid","主腦匯入"],"issues":[32,54],"prs":[4,68,71,72,74,75,118,120,121],"gate":"BLOCKED","missing":"授權真圖快照、舊 writer 退場、並發/備份/回退實測"},
+    {"id":"FB-P0-06","priority":"P0","title":"世界模型 Journal 與因果","aliases":["worldmodel.verify","journal","append-only","node/claim/revision","worldflowmap","causes","causal","世界模型","因果"],"issues":[77],"prs":[10,12,72,74,75,86,87,118,120,121],"gate":"BLOCKED","missing":"Journal 原子更新與同時 writer、事實/因果證據分界"},
+    {"id":"FB-P0-07","priority":"P0","title":"整合拓撲與全局回歸","aliases":["base/head","head_sha","schema drift","cherry-pick","dependency","review","ci","整合","相依","衝突"],"issues":[65],"prs":[28,29,42,48,58,62,75,89,90,97,101,122,125,132,140],"gate":"BLOCKED","missing":"最終一致 HEAD 的跨分支回歸、依賴圖與獨立 reviewer"},
+    {"id":"FB-P0-08","priority":"P0","title":"公私資料與發布隔離","aliases":["privacy","secrets","https","origin","gh-pages","manifest","source_head","public","private","公私","部署","404"],"issues":[65],"prs":[2,19,29,62,127,129,131,132,140],"gate":"BLOCKED","missing":"公開站點真正讀回、歷史敏感資料稽核、獨立私人 origin"},
+    {"id":"FB-P0-09","priority":"P0","title":"真實 Apple 裝置與授權舊資料","aliases":["safari","ipad","apple","webkit","authorized-history","migration","真機","實機","合法舊資料"],"issues":[32,55],"prs":[62,75,79,85,104,129,131,140,142],"gate":"BLOCKED","missing":"實體 Safari、真資料同意/遷移、故障復原"},
+    {"id":"FB-P1-10","priority":"P1","title":"來源權威與時間","aliases":["source_ref","source_id","provenance","first_seen","as_of","attestation","content_hash","source_available_at","來源","時間軸"],"issues":[41,77],"prs":[63,87,98,105,108,110,111,112,113,114,122,126,128,130,140],"gate":"HOLD","missing":"獨立驗身的來源與時間戳、原始證據版本"},
+    {"id":"FB-P1-11","priority":"P1","title":"N-ary 與世界如棋局","aliases":["n-ary","a+b","x+c","redacted","derivation_event_id","counterfactual","gap","世界如棋局","多輸入"],"issues":[77],"prs":[122,123,124,125,130,132,140],"gate":"HOLD","missing":"持久分支/真來源 Adapter、獨立因果驗證"},
+    {"id":"FB-P1-12","priority":"P1","title":"控制、證明包與日誌","aliases":["proof_id","who reviewed","control cycle","four logs","forecast_due","audit","delay","progress","證明包","進度"],"issues":[137],"prs":[63,128,133,134,135],"gate":"HOLD","missing":"可信執行/審查身分、持久事件帳與四日誌真接線"},
+    {"id":"FB-P1-13","priority":"P1","title":"認知與狀態轉移","aliases":["drive","s0","s1","o1","calibrate","epistemic","confidence","proof_version_stale","認知","狀態轉移"],"issues":[137],"prs":[136,138,139],"gate":"HOLD","missing":"後續每步來源過期檢查、觀測校準、控制/證明/日誌整合"},
+    {"id":"FB-P1-14","priority":"P1","title":"2D/3D 雙視圖","aliases":["2d","3d","tidy-tree","parentbrainid","tree-view","cross links","樹狀","雙視圖"],"issues":[32,137],"prs":[68,71,75,141,142],"gate":"HOLD","missing":"真 aiBrain 快照、同 origin 回歸與真機"},
+    {"id":"FB-P1-15","priority":"P1","title":"關鍵字與共同認知對帳","aliases":["kge-001","problem_id","same_issue","supersedes","conflict","stale","keyword","關鍵字","歷史問題","共同認知"],"issues":[41,65],"prs":[63],"gate":"HOLD","missing":"未取得 KGE-001 全部 214 詞；真雙端增量同步尚缺"},
+    {"id":"FB-P1-16","priority":"P1","title":"舊待辦與規章流程","aliases":["t01","t16","spaces","rooms","rule authority","worldflowmap","拒絕","規章","待辦"],"issues":[30,31,32,33,34,35,36,37,38,39,44,65],"prs":[28,63,73],"gate":"HOLD","missing":"原空間遷移、拒絕/修正/重送、規章真權威"},
+    {"id":"FB-P2-17","priority":"P2","title":"效益成本與授權開源","aliases":["ec-01","rate-limit","quota","tokens","p95","cost","latency","licence","費用","成本","授權開源"],"issues":[65,106,109],"prs":[117,119,124,125,139],"gate":"HOLD","missing":"真成本、外部服務費用、公開程式授權與依賴風險"}
+  ]
+}
