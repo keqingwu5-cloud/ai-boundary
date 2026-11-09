@@ -93,6 +93,23 @@ async function assessF05Interface({message,source,context,trust,baseline=null,he
       '聲稱的兩端與外部預期路由不一致','由獨立權限配置重新核對端點');
   if(!TYPES.has(m.message_kind))
     fail(5,'MESSAGE_KIND_INVALID','message_kind','訊息種類不符合目前接口契約','使用明確的事件類型');
+  // Rejections and corrected resubmissions are separate append-only events,
+  // never a mutation of the rejected event or a reused event identifier.
+  if(m.message_kind==='RETURN'){
+    const reasons=m.return_reasons;
+    if(!validId(m.rejected_event_id)||!findKnown(context.known_events,m.rejected_event_id)||
+      !Array.isArray(reasons)||reasons.length<1||reasons.length>20||
+      reasons.some(x=>!obj(x)||!validId(x.code)||!str(x.field_path)||
+        !str(x.reason)||!str(x.suggested_correction)))
+      fail(7,'RETURN_CONTEXT_MISSING','rejected_event_id,return_reasons',
+        '退回缺被拒事件參照、具體欄位原因或建議','回掛原 rejected_event_id 並逐項說明退回原因');
+  }
+  if(m.message_kind==='RESUBMIT'){
+    if(!validId(m.supersedes_event_id)||!findKnown(context.known_events,m.supersedes_event_id)||
+      m.supersedes_event_id===m.event_id)
+      fail(7,'RESUBMIT_CONTEXT_MISSING','supersedes_event_id',
+        '重新提交缺有效的原事件版本鏈','使用新 event/attempt，連結被取代事件');
+  }
   if(!Number.isSafeInteger(m.sequence)||m.sequence!==context.last_sequence+1)
     fail(4,'SEQUENCE_MISMATCH','sequence','事件排序與前一序號不一致','以受核對的序號重新提交');
   if(m.previous_event_id!==context.last_event_id)
@@ -124,8 +141,11 @@ async function assessF05Interface({message,source,context,trust,baseline=null,he
       fail(12,'CITATION_CONTRACT_INVALID',`citations[${i}]`,
         '引用與使用紀錄欄位不完整','補上來源版次、定位、主張及使用鏈');continue;
     }
+    // Citations may reference a *different* source. Compare the cited version
+    // against its own registry entry; do not force it to equal main graph digest.
+    // The registry is injected and does NOT prove semantic support or authenticity.
     if(!rec||c.source_ref!==rec.source_ref||c.source_version!==rec.source_version||
-       c.locator!==rec.locator||c.source_digest!==claim?.raw_source_digest)
+       c.locator!==rec.locator||c.source_digest!==rec.source_digest)
       fail(12,'CITATION_REGISTRY_MISMATCH',`citations[${i}]`,
         '引用版本或段落與呼叫端登記表不符','重新讀回引用原文與版本');
     if(use.used_in_event_id!==m.event_id||use.used_in_attempt_id!==m.attempt_id||
