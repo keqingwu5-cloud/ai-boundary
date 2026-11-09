@@ -91,3 +91,21 @@ test('P18 public verifier rejects legacy manifest without git-tree check',async(
   const r=await verifyPublishedPilot({baseUrl:PUBLIC_URL,expectedSha:f.sha,fetchImpl:f.respond});
   assert.equal(r.reason,'MANIFEST_VERSION_OR_AUTHORITY_MISMATCH');
 });
+
+test('P19 committed alternative builder mismatches actual running builder',async()=>{
+  const {dir}=await setup();
+  await writeFile(path.join(dir,'scripts/build-isolated-pilot.mjs'),'different builder');
+  git(dir,'add','--','scripts/build-isolated-pilot.mjs');
+  git(dir,'-c','user.name=Synthetic Fixture','-c','user.email=fixture@example.invalid','commit','-q','-m','alternate builder');
+  const sha=git(dir,'rev-parse','HEAD');
+  await assert.rejects(buildRelease({projectRoot:dir,outDir:path.join(dir,'x'),sourceSha:sha}),/BUILDER_NOT_PINNED_TO_HEAD/);
+});
+test('P20 oversized committed asset fails and partial release is removed',async()=>{
+  const {dir}=await setup();
+  await writeFile(path.join(dir,'preview/chess.html'),Buffer.alloc(1024*1024+1,65));
+  git(dir,'add','--','preview/chess.html');
+  git(dir,'-c','user.name=Synthetic Fixture','-c','user.email=fixture@example.invalid','commit','-q','-m','large asset');
+  const sha=git(dir,'rev-parse','HEAD'),out=path.join(dir,'rejected-bundle');
+  await assert.rejects(buildRelease({projectRoot:dir,outDir:out,sourceSha:sha}),/ASSET_TOO_LARGE/);
+  await assert.rejects(stat(out),/ENOENT/);
+});
