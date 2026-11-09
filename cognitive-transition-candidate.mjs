@@ -4,6 +4,11 @@
  * Never copies private memory, never promotes to APPROVED without external authority,
  * never performs real I/O, network, persistence or worker start.
  * Distinguishes OBSERVED / INFERRED / PREDICTED / UNKNOWN / APPROVED.
+ *
+ * Hardening (research branch):
+ * - Side-state mutations (arrays, times) only after successful append → status/log consistent.
+ * - Reject stale / version-mismatched proof packages at open.
+ * - Freeze pushed candidate objects; read paths always deep-copy.
  */
 import {sha256, stableJson} from './nary-composition.mjs';
 
@@ -20,6 +25,7 @@ const isObj = x => x !== null && typeof x === 'object' && !Array.isArray(x) &&
   [Object.prototype, null].includes(Object.getPrototypeOf(x));
 const exact = (o, keys) => isObj(o) && Object.keys(o).every(k => keys.includes(k));
 const cp = v => JSON.parse(JSON.stringify(v));
+const freeze = v => Object.freeze(cp(v));
 // Finite number in [0,1]; rejects NaN, ±Infinity and non-numbers.
 const unitInterval = x => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= 1;
 const denied = reason => ({
@@ -58,7 +64,7 @@ export function createCognitiveTransition({
     const hash = await sha256(stableJson(entry));
     if (t.version !== entry.sequence - 1) return denied('VERSION_CONFLICT');
     if (totalRefs >= maxRefs) return denied('REF_CAPACITY_REACHED');
-    t.history.push({...entry, hash});
+    t.history.push(Object.freeze({...entry, hash}));
     t.version++;
     totalRefs++;
     return cand({transition_id: t.id, version: t.version, entry_hash: hash});
@@ -67,6 +73,7 @@ export function createCognitiveTransition({
   /**
    * Open a transition candidate linked to an existing control event + proof.
    * S0 is the observed baseline; never auto-promotes to APPROVED.
+   * Rejects stale / version-mismatched proof packages.
    */
   async function openTransition(record) {
     if (!exact(record, ['transition_id', 'event_id', 'proof_id', 'project_id',
@@ -79,8 +86,9 @@ export function createCognitiveTransition({
     const ev = control.readEvent(record.event_id);
     if (ev.status !== 'candidate_only') return denied('CONTROL_EVENT_NOT_FOUND');
     const pr = audit.readProof(record.proof_id);
-    if (pr.status !== 'candidate_only' || pr.event_id !== record.event_id)
-      return denied('PROOF_MISMATCH');
+    if (pr.status !== 'candidate_only' || pr.event_id !== record.event_id ||
+        pr.control_snapshot_stale || pr.control_version !== ev.version)
+      return denied('PROOF_VERSION_STALE');
 
     if (transitions.has(record.transition_id))
       return denied('TRANSITION_ID_COLLISION');
@@ -91,7 +99,7 @@ export function createCognitiveTransition({
       event_id: record.event_id,
       proof_id: record.proof_id,
       project_id: record.project_id,
-      s0: {revision: record.s0_revision, hash: record.s0_hash, epistemic: 'OBSERVED'},
+      s0: freeze({revision: record.s0_revision, hash: record.s0_hash, epistemic: 'OBSERVED'}),
       drivers: [],
       actions: [],
       predictions: [],
@@ -127,16 +135,17 @@ export function createCognitiveTransition({
     if (!t) return denied('TRANSITION_NOT_FOUND');
     if (t.version !== record.expected_version) return denied('VERSION_CONFLICT');
 
-    const d = {
+    const d = freeze({
       layer: record.layer,
       claim: record.claim,
       epistemic: record.epistemic,
       evidence_ref: record.evidence_ref,
       counter_hypothesis: record.counter_hypothesis ?? null,
       identity: 'CLAIM_ONLY'
-    };
-    t.drivers.push(d);
-    return append(t, 'DRIVE_CANDIDATE', d);
+    });
+    const out = await append(t, 'DRIVE_CANDIDATE', d);
+    if (out.status !== 'blocked') t.drivers.push(d);
+    return out;
   }
 
   /** Propose an action / scenario with predicted S1 (never executed). */
@@ -152,7 +161,7 @@ export function createCognitiveTransition({
     if (!t) return denied('TRANSITION_NOT_FOUND');
     if (t.version !== record.expected_version) return denied('VERSION_CONFLICT');
 
-    const a = {
+    const a = freeze({
       action_id: record.action_id,
       kind: record.kind,
       predicted_s1: cp(record.predicted_s1),
@@ -162,10 +171,14 @@ export function createCognitiveTransition({
       epistemic: 'PREDICTED',
       executed: false,
       approval: 'NOT_APPROVED'
-    };
-    t.actions.push(a);
-    t.predictions.push({action_id: a.action_id, predicted: a.predicted_s1, epistemic: 'PREDICTED'});
-    return append(t, 'ACTION_PREDICTED', a);
+    });
+    const pred = freeze({action_id: a.action_id, predicted: a.predicted_s1, epistemic: 'PREDICTED'});
+    const out = await append(t, 'ACTION_PREDICTED', a);
+    if (out.status !== 'blocked') {
+      t.actions.push(a);
+      t.predictions.push(pred);
+    }
+    return out;
   }
 
   /** Record an observation O1. Does NOT promote to APPROVED. */
@@ -180,17 +193,20 @@ export function createCognitiveTransition({
     if (!t) return denied('TRANSITION_NOT_FOUND');
     if (t.version !== record.expected_version) return denied('VERSION_CONFLICT');
 
-    const o = {
+    const o = freeze({
       revision: record.o1_revision,
       hash: record.o1_hash,
       observed_at: record.observed_at ?? 'UNKNOWN',
       source_ref: record.source_ref,
       epistemic: 'OBSERVED',
       approval: 'NOT_APPROVED'
-    };
-    t.observations.push(o);
-    t.times.OBSERVATION = o.observed_at;
-    return append(t, 'OBSERVATION_RECORDED', o);
+    });
+    const out = await append(t, 'OBSERVATION_RECORDED', o);
+    if (out.status !== 'blocked') {
+      t.observations.push(o);
+      t.times.OBSERVATION = o.observed_at;
+    }
+    return out;
   }
 
   /** Produce a calibration candidate comparing prediction vs observation. */
@@ -209,16 +225,17 @@ export function createCognitiveTransition({
     const pred = t.predictions.find(p => p.action_id === record.action_id);
     if (!pred) return denied('PREDICTION_NOT_FOUND');
 
-    const c = {
+    const c = freeze({
       action_id: record.action_id,
       error_summary: record.error_summary,
       counter_evidence_ref: record.counter_evidence_ref ?? null,
       revised_confidence: record.revised_confidence,
       epistemic: 'INFERRED',
       approval: 'NOT_APPROVED'
-    };
-    t.calibrations.push(c);
-    return append(t, 'CALIBRATION_CANDIDATE', c);
+    });
+    const out = await append(t, 'CALIBRATION_CANDIDATE', c);
+    if (out.status !== 'blocked') t.calibrations.push(c);
+    return out;
   }
 
   /** Add a memory reference (never copies private content). */
@@ -234,15 +251,16 @@ export function createCognitiveTransition({
     if (!t) return denied('TRANSITION_NOT_FOUND');
     if (t.version !== record.expected_version) return denied('VERSION_CONFLICT');
 
-    const m = {
+    const m = freeze({
       kind: record.kind,
       ref_id: record.ref_id,
       summary_hash: record.summary_hash,
       epistemic: record.epistemic,
       copied_content: false
-    };
-    t.memory_refs.push(m);
-    return append(t, 'MEMORY_REF', m);
+    });
+    const out = await append(t, 'MEMORY_REF', m);
+    if (out.status !== 'blocked') t.memory_refs.push(m);
+    return out;
   }
 
   function readTransition(transitionId) {
@@ -254,7 +272,7 @@ export function createCognitiveTransition({
       event_id: t.event_id,
       proof_id: t.proof_id,
       project_id: t.project_id,
-      s0: t.s0,
+      s0: cp(t.s0),
       drivers: cp(t.drivers),
       actions: cp(t.actions),
       observations: cp(t.observations),
