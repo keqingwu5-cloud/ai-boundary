@@ -25,6 +25,7 @@ on:
       - docs/progress-journal-and-folders-v01.md
       - docs/control-cycle-engine-quarantine-v02.md
       - docs/progress-journal-stale-readback-v02.md
+      - docs/three-axis-integration-gates-v01.md
       - logs/README.md
       - .github/workflows/control-cycle-isolated.yml
   workflow_dispatch:
