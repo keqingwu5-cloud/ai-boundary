@@ -1,4 +1,5 @@
-import { readSnapshot, STORAGE_KEY } from './tree-view-model.mjs';
+import { buildTree, readSnapshot, STORAGE_KEY } from './tree-view-model.mjs';
+import { syntheticBrainSnapshot } from './tree-view-demo.mjs';
 
 const $ = id => document.getElementById(id);
 const treeEl = $('tree'), detailEl = $('detail'), countsEl = $('counts');
@@ -178,9 +179,12 @@ function renderTree() {
   if (!ul.childNodes.length) treeEl.append(el('p', '沒有符合條件的節點。', 'empty'));
 }
 function reload() {
+  const demoMode = new URLSearchParams(location.search).get('demo') === '1';
   let storage = null;
-  try { storage = window.localStorage; } catch { /* restricted storage */ }
-  const r = readSnapshot(storage);
+  if (!demoMode) {
+    try { storage = window.localStorage; } catch { /* restricted storage */ }
+  }
+  const r = demoMode ? { ok:true, tree:buildTree(syntheticBrainSnapshot()) } : readSnapshot(storage);
   view = r.ok ? r.tree : null;
   if (!r.ok) {
     treeEl.replaceChildren();
@@ -195,7 +199,8 @@ function reload() {
   selectedId = selectedId && view.nodeIndex.has(selectedId) ? selectedId :
     (parseNodeHash() && view.nodeIndex.has(parseNodeHash()) ? parseNodeHash() : null);
   countsEl.textContent = String(view.brainCount) + ' 腦區 · ' + String(view.nodeCount) + ' 節點';
-  message('已讀取本機快照 · 資料版本 ' + String(view.sourceVersion ?? '未知') + ' · 未寫入');
+  message(demoMode ? '合成示範資料 · 不讀取也不寫入本機記憶' :
+    '已讀取本機快照 · 資料版本 ' + String(view.sourceVersion ?? '未知') + ' · 未寫入');
   errorsEl.replaceChildren();
   if (view.diagnostics.length) {
     errorsEl.append(el('p', '⚠ 發現 ' + String(view.diagnostics.length) +
