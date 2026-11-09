@@ -197,3 +197,68 @@ test('19 N-way 4-source calculations and provenance remain candidate-only',async
   assert.equal(c.readEvent('ev1').baseline,'NOT_APPROVED');
   assert.equal(c.readEvent('ev1').remote_ack,'NOT_VERIFIED');
 });
+
+test('20 extension rule is a non-executable contract, not arbitrary code',async()=>{
+  const c=await init();
+  const r=c.registerExpansionRule({domain_id:'culture',rule_id:'cross_civilization',
+    rule_version:'v1',kind:'RESEARCH',min_inputs:2,max_inputs:4,review_ref:'review1'});
+  assert.equal(r.status,'candidate_only');
+  assert.equal(r.executable,false);
+  assert.equal(r.implementation,'NOT_PRESENT');
+  assert.equal(c.stats().rule_manifests,1);
+});
+test('21 rule catalogs are versioned and contradictory re-registration fails closed',async()=>{
+  const c=await init();
+  const r={domain_id:'culture',rule_id:'compare',rule_version:'v1',
+    kind:'REFERENCE_ONLY',min_inputs:2,max_inputs:3,review_ref:'review1'};
+  assert.equal(c.registerExpansionRule(r).status,'candidate_only');
+  assert.equal(c.registerExpansionRule(r).operation,'DUPLICATE_IGNORED');
+  assert.equal(c.registerExpansionRule({...r,kind:'TYPED_TRANSFORM'}).reason,'EXPANSION_RULE_ID_COLLISION');
+  assert.equal(c.registerExpansionRule({...r,rule_version:'v2'}).status,'candidate_only');
+});
+test('22 proposed expansion uses real source refs but never becomes computation',async()=>{
+  const c=await init();
+  for(const [id,val] of [['A',2],['B',3]]){
+    await c.registerSource({event_id:'ev1',source:{id,revision:'r1',payload:qty(val)}});
+  }
+  c.registerExpansionRule({domain_id:'culture',rule_id:'hypothesis',
+    rule_version:'v1',kind:'RESEARCH',min_inputs:2,max_inputs:6,review_ref:'review1'});
+  const before=c.readEvent('ev1');
+  const plan=await c.planExpansion({event_id:'ev1',expected_version:before.version,
+    rule_id:'hypothesis',rule_version:'v1',input_ids:['A','B'],reason:'test other historical explanation'});
+  assert.equal(plan.status,'candidate_only');
+  assert.equal(plan.executable,false);
+  assert.equal(plan.approval,'NOT_APPROVED');
+  assert.equal(c.readEvent('ev1').execution,'NOT_RUN');
+  assert.equal(c.readEvent('ev1').baseline,'NOT_APPROVED');
+});
+test('23 unknown rule and missing evidence refs fail closed',async()=>{
+  const c=await init();
+  const missing=await c.planExpansion({event_id:'ev1',expected_version:1,
+    rule_id:'unknown',rule_version:'v1',input_ids:['A','B'],reason:'test'});
+  assert.equal(missing.reason,'RULE_NOT_CATALOGED');
+  c.registerExpansionRule({domain_id:'culture',rule_id:'hypothesis',rule_version:'v1',
+    kind:'RESEARCH',min_inputs:2,max_inputs:3,review_ref:'review1'});
+  const out=await c.planExpansion({event_id:'ev1',expected_version:1,
+    rule_id:'hypothesis',rule_version:'v1',input_ids:['unknownA','unknownB'],reason:'test'});
+  assert.equal(out.reason,'EXPANSION_INPUT_NOT_READABLE');
+});
+test('24 redacted references cannot enter unimplemented expansion plans',async()=>{
+  const c=await init();
+  await c.registerSource({event_id:'ev1',source:{id:'A',revision:'r1',payload:qty(5)}});
+  await c.registerGap({event_id:'ev1',gap:{id:'secret',revision:'r1',state:'REDACTED'}});
+  c.registerExpansionRule({domain_id:'culture',rule_id:'compare',rule_version:'v1',
+    kind:'REFERENCE_ONLY',min_inputs:2,max_inputs:2,review_ref:'review1'});
+  const out=await c.planExpansion({event_id:'ev1',expected_version:c.readEvent('ev1').version,
+    rule_id:'compare',rule_version:'v1',input_ids:['A','secret'],reason:'research'});
+  assert.equal(out.reason,'EXPANSION_INPUT_NOT_READABLE');
+  assert.equal(out.rule_key,undefined);
+});
+test('25 an untrusted rule cannot claim executable=true or exceed bounded fan-in',async()=>{
+  const c=await init();
+  const rule={domain_id:'culture',rule_id:'synthesis',rule_version:'v1',
+    kind:'TYPED_TRANSFORM',min_inputs:2,max_inputs:32,review_ref:'review1'};
+  assert.equal(c.registerExpansionRule({...rule,executable:true}).reason,'EXPANSION_RULE_CONTRACT_INVALID');
+  assert.equal(c.registerExpansionRule({...rule,max_inputs:9999}).reason,'EXPANSION_RULE_CONTRACT_INVALID');
+  assert.equal(c.registerExpansionRule(rule).status,'candidate_only');
+});
