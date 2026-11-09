@@ -48,11 +48,31 @@ export function createCognitiveTransition({
   const transitions = new Map();
   let totalRefs = 0;
 
+  // Local snapshots are integrity *candidates*, never authenticated authorities.
+  // A transition cannot keep appending after the parent control or proof changes.
+  function sourceSnapshotFresh(t) {
+    const ev = control.readEvent(t.event_id);
+    if (ev.status !== 'candidate_only' ||
+        ev.version !== t.control_version ||
+        ev.domain_id !== t.control_domain_id ||
+        ev.observed_hash !== t.control_observed_hash) return false;
+    const proof = audit.readProof(t.proof_id);
+    return proof.status === 'candidate_only' &&
+      proof.event_id === t.event_id &&
+      proof.control_snapshot_stale === false &&
+      proof.control_version === t.control_version &&
+      proof.control_observed_hash === t.control_observed_hash &&
+      proof.domain_id === t.control_domain_id &&
+      proof.revision === t.proof_revision &&
+      proof.history_head_hash === t.proof_history_head_hash;
+  }
+
   function checkEpistemic(value, allowed = EPISTEMIC) {
     return allowed.includes(value) ? null : 'EPISTEMIC_INVALID';
   }
 
   async function append(t, kind, details) {
+    if (!sourceSnapshotFresh(t)) return denied('SOURCE_SNAPSHOT_STALE');
     if (totalRefs >= maxRefs) return denied('REF_CAPACITY_REACHED');
     const entry = {
       transition_id: t.id,
@@ -63,6 +83,7 @@ export function createCognitiveTransition({
     };
     const hash = await sha256(stableJson(entry));
     if (t.version !== entry.sequence - 1) return denied('VERSION_CONFLICT');
+    if (!sourceSnapshotFresh(t)) return denied('SOURCE_SNAPSHOT_STALE');
     if (totalRefs >= maxRefs) return denied('REF_CAPACITY_REACHED');
     t.history.push(Object.freeze({...entry, hash}));
     t.version++;
@@ -88,7 +109,10 @@ export function createCognitiveTransition({
     const pr = audit.readProof(record.proof_id);
     if (pr.status !== 'candidate_only' || pr.event_id !== record.event_id)
       return denied('PROOF_MISMATCH');
-    if (pr.control_snapshot_stale || pr.control_version !== ev.version)
+    if (pr.control_snapshot_stale || pr.control_version !== ev.version ||
+        pr.control_observed_hash !== ev.observed_hash ||
+        pr.domain_id !== ev.domain_id ||
+        !Number.isInteger(pr.revision) || !HEX.test(pr.history_head_hash ?? ''))
       return denied('PROOF_VERSION_STALE');
 
     if (transitions.has(record.transition_id))
@@ -100,6 +124,11 @@ export function createCognitiveTransition({
       event_id: record.event_id,
       proof_id: record.proof_id,
       project_id: record.project_id,
+      control_version: ev.version,
+      control_domain_id: ev.domain_id,
+      control_observed_hash: ev.observed_hash,
+      proof_revision: pr.revision,
+      proof_history_head_hash: pr.history_head_hash,
       s0: freeze({revision: record.s0_revision, hash: record.s0_hash, epistemic: 'OBSERVED'}),
       drivers: [],
       actions: [],
@@ -135,6 +164,7 @@ export function createCognitiveTransition({
     const t = transitions.get(record.transition_id);
     if (!t) return denied('TRANSITION_NOT_FOUND');
     if (t.version !== record.expected_version) return denied('VERSION_CONFLICT');
+    if (!sourceSnapshotFresh(t)) return denied('SOURCE_SNAPSHOT_STALE');
 
     const d = freeze({
       layer: record.layer,
@@ -161,6 +191,7 @@ export function createCognitiveTransition({
     const t = transitions.get(record.transition_id);
     if (!t) return denied('TRANSITION_NOT_FOUND');
     if (t.version !== record.expected_version) return denied('VERSION_CONFLICT');
+    if (!sourceSnapshotFresh(t)) return denied('SOURCE_SNAPSHOT_STALE');
 
     const a = freeze({
       action_id: record.action_id,
@@ -193,6 +224,7 @@ export function createCognitiveTransition({
     const t = transitions.get(record.transition_id);
     if (!t) return denied('TRANSITION_NOT_FOUND');
     if (t.version !== record.expected_version) return denied('VERSION_CONFLICT');
+    if (!sourceSnapshotFresh(t)) return denied('SOURCE_SNAPSHOT_STALE');
 
     const o = freeze({
       revision: record.o1_revision,
@@ -222,9 +254,11 @@ export function createCognitiveTransition({
     const t = transitions.get(record.transition_id);
     if (!t) return denied('TRANSITION_NOT_FOUND');
     if (t.version !== record.expected_version) return denied('VERSION_CONFLICT');
+    if (!sourceSnapshotFresh(t)) return denied('SOURCE_SNAPSHOT_STALE');
 
     const pred = t.predictions.find(p => p.action_id === record.action_id);
     if (!pred) return denied('PREDICTION_NOT_FOUND');
+    if (t.observations.length === 0) return denied('OBSERVATION_REQUIRED');
 
     const c = freeze({
       action_id: record.action_id,
@@ -251,6 +285,7 @@ export function createCognitiveTransition({
     const t = transitions.get(record.transition_id);
     if (!t) return denied('TRANSITION_NOT_FOUND');
     if (t.version !== record.expected_version) return denied('VERSION_CONFLICT');
+    if (!sourceSnapshotFresh(t)) return denied('SOURCE_SNAPSHOT_STALE');
 
     const m = freeze({
       kind: record.kind,
@@ -273,6 +308,13 @@ export function createCognitiveTransition({
       event_id: t.event_id,
       proof_id: t.proof_id,
       project_id: t.project_id,
+      source_snapshot_stale: !sourceSnapshotFresh(t),
+      safe_to_revise: sourceSnapshotFresh(t),
+      source_pin: {
+        control_version: t.control_version,
+        proof_revision: t.proof_revision,
+        independently_verified: false
+      },
       s0: cp(t.s0),
       drivers: cp(t.drivers),
       actions: cp(t.actions),
@@ -302,6 +344,8 @@ export function createCognitiveTransition({
       transition_id: transitionId,
       local_chain_consistent: true,
       checked_entries: t.history.length,
+      source_snapshot_stale: !sourceSnapshotFresh(t),
+      safe_to_revise: sourceSnapshotFresh(t),
       durable: false,
       approval: 'NOT_APPROVED'
     });

@@ -6,22 +6,35 @@ on:
       - 'cognitive-transition-candidate.mjs'
       - 'tests/cognitive-transition-synthetic.mjs'
       - 'tests/cognitive-transition-negative.mjs'
+      - 'tests/cognitive-transition-source-pinning.test.mjs'
+      - 'docs/cognitive-postopen-source-pinning-v03.md'
       - 'schemas/cognitive-transition.preview.schema.json'
       - '.github/workflows/cognitive-transition-isolated.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   synthetic:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+      - name: Assert exact PR HEAD (no unrelated merge tree)
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
       - name: Run synthetic V10→V11 transition
         run: node tests/cognitive-transition-synthetic.mjs
       - name: Run negative / adversarial cases
         run: node tests/cognitive-transition-negative.mjs
+      - name: Fail-closed source/proof regression (synthetic)
+        run: node --test tests/cognitive-transition-source-pinning.test.mjs
       - name: Upload synthetic evidence
         uses: actions/upload-artifact@v4
         with:
@@ -29,4 +42,5 @@ jobs:
           path: |
             tests/cognitive-transition-synthetic.mjs
             tests/cognitive-transition-negative.mjs
+            tests/cognitive-transition-source-pinning.test.mjs
           retention-days: 7

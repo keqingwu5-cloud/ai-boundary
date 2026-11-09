@@ -183,9 +183,12 @@ async function main() {
     return (blocked(a, 'CALIBRATION_CONTRACT_INVALID') === true &&
       blocked(b, 'CALIBRATION_CONTRACT_INVALID') === true) || {a, b};
   });
-  await check('calibrate revised_confidence: 0 and 1 accepted (boundary)', async () => {
+  await check('calibrate revised_confidence: 0 and 1 accepted after observed O1 (boundary)', async () => {
     const {cog, v} = await withAction();
-    const a = await cog.calibrate(calRec(v, {revised_confidence: 0}));
+    // V0.3 intentionally requires real (synthetic here) O1 before calibration.
+    const observed = await cog.recordObservation(obsRec(v));
+    if (observed.status !== 'candidate_only') return observed;
+    const a = await cog.calibrate(calRec(observed.version, {revised_confidence: 0}));
     const b = await cog.calibrate(calRec(a.version, {revised_confidence: 1}));
     return (a.status === 'candidate_only' && b.status === 'candidate_only' &&
       b.approval === 'NOT_APPROVED') || {a, b};
