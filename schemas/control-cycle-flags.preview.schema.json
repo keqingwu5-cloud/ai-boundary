@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/firstbrain/control-cycle-flags.preview.v0.1.schema.json",
+  "title": "First Brain Trusted Control Cycle candidate (readEvent) — not an approval receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "decision",
+    "authority",
+    "remote_ack",
+    "schema",
+    "event_id",
+    "domain_id",
+    "observed_revision",
+    "observed_hash",
+    "observation",
+    "baseline",
+    "control_mode",
+    "execution",
+    "direction",
+    "version",
+    "local_stop",
+    "remote_stop_confirmed",
+    "notification_count",
+    "history_count"
+  ],
+  "properties": {
+    "status": {
+      "const": "candidate_only"
+    },
+    "decision": {
+      "const": "HOLD"
+    },
+    "authority": {
+      "const": "none"
+    },
+    "remote_ack": {
+      "const": "NOT_VERIFIED"
+    },
+    "schema": {
+      "const": "firstbrain.trusted-control-cycle.candidate.v0.1"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+    },
+    "domain_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+    },
+    "observed_revision": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+    },
+    "observed_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "observation": {
+      "const": "RECORDED_UNVERIFIED"
+    },
+    "baseline": {
+      "const": "NOT_APPROVED"
+    },
+    "control_mode": {
+      "enum": [
+        "STOP",
+        "OBSERVE",
+        "TEST",
+        "CONTROLLED"
+      ]
+    },
+    "execution": {
+      "const": "NOT_RUN"
+    },
+    "direction": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "enum": [
+            "REUSE",
+            "ALTERNATIVE",
+            "CHALLENGE_PREMISE",
+            "STOP",
+            "RESEARCH_ONLY"
+          ]
+        }
+      ]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "local_stop": {
+      "type": "boolean"
+    },
+    "remote_stop_confirmed": {
+      "const": false
+    },
+    "notification_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "history_count": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}
