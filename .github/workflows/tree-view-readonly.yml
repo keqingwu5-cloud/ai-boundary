@@ -1,0 +1,30 @@
+name: Research 2D tree read-only
+on:
+  pull_request:
+    paths:
+      - "tree-view.html"
+      - "tree-view.mjs"
+      - "tree-view-model.mjs"
+      - "tests/tree-view-readonly.test.mjs"
+      - ".github/workflows/tree-view-readonly.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-tree-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: JavaScript syntax check
+        run: |
+          node --check tree-view.mjs
+          node --check tree-view-model.mjs
+          node --check tests/tree-view-readonly.test.mjs
+      - name: Native read-only tree projection tests
+        run: node --test tests/tree-view-readonly.test.mjs
