@@ -45,6 +45,8 @@ export function createProgressJournals({audit,maxJournals=512,maxEntries=8192}={
       last_observed_on:now?.observed_on??null,forecast_due:now?.forecast_due??j.expected_due,
       delay_reason_code:now?.delay_reason_code??null,next_action_code:now?.next_action_code??null,
       days_shifted:days(j.expected_due,now?.forecast_due??j.expected_due),
+      days_overdue:now?.observed_on?Math.max(0,days(j.expected_due,now.observed_on)):0,
+      progress_variance_percent:(now?.actual_percent??0)-(now?.expected_percent??0),
       completed_on:now?.completed_on??null,evidence_ref:now?.evidence_ref??j.plan_ref,
       snapshot_stale:!pinned(j),entries:clone(j.entries),
       history_head_hash:last?.hash??null,persistence:'IN_MEMORY_ONLY',notification:'NOT_SENT'});
@@ -110,15 +112,17 @@ export function createProgressJournals({audit,maxJournals=512,maxEntries=8192}={
     const j=journals.get(x.journal_id);if(!j)return denied('JOURNAL_NOT_FOUND');
     if(j.version!==x.expected_revision)return denied('JOURNAL_VERSION_CONFLICT');
     const prev=j.entries.at(-1)?.details;
+    if(prev?.progress_status==='COMPLETED')return denied('COMPLETED_JOURNAL_IMMUTABLE');
     if(days(j.expected_start,x.observed_on)<0||days(j.expected_start,x.forecast_due)<0||
       (prev?.observed_on&&days(prev.observed_on,x.observed_on)<0))
       return denied('DATE_ORDER_INVALID');
     const shifted=days(j.expected_due,x.forecast_due)>0;
     const overdue=days(j.expected_due,x.observed_on)>0&&x.actual_percent<100;
+    const completedLate=x.completed_on!==null&&days(j.expected_due,x.completed_on)>0;
     const completed=x.progress_status==='COMPLETED';
     if(x.progress_status==='DELAYED'){
       if(!x.delay_reason_code||!(shifted||overdue))return denied('DELAY_EVIDENCE_OR_DATE_REQUIRED');
-    }else if(shifted||overdue){
+    }else if(shifted||overdue||completedLate){
       if(!completed||!x.delay_reason_code)return denied('UNACKNOWLEDGED_DELAY');
     }else if(x.delay_reason_code!==null)return denied('UNJUSTIFIED_DELAY_REASON');
     if(completed){
@@ -126,7 +130,6 @@ export function createProgressJournals({audit,maxJournals=512,maxEntries=8192}={
          days(j.expected_start,x.completed_on)<0)return denied('COMPLETION_CONTRACT_INVALID');
     }else if(x.actual_percent===100||x.completed_on!==null)return denied('COMPLETION_CONTRACT_INVALID');
     if(prev&&x.actual_percent<prev.actual_percent)return denied('PROGRESS_REGRESSION_REQUIRES_NEW_PLAN');
-    if(prev?.progress_status==='COMPLETED')return denied('COMPLETED_JOURNAL_IMMUTABLE');
     return append(j,'PROGRESS_OBSERVATION',{
       observed_on:x.observed_on,expected_percent:x.expected_percent,
       actual_percent:x.actual_percent,progress_status:x.progress_status,
