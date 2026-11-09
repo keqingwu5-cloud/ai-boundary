@@ -65,7 +65,7 @@ test('F05-BRIDGE-00 preflight can reach read-only source validation without pret
 });
 test('F05-BRIDGE-01 case and task mismatch cannot be accepted',async()=>{
  const m=message();m.case_id='case-other';m.task_id='task-other';
- const r=await assess({m});assert.equal(r.result,'RETURN_RECOMMENDED');
+ const r=await assess({m});assert.equal(r.result,'QUARANTINE_NO_VERIFIED_SENDER');
  assert.ok(codes(r).includes('CASE_ID_MISMATCH'));assert.ok(codes(r).includes('TASK_ID_MISMATCH'));
  assert.ok(r.reasons.every(x=>x.field_path&&x.reason&&x.suggested_correction));
 });
@@ -148,18 +148,18 @@ test('F05-BRIDGE-16 return reasons themselves must include fixed original identi
  const r=await assess({m});assert.equal(r.return_event.original_case_id,'case-41');
  assert.equal(r.return_event.original_task_id,'task-41');
  assert.equal(r.return_event.rejected_event_id,'ev-2');
- assert.equal(r.return_event.status,'RETURN_RECOMMENDED');
+ assert.equal(r.return_event.status,'HELD_UNVERIFIED_SENDER');
 });
 
 test('F05-BRIDGE-17 RETURN must identify rejected event and give concrete causes',async()=>{
  const m=message();m.message_kind='RETURN';
  const r=await assess({m});
- assert.ok(codes(r).includes('RETURN_CONTEXT_MISSING'));assert.equal(r.result,'RETURN_RECOMMENDED');
+ assert.ok(codes(r).includes('RETURN_CONTEXT_MISSING'));assert.equal(r.result,'QUARANTINE_NO_VERIFIED_SENDER');
 });
 test('F05-BRIDGE-18 RESUBMIT must retain superseded event link',async()=>{
  const m=message();m.message_kind='RESUBMIT';
  const r=await assess({m});
- assert.ok(codes(r).includes('RESUBMIT_CONTEXT_MISSING'));assert.equal(r.approved,false);
+ assert.ok(codes(r).includes('RESUBMIT_CONTEXT_MISSING'));assert.equal(r.result,'QUARANTINE_NO_VERIFIED_SENDER');assert.equal(r.approved,false);
 });
 test('F05-BRIDGE-19 citation can reference a different registered source, still no semantic acceptance',async()=>{
  const m=message(),ctx=context(),otherRef='github:keqingwu5-cloud/ai-boundary:issue:32',otherHash='a'.repeat(64);
@@ -180,4 +180,15 @@ test('F05-BRIDGE-21 stated sender route is not proof of authenticated endpoint i
  const r=await assess();
  assert.equal(r.independent_sender_identity_verified,false);
  assert.equal(r.checks[8].status,'UNKNOWN');
+});
+
+test('F05-BRIDGE-22 local signed source is not F05 sender identity proof',async()=>{
+ const m=message();m.placement.slot='wrong-slot';
+ const r=await assess({m});
+ assert.equal(r.result,'QUARANTINE_NO_VERIFIED_SENDER');
+ assert.equal(r.independent_sender_identity_verified,false);
+ assert.equal(r.return_event.route_verified,false);
+ assert.equal(r.return_event.return_to,null);
+ assert.equal(r.return_event.status,'HELD_UNVERIFIED_SENDER');
+ assert.ok(codes(r).includes('PLACEMENT_MISMATCH'));
 });
