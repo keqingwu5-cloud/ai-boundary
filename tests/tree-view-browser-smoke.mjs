@@ -90,10 +90,87 @@ async function run(name, viewport, mobile) {
     await context.close();
   }
 }
+
+// True same-origin navigation through the existing 3D app, not merely inspecting an href.
+// Uses a fresh isolated browser context; the legacy 3D app initializes its own public seed
+// and may write to disposable localStorage. The new 2D page must not write to it.
+async function run2dTo3d() {
+  const context = await browser.newContext({
+    viewport: { width: 1080, height: 800 }, deviceScaleFactor: 1
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on('pageerror', e => pageErrors.push(e.message));
+  try {
+    const first = await page.goto(origin + '/index.html', { waitUntil: 'domcontentloaded' });
+    assert.equal(first.status(), 200, engine + ' 3D base route');
+    await page.waitForFunction(() =>
+      document.body.dataset.ready === '1' &&
+      typeof window.AIBrain?.getState === 'function', null, { timeout: 30000 });
+    const seed = await page.evaluate(() => {
+      const nodes = window.AIBrain.getState().nodes;
+      const n = nodes.find(x => x.id === 'n_q1') || nodes.find(x => x.brainId === 'main');
+      return n ? { id:n.id, title:n.title, brainId:n.brainId } : null;
+    });
+    assert.ok(seed && seed.id && seed.title, engine + ' existing 3D should seed real nodes');
+    const rawBefore = await page.evaluate(() => localStorage.getItem('aiBrain.v1'));
+    assert.ok(rawBefore, engine + ' 3D created its own isolated snapshot');
+    const canvas = await page.locator('canvas#c').evaluate(el => ({
+      width:el.width, height:el.height
+    }));
+    assert.ok(canvas.width > 0 && canvas.height > 0, engine + ' existing 3D canvas initialized');
+
+    const second = await page.goto(origin + '/tree-view.html', { waitUntil: 'networkidle' });
+    assert.equal(second.status(), 200, engine + ' 2D page route');
+    await page.waitForFunction(() =>
+      document.querySelector('#counts')?.textContent?.includes('節點'));
+    const node = page.locator('button.node-button[data-node-id]').filter({ hasText: seed.title }).first();
+    assert.ok(await node.count(), engine + ' node appears in 2D tree');
+    await node.click();
+    const link = page.locator('#detail a[href*="index.html#node="]');
+    assert.ok(await link.count(), engine + ' 2D has 3D deep link');
+    assert.equal(await link.getAttribute('href'), './index.html#node=' + encodeURIComponent(seed.id));
+    const rawAfter2D = await page.evaluate(() => localStorage.getItem('aiBrain.v1'));
+    assert.equal(rawAfter2D, rawBefore, engine + ' new 2D view leaves original snapshot unchanged');
+
+    await Promise.all([
+      page.waitForURL(url => url.pathname.endsWith('/index.html') && url.hash === '#node=' + encodeURIComponent(seed.id)),
+      link.click()
+    ]);
+    await page.waitForFunction(id =>
+      document.body.dataset.ready === '1' && window.AIBrain?.getState?.().nodes.some(n => n.id === id),
+      seed.id, { timeout:30000 });
+    await page.waitForFunction(title =>
+      document.querySelector('#panel')?.classList.contains('open') &&
+      document.querySelector('#pBody')?.textContent?.includes(title),
+      seed.title, { timeout:15000 });
+    await page.waitForTimeout(650);
+    const state = await page.evaluate(() => ({
+      hash: location.hash,
+      panelOpen: document.querySelector('#panel')?.classList.contains('open'),
+      title: document.querySelector('#pBody')?.textContent || '',
+      canvasWidth: document.querySelector('#c')?.width ?? 0,
+      canvasHeight: document.querySelector('#c')?.height ?? 0
+    }));
+    assert.equal(state.hash, '#node=' + encodeURIComponent(seed.id));
+    assert.equal(state.panelOpen, true);
+    assert.ok(state.title.includes(seed.title));
+    assert.ok(state.canvasWidth > 0 && state.canvasHeight > 0);
+    assert.deepEqual(pageErrors, [], engine + ' 3D page errors');
+    await page.screenshot({ path: out + '/' + engine + '-3d-real-seed-focus.png', fullPage:false });
+    console.log('PASS ' + engine + ' 2D_TO_EXISTING_3D_REAL_ROUTE ' + seed.id +
+      ' (same-origin isolated seed, original 3D app, panel focus, snapshot unchanged by 2D)');
+    return true;
+  } finally {
+    await context.close();
+  }
+}
+
 try {
   await run('phone-390', { width: 390, height: 844 }, true);
   await run('tablet-820', { width: 820, height: 1180 }, true);
-  console.log('SUMMARY ' + completed + '/2 ' + engine.toUpperCase() + '_EMULATED_DEVICE_CHECKS_PASS');
+  await run2dTo3d();
+  console.log('SUMMARY ' + completed + '/2 ' + engine.toUpperCase() + '_EMULATED_DEVICE_CHECKS_PASS; 1/1 REAL_3D_ROUTE');
 } finally {
   await browser.close();
 }
