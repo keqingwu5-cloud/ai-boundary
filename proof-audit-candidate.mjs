@@ -53,7 +53,8 @@ export function createProofAudit({control,maxPackages=256,maxEntries=4096}={}){
     if(totalEntries>=maxEntries)return blocked('AUDIT_CAPACITY_REACHED');
     if(!pinned(p))return blocked('CONTROL_SNAPSHOT_STALE');
     const seq=p.version+1;
-    const entry={proof_id:p.proof_id,sequence:seq,type,data:cp(data),
+    const entry={proof_id:p.proof_id,sequence:seq,type,
+      data:{...cp(data),recorded_at_local:new Date().toISOString(),clock_status:'LOCAL_UNVERIFIED'},
       prev_hash:p.entries.length?p.entries.at(-1).hash:null};
     const digest=await sha256(stableJson(entry));
     // Recheck after async digest: concurrent writes must fail without a fork.
