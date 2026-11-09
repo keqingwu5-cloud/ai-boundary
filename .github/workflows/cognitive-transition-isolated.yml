@@ -1,0 +1,28 @@
+name: cognitive-transition-isolated
+
+on:
+  pull_request:
+    paths:
+      - 'cognitive-transition-candidate.mjs'
+      - 'tests/cognitive-transition-synthetic.mjs'
+      - 'schemas/cognitive-transition.preview.schema.json'
+      - '.github/workflows/cognitive-transition-isolated.yml'
+  workflow_dispatch:
+
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run synthetic V10→V11 transition
+        run: node tests/cognitive-transition-synthetic.mjs
+      - name: Upload synthetic evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cognitive-transition-synthetic
+          path: |
+            tests/cognitive-transition-synthetic.mjs
+          retention-days: 7
