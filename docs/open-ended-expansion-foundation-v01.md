@@ -22,6 +22,8 @@
 
 **組合入口**：registerSource / registerGap / reviseGap / compose。直接呼叫 V1.6 createGapAwareEngine，不另寫算術核心。已知資料可以 A+B+C+D→X；X 與新 C/E 再組合，深度/數量有明確界限。
 
+**規則擴充入口**：registerExpansionRule / planExpansion。未來新增研究規則只需先登記 domain_id、rule_id、rule_version、kind、min_inputs、max_inputs 和 review_ref；缺少真正經核准的執行適配器時，始終只輸出 NOT_PRESENT / NOT_APPROVED 的計畫候選。任何 caller 自述 executable:true 的欄位必須拒絕。
+
 **反證與方向**：proposeBaseline / proposeDirection。可以留下新方向、反問原目標、擱置研究，但都不是核准新的正式基準。
 
 **控制與登記**：requestControl、history、verifyHistory。以本地 STOP 阻擋本實例計算；遠端停止/啟動仍必須等目的端真收據。
