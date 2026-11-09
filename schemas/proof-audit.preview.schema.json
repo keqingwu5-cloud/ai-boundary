@@ -1,0 +1,385 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/firstbrain/proof-audit.preview.v0.1.schema.json",
+  "title": "First Brain local proof bundle (role claims are NOT verified identities)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "decision",
+    "authority",
+    "identity_verified",
+    "reviewer_identity_verified",
+    "actual_ack",
+    "schema",
+    "proof_id",
+    "event_id",
+    "domain_id",
+    "sector",
+    "control_version",
+    "control_observed_hash",
+    "scope_ref",
+    "created_by_claim",
+    "performed_by_claims",
+    "reviewed_by_claims",
+    "actions",
+    "logs",
+    "reviews",
+    "log_coverage",
+    "revision",
+    "history_head_hash",
+    "review_status",
+    "control_snapshot_stale",
+    "proof_integrity",
+    "role_independence",
+    "baseline_approval",
+    "memory_write",
+    "publication",
+    "persistence"
+  ],
+  "properties": {
+    "status": {
+      "const": "candidate_only"
+    },
+    "decision": {
+      "const": "HOLD"
+    },
+    "authority": {
+      "const": "none"
+    },
+    "identity_verified": {
+      "const": false
+    },
+    "reviewer_identity_verified": {
+      "const": false
+    },
+    "actual_ack": {
+      "const": "NOT_VERIFIED"
+    },
+    "schema": {
+      "const": "firstbrain.proof-audit.candidate.v0.1"
+    },
+    "proof_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+    },
+    "domain_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+    },
+    "sector": {
+      "enum": [
+        "ENGINEERING",
+        "INFRASTRUCTURE",
+        "DATA",
+        "WATER",
+        "ELECTRICITY"
+      ]
+    },
+    "control_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "control_observed_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "scope_ref": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+    },
+    "created_by_claim": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+    },
+    "performed_by_claims": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+      },
+      "uniqueItems": true
+    },
+    "reviewed_by_claims": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+      },
+      "uniqueItems": true
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/action"
+      }
+    },
+    "logs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/log"
+      }
+    },
+    "reviews": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/review"
+      }
+    },
+    "log_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "AUTOMATION",
+        "REASONING_SUMMARY",
+        "WORLD_MODEL",
+        "MEMORY"
+      ],
+      "properties": {
+        "AUTOMATION": {
+          "enum": [
+            "NOT_RECORDED",
+            "REFERENCED_UNVERIFIED"
+          ]
+        },
+        "REASONING_SUMMARY": {
+          "enum": [
+            "NOT_RECORDED",
+            "REFERENCED_UNVERIFIED"
+          ]
+        },
+        "WORLD_MODEL": {
+          "enum": [
+            "NOT_RECORDED",
+            "REFERENCED_UNVERIFIED"
+          ]
+        },
+        "MEMORY": {
+          "enum": [
+            "NOT_RECORDED",
+            "REFERENCED_UNVERIFIED"
+          ]
+        }
+      }
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "history_head_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "review_status": {
+      "enum": [
+        "NOT_REVIEWED",
+        "REVIEW_CLAIM_ONLY",
+        "STALE_REVIEW",
+        "STALE_CONTROL_SNAPSHOT"
+      ]
+    },
+    "control_snapshot_stale": {
+      "type": "boolean"
+    },
+    "proof_integrity": {
+      "const": "NOT_YET_VERIFIED"
+    },
+    "role_independence": {
+      "const": "NOT_VERIFIED"
+    },
+    "baseline_approval": {
+      "const": "NOT_APPROVED"
+    },
+    "memory_write": {
+      "const": "NOT_PERFORMED"
+    },
+    "publication": {
+      "const": "NOT_PERFORMED"
+    },
+    "persistence": {
+      "const": "IN_MEMORY_ONLY"
+    }
+  },
+  "$defs": {
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "performed_by_claim",
+        "action_ref",
+        "action_hash",
+        "result_code",
+        "identity",
+        "execution_verification",
+        "recorded_at_local",
+        "clock_status"
+      ],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "performed_by_claim": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "action_ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "action_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "result_code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,59}$"
+        },
+        "identity": {
+          "const": "CLAIM_ONLY"
+        },
+        "execution_verification": {
+          "const": "NOT_VERIFIED"
+        },
+        "recorded_at_local": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "clock_status": {
+          "const": "LOCAL_UNVERIFIED"
+        }
+      }
+    },
+    "log": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "log_id",
+        "stream",
+        "recorded_by_claim",
+        "record_ref",
+        "record_hash",
+        "summary_code",
+        "raw_text_stored",
+        "identity",
+        "validation",
+        "recorded_at_local",
+        "clock_status"
+      ],
+      "properties": {
+        "log_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "stream": {
+          "enum": [
+            "AUTOMATION",
+            "REASONING_SUMMARY",
+            "WORLD_MODEL",
+            "MEMORY"
+          ]
+        },
+        "recorded_by_claim": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "record_ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "record_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "summary_code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,59}$"
+        },
+        "raw_text_stored": {
+          "const": false
+        },
+        "identity": {
+          "const": "CLAIM_ONLY"
+        },
+        "validation": {
+          "const": "NOT_VERIFIED"
+        },
+        "recorded_at_local": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "clock_status": {
+          "const": "LOCAL_UNVERIFIED"
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_id",
+        "reviewed_by_claim",
+        "review_ref",
+        "review_hash",
+        "verdict",
+        "reviewed_revision",
+        "role_separation",
+        "independent_identity",
+        "approval",
+        "recorded_at_local",
+        "clock_status"
+      ],
+      "properties": {
+        "review_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "reviewed_by_claim": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "review_ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "review_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "verdict": {
+          "enum": [
+            "RECOMMEND",
+            "REQUEST_CHANGES",
+            "REJECT",
+            "INCONCLUSIVE"
+          ]
+        },
+        "reviewed_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "role_separation": {
+          "const": "CLAIM_ONLY"
+        },
+        "independent_identity": {
+          "const": "NOT_VERIFIED"
+        },
+        "approval": {
+          "const": "NOT_GRANTED"
+        },
+        "recorded_at_local": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "clock_status": {
+          "const": "LOCAL_UNVERIFIED"
+        }
+      }
+    }
+  }
+}
