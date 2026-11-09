@@ -201,11 +201,42 @@ export function createProofAudit({control,maxPackages=256,maxEntries=4096}={}){
       independent_review_verified:false,control_snapshot_stale:!pinned(p),
       immutable_storage:false});
   }
+  async function buildReviewPacket(proofId,{requiredStreams=[]}={}){
+    if(!Array.isArray(requiredStreams)||new Set(requiredStreams).size!==requiredStreams.length||
+       requiredStreams.some(x=>!AUDIT_STREAMS.includes(x)))return blocked('REQUIRED_STREAMS_INVALID');
+    const proof=readProof(proofId);
+    if(proof.status==='blocked')return proof;
+    const [localProof,localControl]=await Promise.all([
+      verifyProof(proofId),control.verifyHistory(proof.event_id)
+    ]);
+    const integrity=localProof.local_chain_consistent===true&&
+      localControl.local_chain_consistent===true;
+    const missingStreams=requiredStreams.filter(x=>proof.log_coverage[x]==='NOT_RECORDED');
+    const checks={
+      WHO_PERFORMED:proof.performed_by_claims.length?'CLAIM_ONLY':'MISSING',
+      WHO_REVIEWED:proof.reviewed_by_claims.length?'CLAIM_ONLY':'MISSING',
+      INDEPENDENT_REVIEW:proof.review_status==='REVIEW_CLAIM_ONLY'?
+        'UNVERIFIED_IDENTITY':proof.review_status,
+      AUDIT_CHAIN:integrity?'LOCAL_CONSISTENT':'BLOCKED',
+      CONTROL_PIN:proof.control_snapshot_stale?'STALE':'PINNED_LOCAL',
+      REQUIRED_LOGS:missingStreams.length?'INCOMPLETE':'REFERENCED_ONLY',
+      ACTUAL_ACK:'NOT_VERIFIED',
+      BASELINE:'NOT_APPROVED'
+    };
+    return pending({schema:'firstbrain.proof-review-packet.candidate.v0.1',
+      proof_id:proofId,event_id:proof.event_id,sector:proof.sector,
+      reviewed_source_version:proof.control_version,
+      proof,checks,missing_log_streams:missingStreams,
+      safe_to_autopromote:false,review_gate:'HOLD_PENDING_IDENTITY_AND_AUTHORITY',
+      control_history_head_hash:control.history(proof.event_id).entries.at(-1)?.hash??null,
+      local_integrity_confirmed:integrity,
+      next_action:'INDEPENDENT_AUTHORITY_REVIEW_REQUIRED'});
+  }
   function listProofs(eventId){
     if(!id(eventId))return blocked('EVENT_ID_INVALID');
     return pending({event_id:eventId,proof_ids:cp(byEvent.get(eventId)||[])});
   }
   return Object.freeze({openProof,recordAction,recordLog,recordReview,
-    readProof,verifyProof,listProofs,stats:()=>pending({packages:packages.size,
+    readProof,verifyProof,buildReviewPacket,listProofs,stats:()=>pending({packages:packages.size,
       entries:totalEntries,streams:AUDIT_STREAMS,public_uploads:false})});
 }
