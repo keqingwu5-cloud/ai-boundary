@@ -5,6 +5,7 @@ on:
     paths:
       - 'cognitive-transition-candidate.mjs'
       - 'tests/cognitive-transition-synthetic.mjs'
+      - 'tests/cognitive-transition-negative.mjs'
       - 'schemas/cognitive-transition.preview.schema.json'
       - '.github/workflows/cognitive-transition-isolated.yml'
   workflow_dispatch:
@@ -19,10 +20,13 @@ jobs:
           node-version: '20'
       - name: Run synthetic V10→V11 transition
         run: node tests/cognitive-transition-synthetic.mjs
+      - name: Run negative / adversarial cases
+        run: node tests/cognitive-transition-negative.mjs
       - name: Upload synthetic evidence
         uses: actions/upload-artifact@v4
         with:
           name: cognitive-transition-synthetic
           path: |
             tests/cognitive-transition-synthetic.mjs
+            tests/cognitive-transition-negative.mjs
           retention-days: 7
