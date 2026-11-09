@@ -5,6 +5,7 @@ on:
       - "tree-view.html"
       - "tree-view.mjs"
       - "tree-view-model.mjs"
+      - "tree-view-demo.mjs"
       - "tests/tree-view-readonly.test.mjs"
       - ".github/workflows/tree-view-readonly.yml"
   workflow_dispatch:
@@ -25,6 +26,7 @@ jobs:
         run: |
           node --check tree-view.mjs
           node --check tree-view-model.mjs
+          node --check tree-view-demo.mjs
           node --check tests/tree-view-readonly.test.mjs
       - name: Native read-only tree projection tests
         run: node --test tests/tree-view-readonly.test.mjs
