@@ -51,8 +51,10 @@ export async function buildRelease({projectRoot=path.resolve(MODULE_DIR,'..'),ou
   const out=path.resolve(outDir);
   if(out===path.resolve(projectRoot)||out.startsWith(path.resolve(projectRoot,'preview')+path.sep))throw Error('OUTPUT_INVALID');
   const pinned=await pinGitInputs(projectRoot,sourceSha);
-  await mkdir(out,{recursive:false});
-  const assets=[];
+  let created=false;
+  try{
+    await mkdir(out,{recursive:false});created=true;
+    const assets=[];
   for(const name of ASSET_PATHS){
     const dest=assertUnderRoot(out,name);
     await mkdir(path.dirname(dest),{recursive:true});
@@ -76,6 +78,7 @@ export async function buildRelease({projectRoot=path.resolve(MODULE_DIR,'..'),ou
   const actualFiles=finalFiles.filter(x=>!x.endsWith('/') && ASSET_PATHS.includes(x));
   if(actualFiles.length!==ASSET_PATHS.length)throw Error('ASSET_COUNT_MISMATCH');
   return Object.freeze(manifest);
+  }catch(error){if(created)await rm(out,{recursive:true,force:true});throw error;}
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   const opt={};for(let i=2;i<process.argv.length;i+=2)opt[process.argv[i]]=process.argv[i+1];
