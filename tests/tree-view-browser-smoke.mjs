@@ -44,7 +44,7 @@ async function run(name, viewport, mobile) {
     assert.ok(pageWidth.document <= pageWidth.width + 3, name + ' has unwanted horizontal overflow ' + JSON.stringify(pageWidth));
     await page.screenshot({ path: out + '/' + name + '-demo.png', fullPage: true });
     await page.locator('#search').fill('距離');
-    const matching = page.getByRole('button', { name: /距離的多種定義/ });
+    const matching = page.locator('button.node-button').filter({ hasText: '距離的多種定義' });
     assert.equal(await matching.count(), 1, name + ' search filtering');
     await matching.click();
     assert.match(await page.locator('#detail').innerText(), /地理距離和圖譜步數不是同一種度量/);
@@ -54,10 +54,10 @@ async function run(name, viewport, mobile) {
     const toggle = page.getByRole('button', { name: /收合 世界如棋局 子節點/ });
     assert.equal(await toggle.count(), 1, name + ' expand/collapse control exists');
     await toggle.click();
-    assert.equal(await page.getByRole('button', { name: /距離的多種定義/ }).count(), 0,
+    assert.equal(await page.locator('button.node-button').filter({ hasText: '距離的多種定義' }).count(), 0,
       name + ' collapsed descendants are hidden');
     await page.getByRole('button', { name: /展開 世界如棋局 子節點/ }).click();
-    assert.equal(await page.getByRole('button', { name: /距離的多種定義/ }).count(), 1);
+    assert.equal(await page.locator('button.node-button').filter({ hasText: '距離的多種定義' }).count(), 1);
     assert.deepEqual(await page.evaluate(() => window.__storageEvents), [], name + ' demo interaction must not touch storage');
     assert.deepEqual(errors, [], name + ' page errors');
 
@@ -73,7 +73,7 @@ async function run(name, viewport, mobile) {
     const prior = await page.evaluate(() => window.__storageEvents.length);
     await page.goto(origin + '/tree-view.html', { waitUntil: 'networkidle' });
     await page.waitForFunction(() => document.querySelector('#counts')?.textContent?.includes('1 腦區'));
-    await page.getByRole('button', { name: /測試用節點/ }).click();
+    await page.locator('button.node-button').filter({ hasText: '測試用節點' }).click();
     assert.equal(await page.locator('#detail a[href^="javascript:"]').count(), 0,
       name + ' dangerous source URLs must not become links');
     assert.equal(await page.evaluate(() => window.localStorage.getItem('aiBrain.v1')), raw,
