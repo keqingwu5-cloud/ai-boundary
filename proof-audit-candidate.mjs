@@ -46,7 +46,8 @@ export function createProofAudit({control,maxPackages=256,maxEntries=4096}={}){
 
   function pinned(p){
     const now=control.readEvent(p.event_id);
-    return now.status==='candidate_only'&&now.version===p.control_version&&
+    return now.status==='candidate_only'&&now.engine_quarantined!==true&&
+      now.version===p.control_version&&
       now.domain_id===p.domain_id&&now.observed_hash===p.observed_hash;
   }
   async function append(p,type,data){
