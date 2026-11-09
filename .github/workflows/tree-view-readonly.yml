@@ -7,6 +7,7 @@ on:
       - "tree-view-model.mjs"
       - "tree-view-demo.mjs"
       - "tests/tree-view-readonly.test.mjs"
+      - "tests/tree-view-browser-smoke.mjs"
       - ".github/workflows/tree-view-readonly.yml"
   workflow_dispatch:
 
@@ -30,3 +31,35 @@ jobs:
           node --check tests/tree-view-readonly.test.mjs
       - name: Native read-only tree projection tests
         run: node --test tests/tree-view-readonly.test.mjs
+
+  emulated-browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install isolated pinned Chromium smoke dependency (test-only)
+        run: |
+          npm install --prefix /tmp/first-brain-playwright --no-audit --no-fund --no-save playwright@1.56.1
+          node /tmp/first-brain-playwright/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Start isolated localhost test server
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/tree-view-http.log 2>&1 &
+          for i in $(seq 1 15); do
+            if curl --fail --silent http://127.0.0.1:8765/tree-view.html > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/tree-view-http.log
+          exit 1
+      - name: Chromium phone/tablet emulation and read-only browser smoke
+        run: node tests/tree-view-browser-smoke.mjs
+      - name: Archive synthetic-only UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tree-view-chromium-emulation-screenshots
+          path: artifacts/tree-view-smoke/
+          if-no-files-found: ignore
+          retention-days: 7
