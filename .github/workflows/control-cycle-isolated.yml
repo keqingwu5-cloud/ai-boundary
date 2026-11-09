@@ -21,6 +21,7 @@ on:
       - docs/open-ended-expansion-foundation-v01.md
       - docs/proof-bundle-audit-logging-v01.md
       - docs/progress-journal-and-folders-v01.md
+      - docs/progress-journal-stale-readback-v02.md
       - logs/README.md
       - .github/workflows/control-cycle-isolated.yml
   workflow_dispatch:
