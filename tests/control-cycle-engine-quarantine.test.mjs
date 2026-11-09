@@ -72,8 +72,12 @@ test('Q05 stop after quarantine must remain possible as local control without re
     event_id:'evt',expected_version:version,action:'STOP',operator_claim:'operator',
     grant_ref:'synthetic'
   });
-  assert.equal(stop.status,'blocked');
-  // Journal is full, so uncommitted STOP must never claim a remote stop.
+  assert.equal(stop.status,'candidate_only');
+  // A spare history slot may record local STOP; it cannot clear the quarantine
+  // or claim that any remote worker was stopped.
+  assert.equal(stop.remote_stop_confirmed,false);
+  assert.equal(c.readEvent('evt').local_stop,true);
+  assert.equal(c.stats().engine_quarantined,true);
   assert.equal(c.readEvent('evt').remote_stop_confirmed,false);
   assert.equal(c.readEvent('evt').baseline,'NOT_APPROVED');
 });
