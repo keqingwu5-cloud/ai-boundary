@@ -12,6 +12,7 @@ on:
       - tests/proof-audit-schema.test.mjs
       - tests/progress-journal-candidate.test.mjs
       - tests/progress-journal-schema.test.mjs
+      - tests/progress-folder-layout.test.mjs
       - schemas/control-cycle-flags.preview.schema.json
       - schemas/proof-audit.preview.schema.json
       - schemas/progress-journal.preview.schema.json
@@ -54,6 +55,8 @@ jobs:
           echo 'ISOLATED_ONLY: no runtime external IO in new control module'
       - name: Generate five proof packets and 20 dated stream logs in folders (synthetic, HOLD)
         run: node scripts/export-proof-audit-synthetic.mjs
+      - name: Audit all 20 exported dated journal files and project mappings
+        run: node --test tests/progress-folder-layout.test.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: firstbrain-proof-and-progress-folder-examples
