@@ -33,11 +33,17 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
   const engine=createGapAwareEngine({maxInputs,maxDepth});
   const domains=new Map(),events=new Map(),ruleManifests=new Map();
   let totalHistory=0;
+  // Engine mutations may complete before append-only control history can commit.
+  // Without transactional rollback, quarantine all engine reads and future work
+  // after an append failure; never misreport a clean rollback or remote STOP.
+  let engineQuarantined=false;
+  const engineBlocked=()=>engineQuarantined?denied('ENGINE_STATE_QUARANTINED'):null;
   function view(e){
     return candidate({schema:CONTROL_SCHEMA,event_id:e.id,domain_id:e.domain_id,
       observed_revision:e.observed_revision,observed_hash:e.observed_hash,
       observation:'RECORDED_UNVERIFIED',baseline:'NOT_APPROVED',control_mode:e.mode,
       execution:'NOT_RUN',direction:e.direction,version:e.version,
+      engine_quarantined:engineQuarantined,
       local_stop:e.mode==='STOP',remote_stop_confirmed:false,
       notification_count:e.notifications.size,history_count:e.history.length});
   }
@@ -88,6 +94,7 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
       implementation:'NOT_PRESENT',approval:'NOT_APPROVED'});
   }
   async function planExpansion(record){
+    if(engineBlocked())return engineBlocked();
     if(!exact(record,['event_id','expected_version','rule_id','rule_version','input_ids','reason'])||
       !id(record.event_id)||!id(record.rule_id)||!id(record.rule_version)||
       !Array.isArray(record.input_ids)||!canText(record.reason))return denied('EXPANSION_PLAN_INVALID');
@@ -198,28 +205,35 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
     return out.status==='blocked'?out:{...out,delivery:'NOT_SENT'};
   }
   async function registerSource({event_id,source}={}){
+    if(engineBlocked())return engineBlocked();
     const e=getEvent(event_id);if(!e)return denied('EVENT_NOT_FOUND');
     if(e.mode==='STOP')return denied('LOCAL_STOP_ACTIVE');
     if(totalHistory>=maxHistory)return denied('HISTORY_CAPACITY_REACHED');
     const result=await engine.registerKnown(source);
     if(result.status!=='registered'&&result.status!=='reused')return result;
+    if(engineQuarantined)return denied('ENGINE_STATE_QUARANTINED');
     const record=await append(e,'SYNTHETIC_SOURCE_REFERENCE',{source_id:source.id,
       revision:source.revision,source_hash:result.content_hash,
       evidence:'UNVERIFIED',authority:'none'});
+    if(record.status==='blocked')engineQuarantined=true;
     return record.status==='blocked'?record:candidate({event_id,source_id:source.id,
       source_result:result.status,version:e.version});
   }
   async function registerGap({event_id,gap}={}){
+    if(engineBlocked())return engineBlocked();
     const e=getEvent(event_id);if(!e)return denied('EVENT_NOT_FOUND');
     if(e.mode==='STOP')return denied('LOCAL_STOP_ACTIVE');
     if(totalHistory>=maxHistory)return denied('HISTORY_CAPACITY_REACHED');
     const result=await engine.registerGap(gap);
     if(result.status!=='registered')return result;
+    if(engineQuarantined)return denied('ENGINE_STATE_QUARANTINED');
     const record=await append(e,'EXPLICIT_GAP_REGISTERED',{gap_id:gap.id,revision:gap.revision,
       state:gap.state,evidence:'UNVERIFIED'});
+    if(record.status==='blocked')engineQuarantined=true;
     return record.status==='blocked'?record:candidate({event_id,gap_id:gap.id,version:e.version});
   }
   async function reviseGap({event_id,gap}={}){
+    if(engineBlocked())return engineBlocked();
     const e=getEvent(event_id);if(!e)return denied('EVENT_NOT_FOUND');
     if(e.mode==='STOP')return denied('LOCAL_STOP_ACTIVE');
     if(totalHistory>=maxHistory)return denied('HISTORY_CAPACITY_REACHED');
@@ -227,26 +241,30 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
       return denied('GAP_REVISION_CONTRACT_INVALID');
     const result=await engine.reviseGap(gap);
     if(result.status!=='revised')return result;
+    if(engineQuarantined)return denied('ENGINE_STATE_QUARANTINED');
     const recorded=await append(e,'EXPLICIT_GAP_REVISED',{gap_id:gap.id,
       revision:gap.revision,state:gap.state,evidence:'UNVERIFIED'});
+    if(recorded.status==='blocked')engineQuarantined=true;
     return recorded.status==='blocked'?recorded:
       candidate({event_id,gap_id:gap.id,version:e.version,stale_dependents:'MUST_REVALIDATE'});
   }
   async function compose({event_id,inputIds,rule,ruleVersion='1',context={},capabilities=[]}={}){
+    if(engineBlocked())return engineBlocked();
     const e=getEvent(event_id);if(!e)return denied('EVENT_NOT_FOUND');
     if(e.mode==='STOP')return denied('LOCAL_STOP_ACTIVE');
     if(totalHistory>=maxHistory)return denied('HISTORY_CAPACITY_REACHED');
     // The V1.6 engine enforces fan-in/depth/unknown/restricted state and validity.
     const result=await engine.compose({inputIds,rule,ruleVersion,context,capabilities});
     if(!['created','reused','created_partial'].includes(result.status))return result;
+    if(engineQuarantined)return denied('ENGINE_STATE_QUARANTINED');
     const recorded=await append(e,'COMPOSITION_CANDIDATE',{result_id:result.id,
       input_ids:copy(inputIds),rule,rule_version:ruleVersion,
       status:result.status,authority:'none',baseline_approval:'NOT_APPROVED'});
-    if(recorded.status==='blocked')return recorded;
+    if(recorded.status==='blocked'){engineQuarantined=true;return recorded;}
     return candidate({event_id,result_id:result.id,composition_status:result.status,
       version:e.version,computed:result.computed??(result.status!=='created_partial')});
   }
-  function readComposition(resultId,opts){return engine.read(resultId,opts);}
+  function readComposition(resultId,opts){return engineQuarantined?denied('ENGINE_STATE_QUARANTINED'):engine.read(resultId,opts);}
   function readEvent(eventId){const e=getEvent(eventId);return e?view(e):denied('EVENT_NOT_FOUND');}
   function history(eventId){
     const e=getEvent(eventId);
@@ -269,5 +287,7 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
     requestControl,recordReceiptClaim,queueNotification,registerSource,registerGap,
     reviseGap,compose,readComposition,readEvent,history,verifyHistory,
     stats:()=>candidate({domains:domains.size,events:events.size,history_entries:totalHistory,
-      engine:engine.stats(),rule_manifests:ruleManifests.size,external_dispatch:false,approved_baselines:0})});
+      engine:engineQuarantined?null:engine.stats(),engine_quarantined:engineQuarantined,
+      recovery:engineQuarantined?'RESTART_OR_RECONCILIATION_REQUIRED':'NOT_REQUIRED',auto_recovered:false,
+      rule_manifests:ruleManifests.size,external_dispatch:false,approved_baselines:0})});
 }

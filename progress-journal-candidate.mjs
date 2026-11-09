@@ -75,9 +75,14 @@ export function createProgressJournals({audit,maxJournals=512,maxEntries=8192}={
     if(proof.status!=='candidate_only')return denied('PROOF_NOT_FOUND');
     if(proof.sector!==input.sector||proof.control_snapshot_stale)return denied('PROOF_SECTOR_OR_SNAPSHOT_MISMATCH');
     const existing=journals.get(input.journal_id);
-    if(existing)return stableJson(existing.plan)===stableJson(input)?
-      candidate({journal_id:input.journal_id,operation:'DUPLICATE_IGNORED',revision:existing.version}):
-      denied('JOURNAL_ID_COLLISION');
+    if(existing){
+      // Idempotency cannot validate a journal against a superseded proof.
+      // The old history is still inspectable, but must not look current.
+      if(!pinned(existing))return denied('PROOF_SNAPSHOT_STALE');
+      return stableJson(existing.plan)===stableJson(input)?
+        candidate({journal_id:input.journal_id,operation:'DUPLICATE_IGNORED',revision:existing.version}):
+        denied('JOURNAL_ID_COLLISION');
+    }
     const unique=input.proof_id+'|'+input.project_id+'|'+input.stream;
     if(paths.has(unique))return denied('PROOF_PROJECT_STREAM_COLLISION');
     if(journals.size>=maxJournals)return denied('JOURNAL_CAPACITY');
@@ -162,7 +167,8 @@ export function createProgressJournals({audit,maxJournals=512,maxEntries=8192}={
     return candidate({project_id,sector,journals:[...journals.values()]
       .filter(j=>j.project_id===project_id&&j.sector===sector)
       .map(j=>({journal_id:j.journal_id,proof_id:j.proof_id,stream:j.stream,
-        revision:j.version,progress_status:j.entries.at(-1)?.details.progress_status??'PLANNED'}))});
+        revision:j.version,progress_status:j.entries.at(-1)?.details.progress_status??'PLANNED',
+        snapshot_stale:!pinned(j),safe_to_promote:false}))});
   }
   return Object.freeze({createJournal,recordProgress,readJournal,verifyJournal,
     folderFor,listProject,stats:()=>candidate({journals:journals.size,entries:total,
