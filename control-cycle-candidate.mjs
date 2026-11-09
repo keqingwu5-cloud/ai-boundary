@@ -216,7 +216,7 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
          await sha256(stableJson(entry))!==hash)return denied('LOCAL_LEDGER_TAMPERED');
       prior=hash;
     }
-    return candidate({event_id,checked_entries:e.history.length,local_chain_consistent:true,
+    return candidate({event_id:eventId,checked_entries:e.history.length,local_chain_consistent:true,
       cryptographic_identity_verified:false,immutable_persistence:false});
   }
   return Object.freeze({registerDomain,observe,proposeBaseline,proposeDirection,
