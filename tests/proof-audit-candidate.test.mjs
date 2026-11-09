@@ -211,3 +211,53 @@ test('18 event can have multiple review packages for a new source version',async
   assert.equal(audit.readProof('proof1').control_snapshot_stale,true);
   assert.equal(audit.readProof('proof2').control_snapshot_stale,false);
 });
+
+test('19 per-review packet always exposes who did, who reviewed and HOLD gates',async()=>{
+  const {audit}=await fixture({sector:'INFRASTRUCTURE'});
+  await action(audit);
+  await log(audit,'AUTOMATION',0);
+  await review(audit);
+  const packet=await audit.buildReviewPacket('proof1',{requiredStreams:AUDIT_STREAMS});
+  assert.equal(packet.status,'candidate_only');
+  assert.equal(packet.review_gate,'HOLD_PENDING_IDENTITY_AND_AUTHORITY');
+  assert.equal(packet.safe_to_autopromote,false);
+  assert.equal(packet.checks.WHO_PERFORMED,'CLAIM_ONLY');
+  assert.equal(packet.checks.WHO_REVIEWED,'CLAIM_ONLY');
+  assert.equal(packet.checks.INDEPENDENT_REVIEW,'UNVERIFIED_IDENTITY');
+  assert.equal(packet.checks.AUDIT_CHAIN,'LOCAL_CONSISTENT');
+  assert.equal(packet.checks.CONTROL_PIN,'PINNED_LOCAL');
+  assert.equal(packet.checks.REQUIRED_LOGS,'INCOMPLETE');
+  assert.deepEqual(packet.missing_log_streams,['REASONING_SUMMARY','WORLD_MODEL','MEMORY']);
+  assert.equal(packet.local_integrity_confirmed,true);
+  assert.equal(packet.proof.sector,'INFRASTRUCTURE');
+});
+test('20 a complete set of log references still cannot certify real-world approval',async()=>{
+  const {audit}=await fixture({sector:'WATER'});
+  await action(audit);
+  for(let i=0;i<AUDIT_STREAMS.length;i++)await log(audit,AUDIT_STREAMS[i],i);
+  await review(audit);
+  const packet=await audit.buildReviewPacket('proof1',{requiredStreams:AUDIT_STREAMS});
+  assert.equal(packet.checks.REQUIRED_LOGS,'REFERENCED_ONLY');
+  assert.deepEqual(packet.missing_log_streams,[]);
+  assert.equal(packet.checks.ACTUAL_ACK,'NOT_VERIFIED');
+  assert.equal(packet.checks.BASELINE,'NOT_APPROVED');
+  assert.equal(packet.safe_to_autopromote,false);
+});
+test('21 per-review packet stays stale when the control event changes',async()=>{
+  const {audit,control}=await fixture({sector:'ELECTRICITY'});
+  await action(audit);await review(audit);
+  await control.proposeDirection({event_id:'event1',expected_version:1,
+    direction:'ALTERNATIVE',reason:'new review candidate'});
+  const packet=await audit.buildReviewPacket('proof1',{requiredStreams:[]});
+  assert.equal(packet.checks.CONTROL_PIN,'STALE');
+  assert.equal(packet.proof.review_status,'STALE_CONTROL_SNAPSHOT');
+  assert.equal(packet.safe_to_autopromote,false);
+});
+test('22 audit packet rejects invented streams, duplicated requirements and missing proof',async()=>{
+  const {audit}=await fixture();
+  assert.equal((await audit.buildReviewPacket('proof1',
+    {requiredStreams:['PRIVATE_CHAIN_OF_THOUGHT']})).reason,'REQUIRED_STREAMS_INVALID');
+  assert.equal((await audit.buildReviewPacket('proof1',
+    {requiredStreams:['AUTOMATION','AUTOMATION']})).reason,'REQUIRED_STREAMS_INVALID');
+  assert.equal((await audit.buildReviewPacket('missing')).reason,'PROOF_NOT_FOUND');
+});
