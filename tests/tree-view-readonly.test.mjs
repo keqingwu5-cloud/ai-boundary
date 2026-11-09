@@ -60,7 +60,8 @@ test('nests brain children and local node children, not cross-brain parent as lo
   assert.equal(r.brainForest[0].nodeForest[0].children[0].id, 'n_b');
   assert.equal(r.brainForest[0].children[0].nodeForest[0].id, 'n_sub');
   assert.equal(r.brainForest[0].children[0].nodeForest[0].children[0].id, 'n_leaf');
-  assert.ok(r.diagnostics.some(d => d.code === 'PARENT_NOT_IN_GROUP' && d.id === 'n_sub'));
+  assert.ok(!r.diagnostics.some(d => d.code === 'PARENT_NOT_IN_GROUP' && d.id === 'n_sub'));
+  assert.ok(!r.diagnostics.some(d => d.code === 'MISSING_BRAIN' && d.id === 'n_sub'));
 });
 test('cross relation remains separate; invalid cross targets are not projected', () => {
   const r = buildTree(fixture());
