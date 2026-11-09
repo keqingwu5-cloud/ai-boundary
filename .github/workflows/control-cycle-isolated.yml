@@ -9,6 +9,7 @@ on:
       - schemas/control-cycle-flags.preview.schema.json
       - docs/trusted-control-cycle-contract-v01.md
       - docs/open-ended-expansion-foundation-v01.md
+      - docs/control-cycle-engine-quarantine-v02.md
       - .github/workflows/control-cycle-isolated.yml
   workflow_dispatch:
 permissions:
