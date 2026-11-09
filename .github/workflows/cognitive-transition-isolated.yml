@@ -6,9 +6,13 @@ on:
       - 'cognitive-transition-candidate.mjs'
       - 'tests/cognitive-transition-synthetic.mjs'
       - 'tests/cognitive-transition-negative.mjs'
+      - 'tests/cognitive-transition-source-pinning.test.mjs'
       - 'schemas/cognitive-transition.preview.schema.json'
       - '.github/workflows/cognitive-transition-isolated.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   synthetic:
@@ -22,6 +26,8 @@ jobs:
         run: node tests/cognitive-transition-synthetic.mjs
       - name: Run negative / adversarial cases
         run: node tests/cognitive-transition-negative.mjs
+      - name: Fail-closed source/proof regression (synthetic)
+        run: node --test tests/cognitive-transition-source-pinning.test.mjs
       - name: Upload synthetic evidence
         uses: actions/upload-artifact@v4
         with:
@@ -29,4 +35,5 @@ jobs:
           path: |
             tests/cognitive-transition-synthetic.mjs
             tests/cognitive-transition-negative.mjs
+            tests/cognitive-transition-source-pinning.test.mjs
           retention-days: 7
