@@ -80,7 +80,14 @@ sector 可選 ENGINEERING（工程項目）、INFRASTRUCTURE（基建）、DATA�
 
 這只是一段欄位示例，並非正式環境已完成的審查收據。
 
-## 6. 人類與 BOT③ 審查門檻
+## 6. CI 提供可實際查看的合成審查附件
+
+- 隔離工作流每輪會執行 scripts/export-proof-audit-synthetic.mjs，生成五個領域的 **合成** JSON 證明包，以及 manifest.json。
+- 透過 GitHub Actions artifact firstbrain-proof-audit-synthetic-review 下載。每份內含 created_by_claim、performed_by_claims、reviewed_by_claims、四類 log_coverage、review_gate 和 local_integrity_confirmed。
+- 範例身份一律以 synthetic_ 開頭，review_gate 固定 HOLD_PENDING_IDENTITY_AND_AUTHORITY；即使 CI 成功，不能冒稱真實人員已簽核。
+- 這個自動產包目前**只適用本隔離候選的 CI 工作流**，尚未串接所有 PR、BOT③ 或正式自動化審查服務；全面接線要另外驗證和批准。
+
+## 7. 人類與 BOT③ 審查門檻
 
 1. 檢查同一 HEAD CI、GitHub Commit/PR、實際身份與憑證來源是否一致；候選模組只能提供 **CLAIM_ONLY**。
 2. 檢查「誰做的、誰審查的、審查哪版」皆存在，且新日誌不能冒用舊審查結論。
