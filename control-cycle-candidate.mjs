@@ -43,6 +43,7 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
       observed_revision:e.observed_revision,observed_hash:e.observed_hash,
       observation:'RECORDED_UNVERIFIED',baseline:'NOT_APPROVED',control_mode:e.mode,
       execution:'NOT_RUN',direction:e.direction,version:e.version,
+      engine_quarantined:engineQuarantined,
       local_stop:e.mode==='STOP',remote_stop_confirmed:false,
       notification_count:e.notifications.size,history_count:e.history.length});
   }
