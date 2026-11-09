@@ -6,7 +6,7 @@ import {sha256,stableJson} from './nary-composition.mjs';
 import {AUDIT_STREAMS,AUDIT_SECTORS} from './proof-audit-candidate.mjs';
 export const JOURNAL_SCHEMA='firstbrain.project-progress.candidate.v0.1';
 export const PROGRESS_STATES=Object.freeze(['PLANNED','IN_PROGRESS','DELAYED','BLOCKED','COMPLETED']);
-const ID=/^[A-Za-z0-9_.:-]{1,100}$/,CODE=/^[A-Z][A-Z0-9_]{0,59}$/,DATE=/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+const ID=/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$/,CODE=/^[A-Z][A-Z0-9_]{0,59}$/,DATE=/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const id=x=>typeof x==='string'&&ID.test(x);
 const code=x=>typeof x==='string'&&CODE.test(x);
 const isObject=x=>x!==null&&typeof x==='object'&&!Array.isArray(x)&&[Object.prototype,null].includes(Object.getPrototypeOf(x));
