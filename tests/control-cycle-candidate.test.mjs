@@ -170,3 +170,30 @@ test('17 rejects unknown fields and impersonated status flags',async()=>{
   assert.equal((await c.requestControl({event_id:'ev1',expected_version:1,action:'DEPLOY',
     operator_claim:'user1',grant_ref:'dummy'})).reason,'CONTROL_REQUEST_INVALID');
 });
+
+test('18 simultaneous state updates cannot write duplicate sequence numbers',async()=>{
+  const c=await init();
+  const p={event_id:'ev1',expected_version:1,reason:'concurrent direction'};
+  const responses=await Promise.all([
+    c.proposeDirection({...p,direction:'REUSE'}),
+    c.proposeDirection({...p,direction:'ALTERNATIVE'})
+  ]);
+  assert.equal(responses.filter(r=>r.status==='candidate_only').length,1);
+  assert.equal(responses.filter(r=>r.reason==='VERSION_CONFLICT').length,1);
+  const h=c.history('ev1').entries;
+  assert.deepEqual(h.map(v=>v.sequence),[1,2]);
+  assert.equal((await c.verifyHistory('ev1')).local_chain_consistent,true);
+});
+test('19 N-way 4-source calculations and provenance remain candidate-only',async()=>{
+  const c=await init();
+  for(const [id,val] of [['A',1],['B',2],['C',3],['D',4]]){
+    const r=await c.registerSource({event_id:'ev1',source:{id,revision:'r1',payload:qty(val)}});
+    assert.equal(r.status,'candidate_only');
+  }
+  const x=await c.compose({event_id:'ev1',inputIds:['A','B','C','D'],
+    rule:'quantity_sum',context:{target_unit:'MB'}});
+  assert.equal(x.status,'candidate_only');
+  assert.equal(c.readComposition(x.result_id).packet.typed_result.value.numerator,'10');
+  assert.equal(c.readEvent('ev1').baseline,'NOT_APPROVED');
+  assert.equal(c.readEvent('ev1').remote_ack,'NOT_VERIFIED');
+});
