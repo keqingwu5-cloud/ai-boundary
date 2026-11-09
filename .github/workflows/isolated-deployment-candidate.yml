@@ -1,0 +1,77 @@
+name: First Brain isolated site bundle and World-as-Chess integration (NO_DEPLOY)
+on:
+  pull_request:
+    paths:
+      - world-chess-lineage.mjs
+      - preview/chess-core.mjs
+      - preview/chess-app.mjs
+      - preview/chess.html
+      - scripts/build-isolated-pilot.mjs
+      - scripts/verify-live-pilot.mjs
+      - tests/chess-core.test.mjs
+      - tests/chess-browser.test.cjs
+      - tests/release-package.test.mjs
+      - .github/workflows/isolated-deployment-candidate.yml
+      - docs/world-chess-isolated-deployment-gates.md
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract-and-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          for file in world-chess-lineage.mjs preview/chess-core.mjs preview/chess-app.mjs scripts/build-isolated-pilot.mjs scripts/verify-live-pilot.mjs; do node --check "$file"; done
+      - name: Run baseline, pilot, chess and release negatives on this exact SHA
+        run: |
+          node --test tests/nary-composition.test.mjs tests/nary-transform.test.mjs tests/nary-transform-schema.test.mjs tests/gap-aware-composition.test.mjs tests/gap-aware-schema.test.mjs tests/pilot-core.test.mjs tests/pilot-release-review.test.mjs tests/world-chess-lineage.test.mjs tests/chess-core.test.mjs tests/release-package.test.mjs
+      - name: Produce isolated static artifact without publishing
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          mkdir -p bundle
+          node scripts/build-isolated-pilot.mjs --out bundle/site --source-sha "$(git rev-parse HEAD)"
+          test -f bundle/site/pilot-manifest.json
+          test ! -e bundle/site/memory.js
+          test ! -e bundle/site/api
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firstbrain-world-chess-static-no-deploy
+          path: bundle/site/
+          retention-days: 7
+          if-no-files-found: error
+  webkit-chess:
+    needs: contract-and-package
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build same-SHA local site
+        run: |
+          mkdir -p bundle
+          node scripts/build-isolated-pilot.mjs --out bundle/site --source-sha "$(git rev-parse HEAD)"
+      - name: Install browser test dependency
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps webkit
+      - name: Start LOCAL preview without deployment
+        run: |
+          python3 -m http.server 8847 --bind 127.0.0.1 --directory bundle/site >/tmp/firstbrain-chess-release.log 2>&1 &
+          for i in {1..30}; do if curl --fail --silent http://127.0.0.1:8847/preview/chess.html > /dev/null; then exit 0; fi; sleep 1; done
+          exit 1
+      - name: WebKit functional tests (NOT physical Safari)
+        run: PILOT_BASE_URL=http://127.0.0.1:8847 node --test tests/chess-browser.test.cjs

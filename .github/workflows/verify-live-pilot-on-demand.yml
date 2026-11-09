@@ -1,0 +1,26 @@
+name: Strict PUBLIC preview readback gate (manual, NO_DEPLOY)
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Pinned 40-char SOURCE HEAD from the reviewed release candidate"
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  public-readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: HARD FAIL on HTTP 404, stale source or changed assets
+        run: |
+          node scripts/verify-live-pilot.mjs \
+            --url https://keqingwu5-cloud.github.io/ai-boundary/ \
+            --expected-sha "${{ inputs.expected_sha }}"
