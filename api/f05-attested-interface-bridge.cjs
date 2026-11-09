@@ -165,12 +165,15 @@ async function assessF05Interface({message,source,context,trust,baseline=null,he
   if(reasons.length){
     const canTrace=validId(m.event_id)&&str(m.case_id)&&str(m.task_id);
     const returnEvent=canTrace?{
-      status:'RETURN_RECOMMENDED',rejected_event_id:m.event_id,
+      // A locally evidenced defect is not authorization to contact the
+      // claimed sender. Without independently authenticated F05 sender
+      // identity, this is a held diagnostic record, not a routeable return.
+      status:'HELD_UNVERIFIED_SENDER',rejected_event_id:m.event_id,
       original_case_id:m.case_id,original_task_id:m.task_id,
       original_version:typeof m.source_version==='string'?m.source_version:null,
       return_to:null,route_verified:false,reasons
     }:null;
-    return resultBase('RETURN_RECOMMENDED',checks,reasons,review,returnEvent);
+    return resultBase('QUARANTINE_NO_VERIFIED_SENDER',checks,reasons,review,returnEvent);
   }
   if(repeated)return resultBase('DUPLICATE_NO_EFFECT',checks,[],review,null);
   // We only verified local structure and injected trust policy. No trusted
