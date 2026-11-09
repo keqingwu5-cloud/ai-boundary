@@ -170,7 +170,7 @@ export function createProofAudit({control,maxPackages=256,maxEntries=4096}={}){
     const last=reviews.at(-1)??null;
     const recentNonReview=e.filter(x=>x.type!=='REVIEW_CLAIM').at(-1);
     let reviewStatus='NOT_REVIEWED';
-    if(last)reviewStatus=(last.data.reviewed_revision===recentNonReview?.sequence)?
+    if(last)reviewStatus=(last.reviewed_revision===recentNonReview?.sequence)?
       'REVIEW_CLAIM_ONLY':'STALE_REVIEW';
     const coverage=streams();
     for(const log of logs)coverage[log.stream]='REFERENCED_UNVERIFIED';
