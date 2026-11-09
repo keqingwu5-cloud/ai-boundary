@@ -34,7 +34,7 @@ export function createProgressJournals({audit,maxJournals=512,maxEntries=8192}={
       p.revision===j.proof_revision&&p.event_id===j.event_id&&p.sector===j.sector;
   }
   function read(j){
-    const last=j.entries.at(-1),now=last?.data??null;
+    const last=j.entries.at(-1),now=last?.details??null;
     return candidate({schema:JOURNAL_SCHEMA,journal_id:j.journal_id,project_id:j.project_id,
       proof_id:j.proof_id,event_id:j.event_id,sector:j.sector,stream:j.stream,
       proof_revision:j.proof_revision,expected_start:j.expected_start,
