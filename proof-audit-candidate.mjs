@@ -149,7 +149,8 @@ export function createProofAudit({control,maxPackages=256,maxEntries=4096}={}){
     const err=version(p,data.expected_revision);if(err)return blocked(err);
     const actions=p.entries.filter(e=>e.type==='ACTION_CLAIM');
     if(!actions.length)return blocked('ACTION_CLAIM_REQUIRED');
-    if(actions.some(e=>e.data.performed_by_claim===data.reviewed_by_claim))
+    if(p.created_by_claim===data.reviewed_by_claim||
+       actions.some(e=>e.data.performed_by_claim===data.reviewed_by_claim))
       return blocked('SELF_REVIEW_CLAIM');
     if(p.entries.some(e=>e.type==='REVIEW_CLAIM'&&e.data.review_id===data.review_id))
       return blocked('REVIEW_ID_COLLISION');
@@ -168,7 +169,7 @@ export function createProofAudit({control,maxPackages=256,maxEntries=4096}={}){
     const last=reviews.at(-1)??null;
     const recentNonReview=e.filter(x=>x.type!=='REVIEW_CLAIM').at(-1);
     let reviewStatus='NOT_REVIEWED';
-    if(last)reviewStatus=(last.reviewed_revision===recentNonReview?.sequence)?
+    if(last)reviewStatus=(last.data.reviewed_revision===recentNonReview?.sequence)?
       'REVIEW_CLAIM_ONLY':'STALE_REVIEW';
     const coverage=streams();
     for(const log of logs)coverage[log.stream]='REFERENCED_UNVERIFIED';
