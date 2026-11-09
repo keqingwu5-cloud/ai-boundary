@@ -151,6 +151,7 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
   async function registerSource({event_id,source}={}){
     const e=getEvent(event_id);if(!e)return denied('EVENT_NOT_FOUND');
     if(e.mode==='STOP')return denied('LOCAL_STOP_ACTIVE');
+    if(totalHistory>=maxHistory)return denied('HISTORY_CAPACITY_REACHED');
     const result=await engine.registerKnown(source);
     if(result.status!=='registered'&&result.status!=='reused')return result;
     const record=await append(e,'SYNTHETIC_SOURCE_REFERENCE',{source_id:source.id,
@@ -162,11 +163,25 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
   async function registerGap({event_id,gap}={}){
     const e=getEvent(event_id);if(!e)return denied('EVENT_NOT_FOUND');
     if(e.mode==='STOP')return denied('LOCAL_STOP_ACTIVE');
+    if(totalHistory>=maxHistory)return denied('HISTORY_CAPACITY_REACHED');
     const result=await engine.registerGap(gap);
     if(result.status!=='registered')return result;
     const record=await append(e,'EXPLICIT_GAP_REGISTERED',{gap_id:gap.id,revision:gap.revision,
       state:gap.state,evidence:'UNVERIFIED'});
     return record.status==='blocked'?record:candidate({event_id,gap_id:gap.id,version:e.version});
+  }
+  async function reviseGap({event_id,gap}={}){
+    const e=getEvent(event_id);if(!e)return denied('EVENT_NOT_FOUND');
+    if(e.mode==='STOP')return denied('LOCAL_STOP_ACTIVE');
+    if(totalHistory>=maxHistory)return denied('HISTORY_CAPACITY_REACHED');
+    if(!exact(gap,['id','expectedRevision','revision','state','explanation_code','decision']))
+      return denied('GAP_REVISION_CONTRACT_INVALID');
+    const result=await engine.reviseGap(gap);
+    if(result.status!=='revised')return result;
+    const recorded=await append(e,'EXPLICIT_GAP_REVISED',{gap_id:gap.id,
+      revision:gap.revision,state:gap.state,evidence:'UNVERIFIED'});
+    return recorded.status==='blocked'?recorded:
+      candidate({event_id,gap_id:gap.id,version:e.version,stale_dependents:'MUST_REVALIDATE'});
   }
   async function compose({event_id,inputIds,rule,ruleVersion='1',context={},capabilities=[]}={}){
     const e=getEvent(event_id);if(!e)return denied('EVENT_NOT_FOUND');
@@ -203,7 +218,7 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
   }
   return Object.freeze({registerDomain,observe,proposeBaseline,proposeDirection,
     requestControl,recordReceiptClaim,queueNotification,registerSource,registerGap,
-    compose,readComposition,readEvent,history,verifyHistory,
+    reviseGap,compose,readComposition,readEvent,history,verifyHistory,
     stats:()=>candidate({domains:domains.size,events:events.size,history_entries:totalHistory,
       engine:engine.stats(),external_dispatch:false,approved_baselines:0})});
 }
