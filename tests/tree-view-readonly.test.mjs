@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildTree, makeForest, readSnapshot, STORAGE_KEY, MAX_ITEMS } from '../tree-view-model.mjs';
+import { syntheticBrainSnapshot } from '../tree-view-demo.mjs';
 
 function fixture() {
   return {
@@ -23,6 +24,15 @@ function fixture() {
     history: [{ ts:1, action:'seed', payload:{} }]
   };
 }
+test('synthetic preview builds a separate in-memory example and does not touch stored data', () => {
+  const s = syntheticBrainSnapshot();
+  const before = structuredClone(s);
+  const r = buildTree(s);
+  assert.equal(r.sourceVersion, 'SYNTHETIC-DEMO');
+  assert.equal(r.brainCount, 3);
+  assert.equal(r.nodeCount, 9);
+  assert.deepEqual(s, before);
+});
 test('reads only the original browser storage key without writing', () => {
   const snap = fixture(), calls = [];
   const storage = {
