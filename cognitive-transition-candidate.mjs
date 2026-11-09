@@ -20,6 +20,8 @@ const isObj = x => x !== null && typeof x === 'object' && !Array.isArray(x) &&
   [Object.prototype, null].includes(Object.getPrototypeOf(x));
 const exact = (o, keys) => isObj(o) && Object.keys(o).every(k => keys.includes(k));
 const cp = v => JSON.parse(JSON.stringify(v));
+// Finite number in [0,1]; rejects NaN, ±Infinity and non-numbers.
+const unitInterval = x => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= 1;
 const denied = reason => ({
   status: 'blocked', reason, decision: 'HOLD', authority: 'none',
   epistemic: 'UNKNOWN', approval: 'NOT_APPROVED'
@@ -143,8 +145,7 @@ export function createCognitiveTransition({
       'predicted_s1', 'confidence', 'assumptions', 'counterfactual_ref']) ||
       !id(record.transition_id) || !id(record.action_id) ||
       !['REUSE', 'ALTERNATIVE', 'CHALLENGE_PREMISE', 'STOP', 'RESEARCH_ONLY'].includes(record.kind) ||
-      !isObj(record.predicted_s1) || typeof record.confidence !== 'number' ||
-      record.confidence < 0 || record.confidence > 1)
+      !isObj(record.predicted_s1) || !unitInterval(record.confidence))
       return denied('ACTION_CONTRACT_INVALID');
 
     const t = transitions.get(record.transition_id);
@@ -198,7 +199,7 @@ export function createCognitiveTransition({
       'error_summary', 'counter_evidence_ref', 'revised_confidence']) ||
       !id(record.transition_id) || !id(record.action_id) ||
       typeof record.error_summary !== 'string' ||
-      typeof record.revised_confidence !== 'number')
+      !unitInterval(record.revised_confidence))
       return denied('CALIBRATION_CONTRACT_INVALID');
 
     const t = transitions.get(record.transition_id);
