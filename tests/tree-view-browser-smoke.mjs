@@ -7,12 +7,15 @@ import fs from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 const moduleFile = process.env.PLAYWRIGHT_MODULE || '/tmp/first-brain-playwright/node_modules/playwright/index.mjs';
-const { chromium } = await import(pathToFileURL(moduleFile).href);
+const { chromium, webkit } = await import(pathToFileURL(moduleFile).href);
+const engine = process.env.BRAIN_ENGINE === 'webkit' ? 'webkit' : 'chromium';
 const origin = process.env.SMOKE_ORIGIN || 'http://127.0.0.1:8765';
 const out = process.env.SMOKE_OUT || 'artifacts/tree-view-smoke';
 await fs.mkdir(out, { recursive: true });
 
-const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+const browser = await (engine === 'webkit' ? webkit : chromium).launch({
+  headless: true, args: engine === 'webkit' ? [] : ['--no-sandbox']
+});
 let completed = 0;
 async function run(name, viewport, mobile) {
   const context = await browser.newContext({
@@ -90,7 +93,7 @@ async function run(name, viewport, mobile) {
 try {
   await run('phone-390', { width: 390, height: 844 }, true);
   await run('tablet-820', { width: 820, height: 1180 }, true);
-  console.log('SUMMARY ' + completed + '/2 CHROMIUM_EMULATED_DEVICE_CHECKS_PASS');
+  console.log('SUMMARY ' + completed + '/2 ' + engine.toUpperCase() + '_EMULATED_DEVICE_CHECKS_PASS');
 } finally {
   await browser.close();
 }
