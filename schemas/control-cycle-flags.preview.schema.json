@@ -20,6 +20,7 @@
     "execution",
     "direction",
     "version",
+    "engine_quarantined",
     "local_stop",
     "remote_stop_confirmed",
     "notification_count",
@@ -107,6 +108,10 @@
     "history_count": {
       "type": "integer",
       "minimum": 1
+    },
+    "engine_quarantined": {
+      "type": "boolean",
+      "description": "Local global engine quarantine is a consistency alarm, not remote STOP or approval"
     }
   }
 }
