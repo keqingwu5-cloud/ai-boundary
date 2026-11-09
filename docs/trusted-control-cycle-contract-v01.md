@@ -34,6 +34,7 @@
 6. queueNotification：五種分流同一 event_id、去重；全部 NOT_SENT，不主動發信。
 7. history / verifyHistory：本地事件版本鏈 hash 檢查；不是持久不可竄改或數位簽章。
 8. registerDomain / registerSource / registerGap / reviseGap / compose：保留不同領域的命名空間及 V1.6 的 N 元組合與空白，**不建立第二個運算引擎**。
+9. registerExpansionRule / planExpansion：新領域可登記版本化的 REFERENCE_ONLY、TYPED_TRANSFORM、RESEARCH 規則契約及後續輸入引用；**沒有可執行外掛、沒有任意代碼執行、不能冒稱計算完成**。
 
 ## 3. 和現有 Draft 的接口責任（未實際整合）
 
