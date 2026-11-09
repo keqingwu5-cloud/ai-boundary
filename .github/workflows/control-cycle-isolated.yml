@@ -4,6 +4,7 @@ on:
     paths:
       - control-cycle-candidate.mjs
       - proof-audit-candidate.mjs
+      - scripts/export-proof-audit-synthetic.mjs
       - tests/control-cycle-candidate.test.mjs
       - tests/control-cycle-flags-schema.test.mjs tests/proof-audit-candidate.test.mjs tests/proof-audit-schema.test.mjs
       - tests/proof-audit-candidate.test.mjs
@@ -30,6 +31,7 @@ jobs:
         run: |
           node --check control-cycle-candidate.mjs
           node --check proof-audit-candidate.mjs
+          node --check scripts/export-proof-audit-synthetic.mjs
           python3 -m json.tool schemas/control-cycle-flags.preview.schema.json > /dev/null
           python3 -m json.tool schemas/proof-audit.preview.schema.json > /dev/null
       - name: Run original V1.4/V1.5/V1.6 regression AND control-cycle tests
@@ -42,3 +44,10 @@ jobs:
           test ! -f .env
           ! grep -E '(node:fs|node:net|node:http|fetch\(|localStorage|indexedDB|process\.env|postgres|createServer|setInterval)' control-cycle-candidate.mjs proof-audit-candidate.mjs
           echo 'ISOLATED_ONLY: no runtime external IO in new control module'
+      - name: Generate five SYNTHETIC per-sector proof packets with HOLD gates
+        run: node scripts/export-proof-audit-synthetic.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firstbrain-proof-audit-synthetic-review
+          path: artifacts/proof-audit-synthetic
+          retention-days: 14
