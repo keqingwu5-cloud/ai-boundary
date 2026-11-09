@@ -51,7 +51,7 @@ const context=()=>({
  placement:{container:'review_queue',slot:'pending',ordinal:2},
  last_sequence:1,last_event_id:'ev-1',
  known_events:{'ev-1':{version:'v1',kind:'SUBMIT'}},
- known_citations:{'cite-1':{source_ref:expected_scope,source_version:'r1',locator:'synthetic:1'}}
+ known_citations:{'cite-1':{source_ref:expected_scope,source_version:'r1',locator:'synthetic:1',source_digest:sha(JSON.stringify(graph()))}}
 });
 const assess=async({s=source(),m,ctx=context(),...other}={})=>
  assessF05Interface({message:m||message(s),source:s,context:ctx,trust,now:date,...other});
@@ -149,4 +149,35 @@ test('F05-BRIDGE-16 return reasons themselves must include fixed original identi
  assert.equal(r.return_event.original_task_id,'task-41');
  assert.equal(r.return_event.rejected_event_id,'ev-2');
  assert.equal(r.return_event.status,'RETURN_RECOMMENDED');
+});
+
+test('F05-BRIDGE-17 RETURN must identify rejected event and give concrete causes',async()=>{
+ const m=message();m.message_kind='RETURN';
+ const r=await assess({m});
+ assert.ok(codes(r).includes('RETURN_CONTEXT_MISSING'));assert.equal(r.result,'RETURN_RECOMMENDED');
+});
+test('F05-BRIDGE-18 RESUBMIT must retain superseded event link',async()=>{
+ const m=message();m.message_kind='RESUBMIT';
+ const r=await assess({m});
+ assert.ok(codes(r).includes('RESUBMIT_CONTEXT_MISSING'));assert.equal(r.approved,false);
+});
+test('F05-BRIDGE-19 citation can reference a different registered source, still no semantic acceptance',async()=>{
+ const m=message(),ctx=context(),otherRef='github:keqingwu5-cloud/ai-boundary:issue:32',otherHash='a'.repeat(64);
+ m.citations[0].source_ref=otherRef;m.citations[0].source_version='r-other';
+ m.citations[0].source_digest=otherHash;
+ ctx.known_citations['cite-1']={source_ref:otherRef,source_version:'r-other',
+  source_digest:otherHash,locator:'synthetic:1'};
+ const r=await assess({m,ctx});
+ assert.equal(r.result,'LOCAL_REVIEW_ONLY');
+ assert.equal(r.checks[11].status,'UNKNOWN');assert.equal(r.actual_remote_ack,false);
+});
+test('F05-BRIDGE-20 citation digest must match cited registered version, not main source digest',async()=>{
+ const m=message();m.citations[0].source_digest='c'.repeat(64);
+ const r=await assess({m});
+ assert.ok(codes(r).includes('CITATION_REGISTRY_MISMATCH'));
+});
+test('F05-BRIDGE-21 stated sender route is not proof of authenticated endpoint identity',async()=>{
+ const r=await assess();
+ assert.equal(r.independent_sender_identity_verified,false);
+ assert.equal(r.checks[8].status,'UNKNOWN');
 });
