@@ -45,6 +45,9 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
     const entry={event_id:e.id,sequence:e.version+1,kind,details:copy(details),
       prev_hash:e.history.length?e.history[e.history.length-1].hash:null};
     const hash=await sha256(stableJson(entry));
+    // Recheck after async hashing: two callers must not append the same version.
+    if(e.version!==entry.sequence-1)return denied('VERSION_CONFLICT');
+    if(totalHistory>=maxHistory)return denied('HISTORY_CAPACITY_REACHED');
     e.history.push({...entry,hash});e.version++;
     totalHistory++;
     return candidate({event_id:e.id,version:e.version,entry_hash:hash});
