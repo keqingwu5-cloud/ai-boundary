@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "firstbrain.cognitive-transition.candidate.v0.1",
+  "title": "First Brain Three-Axis Cognitive Transition Candidate V0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "firstbrain.cognitive-transition.candidate.v0.1"},
+    "transition_id": {"type": "string"},
+    "event_id": {"type": "string"},
+    "proof_id": {"type": "string"},
+    "project_id": {"type": "string"},
+    "s0": {
+      "type": "object",
+      "properties": {
+        "revision": {"type": "string"},
+        "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "epistemic": {"enum": ["OBSERVED", "INFERRED", "PREDICTED", "UNKNOWN", "APPROVED"]}
+      },
+      "required": ["revision", "hash", "epistemic"]
+    },
+    "drivers": {"type": "array"},
+    "actions": {"type": "array"},
+    "observations": {"type": "array"},
+    "calibrations": {"type": "array"},
+    "memory_refs": {"type": "array"},
+    "times": {
+      "type": "object",
+      "properties": {
+        "EVENT": {"type": "string"},
+        "OBSERVATION": {"type": "string"},
+        "APPROVAL": {"type": "string"},
+        "REVISION": {"type": "string"}
+      }
+    },
+    "version": {"type": "integer"},
+    "history_head_hash": {"type": ["string", "null"]},
+    "persistence": {"const": "IN_MEMORY_ONLY"},
+    "approval": {"const": "NOT_APPROVED"},
+    "status": {"const": "candidate_only"},
+    "decision": {"const": "HOLD"},
+    "authority": {"const": "none"}
+  },
+  "required": ["schema", "transition_id", "event_id", "proof_id", "s0", "approval"]
+}
