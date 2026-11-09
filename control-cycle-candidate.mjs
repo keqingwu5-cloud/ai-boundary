@@ -10,6 +10,7 @@ export const CONTROL_SCHEMA='firstbrain.trusted-control-cycle.candidate.v0.1';
 export const CONTROL_MODES=Object.freeze(['STOP','OBSERVE','TEST','CONTROLLED']);
 export const NOTIFICATION_KINDS=Object.freeze(['WARNING','FAILURE','EXECUTION','CORRECTION','REVIEW']);
 export const DIRECTIONS=Object.freeze(['REUSE','ALTERNATIVE','CHALLENGE_PREMISE','STOP','RESEARCH_ONLY']);
+export const EXPANSION_KINDS=Object.freeze(['REFERENCE_ONLY','TYPED_TRANSFORM','RESEARCH']);
 const ID=/^[A-Za-z0-9_.:-]{1,128}$/;
 const HEX=/^[0-9a-f]{64}$/;
 const id=x=>typeof x==='string'&&ID.test(x);
@@ -24,13 +25,13 @@ const canText=(x,max=280)=>typeof x==='string'&&x.length>=1&&x.length<=max&& !/[
  * The domain registry expands *namespaces*, not executable plugin privileges.
  * maxInputs/maxDepth/maxEvents are explicit resource bounds, not literal infinity.
  */
-export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,maxInputs=32,maxDepth=24}={}){
+export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,maxInputs=32,maxDepth=24,maxRuleManifests=128}={}){
   for(const [k,v,lo,hi] of [['maxDomains',maxDomains,1,256],['maxEvents',maxEvents,1,10000],
-    ['maxHistory',maxHistory,1,100000],['maxInputs',maxInputs,2,32],['maxDepth',maxDepth,1,64]]){
+    ['maxHistory',maxHistory,1,100000],['maxInputs',maxInputs,2,32],['maxDepth',maxDepth,1,64],['maxRuleManifests',maxRuleManifests,1,4096]]){
     if(!Number.isInteger(v)||v<lo||v>hi)throw Error(k+'_INVALID');
   }
   const engine=createGapAwareEngine({maxInputs,maxDepth});
-  const domains=new Map(),events=new Map();
+  const domains=new Map(),events=new Map(),ruleManifests=new Map();
   let totalHistory=0;
   function view(e){
     return candidate({schema:CONTROL_SCHEMA,event_id:e.id,domain_id:e.domain_id,
@@ -66,6 +67,51 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
     if(domains.size>=maxDomains)return denied('DOMAIN_CAPACITY_REACHED');
     domains.set(record.domain_id,copy(record));
     return candidate({domain_id:record.domain_id,operation:'DOMAIN_REGISTERED',execution:'NOT_RUN'});
+  }
+  // Rule catalogs are only versioned declarations; no user-provided JS is executed.
+  function registerExpansionRule(record){
+    if(!exact(record,['domain_id','rule_id','rule_version','kind','min_inputs','max_inputs','review_ref'])||
+       !id(record.domain_id)||!id(record.rule_id)||!id(record.rule_version)||
+       !EXPANSION_KINDS.includes(record.kind)||!id(record.review_ref)||
+       !Number.isInteger(record.min_inputs)||record.min_inputs<2||
+       !Number.isInteger(record.max_inputs)||record.max_inputs<record.min_inputs||
+       record.max_inputs>maxInputs)return denied('EXPANSION_RULE_CONTRACT_INVALID');
+    if(!domains.has(record.domain_id))return denied('DOMAIN_NOT_REGISTERED');
+    const key=record.domain_id+':'+record.rule_id+'@'+record.rule_version;
+    const prior=ruleManifests.get(key);
+    if(prior)return stableJson(prior)===stableJson(record)?
+      candidate({rule_key:key,operation:'DUPLICATE_IGNORED',executable:false}):
+      denied('EXPANSION_RULE_ID_COLLISION');
+    if(ruleManifests.size>=maxRuleManifests)return denied('RULE_CATALOG_CAPACITY_REACHED');
+    ruleManifests.set(key,copy(record));
+    return candidate({rule_key:key,operation:'RULE_CATALOGED',executable:false,
+      implementation:'NOT_PRESENT',approval:'NOT_APPROVED'});
+  }
+  async function planExpansion(record){
+    if(!exact(record,['event_id','expected_version','rule_id','rule_version','input_ids','reason'])||
+      !id(record.event_id)||!id(record.rule_id)||!id(record.rule_version)||
+      !Array.isArray(record.input_ids)||!canText(record.reason))return denied('EXPANSION_PLAN_INVALID');
+    const e=getEvent(record.event_id);if(!e)return denied('EVENT_NOT_FOUND');
+    if(e.mode==='STOP')return denied('LOCAL_STOP_ACTIVE');
+    const versionError=checkVersion(e,record.expected_version);
+    if(versionError)return denied(versionError);
+    const key=e.domain_id+':'+record.rule_id+'@'+record.rule_version;
+    const m=ruleManifests.get(key);if(!m)return denied('RULE_NOT_CATALOGED');
+    const inputs=record.input_ids;
+    if(inputs.length<m.min_inputs||inputs.length>m.max_inputs||
+      !inputs.every(id)||new Set(inputs).size!==inputs.length)return denied('EXPANSION_INPUTS_INVALID');
+    // A referenced unknown can be explicitly registered as a gap. REDACTED and
+    // missing/expired sources are never silently converted into successful input.
+    for(const inputId of inputs){
+      const source=engine.read(inputId);
+      if(source.status!=='candidate_only')return denied('EXPANSION_INPUT_NOT_READABLE');
+    }
+    const out=await append(e,'EXPANSION_PLAN_CANDIDATE',{
+      rule_key:key,kind:m.kind,inputs:copy(inputs),reason:record.reason,
+      external_effect:'NONE',implementation:'NOT_PRESENT',approval:'NOT_APPROVED'
+    });
+    return out.status==='blocked'?out:{...out,rule_key:key,executable:false,
+      implementation:'NOT_PRESENT',approval:'NOT_APPROVED'};
   }
   async function observe(record){
     if(!exact(record,['event_id','domain_id','source_id','revision','source_hash','baseline_ref'])||
@@ -219,9 +265,9 @@ export function createControlCycle({maxDomains=64,maxEvents=256,maxHistory=1024,
     return candidate({event_id:eventId,checked_entries:e.history.length,local_chain_consistent:true,
       cryptographic_identity_verified:false,immutable_persistence:false});
   }
-  return Object.freeze({registerDomain,observe,proposeBaseline,proposeDirection,
+  return Object.freeze({registerDomain,registerExpansionRule,planExpansion,observe,proposeBaseline,proposeDirection,
     requestControl,recordReceiptClaim,queueNotification,registerSource,registerGap,
     reviseGap,compose,readComposition,readEvent,history,verifyHistory,
     stats:()=>candidate({domains:domains.size,events:events.size,history_entries:totalHistory,
-      engine:engine.stats(),external_dispatch:false,approved_baselines:0})});
+      engine:engine.stats(),rule_manifests:ruleManifests.size,external_dispatch:false,approved_baselines:0})});
 }
