@@ -4,6 +4,7 @@ on:
     paths:
       - control-cycle-candidate.mjs
       - tests/control-cycle-candidate.test.mjs
+      - tests/control-cycle-engine-quarantine.test.mjs
       - tests/control-cycle-flags-schema.test.mjs
       - schemas/control-cycle-flags.preview.schema.json
       - docs/trusted-control-cycle-contract-v01.md
@@ -18,6 +19,11 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Assert pinned source HEAD
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -27,7 +33,7 @@ jobs:
           python3 -m json.tool schemas/control-cycle-flags.preview.schema.json > /dev/null
       - name: Run original V1.4/V1.5/V1.6 regression AND control-cycle tests
         run: |
-          node --test tests/nary-composition.test.mjs tests/nary-transform.test.mjs tests/nary-transform-schema.test.mjs tests/gap-aware-composition.test.mjs tests/gap-aware-schema.test.mjs tests/control-cycle-candidate.test.mjs tests/control-cycle-flags-schema.test.mjs
+          node --test tests/nary-composition.test.mjs tests/nary-transform.test.mjs tests/nary-transform-schema.test.mjs tests/gap-aware-composition.test.mjs tests/gap-aware-schema.test.mjs tests/control-cycle-candidate.test.mjs tests/control-cycle-flags-schema.test.mjs tests/control-cycle-engine-quarantine.test.mjs
       - name: Confirm no production network, credentials, database or writes
         shell: bash
         run: |
