@@ -106,6 +106,14 @@ async function main() {
     const {cog} = await setup();
     return blocked(await cog.openTransition(openRec({proof_id: 'proof-missing'})), 'PROOF_MISMATCH');
   });
+  await check('stale proof version after control advance -> PROOF_VERSION_STALE', async () => {
+    const {control, cog} = await setup();
+    // Advance control version so proof becomes stale
+    await control.proposeDirection({
+      event_id: 'evt-neg', expected_version: 1, direction: 'RESEARCH_ONLY', reason: 'synthetic advance'
+    });
+    return blocked(await cog.openTransition(openRec()), 'PROOF_VERSION_STALE');
+  });
   await check('invalid s0_hash blocked', async () => {
     const {cog} = await setup();
     return blocked(await cog.openTransition(openRec({s0_hash: 'not-a-hash'})), 'TRANSITION_CONTRACT_INVALID');
