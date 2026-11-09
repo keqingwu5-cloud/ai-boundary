@@ -53,6 +53,7 @@ export function createCognitiveTransition({
   function sourceSnapshotFresh(t) {
     const ev = control.readEvent(t.event_id);
     if (ev.status !== 'candidate_only' ||
+        ev.engine_quarantined === true ||
         ev.version !== t.control_version ||
         ev.domain_id !== t.control_domain_id ||
         ev.observed_hash !== t.control_observed_hash) return false;
