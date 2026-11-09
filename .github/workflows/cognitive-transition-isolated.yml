@@ -11,6 +11,7 @@ on:
       - 'proof-audit-candidate.mjs'
       - 'progress-journal-candidate.mjs'
       - 'tests/three-axis-integrated-gates.test.mjs'
+      - 'docs/three-axis-integration-gates-v01.md'
       - 'docs/cognitive-postopen-source-pinning-v03.md'
       - 'schemas/cognitive-transition.preview.schema.json'
       - '.github/workflows/cognitive-transition-isolated.yml'
