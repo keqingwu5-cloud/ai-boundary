@@ -19,7 +19,7 @@ function indexed(items, type) {
 }
 
 // A defensive forest projection. Cycle and missing-parent components remain visible as roots.
-export function makeForest(items, parentKey, diagnostics, label) {
+export function makeForest(items, parentKey, diagnostics, label, allIds = null) {
   const map = indexed(items, label);
   const childMap = new Map(items.map(x => [x.id, []]));
   const roots = [];
@@ -34,8 +34,10 @@ export function makeForest(items, parentKey, diagnostics, label) {
     } else if (map.has(parent)) {
       childMap.get(parent).push(item);
     } else {
-      // Missing parents and cross-brain parents may have different causes.
-      diagnostics.push({ code: 'PARENT_NOT_IN_GROUP', kind: label, id: item.id, parent });
+      // A real parent in another brain is an expected subbrain root, not corruption.
+      if (!allIds || !allIds.has(parent)) {
+        diagnostics.push({ code: 'PARENT_NOT_IN_GROUP', kind: label, id: item.id, parent });
+      }
       roots.push(item);
     }
   }
@@ -87,7 +89,7 @@ export function buildTree(snapshot) {
   const brainProjections = snapshot.brains.map(b => ({
     id: b.id, name: String(b.name || b.id), parentBrainId: b.parentBrainId ?? null,
     rootNodeId: b.rootNodeId ?? null, nodeCount: perBrain.get(b.id).length,
-    nodeForest: makeForest(perBrain.get(b.id), 'parentId', diagnostics, 'node')
+    nodeForest: makeForest(perBrain.get(b.id), 'parentId', diagnostics, 'node', nodeMap)
   }));
   const brainForest = makeForest(brainProjections, 'parentBrainId', diagnostics, 'brain');
   // Different relations are intentionally not collapsed into a single hierarchy.
