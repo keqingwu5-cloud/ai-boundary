@@ -68,8 +68,24 @@ function seedState(){
   return st;
 }
 function valid(s){ return s && Array.isArray(s.brains) && Array.isArray(s.nodes) && Array.isArray(s.links) && Array.isArray(s.history) && s.brains.some(b => b.id === 'main'); }
-let graphObservedRaw = null;
-function load(){ try { graphObservedRaw = localStorage.getItem(KEY); const s = JSON.parse(graphObservedRaw); return valid(s) ? s : null; } catch(e){ return null; } }
+/* R3-C01: missing data is different from existing but unreadable/corrupt data. */
+let graphObservedRaw = null, graphBootReason = 'UNKNOWN';
+function load(){
+  try {
+    const raw = localStorage.getItem(KEY);
+    graphObservedRaw = raw;
+    if (raw === null){ graphBootReason = 'NO_EXISTING_RECORD'; return null; }
+    try {
+      const parsed = JSON.parse(raw);
+      if (valid(parsed)){ graphBootReason = 'EXISTING_VALID'; return parsed; }
+    } catch(e){}
+    graphBootReason = 'EXISTING_INVALID';
+    return null;
+  } catch(e){
+    graphBootReason = 'READ_UNAVAILABLE';
+    return null;
+  }
+}
 /* concept layer migration: adds concepts[] / processPattern to old saves without touching user edits */
 function seedKey(id){ const m = /^n_(q\d+)(?:_e(\d+))?$/.exec(id); return m ? (m[2] !== undefined ? m[1] + ':e' + m[2] : m[1]) : null; }
 function migrate(st){
@@ -111,10 +127,47 @@ let state = migrate(load() || seedState());
 let undoStack = []; try { undoStack = JSON.parse(localStorage.getItem(UKEY) || '[]'); } catch(e){ undoStack = []; }
 let saveT = 0;
 let graphWriteQueue = Promise.resolve();
-let graphWriterBlocked = false;
+let graphWriterBlocked = graphBootReason === 'EXISTING_INVALID' || graphBootReason === 'READ_UNAVAILABLE';
+let graphWriteReason = graphWriterBlocked ? graphBootReason : 'NONE';
+let graphSaveStatus = graphWriterBlocked ? 'READ_ONLY' : 'SAVE_PENDING';
+function showGraphWriteStatus(){
+  if (typeof document === 'undefined') return;
+  const label = document.getElementById('graphWriteStatus');
+  if (label){
+    const description = {
+      READ_ONLY:'唯讀安全模式（原始資料無效或無法讀取）',
+      SAVE_PENDING:'變更尚未確認儲存',
+      SAVE_CONFIRMED:'主腦資料已確認儲存',
+      SAVE_FAILED:'主腦儲存失敗，已停止修改'
+    };
+    label.textContent = (description[graphSaveStatus] || graphSaveStatus) +
+      (graphWriteReason !== 'NONE' ? '｜原因：'+graphWriteReason : '');
+  }
+  const button = document.getElementById('graphRawBackup');
+  if(button) button.hidden = !(graphBootReason === 'EXISTING_INVALID' && graphObservedRaw !== null);
+}
+function graphWritable(){
+  if(!graphWriterBlocked) return true;
+  if(typeof toast==='function') toast('⚠ 已停止寫入：'+graphWriteReason+'。請先保留原始資料，再重新開啟。');
+  return false;
+}
+async function confirmGraphPersistence(){
+  if(graphWriterBlocked) return {ok:false,reason:graphWriteReason};
+  save(true);
+  await graphWriteQueue;
+  if(graphWriterBlocked) return {ok:false,reason:graphWriteReason};
+  try {
+    const raw = localStorage.getItem(KEY);
+    if(raw !== JSON.stringify(state)) return {ok:false,reason:'NOT_SAME_PERSISTED_SNAPSHOT'};
+    return {ok:true,reason:'WRITE_READBACK_CONFIRMED'};
+  } catch(e){ return {ok:false,reason:'READBACK_UNAVAILABLE'}; }
+}
 function save(now = false){
   clearTimeout(saveT);
   const f = () => {
+    if (graphWriterBlocked){ showGraphWriteStatus(); return; }
+    graphSaveStatus = 'SAVE_PENDING';
+    showGraphWriteStatus();
     graphWriteQueue = graphWriteQueue.then(async () => {
       if (graphWriterBlocked) return;
       const snapshot = JSON.stringify(state);
@@ -128,32 +181,48 @@ function save(now = false){
       });
       if (!result.ok) {
         graphWriterBlocked = true;
+        graphWriteReason = result.reason;
+        graphSaveStatus = 'SAVE_FAILED';
+        showGraphWriteStatus();
         toast('⚠ 主腦資料寫入已停止（' + result.reason + '）。請先匯出並保留資料，重新開啟後再操作。');
         return;
       }
       graphObservedRaw = result.raw;
       if (result.secondaryWarning) {
         graphWriterBlocked = true;
+        graphWriteReason = result.secondaryWarning;
+        graphSaveStatus = 'SAVE_FAILED';
+        showGraphWriteStatus();
         toast('⚠ 主腦已儲存，但復原紀錄寫入失敗；請匯出完整備份並停止操作。');
         return;
       }
+      graphSaveStatus = 'SAVE_CONFIRMED';
+      graphWriteReason = 'NONE';
+      showGraphWriteStatus();
       flashSaved();
     }).catch(e => {
       graphWriterBlocked = true;
+      graphWriteReason = 'WRITER_EXCEPTION';
+      graphSaveStatus = 'SAVE_FAILED';
+      showGraphWriteStatus();
       toast('⚠ 主腦儲存異常，已停止後續寫入：' + String(e));
     });
   };
   now ? f() : (saveT = setTimeout(f, 250));
 }
-save(true);
+/* Never replace corrupt/unreadable existing graph data with seed content. */
+if(!graphWriterBlocked) save(true);
+showGraphWriteStatus();
 const listeners = {};
 function emit(ev, data){ (listeners[ev] || []).forEach(f => { try { f(data); } catch(e){ console.error(e); } }); }
 function mutate(action, payload, fn){
+  if(!graphWritable()) return false;
   undoStack.push(JSON.stringify(state)); if (undoStack.length > 12) undoStack.shift();
   fn();
   state.history.push({ ts:Date.now(), action, payload });
   save(); sync(); renderHistory(); renderCrumbs();
   emit('change', { action, payload });
+  return true;
 }
 const N = id => state.nodes.find(n => n.id === id);
 const B = id => state.brains.find(b => b.id === id);
@@ -166,6 +235,7 @@ function descendants(id, sameBrain){
 
 /* ================= operations (also exposed for future bots) ================= */
 function addQuestion(d){
+  if(!graphWritable()) return null;
   const brainId = d.brainId || focusId || 'main';
   const brain = B(brainId) ? brainId : 'main';
   const isMain = brain === 'main';
@@ -186,6 +256,7 @@ function addQuestion(d){
   return n.id;
 }
 function splitNode(id, items, createdBy = 'merlin', kind = 'extension'){
+  if(!graphWritable()) return [];
   kind = kind === 'direction' ? 'direction' : 'extension';
   const p = N(id); if (!p || !items.length) return [];
   const ids = [];
@@ -216,13 +287,11 @@ function ensureConcept(name, by = 'merlin', color){ if (!state.concepts[name]) s
 function addConcept(id, name, by = 'merlin'){
   const n = N(id); name = String(name || '').trim().slice(0, 16); if (!n || !name) return false;
   if (n.concepts.includes(name)) return false;
-  mutate('concept', { nodeId:id, title:n.title, concept:name, op:'add' }, () => { ensureConcept(name, by); n.concepts.push(name); });
-  return true;
+  return mutate('concept', { nodeId:id, title:n.title, concept:name, op:'add' }, () => { ensureConcept(name, by); n.concepts.push(name); });
 }
 function removeConcept(id, name){
   const n = N(id); if (!n || !n.concepts.includes(name)) return false;
-  mutate('concept', { nodeId:id, title:n.title, concept:name, op:'remove' }, () => { n.concepts = n.concepts.filter(c => c !== name); });
-  return true;
+  return mutate('concept', { nodeId:id, title:n.title, concept:name, op:'remove' }, () => { n.concepts = n.concepts.filter(c => c !== name); });
 }
 function setProcessPattern(id, pattern){
   const n = N(id); if (!n) return; pattern = String(pattern || '').trim();
@@ -311,20 +380,33 @@ function deleteNode(id){
   closePanel();
 }
 function undo(){
+  if(!graphWritable()) return false;
   if (!undoStack.length){ toast('沒有可復原的步驟'); return; }
   state = JSON.parse(undoStack.pop());
   save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已復原');
   if (!B(focusId)) focusBrain('main');
   emit('change', { action:'undo' });
 }
-function resetAll(){ undoStack.push(JSON.stringify(state)); state = seedState(); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); }
+function resetAll(){ if(!graphWritable()) return false; undoStack.push(JSON.stringify(state)); state = seedState(); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); }
 function exportJSON(){
+  // The preview seed is not the user's damaged original data.
+  if(graphBootReason === 'EXISTING_INVALID'){
+    const backup=document.getElementById('graphRawBackup');
+    if(backup) backup.click();
+    toast('⚠ 已提供原始損壞資料下載；預覽種子不會冒充你的舊資料。');
+    return;
+  }
+  if(graphBootReason === 'READ_UNAVAILABLE'){
+    toast('⚠ 目前無法讀取原始圖譜，不能將預覽當成備份。');
+    return;
+  }
   const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ai-brain-' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.json';
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   toast('⇩ 已匯出 JSON');
 }
 function importJSON(obj){
+  if(!graphWritable()) return false;
   if (!valid(obj)){ toast('⚠ 檔案格式不符'); return false; }
   undoStack.push(JSON.stringify(state));
   state = migrate(obj); state.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
@@ -1043,10 +1125,23 @@ setTimeout(handleHash, state.brains.length > 1 ? 400 : 100);
 /* ================= public API (hooks for future AI bots) ================= */
 window.AIBrain = {
   version:1, getState:() => JSON.parse(JSON.stringify(state)),
+  getPersistenceStatus:()=>({status:graphSaveStatus,reason:graphWriteReason,bootReason:graphBootReason,blocked:graphWriterBlocked}),
+  confirmPersistence:confirmGraphPersistence,
   addQuestion, splitNode, addDirection, makeSubBrain,
   addConcept, removeConcept, setProcessPattern, getConcepts, getConceptThreads:() => JSON.parse(JSON.stringify(threads)), getConceptLinks:() => conceptLinks.map(l => ({ from:l.from, to:l.to, kind:'concept', concept:l.concept, threadKind:l.threadKind })),
   suggestConcepts, focusConcept, showConcepts, _debug:debug, mergeBrain, crossLink, setStatus, addCounterEvidence, setCollapsed, setMedia, deleteNode,
   focusBrain, focusNode, overview, select, undo, exportJSON, importJSON, reset:resetAll,
   on:(ev, f) => { (listeners[ev] = listeners[ev] || []).push(f); }
 };
+/* The invalid-data raw backup stays on this device until the user downloads it. */
+const rawExport = document.getElementById('graphRawBackup');
+if(rawExport) rawExport.addEventListener('click',()=>{
+  if(graphBootReason !== 'EXISTING_INVALID' || graphObservedRaw === null) return;
+  const blob = new Blob([graphObservedRaw],{type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='ai-brain-original-unreadable.txt';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},500);
+});
+showGraphWriteStatus();
 document.body.dataset.ready = '1';

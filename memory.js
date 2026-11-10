@@ -211,6 +211,7 @@ $("exportBackup").addEventListener("click",downloadBackup);$("saveBackupTop").ad
 $("restoreBackup").addEventListener("click",()=>{$("backupInput").click();});$("importLocked").addEventListener("click",()=>{$("backupInput").click();});
 $("backupInput").addEventListener("change",async e=>{
  const f=e.target.files[0];e.target.value="";if(!f)return;
+ let restoreStage="NOT_STARTED";
  try{
   if(f.size>1200000)throw Error("too_large");
   const raw=await f.text(),env=readEnvelope(raw);
@@ -233,12 +234,26 @@ $("backupInput").addEventListener("change",async e=>{
   await withVaultWriter(async()=>{
    if(stored()!==previous)throw Error("還原確認期間其他分頁已更動記憶庫；拒絕覆蓋。");
    localStorage.setItem(STORE,raw);
+   restoreStage="WRITTEN_UNVERIFIED";
    if(stored()!==raw)throw Error("還原寫入回讀驗證失敗");
+   restoreStage="WRITTEN_AND_VERIFIED";
   });
   key=decoded.key;salt=decoded.salt;state=decoded.data;observedEnvelope=raw;lastBackupEnvelope=null;
-  if(migrateMeta(state))await persist();
+  if(migrateMeta(state)){
+   try{await persist();}
+   catch(err){restoreStage="MIGRATION_FAILED_AFTER_WRITE";throw err;}
+  }
+  restoreStage="FULLY_COMPLETED";
   showOpen();feedback("已按你的明確確認還原本機加密備份；尚未合併不同版本。");
- }catch(err){feedback("還原失敗：密碼不符、檔案格式錯誤、資料過大或儲存空間受限；原本記憶庫未更動。");}
+ }catch(err){
+  if(restoreStage==="NOT_STARTED"){
+   feedback("還原未完成，尚未確認寫入備份密文；請核對本機目前的記憶庫與原備份，切勿假定已復原。");
+  }else{
+   // A backup ciphertext may already be on disk; stale unlocked state is unsafe.
+   showLocked();
+   feedback("還原流程在 "+restoreStage+" 階段失敗。備份密文可能已寫入本機；請重新解鎖並檢查版本，再用已保存的備份恢復。");
+  }
+ }
 });
 
 /* GPT① memory handoff: manual local import, encrypted audit, contextual recall. */
