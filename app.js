@@ -124,7 +124,20 @@ function migrate(st){
 const CPAL = ['#5eead4','#a3e635','#fde047','#fdba74','#67e8f9','#f0abfc','#86efac','#c4b5fd','#f9a8d4','#fca5a5','#fb7185','#93c5fd','#fb923c','#f472b6','#cbd5e1','#bef264','#7dd3fc','#fcd34d','#d8b4fe','#99f6e4'];
 function pickColor(st){ const used = new Set(Object.values(st.concepts || {}).map(c => c.color)); return CPAL.find(c => !used.has(c)) || `hsl(${Math.floor(Math.random() * 360)},85%,72%)`; }
 let state = migrate(load() || seedState());
-let undoStack = []; try { undoStack = JSON.parse(localStorage.getItem(UKEY) || '[]'); } catch(e){ undoStack = []; }
+let undoStack = [];
+let preserveExistingUndo = false;
+try {
+  const rawUndo = localStorage.getItem(UKEY);
+  if (rawUndo !== null) {
+    const parsed = JSON.parse(rawUndo);
+    if (Array.isArray(parsed)) {
+      undoStack = parsed;
+    } else {
+      // non-array legacy undo: do not load, preserve raw
+      preserveExistingUndo = true;
+    }
+  }
+} catch(e){ undoStack = []; preserveExistingUndo = true; }
 let saveT = 0;
 let graphWriteQueue = Promise.resolve();
 let graphEditRevision = 0;
@@ -181,7 +194,7 @@ function save(now = false){
         key: KEY, expectedRaw: graphObservedRaw,
         lockName: 'aiBrain.v1.writer',
         produce: async () => snapshot,
-        afterWrite: () => localStorage.setItem(UKEY, undo)
+        afterWrite: () => { if (!preserveExistingUndo) localStorage.setItem(UKEY, undo); }
       });
       if (!result.ok) {
         graphWriterBlocked = true;
@@ -226,6 +239,7 @@ try {
   if (graphBootReason === "NO_EXISTING_RECORD") {
     const existingUndo = localStorage.getItem(UKEY);
     if (existingUndo !== null) {
+      preserveExistingUndo = true;
       if (typeof toast === "function") toast("舊歷史尚未核對");
     }
   }
@@ -398,7 +412,7 @@ function deleteNode(id){
   mutate('delete', { nodeId:id, title:n.title }, () => { state.nodes = state.nodes.filter(x => !gone.has(x.id)); state.links = state.links.filter(l => !gone.has(l.from) && !gone.has(l.to)); });
   closePanel();
 }
-function undo(){
+function undo(){ preserveExistingUndo = false; 
   if(!graphWritable()) return false;
   if (!undoStack.length){ toast('沒有可復原的步驟'); return; }
   state = JSON.parse(undoStack.pop());
