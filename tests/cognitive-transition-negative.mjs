@@ -25,10 +25,10 @@ async function check(name, fn) {
 const blocked = (r, reason) => r?.status === 'blocked' && r.approval === 'NOT_APPROVED' &&
   (reason === undefined || r.reason === reason) ? true : r;
 
-async function setup() {
+async function setup({maxRefs} = {}) {
   const control = createControlCycle();
   const audit = createProofAudit({control});
-  const cog = createCognitiveTransition({control, audit});
+  const cog = createCognitiveTransition({control, audit, ...(maxRefs === undefined ? {} : {maxRefs})});
   await control.registerDomain({
     domain_id: 'eng-neg-synth', contract_revision: 'v0.1', description: 'synthetic negative domain'
   });
@@ -185,10 +185,73 @@ async function main() {
   });
   await check('calibrate revised_confidence: 0 and 1 accepted (boundary)', async () => {
     const {cog, v} = await withAction();
-    const a = await cog.calibrate(calRec(v, {revised_confidence: 0}));
+    const o = await cog.recordObservation(obsRec(v));
+    const a = await cog.calibrate(calRec(o.version, {revised_confidence: 0}));
     const b = await cog.calibrate(calRec(a.version, {revised_confidence: 1}));
     return (a.status === 'candidate_only' && b.status === 'candidate_only' &&
       b.approval === 'NOT_APPROVED') || {a, b};
+  });
+
+  await check('calibrate without O1 -> OBSERVATION_REQUIRED and no mutation', async () => {
+    const {cog, v} = await withAction();
+    const r = await cog.calibrate(calRec(v));
+    const t = cog.readTransition('trans-neg');
+    return (blocked(r, 'OBSERVATION_REQUIRED') === true &&
+      t.version === v && t.calibrations.length === 0) || {r, t};
+  });
+  await check('calibration references recorded O1 as unverified claim', async () => {
+    const {cog, v} = await withAction();
+    const o = await cog.recordObservation(obsRec(v));
+    const c = await cog.calibrate(calRec(o.version));
+    const t = cog.readTransition('trans-neg');
+    const cal = t.calibrations[0];
+    return (c.status === 'candidate_only' && cal.observation_source_ref === 'synth-obs' &&
+      cal.observation_hash === H('c') && cal.observation_verification === 'CLAIM_ONLY' &&
+      t.approval === 'NOT_APPROVED') || {c, cal};
+  });
+  await check('control advances after open -> all later writes blocked and state unchanged', async () => {
+    const {control, cog, v} = await opened();
+    const advanced = await control.proposeDirection({
+      event_id: 'evt-neg', expected_version: 1,
+      direction: 'RESEARCH_ONLY', reason: 'synthetic concurrent change'
+    });
+    const a = await cog.addDrive({
+      transition_id: 'trans-neg', expected_version: v, layer: 'NEED',
+      claim: 'synthetic hypothesis', epistemic: 'INFERRED', evidence_ref: 'ev-1'
+    });
+    const b = await cog.proposeAction(actionRec(v));
+    const c = await cog.recordObservation(obsRec(v));
+    const d = await cog.addMemoryRef(memRec(v));
+    const t = cog.readTransition('trans-neg');
+    return (advanced.status === 'candidate_only' && [a,b,c,d].every(x =>
+      blocked(x, 'PROOF_VERSION_STALE') === true) &&
+      t.version === v && t.drivers.length === 0 && t.actions.length === 0 &&
+      t.observations.length === 0 && t.memory_refs.length === 0) || {a,b,c,d,t};
+  });
+  await check('calibration after control advances -> PROOF_VERSION_STALE', async () => {
+    const {control, cog, v} = await withAction();
+    const o = await cog.recordObservation(obsRec(v));
+    await control.proposeDirection({
+      event_id: 'evt-neg', expected_version: 1,
+      direction: 'RESEARCH_ONLY', reason: 'synthetic concurrent change'
+    });
+    const result = await cog.calibrate(calRec(o.version));
+    const t = cog.readTransition('trans-neg');
+    return (blocked(result, 'PROOF_VERSION_STALE') === true &&
+      t.version === o.version && t.calibrations.length === 0) || {result,t};
+  });
+  await check('proof revised after open -> PROOF_REVISION_STALE', async () => {
+    const {audit, cog, v} = await opened();
+    const revised = await audit.recordLog({
+      proof_id: 'proof-neg', expected_revision: 1, log_id: 'log-new',
+      stream: 'WORLD_MODEL', recorded_by_claim: 'synthetic_operator',
+      record_ref: 'synthetic-log', record_hash: H('e'), summary_code: 'CANDIDATE'
+    });
+    const result = await cog.addMemoryRef(memRec(v));
+    const t = cog.readTransition('trans-neg');
+    return (revised.status === 'candidate_only' &&
+      blocked(result, 'PROOF_REVISION_STALE') === true &&
+      t.version === v && t.memory_refs.length === 0) || {revised,result,t};
   });
 
   await check('memory ref epistemic APPROVED blocked', async () => {
@@ -226,6 +289,47 @@ async function main() {
     const r = await cog.recordObservation(rec);
     const t = cog.readTransition('trans-neg');
     return (r.status === 'candidate_only' && t.times.OBSERVATION === 'UNKNOWN') || t.times;
+  });
+
+  await check('maxRefs=1 -> append blocked without orphan driver or version advance', async () => {
+    const {cog} = await setup({maxRefs: 1});
+    const opened = await cog.openTransition(openRec());
+    const res = await cog.addDrive({
+      transition_id: 'trans-neg', expected_version: opened.version,
+      layer: 'NEED', claim: 'synth', epistemic: 'INFERRED', evidence_ref: 'evid'
+    });
+    const t = cog.readTransition('trans-neg');
+    const integrity = await cog.verifyTransition('trans-neg');
+    return (opened.status === 'candidate_only' &&
+      blocked(res, 'REF_CAPACITY_REACHED') === true &&
+      t.version === 1 && t.drivers.length === 0 &&
+      integrity.local_chain_consistent === true && integrity.checked_entries === 1) || {res,t,integrity};
+  });
+  await check('readback mutations do not corrupt state or hash chain', async () => {
+    const {cog, v} = await withAction();
+    const t1 = cog.readTransition('trans-neg');
+    t1.s0.hash = H('f');
+    t1.actions[0].predicted_s1.revision = 'MUTATED';
+    t1.times.OBSERVATION = 'fake';
+    const t2 = cog.readTransition('trans-neg');
+    const integrity = await cog.verifyTransition('trans-neg');
+    return (t2.s0.hash === H('b') &&
+      t2.actions[0].predicted_s1.revision === 'V11-tested' &&
+      t2.times.OBSERVATION === 'UNKNOWN' &&
+      t2.version === v && integrity.local_chain_consistent === true) || {t2,integrity};
+  });
+  await check('changing input object after proposeAction does not change stored prediction', async () => {
+    const {cog, v} = await opened();
+    const rec = actionRec(v);
+    const result = await cog.proposeAction(rec);
+    rec.predicted_s1.revision = 'TAMPERED_AFTER_WRITE';
+    rec.assumptions.push('changed');
+    const read = cog.readTransition('trans-neg');
+    const verify = await cog.verifyTransition('trans-neg');
+    return (result.status === 'candidate_only' &&
+      read.actions[0].predicted_s1.revision === 'V11-tested' &&
+      read.actions[0].assumptions.length === 0 &&
+      verify.local_chain_consistent === true) || {read,verify};
   });
 
   await check('missing transition read blocked', async () => {

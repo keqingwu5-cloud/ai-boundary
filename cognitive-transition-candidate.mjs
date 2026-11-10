@@ -52,7 +52,27 @@ export function createCognitiveTransition({
     return allowed.includes(value) ? null : 'EPISTEMIC_INVALID';
   }
 
+  // Pin the exact proof/control source used when the transition opened.
+  // This is local version consistency, NOT recipient identity or proof authenticity.
+  function evidenceGate(t) {
+    const ev = control.readEvent(t.event_id);
+    if (ev.status !== 'candidate_only' || ev.version !== t.control_version ||
+        ev.observed_hash !== t.control_observed_hash)
+      return denied('PROOF_VERSION_STALE');
+    const pr = audit.readProof(t.proof_id);
+    if (pr.status !== 'candidate_only' || pr.event_id !== t.event_id)
+      return denied('PROOF_MISMATCH');
+    if (pr.control_snapshot_stale || pr.control_version !== t.control_version)
+      return denied('PROOF_VERSION_STALE');
+    if (pr.revision !== t.proof_revision ||
+        pr.history_head_hash !== t.proof_head_hash)
+      return denied('PROOF_REVISION_STALE');
+    return null;
+  }
+
   async function append(t, kind, details) {
+    const staleAtStart = evidenceGate(t);
+    if (staleAtStart) return staleAtStart;
     if (totalRefs >= maxRefs) return denied('REF_CAPACITY_REACHED');
     const entry = {
       transition_id: t.id,
@@ -63,6 +83,8 @@ export function createCognitiveTransition({
     };
     const hash = await sha256(stableJson(entry));
     if (t.version !== entry.sequence - 1) return denied('VERSION_CONFLICT');
+    const staleAfterHash = evidenceGate(t);
+    if (staleAfterHash) return staleAfterHash;
     if (totalRefs >= maxRefs) return denied('REF_CAPACITY_REACHED');
     t.history.push(Object.freeze({...entry, hash}));
     t.version++;
@@ -90,6 +112,8 @@ export function createCognitiveTransition({
       return denied('PROOF_MISMATCH');
     if (pr.control_snapshot_stale || pr.control_version !== ev.version)
       return denied('PROOF_VERSION_STALE');
+    if (!Number.isInteger(pr.revision) || !HEX.test(pr.history_head_hash))
+      return denied('PROOF_MISMATCH');
 
     if (transitions.has(record.transition_id))
       return denied('TRANSITION_ID_COLLISION');
@@ -100,6 +124,10 @@ export function createCognitiveTransition({
       event_id: record.event_id,
       proof_id: record.proof_id,
       project_id: record.project_id,
+      control_version: ev.version,
+      control_observed_hash: ev.observed_hash,
+      proof_revision: pr.revision,
+      proof_head_hash: pr.history_head_hash,
       s0: freeze({revision: record.s0_revision, hash: record.s0_hash, epistemic: 'OBSERVED'}),
       drivers: [],
       actions: [],
@@ -225,9 +253,16 @@ export function createCognitiveTransition({
 
     const pred = t.predictions.find(p => p.action_id === record.action_id);
     if (!pred) return denied('PREDICTION_NOT_FOUND');
+    // Calibration is impossible without an O1 record for this transition.
+    // The O1 source remains a claim: external evidence authenticity is not verified.
+    const o1 = t.observations.at(-1);
+    if (!o1) return denied('OBSERVATION_REQUIRED');
 
     const c = freeze({
       action_id: record.action_id,
+      observation_source_ref: o1.source_ref,
+      observation_hash: o1.hash,
+      observation_verification: 'CLAIM_ONLY',
       error_summary: record.error_summary,
       counter_evidence_ref: record.counter_evidence_ref ?? null,
       revised_confidence: record.revised_confidence,
