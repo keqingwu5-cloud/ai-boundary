@@ -25,10 +25,10 @@ async function check(name, fn) {
 const blocked = (r, reason) => r?.status === 'blocked' && r.approval === 'NOT_APPROVED' &&
   (reason === undefined || r.reason === reason) ? true : r;
 
-async function setup() {
+async function setup({maxRefs} = {}) {
   const control = createControlCycle();
   const audit = createProofAudit({control});
-  const cog = createCognitiveTransition({control, audit});
+  const cog = createCognitiveTransition({control, audit, ...(maxRefs === undefined ? {} : {maxRefs})});
   await control.registerDomain({
     domain_id: 'eng-neg-synth', contract_revision: 'v0.1', description: 'synthetic negative domain'
   });
@@ -289,6 +289,47 @@ async function main() {
     const r = await cog.recordObservation(rec);
     const t = cog.readTransition('trans-neg');
     return (r.status === 'candidate_only' && t.times.OBSERVATION === 'UNKNOWN') || t.times;
+  });
+
+  await check('maxRefs=1 -> append blocked without orphan driver or version advance', async () => {
+    const {cog} = await setup({maxRefs: 1});
+    const opened = await cog.openTransition(openRec());
+    const res = await cog.addDrive({
+      transition_id: 'trans-neg', expected_version: opened.version,
+      layer: 'NEED', claim: 'synth', epistemic: 'INFERRED', evidence_ref: 'evid'
+    });
+    const t = cog.readTransition('trans-neg');
+    const integrity = await cog.verifyTransition('trans-neg');
+    return (opened.status === 'candidate_only' &&
+      blocked(res, 'REF_CAPACITY_REACHED') === true &&
+      t.version === 1 && t.drivers.length === 0 &&
+      integrity.local_chain_consistent === true && integrity.checked_entries === 1) || {res,t,integrity};
+  });
+  await check('readback mutations do not corrupt state or hash chain', async () => {
+    const {cog, v} = await withAction();
+    const t1 = cog.readTransition('trans-neg');
+    t1.s0.hash = H('f');
+    t1.actions[0].predicted_s1.revision = 'MUTATED';
+    t1.times.OBSERVATION = 'fake';
+    const t2 = cog.readTransition('trans-neg');
+    const integrity = await cog.verifyTransition('trans-neg');
+    return (t2.s0.hash === H('b') &&
+      t2.actions[0].predicted_s1.revision === 'V11-tested' &&
+      t2.times.OBSERVATION === 'UNKNOWN' &&
+      t2.version === v && integrity.local_chain_consistent === true) || {t2,integrity};
+  });
+  await check('changing input object after proposeAction does not change stored prediction', async () => {
+    const {cog, v} = await opened();
+    const rec = actionRec(v);
+    const result = await cog.proposeAction(rec);
+    rec.predicted_s1.revision = 'TAMPERED_AFTER_WRITE';
+    rec.assumptions.push('changed');
+    const read = cog.readTransition('trans-neg');
+    const verify = await cog.verifyTransition('trans-neg');
+    return (result.status === 'candidate_only' &&
+      read.actions[0].predicted_s1.revision === 'V11-tested' &&
+      read.actions[0].assumptions.length === 0 &&
+      verify.local_chain_consistent === true) || {read,verify};
   });
 
   await check('missing transition read blocked', async () => {
