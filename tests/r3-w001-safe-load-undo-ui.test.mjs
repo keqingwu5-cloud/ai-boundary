@@ -37,7 +37,7 @@ function runFullBoot(store) {
     localStorage: store,
     console,
     clearTimeout: () => {},
-    setTimeout: (fn) => { fn(); return 1; },
+    setTimeout: (fn, ms) => { setTimeout(fn, ms || 0); return 1; },
     toast: () => {},
     flashSaved: () => {},
     lockedCompareWrite: async (opts) => {
@@ -66,10 +66,19 @@ function runFullBoot(store) {
     globalThis.bootResult = {
       reason: graphBootReason,
       blocked: graphWriterBlocked,
-      raw: graphObservedRaw
+      raw: graphObservedRaw,
+      queue: graphWriteQueue
     };
   `, c);
   return c.bootResult;
+}
+
+async function settle(result) {
+  if (result && result.queue && typeof result.queue.then === 'function') {
+    try { await result.queue; } catch(e){}
+  }
+  await new Promise(r => setTimeout(r, 80));
+  await new Promise(r => setTimeout(r, 0));
 }
 
 let passed = 0;
@@ -85,31 +94,34 @@ async function test(name, fn) {
   }
 }
 
-await test('A01 NO_EXISTING_RECORD seeds', () => {
+await test('A01 NO_EXISTING_RECORD seeds', async () => {
   const s = new Store();
   const r = runFullBoot(s);
+  await settle(r);
   assert.equal(r.reason, 'NO_EXISTING_RECORD');
   assert.equal(r.blocked, false);
 });
 
-await test('A02 bad JSON + undo preserved, no writes', () => {
+await test('A02 bad JSON + undo preserved, no writes', async () => {
   const bad = '{"brains":[BROKEN';
   const undo = JSON.stringify([{id:'u1'},{id:'u2'}]);
   const s = new Store({'aiBrain.v1': bad, 'aiBrain.v1.undo': undo});
   const before = s.events.length;
   const r = runFullBoot(s);
+  await settle(r);
   assert.equal(r.reason, 'EXISTING_INVALID');
   assert.equal(r.blocked, true);
   assert.equal(s.getItem('aiBrain.v1'), bad);
   assert.equal(s.getItem('aiBrain.v1.undo'), undo);
-  assert.equal(s.events.length, before);
+  assert.equal(s.events.length, before, 'expected zero writes after settle');
 });
 
-await test('A03 missing main + undo preserved, no writes', () => {
+await test('A03 missing main + undo preserved, no writes', async () => {
   const bad = '{"brains":[],"nodes":[],"links":[],"history":[]}';
   const undo = '[{"ts":1}]';
   const s = new Store({'aiBrain.v1': bad, 'aiBrain.v1.undo': undo});
   const r = runFullBoot(s);
+  await settle(r);
   assert.equal(r.reason, 'EXISTING_INVALID');
   assert.equal(r.blocked, true);
   assert.equal(s.getItem('aiBrain.v1'), bad);
@@ -117,11 +129,12 @@ await test('A03 missing main + undo preserved, no writes', () => {
   assert.equal(s.events.filter(e => e.op === 'setItem' || e.op === 'removeItem').length, 0);
 });
 
-await test('A04 READ_UNAVAILABLE leaves undo untouched', () => {
+await test('A04 READ_UNAVAILABLE leaves undo untouched', async () => {
   const undo = '[{"safe":true}]';
   const s = new Store({'aiBrain.v1.undo': undo});
   s.badReads = true;
   const r = runFullBoot(s);
+  await settle(r);
   s.badReads = false;
   assert.equal(r.reason, 'READ_UNAVAILABLE');
   assert.equal(r.blocked, true);
@@ -129,25 +142,25 @@ await test('A04 READ_UNAVAILABLE leaves undo untouched', () => {
   assert.equal(s.events.length, 0);
 });
 
-await test('A05 structural guards present', () => {
+await test('A05 structural guards present', async () => {
   assert.ok(app.includes('if(!graphWritable()) return'));
   assert.ok(app.includes('graphWriterBlocked'));
 });
 
-await test('A06 download path present (full jsdom NOT_RUN)', () => {
+await test('A06 download path present (full jsdom NOT_RUN)', async () => {
   assert.ok(app.includes('new Blob([graphObservedRaw]'));
   assert.ok(app.includes('ai-brain-original-unreadable.txt'));
   console.log('  A06 full jsdom click+byte compare = NOT_RUN; Safari=NOT_RUN');
 });
 
-await test('A07 BLOCKED_RECOVERY_PATH', () => {
+await test('A07 BLOCKED_RECOVERY_PATH', async () => {
   assert.ok(app.includes('function importJSON'));
   console.log('  A07: BLOCKED_RECOVERY_PATH');
   console.log('  W001-B (not implemented): explicit restore with snapshot/readback.');
 });
 
-await test('A08 additive baseline note', () => {
+await test('A08 additive baseline note', async () => {
   console.log('  A08: existing r3 tests must remain green in CI.');
 });
 
-console.log(`\\nFixed W001 tests: ${passed} passed`);
+console.log(`\\nW001 tests: ${passed} passed`);
