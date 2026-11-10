@@ -25,19 +25,51 @@ class Store {
   }
 }
 
-function runBoot(store) {
-  const c = { localStorage: store, console };
+function extractBetween(src, startMarker, endMarker) {
+  const i = src.indexOf(startMarker);
+  const j = src.indexOf(endMarker, i + startMarker.length);
+  if (i < 0 || j < i) throw new Error('marker not found: ' + startMarker);
+  return src.slice(i, j);
+}
+
+function runFullBoot(store) {
+  const c = {
+    localStorage: store,
+    console,
+    clearTimeout: () => {},
+    setTimeout: (fn) => { fn(); return 1; },
+    toast: () => {},
+    flashSaved: () => {},
+    lockedCompareWrite: async (opts) => {
+      if (opts && opts.produce) {
+        const val = await opts.produce();
+        store.setItem(opts.key, val);
+        if (opts.afterWrite) opts.afterWrite();
+        return { ok: true, raw: val };
+      }
+      return { ok: false, reason: 'MOCK_FAIL' };
+    }
+  };
   vm.createContext(c);
-  const start = app.indexOf("let graphObservedRaw = null");
-  const end = app.indexOf("/* concept layer migration");
-  const boot = app.slice(start, end);
+
+  const validFn = extractBetween(app, 'function valid(s){', '/* R3-C01');
+  const loadAndVars = extractBetween(app, 'let graphObservedRaw = null', '/* concept layer migration');
+  const bootTail = extractBetween(app, 'let state = migrate(load() || seedState());', 'const listeners = {};');
+
   vm.runInContext(`
-    const KEY = 'aiBrain.v1';
-    function valid(s){ return s && Array.isArray(s.brains) && Array.isArray(s.nodes) && Array.isArray(s.links) && Array.isArray(s.history) && s.brains.some(b => b.id === 'main'); }
-    ${boot}
-    globalThis.result = { reason: graphBootReason, raw: graphObservedRaw, loaded: load() };
+    const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
+    ${validFn}
+    ${loadAndVars}
+    function seedState(){ return { version:1, brains:[{id:'main'}], nodes:[], links:[], history:[] }; }
+    function migrate(st){ return st; }
+    ${bootTail}
+    globalThis.bootResult = {
+      reason: graphBootReason,
+      blocked: graphWriterBlocked,
+      raw: graphObservedRaw
+    };
   `, c);
-  return c.result;
+  return c.bootResult;
 }
 
 let passed = 0;
@@ -47,68 +79,75 @@ async function test(name, fn) {
     passed++;
     console.log('PASS: ' + name);
   } catch (err) {
-    console.error('FAIL: ' + name + ' ' + (err?.stack || err));
+    console.error('FAIL: ' + name);
+    console.error(err?.stack || err);
     process.exitCode = 1;
   }
 }
 
-await test('A02 bad JSON preserves both graph and undo raw, no writes', () => {
-  const badGraph = '{"brains":[BROKEN';
-  const undoRaw = JSON.stringify([{ id: 'u1' }, { id: 'u2' }]);
-  const s = new Store({ 'aiBrain.v1': badGraph, 'aiBrain.v1.undo': undoRaw });
-  const beforeEvents = s.events.length;
-  const r = runBoot(s);
-  assert.equal(r.reason, 'EXISTING_INVALID');
-  assert.equal(s.getItem('aiBrain.v1'), badGraph);
-  assert.equal(s.getItem('aiBrain.v1.undo'), undoRaw);
-  assert.equal(s.events.length, beforeEvents);
+await test('A01 NO_EXISTING_RECORD seeds', () => {
+  const s = new Store();
+  const r = runFullBoot(s);
+  assert.equal(r.reason, 'NO_EXISTING_RECORD');
+  assert.equal(r.blocked, false);
 });
 
-await test('A03 missing main preserves raw, no writes', () => {
-  const badGraph = '{"brains":[],"nodes":[],"links":[],"history":[]}';
-  const undoRaw = '[{"ts":1}]';
-  const s = new Store({ 'aiBrain.v1': badGraph, 'aiBrain.v1.undo': undoRaw });
-  const r = runBoot(s);
+await test('A02 bad JSON + undo preserved, no writes', () => {
+  const bad = '{"brains":[BROKEN';
+  const undo = JSON.stringify([{id:'u1'},{id:'u2'}]);
+  const s = new Store({'aiBrain.v1': bad, 'aiBrain.v1.undo': undo});
+  const before = s.events.length;
+  const r = runFullBoot(s);
   assert.equal(r.reason, 'EXISTING_INVALID');
-  assert.equal(s.getItem('aiBrain.v1'), badGraph);
-  assert.equal(s.getItem('aiBrain.v1.undo'), undoRaw);
+  assert.equal(r.blocked, true);
+  assert.equal(s.getItem('aiBrain.v1'), bad);
+  assert.equal(s.getItem('aiBrain.v1.undo'), undo);
+  assert.equal(s.events.length, before);
+});
+
+await test('A03 missing main + undo preserved, no writes', () => {
+  const bad = '{"brains":[],"nodes":[],"links":[],"history":[]}';
+  const undo = '[{"ts":1}]';
+  const s = new Store({'aiBrain.v1': bad, 'aiBrain.v1.undo': undo});
+  const r = runFullBoot(s);
+  assert.equal(r.reason, 'EXISTING_INVALID');
+  assert.equal(r.blocked, true);
+  assert.equal(s.getItem('aiBrain.v1'), bad);
+  assert.equal(s.getItem('aiBrain.v1.undo'), undo);
   assert.equal(s.events.filter(e => e.op === 'setItem' || e.op === 'removeItem').length, 0);
 });
 
-await test('A04 READ_UNAVAILABLE does not touch undo or seed', () => {
-  const undoRaw = '[{"safe":true}]';
-  const s = new Store({ 'aiBrain.v1.undo': undoRaw });
+await test('A04 READ_UNAVAILABLE leaves undo untouched', () => {
+  const undo = '[{"safe":true}]';
+  const s = new Store({'aiBrain.v1.undo': undo});
   s.badReads = true;
-  const r = runBoot(s);
+  const r = runFullBoot(s);
+  s.badReads = false;
   assert.equal(r.reason, 'READ_UNAVAILABLE');
-  assert.equal(s.getItem('aiBrain.v1.undo'), undoRaw);
+  assert.equal(r.blocked, true);
+  assert.equal(s.getItem('aiBrain.v1.undo'), undo);
   assert.equal(s.events.length, 0);
 });
 
-await test('A05 read-only blocks persistence and success toasts (simulated)', () => {
+await test('A05 structural guards present', () => {
   assert.ok(app.includes('if(!graphWritable()) return'));
   assert.ok(app.includes('graphWriterBlocked'));
-  console.log('  (A05 structural guard confirmed; full toast intercept marked for BOT③ independent run)');
 });
 
-await test('A06 simulated DOM download of graphRawBackup matches original raw (NOT_RUN on real Safari)', () => {
-  assert.ok(app.includes("new Blob([graphObservedRaw]"));
-  assert.ok(app.includes("ai-brain-original-unreadable.txt"));
-  console.log('  (A06 simulated click path confirmed in source; real Blob byte comparison requires jsdom in CI. Safari=NOT_RUN)');
+await test('A06 download path present (full jsdom NOT_RUN)', () => {
+  assert.ok(app.includes('new Blob([graphObservedRaw]'));
+  assert.ok(app.includes('ai-brain-original-unreadable.txt'));
+  console.log('  A06 full jsdom click+byte compare = NOT_RUN; Safari=NOT_RUN');
 });
 
-await test('A07 recovery path is BLOCKED_RECOVERY_PATH (W001-B design note)', () => {
+await test('A07 BLOCKED_RECOVERY_PATH', () => {
   assert.ok(app.includes('function importJSON'));
-  console.log('  BLOCKED_RECOVERY_PATH: importJSON returns early when !graphWritable().');
-  console.log('  W001-B design (not implemented in this PR):');
-  console.log('  - Add explicit "Restore from backup" UI that first snapshots current raw,');
-  console.log('  - validates backup format/version, writes, then readback-confirms.');
-  console.log('  - On any failure, restores the original raw. User confirmation required.');
+  console.log('  A07: BLOCKED_RECOVERY_PATH');
+  console.log('  W001-B (not implemented): explicit restore with snapshot/readback.');
 });
 
-await test('A08 baseline: existing r3 tests should still pass (run separately)', () => {
-  console.log('  Baseline: run node tests/r3-rootcause-userflow.test.mjs and node tests/r3-protected-writers.test.mjs before/after.');
-  console.log('  Expected: no regression. This file is additive.');
+await test('A08 additive baseline note', () => {
+  console.log('  A08: existing r3 tests must remain green in CI.');
 });
 
-console.log(`\nW001 tests completed. Passed: ${passed}`);
+console.log(`\\nFixed W001 tests: ${passed} passed`);
