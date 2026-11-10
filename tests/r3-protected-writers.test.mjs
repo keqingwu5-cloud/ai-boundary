@@ -36,7 +36,7 @@ assert(sourceMemory.includes('if(stored()!==previous)throw Error("還原確認�
 function graphTab(storage,locks,state){
   const fragment=between(sourceApp,'let saveT = 0;','\nsave(true);');
   const c={localStorage:storage,lockedCompareWrite,navigator:{locks},
-    graphObservedRaw:storage.getItem('aiBrain.v1'),
+    graphObservedRaw:storage.getItem('aiBrain.v1'), graphBootReason:'EXISTING_VALID',
     undoStack:[],state,clearTimeout:()=>{},setTimeout:()=>{throw Error('unexpected timer');},
     flashSaved:()=>{},toast:()=>{}};
   vm.createContext(c);
