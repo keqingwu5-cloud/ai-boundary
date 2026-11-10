@@ -19,12 +19,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Reproduce baseline writer risks with synthetic storage
-        run: node tests/r3-main-writer-race.repro.test.mjs
+      - name: Run baseline reproducer OR patched-source regression
+        shell: bash
+        run: |
+          if [ -f r3-writer-guard.mjs ] &&
+             grep -q 'lockedCompareWrite' app.js &&
+             grep -q 'withVaultWriter' memory.js; then
+            echo "BASELINE_REPRO_NOT_APPLICABLE: patched-source candidate; run reverse regressions"
+            node tests/r3-protected-writers.test.mjs
+          else
+            echo "BASELINE_RISK_REPRODUCTION_ONLY: no protected-source markers"
+            node tests/r3-main-writer-race.repro.test.mjs
+          fi
       - name: Write explicit non-acceptance report
         if: always()
         run: |
           echo "### R3 risk-reproduction job" >> "$GITHUB_STEP_SUMMARY"
-          echo "A PASS means the specified **known risk was reproduced**, not that it was repaired or accepted." >> "$GITHUB_STEP_SUMMARY"
+          echo "Baseline PASS = known risk reproduced. Patched branch PASS = synthetic reverse tests only. They are different contracts." >> "$GITHUB_STEP_SUMMARY"
           echo "Main user data is never accessed; all storage and ciphertext are synthetic." >> "$GITHUB_STEP_SUMMARY"
           echo "BOT3 independent review, browser multi-tab verification, restore and deploy gates remain NOT_VERIFIED / HOLD." >> "$GITHUB_STEP_SUMMARY"

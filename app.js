@@ -1,6 +1,7 @@
 /* 3D 動態認知大腦 v1 — plain Three.js (ES modules, vendored), no build step. */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { lockedCompareWrite } from './r3-writer-guard.mjs';
 
 /* ================= constants ================= */
 const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
@@ -67,7 +68,8 @@ function seedState(){
   return st;
 }
 function valid(s){ return s && Array.isArray(s.brains) && Array.isArray(s.nodes) && Array.isArray(s.links) && Array.isArray(s.history) && s.brains.some(b => b.id === 'main'); }
-function load(){ try { const s = JSON.parse(localStorage.getItem(KEY)); return valid(s) ? s : null; } catch(e){ return null; } }
+let graphObservedRaw = null;
+function load(){ try { graphObservedRaw = localStorage.getItem(KEY); const s = JSON.parse(graphObservedRaw); return valid(s) ? s : null; } catch(e){ return null; } }
 /* concept layer migration: adds concepts[] / processPattern to old saves without touching user edits */
 function seedKey(id){ const m = /^n_(q\d+)(?:_e(\d+))?$/.exec(id); return m ? (m[2] !== undefined ? m[1] + ':e' + m[2] : m[1]) : null; }
 function migrate(st){
@@ -108,9 +110,39 @@ function pickColor(st){ const used = new Set(Object.values(st.concepts || {}).ma
 let state = migrate(load() || seedState());
 let undoStack = []; try { undoStack = JSON.parse(localStorage.getItem(UKEY) || '[]'); } catch(e){ undoStack = []; }
 let saveT = 0;
+let graphWriteQueue = Promise.resolve();
+let graphWriterBlocked = false;
 function save(now = false){
   clearTimeout(saveT);
-  const f = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); localStorage.setItem(UKEY, JSON.stringify(undoStack.slice(-12))); flashSaved(); } catch(e){ toast('⚠ 儲存失敗：' + e.message); } };
+  const f = () => {
+    graphWriteQueue = graphWriteQueue.then(async () => {
+      if (graphWriterBlocked) return;
+      const snapshot = JSON.stringify(state);
+      const undo = JSON.stringify(undoStack.slice(-12));
+      const result = await lockedCompareWrite({
+        storage: localStorage, locks: globalThis.navigator?.locks,
+        key: KEY, expectedRaw: graphObservedRaw,
+        lockName: 'aiBrain.v1.writer',
+        produce: async () => snapshot,
+        afterWrite: () => localStorage.setItem(UKEY, undo)
+      });
+      if (!result.ok) {
+        graphWriterBlocked = true;
+        toast('⚠ 主腦資料寫入已停止（' + result.reason + '）。請先匯出並保留資料，重新開啟後再操作。');
+        return;
+      }
+      graphObservedRaw = result.raw;
+      if (result.secondaryWarning) {
+        graphWriterBlocked = true;
+        toast('⚠ 主腦已儲存，但復原紀錄寫入失敗；請匯出完整備份並停止操作。');
+        return;
+      }
+      flashSaved();
+    }).catch(e => {
+      graphWriterBlocked = true;
+      toast('⚠ 主腦儲存異常，已停止後續寫入：' + String(e));
+    });
+  };
   now ? f() : (saveT = setTimeout(f, 250));
 }
 save(true);
