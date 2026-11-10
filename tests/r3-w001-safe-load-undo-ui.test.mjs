@@ -43,6 +43,12 @@ function runFullBoot(store, opts = {}) {
     clearTimeout: () => {},
     setTimeout: (fn, ms) => { setTimeout(fn, ms || 0); return 1; },
     toast: (msg) => { toasts.push(String(msg)); },
+    sync: () => {},
+    renderHistory: () => {},
+    renderCrumbs: () => {},
+    closePanel: () => {},
+    focusBrain: () => {},
+    B: (id) => ({id}),
     flashSaved: () => { flashes.push(true); },
     lockedCompareWrite: async (o) => {
       if (opts.failWrite) {
@@ -70,6 +76,7 @@ function runFullBoot(store, opts = {}) {
   // Also extract mutate / resetAll / save for post-boot calls
   const mutateFn = extractBetween(app, 'function mutate(action, payload, fn){', 'const N = id =>');
   const resetFn = extractBetween(app, 'function resetAll(){', 'function importJSON');
+  const undoFn = extractBetween(app, 'function undo(){', 'function resetAll');
 
   vm.runInContext(`
     const KEY = 'aiBrain.v1', UKEY = 'aiBrain.v1.undo';
@@ -80,6 +87,7 @@ function runFullBoot(store, opts = {}) {
     ${bootTail}
     ${mutateFn}
     ${resetFn}
+    ${undoFn}
     globalThis.bootResult = {
       reason: graphBootReason,
       blocked: graphWriterBlocked,
@@ -89,6 +97,7 @@ function runFullBoot(store, opts = {}) {
     globalThis.tryMutate = () => mutate('add', {}, () => { state.nodes.push({id:'SHOULD_NOT_APPEAR'}); });
     globalThis.tryReset = () => resetAll();
     globalThis.trySave = () => save(true);
+    globalThis.tryUndo = () => undo();
   `, c);
   return { result: c.bootResult, toasts, flashes, store, ctx: c };
 }
@@ -285,4 +294,58 @@ await test('A08 three #158 regressions exit 0', async () => {
   }
 });
 
+
+// V1.2 matrix: 6 undo kinds × 2 boot states
+const undoCases = {
+  normal: JSON.stringify([{id:'u1',ts:1},{id:'u2',ts:2}]),
+  whitespace: '[ { "id" : "u1" } ]',
+  over12: JSON.stringify(Array.from({length:20}, (_,i)=>({id:'u'+i,ts:i}))),
+  nonArray: '{"not":"array"}',
+  corrupt: '{broken',
+  // write-failure handled separately
+};
+async function assertPreserve(bootReasonSetup, undoRaw, label) {
+  const data = { 'aiBrain.v1.undo': undoRaw };
+  if (bootReasonSetup === 'EXISTING_VALID') {
+    data['aiBrain.v1'] = JSON.stringify({version:1,brains:[{id:'main'}],nodes:[],links:[],history:[]});
+  }
+  const s = new Store(data);
+  const { result, toasts, ctx } = runFullBoot(s);
+  await settle(result);
+  assert.equal(s.getItem('aiBrain.v1.undo'), undoRaw, label + ' boot must preserve undo bytes');
+  // first mutate
+  if (ctx.tryMutate) {
+    try { ctx.tryMutate(); } catch(e) { /* stubbed */ }
+    await settle(result);
+    assert.equal(s.getItem('aiBrain.v1.undo'), undoRaw, label + ' first mutate must preserve undo bytes');
+  }
+  const errors = toasts.filter(t => /TypeError|slice is not a function/i.test(t));
+  assert.equal(errors.length, 0, label + ' no TypeError');
+}
+
+await test('V1.2 matrix NO_EXISTING_RECORD × normal/whitespace/over12/nonArray/corrupt', async () => {
+  for (const [k, raw] of Object.entries(undoCases)) {
+    await assertPreserve('NO_EXISTING_RECORD', raw, 'NO_EXISTING/' + k);
+  }
+});
+
+await test('V1.2 matrix EXISTING_VALID × normal/whitespace/over12/nonArray/corrupt', async () => {
+  for (const [k, raw] of Object.entries(undoCases)) {
+    await assertPreserve('EXISTING_VALID', raw, 'EXISTING_VALID/' + k);
+  }
+});
+
+await test('V1.2 protected undo() is blocked', async () => {
+  const undo = '[ { "id" : "u1" } ]'; // whitespace → will be protected
+  const s = new Store({ 'aiBrain.v1.undo': undo });
+  const { result, toasts, ctx } = runFullBoot(s);
+  await settle(result);
+  const beforeState = s.getItem('aiBrain.v1');
+  if (ctx.tryUndo) {
+    const ret = ctx.tryUndo();
+    assert.equal(ret, false);
+  }
+  assert.equal(s.getItem('aiBrain.v1.undo'), undo);
+  assert.ok(toasts.some(t => t.includes('復原暫停')));
+});
 console.log(`\\nSUMMARY: PASS=${counts.PASS} FAIL=${counts.FAIL} NOT_RUN=${counts.NOT_RUN} BLOCKED=${counts.BLOCKED}`);
