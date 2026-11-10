@@ -104,10 +104,15 @@ async function reproduceVaultAwaitRace() {
 }
 async function reproduceWorldHistoryOverwrite() {
   const storage=new SyntheticStorage();
-  const fragment=between(source('world-model.html'),
+  // Resolve the key from the actual checked-out main source, not a test copy.
+  const worldSource=source('world-model.html');
+  const sourceKey=worldSource.match(/^\s*const\s+VERIFY_KEY\s*=\s*['"]([^'"]+)['"]\s*;/m);
+  assert(sourceKey, 'ACTUAL_WORLD_MODEL_STORAGE_KEY_NOT_FOUND');
+  const verifyKey=sourceKey[1];
+  const fragment=between(worldSource,
     'function getVerifyRows(){','function verifiedRender(){');
   const c={localStorage:storage};vm.createContext(c);
-  vm.runInContext("const VERIFY_KEY='worldModel.verify.v1';\n" +
+  vm.runInContext("const VERIFY_KEY=" + JSON.stringify(verifyKey) + ";\n" +
     fragment + "\nglobalThis.readRows=getVerifyRows;globalThis.saveRows=saveVerifyRows;",c);
   const original=[{id:'case-1',hypothesis:'PREDICTION_ORIGINAL',status:'待驗證'}];
   const altered=[{id:'case-1',hypothesis:'PREDICTION_ORIGINAL',status:'假設被反例推翻（自評）'}];
@@ -116,7 +121,7 @@ async function reproduceWorldHistoryOverwrite() {
   const now=JSON.stringify(c.readRows());
   assert(now.includes('假設被反例推翻（自評）'));
   assert(!now.includes('待驗證'));
-  assert.equal(storage.events.filter(e=>e.key==='worldModel.verify.v1').length,2);
+  assert.equal(storage.events.filter(e=>e.key===verifyKey).length,2);
   assert.equal(storage.m.size,1);
   return 'current v1 record has only the latest row; no version event retained in this key';
 }
