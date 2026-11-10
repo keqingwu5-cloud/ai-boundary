@@ -11,7 +11,7 @@ function notify(msg,failed){
  el.textContent=msg;document.body.appendChild(el);
  el.addEventListener('click',()=>el.remove());setTimeout(()=>el.remove(),14000);
 }
-function importNow(){
+async function importNow(){
  try{
   const payload=JSON.parse(localStorage.getItem(PENDING)||'null');
   if(!payload||payload.schemaVersion!==1||payload.experimentId!==EXPERIMENT||payload.totalTests!==50||
@@ -57,8 +57,16 @@ function importNow(){
   const final=brain.getState();
   if(final.nodes.length<st.nodes.length+(!existing?6:0)||final.links.length<st.links.length)
    throw Error('匯入後節點／關聯一致性驗證未通過；請使用備份核對');
+  // The legacy API returns node IDs before debounce/async storage confirmation.
+  // Fail closed if the main brain has no persistence acknowledgement contract.
+  if(typeof brain.confirmPersistence!=='function')
+    throw Error('主腦尚未提供持久化成功回執；保留待匯入資料，請在安全版本重新嘗試');
+  const receipt=await brain.confirmPersistence();
+  if(!receipt || receipt.ok!==true)
+    throw Error('主腦尚未成功儲存：'+String(receipt?.reason||'UNKNOWN')+'；待匯入資料已保留');
+  // No deletion or "success" message before the exact graph writer has read back.
   localStorage.removeItem(PENDING);
-  notify('已同步音效研究：50 組測試摘要＋5 個音型候選方向。舊主腦節點已保留。點這裡可關閉。',false);
+  notify('已同步並確認儲存：50 組測試摘要＋5 個音型候選方向。舊主腦節點已保留。點這裡可關閉。',false);
   brain.focusNode(rootId);
  }catch(err){
   notify('音訊研究匯入未完成：'+(err&&err.message||String(err))+'。待匯入資料仍保留，請檢查主腦備份。',true);
