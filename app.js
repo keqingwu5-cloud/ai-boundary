@@ -241,8 +241,12 @@ function save(now = false){
   now ? f() : (saveT = setTimeout(f, 250));
 }
 /* Never replace corrupt/unreadable existing graph data with seed content. */
-if (graphBootReason === 'NO_EXISTING_RECORD' && existingUndoRaw !== null && typeof toast === 'function') toast('舊歷史尚未核對');
-else if (preserveExistingUndo && typeof toast === 'function') toast('舊歷史尚未核對');
+if (graphBootReason === 'NO_EXISTING_RECORD' && existingUndoRaw !== null) {
+  preserveExistingUndo = true;
+  if (typeof toast === 'function') toast('舊歷史尚未核對');
+} else if (preserveExistingUndo && typeof toast === 'function') {
+  toast('舊歷史尚未核對');
+}
 if(!graphWriterBlocked) save(true);
 showGraphWriteStatus();
 
