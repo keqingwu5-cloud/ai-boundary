@@ -34,7 +34,7 @@ function extractBetween(src, startMarker, endMarker) {
   return src.slice(i, j);
 }
 
-function runFullBoot(store) {
+function runFullBoot(store, opts = {}) {
   const toasts = [];
   const flashes = [];
   const c = {
@@ -44,11 +44,19 @@ function runFullBoot(store) {
     setTimeout: (fn, ms) => { setTimeout(fn, ms || 0); return 1; },
     toast: (msg) => { toasts.push(String(msg)); },
     flashSaved: () => { flashes.push(true); },
-    lockedCompareWrite: async (opts) => {
-      if (opts && opts.produce) {
-        const val = await opts.produce();
-        store.setItem(opts.key, val);
-        if (opts.afterWrite) opts.afterWrite();
+    lockedCompareWrite: async (o) => {
+      if (opts.failWrite) {
+        if (opts.failWrite === 'afterWrite') {
+          const val = o && o.produce ? await o.produce() : '{}';
+          store.setItem(o.key, val);
+          throw new Error('afterWrite_forced_fail');
+        }
+        return { ok: false, reason: 'FORCED_FAIL' };
+      }
+      if (o && o.produce) {
+        const val = await o.produce();
+        store.setItem(o.key, val);
+        if (o.afterWrite) o.afterWrite();
         return { ok: true, raw: val };
       }
       return { ok: false, reason: 'MOCK_FAIL' };
@@ -124,18 +132,24 @@ await test('A01 NO_EXISTING_RECORD + compact undo array seeds, preserves undo, s
   assert.equal(errorToasts.length, 0, 'no error toasts');
 });
 
-await test('A01-reverse seed-write failure must FAIL A01 assertions', async () => {
-  const undo = JSON.stringify([{id:'u1',ts:1}]);
+await test('A01-reverse forced write failure makes positive A01 conditions fail', async () => {
+  const undo = JSON.stringify([{id:'u1',ts:1},{id:'u2',ts:2}]);
   const s = new Store({ 'aiBrain.v1.undo': undo });
-  // Force write failure by replacing lockedCompareWrite behavior via a one-off boot
-  const orig = runFullBoot;
-  // Direct assertion: if aiBrain.v1 is never written, the positive A01 check fails
-  let threw = false;
-  try {
-    assert.ok(s.getItem('aiBrain.v1'), 'seed must be written');
-  } catch (e) { threw = true; }
-  assert.equal(threw, true, 'A01 positive assert must fail when seed is not written');
-  console.log('  A01-reverse: confirmed positive A01 assert fails when seed missing');
+  const { result } = runFullBoot(s, { failWrite: true });
+  await settle(result);
+  // Positive A01 conditions must NOT hold
+  const seeded = s.getItem('aiBrain.v1');
+  let seedOk = false;
+  if (seeded) {
+    try {
+      const p = JSON.parse(seeded);
+      seedOk = !!(p && Array.isArray(p.brains) && p.brains.some(b => b.id === 'main'));
+    } catch(e) { seedOk = false; }
+  }
+  assert.equal(seedOk, false, 'seed must not be validly written when write is forced to fail');
+  assert.equal(!!seeded, false, 'no seed key should be present');
+  assert.equal(s.getItem('aiBrain.v1.undo'), undo, 'undo must still be untouched');
+  console.log('  A01-reverse: real boot with failing writer → positive A01 conditions do not hold');
 });
 
 await test('A02 bad JSON + undo preserved, zero events', async () => {
