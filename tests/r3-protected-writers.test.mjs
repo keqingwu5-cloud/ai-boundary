@@ -34,7 +34,7 @@ assert(sourceMemory.includes('await withVaultWriter(async()=>{'));
 assert(sourceMemory.includes('if(stored()!==previous)throw Error("還原確認期間其他分頁已更動記憶庫；拒絕覆蓋。")'));
 
 function graphTab(storage,locks,state){
-  const fragment=between(sourceApp,'let saveT = 0;','\nsave(true);');
+  const fragment=between(sourceApp,'let saveT = 0;','/* Never replace corrupt/unreadable existing graph data with seed content. */');
   const c={localStorage:storage,lockedCompareWrite,navigator:{locks},
     graphObservedRaw:storage.getItem('aiBrain.v1'), graphBootReason:'EXISTING_VALID',
     undoStack:[],state,clearTimeout:()=>{},setTimeout:()=>{throw Error('unexpected timer');},
