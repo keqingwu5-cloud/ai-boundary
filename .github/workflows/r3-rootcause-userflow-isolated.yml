@@ -6,7 +6,9 @@ on:
       - 'app.js'
       - 'index.html'
       - 'audio-lab-import.js'
+      - 'memory.js'
       - 'tests/r3-rootcause-userflow.test.mjs'
+      - 'tests/r3-vault-restore-stages.test.mjs'
       - 'tests/r3-protected-writers.test.mjs'
       - '.github/workflows/r3-rootcause-userflow-isolated.yml'
   workflow_dispatch:
@@ -24,6 +26,8 @@ jobs:
           node-version: '22'
       - name: Test boot corruption classification and audio persistence receipt
         run: node tests/r3-rootcause-userflow.test.mjs
+      - name: Test vault post-write restore failure statuses
+        run: node tests/r3-vault-restore-stages.test.mjs
       - name: Recheck existing patched writer race tests
         run: node tests/r3-protected-writers.test.mjs
       - name: Check modified application syntax
