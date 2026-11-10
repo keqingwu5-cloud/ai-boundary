@@ -1,0 +1,26 @@
+name: triad-duel-v02-isolated
+
+on:
+  pull_request:
+    paths:
+      - 'triad-duel-v02-candidate.mjs'
+      - 'tests/triad-duel-v02-synthetic.mjs'
+      - '.github/workflows/triad-duel-v02-isolated.yml'
+  workflow_dispatch:
+
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run triad-duel V0.2 synthetic tests
+        run: node tests/triad-duel-v02-synthetic.mjs
+      - name: Upload synthetic evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: triad-duel-v02-synthetic
+          path: tests/triad-duel-v02-synthetic.mjs
+          retention-days: 7
