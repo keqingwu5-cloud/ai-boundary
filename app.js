@@ -126,14 +126,17 @@ function pickColor(st){ const used = new Set(Object.values(st.concepts || {}).ma
 let state = migrate(load() || seedState());
 let undoStack = [];
 let preserveExistingUndo = false;
+let existingUndoRaw = null;
 try {
-  const rawUndo = localStorage.getItem(UKEY);
-  if (rawUndo !== null) {
-    const parsed = JSON.parse(rawUndo);
+  existingUndoRaw = localStorage.getItem(UKEY);
+  if (existingUndoRaw !== null) {
+    const parsed = JSON.parse(existingUndoRaw);
     if (Array.isArray(parsed)) {
       undoStack = parsed;
+      // Decide BEFORE any save: if raw !== compact slice(-12) serialization, preserve
+      const compact = JSON.stringify(parsed.slice(-12));
+      if (existingUndoRaw !== compact) preserveExistingUndo = true;
     } else {
-      // non-array legacy undo: do not load, preserve raw
       preserveExistingUndo = true;
     }
   }
@@ -194,7 +197,13 @@ function save(now = false){
         key: KEY, expectedRaw: graphObservedRaw,
         lockName: 'aiBrain.v1.writer',
         produce: async () => snapshot,
-        afterWrite: () => { if (!preserveExistingUndo) localStorage.setItem(UKEY, undo); }
+        afterWrite: () => {
+          if (preserveExistingUndo) {
+            if (typeof toast === 'function') toast('舊歷史尚未核對，本次復原紀錄未寫入；恢復請用 W001-B');
+          } else {
+            localStorage.setItem(UKEY, undo);
+          }
+        }
       });
       if (!result.ok) {
         graphWriterBlocked = true;
@@ -232,18 +241,11 @@ function save(now = false){
   now ? f() : (saveT = setTimeout(f, 250));
 }
 /* Never replace corrupt/unreadable existing graph data with seed content. */
+if (graphBootReason === 'NO_EXISTING_RECORD' && existingUndoRaw !== null && typeof toast === 'function') toast('舊歷史尚未核對');
+else if (preserveExistingUndo && typeof toast === 'function') toast('舊歷史尚未核對');
 if(!graphWriterBlocked) save(true);
 showGraphWriteStatus();
-/* A01: NO_EXISTING_RECORD but pre-existing undo → surface prompt, do not touch undo bytes */
-try {
-  if (graphBootReason === "NO_EXISTING_RECORD") {
-    const existingUndo = localStorage.getItem(UKEY);
-    if (existingUndo !== null) {
-      preserveExistingUndo = true;
-      if (typeof toast === "function") toast("舊歷史尚未核對");
-    }
-  }
-} catch(e) {}
+
 const listeners = {};
 function emit(ev, data){ (listeners[ev] || []).forEach(f => { try { f(data); } catch(e){ console.error(e); } }); }
 function mutate(action, payload, fn){
@@ -412,7 +414,11 @@ function deleteNode(id){
   mutate('delete', { nodeId:id, title:n.title }, () => { state.nodes = state.nodes.filter(x => !gone.has(x.id)); state.links = state.links.filter(l => !gone.has(l.from) && !gone.has(l.to)); });
   closePanel();
 }
-function undo(){ preserveExistingUndo = false; 
+function undo(){
+  if (preserveExistingUndo) {
+    if (typeof toast === 'function') toast('舊歷史尚未核對，復原暫停；恢復請用 W001-B');
+    return false;
+  }
   if(!graphWritable()) return false;
   if (!undoStack.length){ toast('沒有可復原的步驟'); return; }
   state = JSON.parse(undoStack.pop());
