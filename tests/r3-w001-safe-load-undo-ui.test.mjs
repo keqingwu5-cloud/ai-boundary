@@ -41,7 +41,11 @@ function runFullBoot(store, opts = {}) {
     localStorage: store,
     console,
     clearTimeout: () => {},
-    setTimeout: (fn, ms) => { setTimeout(fn, ms || 0); return 1; },
+    setTimeout: (fn, ms) => {
+      const id = (c._timers = c._timers || []).length;
+      c._timers.push({ fn, ms: ms || 0 });
+      return id;
+    },
     toast: (msg) => { toasts.push(String(msg)); },
     sync: () => {},
     renderHistory: () => {},
@@ -102,11 +106,18 @@ function runFullBoot(store, opts = {}) {
   return { result: c.bootResult, toasts, flashes, store, ctx: c };
 }
 
-async function settle(result) {
-  if (result && result.queue && typeof result.queue.then === 'function') {
-    try { await result.queue; } catch(e){}
+async function settle(result, ctx) {
+  if (ctx && ctx._timers && ctx._timers.length) {
+    const pending = ctx._timers.splice(0);
+    for (const t of pending) {
+      try { t.fn(); } catch(e) { console.error('timer', e); }
+    }
   }
-  await new Promise(r => setTimeout(r, 80));
+  await new Promise(r => setTimeout(r, 300)); // exceed 250ms debounce
+  const q = (result && result.queue) || (ctx && ctx.bootResult && ctx.bootResult.queue);
+  if (q && typeof q.then === 'function') {
+    try { await q; } catch(e){}
+  }
 }
 
 async function test(name, fn) {
