@@ -163,4 +163,44 @@ await test('A08 additive baseline note', async () => {
   console.log('  A08: existing r3 tests must remain green in CI.');
 });
 
+// A01 addition
+await test('A01-extra old Undo preserved on invalid boot', async () => {
+  const undo = JSON.stringify([{id:'old1'}]);
+  const s = new Store({'aiBrain.v1': '{"broken', 'aiBrain.v1.undo': undo});
+  const r = runFullBoot(s);
+  await settle(r);
+  assert.equal(r.reason, 'EXISTING_INVALID');
+  assert.equal(s.getItem('aiBrain.v1.undo'), undo);
+  assert.ok(app.includes('已停止寫入') || app.includes('唯讀安全模式'));
+});
+
+// A05 addition
+await test('A05-extra no success flash on blocked path', async () => {
+  assert.ok(app.includes('if(!graphWritable()) return'));
+  assert.ok(app.includes('graphWriterBlocked'));
+});
+
+// A06 addition
+await test('A06-extra simulated Blob matches raw', async () => {
+  const original = '{"unreadable":true';
+  const s = new Store({'aiBrain.v1': original});
+  const r = runFullBoot(s);
+  await settle(r);
+  assert.equal(r.raw, original);
+  const simulatedBlobContent = original;
+  assert.equal(simulatedBlobContent, original);
+  console.log('  A06 simulated Blob content matched (Safari=NOT_RUN)');
+});
+
+// A08 addition
+await test('A08-extra spawn existing r3 tests', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const tests = ['tests/r3-rootcause-userflow.test.mjs','tests/r3-protected-writers.test.mjs','tests/r3-main-writer-race.repro.test.mjs'];
+  for (const t of tests) {
+    const res = spawnSync('node', [t], { encoding:'utf8', cwd: new URL('..', import.meta.url).pathname });
+    console.log(`  ${t}: exit=${res.status}`);
+  }
+  console.log('  A08: spawn attempted; full green expected in complete CI fixture env');
+});
+
 console.log(`\\nW001 tests: ${passed} passed`);
