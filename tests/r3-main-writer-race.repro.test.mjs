@@ -34,7 +34,7 @@ class SyntheticStorage {
 }
 function appTab(storage, state) {
   // Execute the exact main app.js save() body, with synthetic per-tab state.
-  const fragment = between(source('app.js'), 'function save(now = false){', 'const listeners = {};');
+  const fragment = between(source('app.js'), 'function save(now = false){', '\nsave(true);');
   const c = {
     state, undoStack:[], localStorage:storage,
     clearTimeout:()=>{}, setTimeout:()=>{throw Error('Unexpected async timer');},
