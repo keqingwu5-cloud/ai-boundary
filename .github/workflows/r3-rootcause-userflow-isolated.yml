@@ -1,0 +1,38 @@
+name: r3-rootcause-userflow-isolated
+
+on:
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'audio-lab-import.js'
+      - 'tests/r3-rootcause-userflow.test.mjs'
+      - 'tests/r3-protected-writers.test.mjs'
+      - '.github/workflows/r3-rootcause-userflow-isolated.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-and-synthetic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test boot corruption classification and audio persistence receipt
+        run: node tests/r3-rootcause-userflow.test.mjs
+      - name: Recheck existing patched writer race tests
+        run: node tests/r3-protected-writers.test.mjs
+      - name: Check modified application syntax
+        run: |
+          node --check app.js
+          node --check audio-lab-import.js
+          node --check memory.js
+      - name: Keep release gate closed
+        if: always()
+        run: |
+          echo "Research-only synthetic checks: not Safari/iPad E2E, old-tab cutover, independent BOT3 review or production-safe." >> "$GITHUB_STEP_SUMMARY"
+          echo "RELEASE_GATE=HOLD; NO_MAIN_MERGE; NO_DEPLOY" >> "$GITHUB_STEP_SUMMARY"
