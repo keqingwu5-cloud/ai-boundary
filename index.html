@@ -230,6 +230,14 @@ a.ib{display:inline-grid;place-items:center;text-decoration:none;color:inherit}
 <div id="hint" class="glass">拖曳旋轉・滾輪／雙指縮放・點節點</div>
 <div id="legend" class="glass"></div>
 <div id="saved">● 已自動儲存</div>
+<div id="graphWriteStatus" role="status" aria-live="polite" class="glass"
+     style="position:fixed;bottom:12px;left:12px;z-index:60;padding:8px 12px;max-width:min(480px,90vw);font-size:12px;background:rgba(9,15,35,.90);color:#fff">
+  正在確認主腦儲存狀態
+  <button type="button" id="graphRawBackup" hidden
+          style="margin-left:8px;padding:5px;color:#fff;background:#6b3d3d;border-radius:5px">
+    下載未解析原始資料
+  </button>
+</div>
 <div id="cpill" class="glass"></div>
 <aside id="cdraw" class="glass">
   <header><h3>🧵 概念線</h3><button id="cOn" class="tog on">● 顯示</button><button class="ib" id="cX" title="關閉">✕</button></header>
