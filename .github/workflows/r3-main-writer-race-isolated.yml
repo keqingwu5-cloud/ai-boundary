@@ -1,0 +1,30 @@
+name: r3-main-writer-race-reproduction-isolated
+
+on:
+  pull_request:
+    paths:
+      - 'tests/r3-main-writer-race.repro.test.mjs'
+      - 'docs/r3-writer-race-reproduction-v01.md'
+      - '.github/workflows/r3-main-writer-race-isolated.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  known-risk-reproduction:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reproduce baseline writer risks with synthetic storage
+        run: node tests/r3-main-writer-race.repro.test.mjs
+      - name: Write explicit non-acceptance report
+        if: always()
+        run: |
+          echo "### R3 risk-reproduction job" >> "$GITHUB_STEP_SUMMARY"
+          echo "A PASS means the specified **known risk was reproduced**, not that it was repaired or accepted." >> "$GITHUB_STEP_SUMMARY"
+          echo "Main user data is never accessed; all storage and ciphertext are synthetic." >> "$GITHUB_STEP_SUMMARY"
+          echo "BOT3 independent review, browser multi-tab verification, restore and deploy gates remain NOT_VERIFIED / HOLD." >> "$GITHUB_STEP_SUMMARY"
