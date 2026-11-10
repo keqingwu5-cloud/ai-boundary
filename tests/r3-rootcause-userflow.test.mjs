@@ -22,7 +22,8 @@ class Store {
 function classify(store){
   const c={localStorage:store};
   vm.createContext(c);
-  vm.runInContext("const KEY='aiBrain.v1';\n"+bootFragment+"\nglobalThis.inspect=()=>({result:load(),reason:graphBootReason,raw:graphObservedRaw});",c);
+  const actualValid=between(app,'function valid(s){',"let graphObservedRaw = null, graphBootReason = 'UNKNOWN';");
+  vm.runInContext("const KEY='aiBrain.v1';\n"+actualValid+bootFragment+"\nglobalThis.inspect=()=>({result:load(),reason:graphBootReason,raw:graphObservedRaw});",c);
   return c.inspect();
 }
 function guardedSource(store,reason,raw){
