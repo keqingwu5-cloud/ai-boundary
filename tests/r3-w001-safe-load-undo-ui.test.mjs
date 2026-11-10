@@ -180,42 +180,54 @@ await test('A06 real graphRawBackup handler downloads exact bytes', async () => 
   await settle(result);
   assert.equal(result.raw, original);
 
-  let handlerSrc;
-  try {
-    handlerSrc = extractBetween(app, "const rawExport = document.getElementById('graphRawBackup');", "window.AIBrain");
-  } catch (e) {
-    console.log('  A06: real handler extraction failed in this env → NOT_RUN (Safari=NOT_RUN)');
-    return 'NOT_RUN';
-  }
+  const handlerSrc = extractBetween(app,
+    "const rawExport = document.getElementById('graphRawBackup');",
+    "showGraphWriteStatus();\n");
+
   let capturedBlob = null;
-  let downloadName = null;
-  const fakeDoc = {
-    getElementById(id) {
-      if (id === 'graphRawBackup') return { addEventListener(ev, fn) { if (ev === 'click') this._fn = fn; }, click() { if (this._fn) this._fn(); } };
-      return null;
-    }
+  const fakeA = { click(){}, remove(){}, href:'', download:'' };
+  const btn = {
+    addEventListener(ev, fn) { if (ev === 'click') this._fn = fn; },
+    click() { if (this._fn) this._fn(); }
   };
-  const fakeURL = { createObjectURL: (b) => { capturedBlob = b; return 'blob:fake'; }, revokeObjectURL: () => {} };
+  const fakeDoc = {
+    getElementById(id) { return id === 'graphRawBackup' ? btn : null; },
+    createElement() { return fakeA; },
+    body: { appendChild() {} }
+  };
   const c = {
     document: fakeDoc,
-    Blob: class { constructor(parts, opts) { this.parts = parts; this.type = opts?.type; } },
-    URL: fakeURL,
+    Blob: class { constructor(parts, opts) { this.parts = parts; this.type = opts && opts.type; } },
+    URL: { createObjectURL(b) { capturedBlob = b; return 'blob:fake'; }, revokeObjectURL() {} },
+    setTimeout: (fn) => { fn(); return 1; },
     graphObservedRaw: original,
     graphBootReason: 'EXISTING_INVALID'
   };
   vm.createContext(c);
-  try {
-    vm.runInContext(handlerSrc + '\nrawExport && rawExport.click && rawExport.click();', c);
-    // If the extracted handler ran, we expect a download
-    if (capturedBlob) {
-      assert.equal(capturedBlob.parts[0], original);
-    }
-  } catch (e) {
-    // If extraction/injection fails in this environment, mark NOT_RUN
-    console.log('  A06 handler injection residual: ' + e.message);
-    return 'NOT_RUN';
-  }
-  console.log('  A06: real handler path exercised (Safari=NOT_RUN)');
+  vm.runInContext(handlerSrc, c);
+  btn.click();
+
+  assert.ok(capturedBlob !== null, 'Blob must be created');
+  const got = capturedBlob.parts ? capturedBlob.parts[0] : String(capturedBlob);
+  assert.equal(got, original);
+  assert.equal(fakeA.download, 'ai-brain-original-unreadable.txt');
+
+  // Counter-example
+  capturedBlob = null;
+  fakeA.download = '';
+  const btn2 = { addEventListener(ev, fn){ if(ev==='click') this._fn=fn; }, click(){ if(this._fn) this._fn(); } };
+  const c2 = { ...c, graphBootReason: 'EXISTING_VALID', document: { getElementById(id){ return id==='graphRawBackup'?btn2:null; }, createElement(){ return fakeA; }, body:{ appendChild(){} } } };
+  vm.createContext(c2);
+  vm.runInContext(handlerSrc, c2);
+  btn2.click();
+  assert.equal(capturedBlob, null);
+
+  console.log('  A06: real handler byte match OK (Safari=NOT_RUN)');
+});
+
+await test('A06-Safari', async () => {
+  console.log('  A06 Safari real-device: NOT_RUN');
+  return 'NOT_RUN';
 });
 
 await test('A07 BLOCKED_RECOVERY_PATH', async () => {
@@ -223,8 +235,18 @@ await test('A07 BLOCKED_RECOVERY_PATH', async () => {
   return 'BLOCKED';
 });
 
-await test('A08 note (BOT③ confirmed exit 0 in full repo)', async () => {
-  console.log('  A08: BOT③ confirmed three regressions exit 0 in full repo; local fixture residual ignored');
+await test('A08 three #158 regressions exit 0', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const tests = [
+    'tests/r3-rootcause-userflow.test.mjs',
+    'tests/r3-protected-writers.test.mjs',
+    'tests/r3-vault-restore-stages.test.mjs'
+  ];
+  for (const t of tests) {
+    const r = spawnSync('node', [t], { encoding: 'utf8', cwd: new URL('..', import.meta.url).pathname });
+    console.log(`  ${t}: exit=${r.status}`);
+    assert.equal(r.status, 0, t + ' must exit 0');
+  }
 });
 
 console.log(`\\nSUMMARY: PASS=${counts.PASS} FAIL=${counts.FAIL} NOT_RUN=${counts.NOT_RUN} BLOCKED=${counts.BLOCKED}`);
