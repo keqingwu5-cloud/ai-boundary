@@ -287,13 +287,11 @@ function ensureConcept(name, by = 'merlin', color){ if (!state.concepts[name]) s
 function addConcept(id, name, by = 'merlin'){
   const n = N(id); name = String(name || '').trim().slice(0, 16); if (!n || !name) return false;
   if (n.concepts.includes(name)) return false;
-  mutate('concept', { nodeId:id, title:n.title, concept:name, op:'add' }, () => { ensureConcept(name, by); n.concepts.push(name); });
-  return true;
+  return mutate('concept', { nodeId:id, title:n.title, concept:name, op:'add' }, () => { ensureConcept(name, by); n.concepts.push(name); });
 }
 function removeConcept(id, name){
   const n = N(id); if (!n || !n.concepts.includes(name)) return false;
-  mutate('concept', { nodeId:id, title:n.title, concept:name, op:'remove' }, () => { n.concepts = n.concepts.filter(c => c !== name); });
-  return true;
+  return mutate('concept', { nodeId:id, title:n.title, concept:name, op:'remove' }, () => { n.concepts = n.concepts.filter(c => c !== name); });
 }
 function setProcessPattern(id, pattern){
   const n = N(id); if (!n) return; pattern = String(pattern || '').trim();
@@ -391,6 +389,17 @@ function undo(){
 }
 function resetAll(){ if(!graphWritable()) return false; undoStack.push(JSON.stringify(state)); state = seedState(); state.history.push({ ts:Date.now(), action:'reset', payload:{} }); save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); }
 function exportJSON(){
+  // The preview seed is not the user's damaged original data.
+  if(graphBootReason === 'EXISTING_INVALID'){
+    const backup=document.getElementById('graphRawBackup');
+    if(backup) backup.click();
+    toast('⚠ 已提供原始損壞資料下載；預覽種子不會冒充你的舊資料。');
+    return;
+  }
+  if(graphBootReason === 'READ_UNAVAILABLE'){
+    toast('⚠ 目前無法讀取原始圖譜，不能將預覽當成備份。');
+    return;
+  }
   const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ai-brain-' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.json';
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
