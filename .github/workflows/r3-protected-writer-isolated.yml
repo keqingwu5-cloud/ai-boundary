@@ -1,0 +1,37 @@
+name: r3-protected-writer-isolated
+
+on:
+  pull_request:
+    paths:
+      - 'r3-writer-guard.mjs'
+      - 'app.js'
+      - 'memory.js'
+      - 'tests/r3-protected-writers.test.mjs'
+      - '.github/workflows/r3-protected-writer-isolated.yml'
+      - 'docs/r3-protected-writer-candidate-v01.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-source-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Protected-source race tests (synthetic)
+        run: node tests/r3-protected-writers.test.mjs
+      - name: Syntax check of edited source modules
+        run: |
+          node --check app.js
+          node --check memory.js
+          node --check r3-writer-guard.mjs
+      - name: Explicit release gate
+        if: always()
+        run: |
+          echo "### Research-only R3 candidate" >> "$GITHUB_STEP_SUMMARY"
+          echo "Passing checks do not establish browser E2E, Safari Web Locks, legacy writer retirement, atomic undo, independent BOT3 review, or release readiness." >> "$GITHUB_STEP_SUMMARY"
+          echo "**Release = HOLD / no main merge / no deploy**." >> "$GITHUB_STEP_SUMMARY"
