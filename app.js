@@ -127,6 +127,7 @@ let state = migrate(load() || seedState());
 let undoStack = []; try { undoStack = JSON.parse(localStorage.getItem(UKEY) || '[]'); } catch(e){ undoStack = []; }
 let saveT = 0;
 let graphWriteQueue = Promise.resolve();
+let graphEditRevision = 0;
 let graphWriterBlocked = graphBootReason === 'EXISTING_INVALID' || graphBootReason === 'READ_UNAVAILABLE';
 let graphWriteReason = graphWriterBlocked ? graphBootReason : 'NONE';
 let graphSaveStatus = graphWriterBlocked ? 'READ_ONLY' : 'SAVE_PENDING';
@@ -164,10 +165,13 @@ async function confirmGraphPersistence(){
 }
 function save(now = false){
   clearTimeout(saveT);
-  const f = () => {
-    if (graphWriterBlocked){ showGraphWriteStatus(); return; }
+  const requestedRevision = ++graphEditRevision;
+  if (!graphWriterBlocked) {
     graphSaveStatus = 'SAVE_PENDING';
     showGraphWriteStatus();
+  }
+  const f = () => {
+    if (graphWriterBlocked){ showGraphWriteStatus(); return; }
     graphWriteQueue = graphWriteQueue.then(async () => {
       if (graphWriterBlocked) return;
       const snapshot = JSON.stringify(state);
@@ -196,10 +200,14 @@ function save(now = false){
         toast('⚠ 主腦已儲存，但復原紀錄寫入失敗；請匯出完整備份並停止操作。');
         return;
       }
-      graphSaveStatus = 'SAVE_CONFIRMED';
-      graphWriteReason = 'NONE';
-      showGraphWriteStatus();
-      flashSaved();
+      // A newer local edit can be awaiting debounce while this earlier
+      // write completes. Do not tell the user "saved" for the newer edit.
+      if (requestedRevision === graphEditRevision) {
+        graphSaveStatus = 'SAVE_CONFIRMED';
+        graphWriteReason = 'NONE';
+        showGraphWriteStatus();
+        flashSaved();
+      }
     }).catch(e => {
       graphWriterBlocked = true;
       graphWriteReason = 'WRITER_EXCEPTION';
@@ -314,6 +322,7 @@ function suggestConcepts(text, exclude = []){
   return sc.slice(0, 6).map(x => x[0]);
 }
 function makeSubBrain(id){
+  if(!graphWritable()) return null;
   const n = N(id); if (!n) return null;
   if (state.brains.some(b => b.rootNodeId === id)) { toast('已經是子腦'); return null; }
   const parent = B(n.brainId);
@@ -359,6 +368,7 @@ function mergeBrain(bid){
   focusBrain(target.id);
 }
 function crossLink(a, b){
+  if(!graphWritable()) return null;
   const na = N(a), nb = N(b); if (!na || !nb || a === b) return null;
   if (na.brainId === nb.brainId){ toast('請選擇不同腦區的節點'); return null; }
   if (state.links.some(l => l.kind === 'cross' && ((l.from === a && l.to === b) || (l.from === b && l.to === a)))){ toast('已經連結過'); return null; }
@@ -370,7 +380,7 @@ function setCollapsed(id, v){ const n = N(id); if (!n) return; mutate(v ? 'colla
 function setStatus(id, s){ const n = N(id); if (!n || !STATUS[s]) return; mutate('status', { nodeId:id, title:n.title, status:s }, () => { n.status = s; }); }
 function addCounterEvidence(id, text, createdBy = 'merlin', source = ''){ const n = N(id); if (!n || !text) return;
   mutate('counter', { nodeId:id, title:n.title, text }, () => n.counterEvidence.push({ id:uid('c'), text, source, createdBy, ts:Date.now() })); }
-function setMedia(id, kind, url){ const n = N(id); if (!n) return false; url = String(url || '').trim(); if (!safeUrl(url)) return false; mutate('media', { nodeId:id, kind, url }, () => { n.media[kind] = url; }); return true; }
+function setMedia(id, kind, url){ const n = N(id); if (!n) return false; url = String(url || '').trim(); if (!safeUrl(url)) return false; return mutate('media', { nodeId:id, kind, url }, () => { n.media[kind] = url; }); }
 function deleteNode(id){
   const n = N(id); if (!n || n.createdBy === 'seed') return;
   if (state.brains.some(b => b.rootNodeId === id)){ toast('這是子腦核心，請先併回'); return; }
@@ -383,7 +393,7 @@ function undo(){
   if(!graphWritable()) return false;
   if (!undoStack.length){ toast('沒有可復原的步驟'); return; }
   state = JSON.parse(undoStack.pop());
-  save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已復原');
+  save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); toast('↶ 已套用復原（儲存確認中）');
   if (!B(focusId)) focusBrain('main');
   emit('change', { action:'undo' });
 }
@@ -410,7 +420,7 @@ function importJSON(obj){
   if (!valid(obj)){ toast('⚠ 檔案格式不符'); return false; }
   undoStack.push(JSON.stringify(state));
   state = migrate(obj); state.history.push({ ts:Date.now(), action:'import', payload:{ nodes:obj.nodes.length, brains:obj.brains.length } });
-  save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已匯入');
+  save(true); sync(); renderHistory(); renderCrumbs(); closePanel(); focusBrain('main'); toast('⇧ 已套用匯入（儲存確認中）');
   return true;
 }
 

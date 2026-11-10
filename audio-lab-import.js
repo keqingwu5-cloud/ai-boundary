@@ -13,7 +13,8 @@ function notify(msg,failed){
 }
 async function importNow(){
  try{
-  const payload=JSON.parse(localStorage.getItem(PENDING)||'null');
+  const pendingRaw=localStorage.getItem(PENDING);
+  const payload=JSON.parse(pendingRaw||'null');
   if(!payload||payload.schemaVersion!==1||payload.experimentId!==EXPERIMENT||payload.totalTests!==50||
      !Array.isArray(payload.choices)||payload.choices.length!==5)throw Error('待匯入資料格式不正確');
   if(!window.AIBrain||typeof window.AIBrain.getState!=='function')throw Error('主腦公開 API 尚未就緒');
@@ -21,9 +22,15 @@ async function importNow(){
   const st=brain.getState(),snap=payload.snapshotId;
   if(typeof snap!=='string'||snap.length>160)throw Error('快照 ID 無效');
   const url='https://keqingwu5-cloud.github.io/ai-boundary/audio-lab.html#'+encodeURIComponent(snap);
-  let existing=st.nodes.find(n=>n.source&&n.source.outlet==='JP Audio Lab v1'&&n.source.url===url);
-  // 匯入前做獨立備份。失敗則中止，原始主腦不動。
-  if(!existing){
+  const matches=st.nodes.filter(n=>n.source&&n.source.outlet==='JP Audio Lab v1'&&n.source.url===url);
+  if(matches.length>1)throw Error('同一音訊快照出現重複摘要節點，請先人工核對備份');
+  let existing=matches[0]||null;
+  const titles=payload.choices.map(choice=>'音型候選｜'+choice.motifId+' '+choice.name);
+  if(new Set(titles).size!==titles.length)throw Error('待匯入的音型候選名稱重複，請先修正來源');
+  // A previously interrupted import may have the root but be missing children.
+  // Backup the original graph whenever this attempt is going to add anything.
+  const needsMutation=!existing||titles.some(title=>!st.nodes.some(n=>n.parentId===existing.id&&n.title===title));
+  if(needsMutation){
    const backupKey='aiBrain.audioLab.backup.'+new Date().toISOString().replace(/[:.]/g,'-');
    localStorage.setItem(backupKey,JSON.stringify({capturedAt:new Date().toISOString(),state:st}));
   }
@@ -45,18 +52,25 @@ async function importNow(){
     {k:'原始紀錄',v:'同瀏覽器音訊實驗室 localStorage aiBrain.audioLab.jpTransitions.v1；使用音訊實驗室頁面匯出完整 JSON/CSV。'}
    ]});
   if(!rootId)throw Error('建立摘要節點失敗');
-  const after=brain.getState();
   for(const choice of payload.choices){
    const subTitle='音型候選｜'+choice.motifId+' '+choice.name;
-   const prev=after.nodes.find(n=>n.parentId===rootId&&n.title===subTitle);
-   if(prev)continue;
+   const matches=brain.getState().nodes.filter(n=>n.parentId===rootId&&n.title===subTitle);
+   if(matches.length>1)throw Error('音型候選出現重複節點，請先核對備份：'+subTitle);
+   if(matches.length===1)continue;
    const desc=choice.id+'；用途：'+choice.use+'；版本：'+choice.variation+'；設計代理：'+choice.score+'/100；人工平均：'+(choice.humanAverage===null?'尚無':choice.humanAverage+'/5')+'；依據：'+choice.selectionBasis+'。';
    if(!brain.addDirection(rootId,{title:subTitle,type:'其他',oneLiner:desc,createdBy:'bot',concepts:['聲音','日文轉場','音樂 IP']}))
     throw Error('建立候選子節點失敗：'+subTitle);
   }
   const final=brain.getState();
-  if(final.nodes.length<st.nodes.length+(!existing?6:0)||final.links.length<st.links.length)
-   throw Error('匯入後節點／關聯一致性驗證未通過；請使用備份核對');
+  const finalRoot=final.nodes.find(n=>n.id===rootId);
+  if(!finalRoot || finalRoot.source?.outlet!=='JP Audio Lab v1'||finalRoot.source?.url!==url)
+   throw Error('匯入摘要節點來源校驗失敗；保留待匯入資料');
+  for(const title of titles){
+   const children=final.nodes.filter(n=>n.parentId===rootId&&n.title===title);
+   if(children.length!==1)throw Error('匯入候選缺漏或重複：'+title);
+  }
+  if(final.links.length<st.links.length)
+   throw Error('匯入後關聯數量減少；保留待匯入資料');
   // The legacy API returns node IDs before debounce/async storage confirmation.
   // Fail closed if the main brain has no persistence acknowledgement contract.
   if(typeof brain.confirmPersistence!=='function')
@@ -64,6 +78,9 @@ async function importNow(){
   const receipt=await brain.confirmPersistence();
   if(!receipt || receipt.ok!==true)
     throw Error('主腦尚未成功儲存：'+String(receipt?.reason||'UNKNOWN')+'；待匯入資料已保留');
+  // Do not delete a different pending batch that another tab wrote mid-import.
+  if(localStorage.getItem(PENDING)!==pendingRaw)
+    throw Error('待匯入資料在處理期間已變更；不清除新版本');
   // No deletion or "success" message before the exact graph writer has read back.
   localStorage.removeItem(PENDING);
   notify('已同步並確認儲存：50 組測試摘要＋5 個音型候選方向。舊主腦節點已保留。點這裡可關閉。',false);
