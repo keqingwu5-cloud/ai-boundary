@@ -1,0 +1,28 @@
+name: triad-handoff-audit-isolated
+
+on:
+  pull_request:
+    paths:
+      - 'triad-review-intake-candidate.mjs'
+      - 'triad-six-round-audit-candidate.mjs'
+      - 'tests/triad-review-intake.test.mjs'
+      - 'tests/triad-six-round-audit.test.mjs'
+      - 'docs/triad-grok-handoff-audit-foundation-v01.md'
+      - '.github/workflows/triad-handoff-audit-isolated.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check Grok handoff readback and routing
+        run: node tests/triad-review-intake.test.mjs
+      - name: Check six-round summary and balanced seats
+        run: node tests/triad-six-round-audit.test.mjs
