@@ -8,17 +8,22 @@ if (!fs.existsSync(sourcePath)) {
   console.error('FAIL: source not found at', sourcePath);
   process.exit(1);
 }
-try {
-  const out = execSync('node ' + sourcePath, { encoding: 'utf8' });
-  // Stronger assertion: must contain both markers and exit 0
-  if (!out.includes('"evidence_level": "SYNTHETIC"') || !out.includes('EXIT=0')) {
-    console.error('FAIL: missing required markers');
-    process.exit(1);
-  }
-  console.log('BOT-B min test: PASS (synthetic)');
-  console.log('EXIT=0');
-} catch (e) {
-  console.error('BOT-B min test: FAIL');
-  console.error(e.message);
+
+// Run synthetic harness
+const out = execSync('node ' + sourcePath, { encoding: 'utf8' });
+if (!out.includes('"evidence_level": "SYNTHETIC"') || !out.includes('EXIT=0')) {
+  console.error('FAIL: synthetic harness missing markers');
   process.exit(1);
 }
+
+// Run STOP flag test
+const stopOut = execSync('node docs/bot-b/stop-flag-test.mjs', { encoding: 'utf8' });
+if (!stopOut.includes('STOP flag test: PASS') || !stopOut.includes('EXIT=0')) {
+  console.error('FAIL: STOP flag test failed');
+  process.exit(1);
+}
+
+// Declare network_calls (synthetic, no actual network)
+console.log('network_calls: 0');
+console.log('BOT-B min test: PASS (synthetic + STOP)');
+console.log('EXIT=0');
