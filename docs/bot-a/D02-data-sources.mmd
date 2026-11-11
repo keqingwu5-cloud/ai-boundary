@@ -1,0 +1,8 @@
+%% D02 Data Sources / Unique Writer / Schema
+%% Status: DESIGN_ONLY
+graph LR
+  KEY["aiBrain.v1<br/>unique writer: app.js save()"]
+  UKEY["aiBrain.v1.undo<br/>unique writer: afterWrite"]
+  PROV["state.provenance<br/>embedded in KEY<br/>ORPHAN_UNRECONCILED / NORMAL_LOCAL_ORIGIN"]
+  KEY --> PROV
+  UKEY -.->|protected when ORPHAN| KEY
