@@ -1,0 +1,12 @@
+%% E01 Executable sequence (real vs synthetic marked)
+%% References BOT-A commit f6bea00
+sequenceDiagram
+  participant EVT as Synthetic Event
+  participant ENG as Inner Drive
+  participant REV as Review
+  EVT->>ENG: failure event
+  ENG->>ENG: candidate + auth (isolated)
+  ENG->>ENG: exec (no-op)
+  ENG->>REV: evidence
+  REV-->>ENG: ACCEPT_TECHNICAL_SYNTHETIC
+  note over ENG: SYNTHETIC / no real BOT
