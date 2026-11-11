@@ -29,6 +29,8 @@ run('node docs/bot-b/stop-flag-test.mjs', 'STOP');
 // 3. Fingerprint verification
 run('node docs/bot-b/fingerprint-verify.mjs', 'fingerprint');
 
-console.log('network_calls: 0');
-console.log('BOT-B min test: PASS (synthetic + STOP + fingerprint)');
+// 4. Network block
+run('node docs/bot-b/network-block-test.mjs', 'network');
+
+console.log('BOT-B min test: PASS (synthetic + STOP + fingerprint + network)');
 console.log('EXIT=0');
