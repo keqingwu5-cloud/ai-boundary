@@ -44,7 +44,6 @@ run('node docs/bot-b/netns-isolation-test.mjs', 'netns');
 // 8. Mount namespace isolation
 run('node docs/bot-b/mount-ns-test.mjs', 'mount');
 
-# 9. Manifest verification
 run('node docs/bot-b/verify-manifest.mjs', 'manifest');
 
 console.log('BOT-B min test: PASS (all isolation checks)');
