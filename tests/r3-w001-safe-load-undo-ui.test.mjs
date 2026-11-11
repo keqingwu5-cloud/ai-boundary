@@ -139,8 +139,8 @@ await test('A01 NO_EXISTING_RECORD + compact undo array seeds, preserves undo, s
   // App-produced format: compact JSON array, <=12 entries
   const undo = JSON.stringify([{id:'u1',ts:1},{id:'u2',ts:2},{id:'u3',ts:3}]);
   const s = new Store({ 'aiBrain.v1.undo': undo });
-  const { result, toasts } = runFullBoot(s);
-  await settle(result);
+  const { result, toasts, ctx } = runFullBoot(s);
+  await settle(result, ctx);
   assert.equal(result.reason, 'NO_EXISTING_RECORD');
   assert.equal(result.blocked, false, 'writer must not be locked');
   const seeded = s.getItem('aiBrain.v1');
@@ -156,8 +156,8 @@ await test('A01 NO_EXISTING_RECORD + compact undo array seeds, preserves undo, s
 await test('A01-reverse forced write failure makes positive A01 conditions fail', async () => {
   const undo = JSON.stringify([{id:'u1',ts:1},{id:'u2',ts:2}]);
   const s = new Store({ 'aiBrain.v1.undo': undo });
-  const { result } = runFullBoot(s, { failWrite: true });
-  await settle(result);
+  const { result, ctx } = runFullBoot(s, { failWrite: true });
+  await settle(result, ctx);
   // Positive A01 conditions must NOT hold
   const seeded = s.getItem('aiBrain.v1');
   let seedOk = false;
@@ -178,8 +178,8 @@ await test('A02 bad JSON + undo preserved, zero events', async () => {
   const undo = '[{"id":"u1"}]';
   const s = new Store({ 'aiBrain.v1': bad, 'aiBrain.v1.undo': undo });
   const before = s.events.length;
-  const { result } = runFullBoot(s);
-  await settle(result);
+  const { result, ctx } = runFullBoot(s);
+  await settle(result, ctx);
   assert.equal(result.reason, 'EXISTING_INVALID');
   assert.equal(result.blocked, true);
   assert.equal(s.getItem('aiBrain.v1'), bad);
@@ -192,8 +192,8 @@ await test('A03 missing main + undo preserved, zero events', async () => {
   const bad = '{"brains":[],"nodes":[],"links":[],"history":[]}';
   const undo = '[{"ts":1}]';
   const s = new Store({ 'aiBrain.v1': bad, 'aiBrain.v1.undo': undo });
-  const { result } = runFullBoot(s);
-  await settle(result);
+  const { result, ctx } = runFullBoot(s);
+  await settle(result, ctx);
   assert.equal(result.reason, 'EXISTING_INVALID');
   assert.equal(s.getItem('aiBrain.v1'), bad);
   assert.equal(s.getItem('aiBrain.v1.undo'), undo);
@@ -204,8 +204,8 @@ await test('A04 READ_UNAVAILABLE leaves undo untouched, zero events', async () =
   const undo = '[{"safe":true}]';
   const s = new Store({ 'aiBrain.v1.undo': undo });
   s.badReads = true;
-  const { result } = runFullBoot(s);
-  await settle(result);
+  const { result, ctx } = runFullBoot(s);
+  await settle(result, ctx);
   s.badReads = false;
   assert.equal(result.reason, 'READ_UNAVAILABLE');
   assert.equal(result.blocked, true);
@@ -233,8 +233,8 @@ await test('A05 post-boot mutate/reset/save are blocked', async () => {
 await test('A06 real graphRawBackup handler downloads exact bytes', async () => {
   const original = '{"unreadable":true,"raw":1}';
   const s = new Store({ 'aiBrain.v1': original });
-  const { result } = runFullBoot(s);
-  await settle(result);
+  const { result, ctx } = runFullBoot(s);
+  await settle(result, ctx);
   assert.equal(result.raw, original);
 
   const handlerSrc = extractBetween(app,
