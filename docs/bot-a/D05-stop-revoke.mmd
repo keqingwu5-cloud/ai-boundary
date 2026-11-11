@@ -1,0 +1,10 @@
+%% D05 STOP / Revoke / Fail / Retry / Rollback / Restart
+%% Status: DESIGN_ONLY
+sequenceDiagram
+  participant Op
+  participant Engine
+  Op->>Engine: STOP
+  Engine-->>Op: no self-restore on restart
+  Op->>Engine: REVOKE
+  Engine-->>Op: no self-restore on restart
+  note over Engine: EXPIRED cannot bypass
