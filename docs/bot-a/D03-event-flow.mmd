@@ -1,0 +1,9 @@
+%% D03 Event → Schedule → Task → Exec → Review → Report
+%% Status: DESIGN_ONLY / synthetic only
+graph TD
+  EVT["Synthetic failure event"] --> CAND["Task candidate"]
+  CAND --> AUTH["Auth check"]
+  AUTH --> ISO["Isolated exec"]
+  ISO --> EVID["Raw test evidence"]
+  EVID --> REV["Grok review / kick"]
+  REV --> UPD["Status update"]
