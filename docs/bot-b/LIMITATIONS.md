@@ -13,8 +13,9 @@
 ## STOP/revoke
 - `stop-flag-test.mjs`: local filesystem flag (same process)
 - `stop-cross-process-test.mjs`: flag set in one node process, observed in another
-- Evidence level: CROSS_PROCESS (local filesystem)
-- Does not yet prove survival across host reboot or container restart
+- `stop-cross-restart-test.mjs`: flag survives process exit (simulated restart)
+- Evidence level: CROSS_PROCESS + SIMULATED_RESTART
+- Does not prove survival across real host reboot
 
 ## Fingerprint
 - Fetches content from fixed BOT-A commit `f6bea00` at runtime
