@@ -1,5 +1,4 @@
-=== VERSION MANIFEST ===
-commit: (to be filled after commit)
+commit: f6bea00f26a46e5e29b3b8a827fa6a07d90d8899
 D01-system-overview.mmd  sha256:6aca2ad04a743ba3c38fbebf8457f157fe923197ffe0b2bddace78b2e7836cf5
 D02-data-sources.mmd  sha256:51074bef67549a1e63d6df81806202f4260b55063a58c6d8ae07aad2653f955e
 D03-event-flow.mmd  sha256:e88d8d25373d484627432b72e7b36734a21d672ba020a6337cd0eb1528d846f7
