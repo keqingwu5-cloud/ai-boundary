@@ -35,5 +35,8 @@ run('node docs/bot-b/network-block-test.mjs', 'network');
 // 5. Kernel netns isolation
 run('node docs/bot-b/netns-isolation-test.mjs', 'netns');
 
-console.log('BOT-B min test: PASS (synthetic + STOP + fingerprint + network + netns)');
+// 6. Mount namespace isolation
+run('node docs/bot-b/mount-ns-test.mjs', 'mount');
+
+console.log('BOT-B min test: PASS (synthetic + STOP + fingerprint + network + netns + mount)');
 console.log('EXIT=0');
