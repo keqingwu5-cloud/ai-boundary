@@ -255,15 +255,24 @@ function save(now = false){
   now ? f() : (saveT = setTimeout(f, 250));
 }
 /* Never replace corrupt/unreadable existing graph data with seed content. */
-if (graphBootReason === 'NO_EXISTING_RECORD' && existingUndoRaw !== null) {
-  preserveExistingUndo = true;
-  // mark source so protection survives reopen
-  if (typeof localStorage !== 'undefined') {
-    try { localStorage.setItem('aiBrain.v1.undo.source', 'ORPHAN_NO_EXISTING'); } catch(e){}
+if (graphBootReason === 'NO_EXISTING_RECORD') {
+  if (existingUndoRaw !== null) {
+    preserveExistingUndo = true;
+    if (state && !state.provenance) state.provenance = 'ORPHAN_UNRECONCILED';
+    if (typeof toast === 'function') toast('舊歷史尚未核對');
+  } else {
+    if (state && !state.provenance) state.provenance = 'NORMAL_LOCAL_ORIGIN';
   }
-  if (typeof toast === 'function') toast('舊歷史尚未核對');
-} else if (preserveExistingUndo && typeof toast === 'function') {
-  toast('舊歷史尚未核對');
+} else if (graphBootReason === 'EXISTING_VALID') {
+  const marker = state && state.provenance;
+  if (marker === 'ORPHAN_UNRECONCILED') {
+    preserveExistingUndo = true;
+    if (typeof toast === 'function') toast('舊歷史尚未核對');
+  } else if (!marker && existingUndoRaw !== null) {
+    // LEGACY_AMBIGUOUS: fail closed
+    preserveExistingUndo = true;
+    if (typeof toast === 'function') toast('舊歷史來源不明，已暫停變更');
+  }
 }
 if(!graphWriterBlocked) save(true);
 showGraphWriteStatus();
