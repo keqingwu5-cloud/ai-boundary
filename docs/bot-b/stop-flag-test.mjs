@@ -1,5 +1,6 @@
 // STOP flag persistence test (SYNTHETIC)
-// Demonstrates: STOP sets a flag; restart does not self-restore
+// Limitation: uses local filesystem flag; does not prove cross-process restart isolation.
+// Demonstrates: STOP sets a flag; same-process "restart" sees it.
 import fs from 'node:fs';
 
 const FLAG = '/tmp/stop.flag';
@@ -11,12 +12,12 @@ clear();
 console.log('before:', isStopped());
 setStop();
 console.log('after set:', isStopped());
-// simulate restart: flag remains
-console.log('after restart (flag still exists):', isStopped());
+console.log('after simulated restart (same process, flag remains):', isStopped());
 if (!isStopped()) {
-  console.error('FAIL: STOP did not persist');
+  console.error('FAIL: STOP did not persist within process');
   process.exit(1);
 }
 clear();
-console.log('STOP flag test: PASS');
+console.log('STOP flag test: PASS (local only)');
+console.log('LIMITATION: not cross-process restart proof');
 console.log('EXIT=0');
