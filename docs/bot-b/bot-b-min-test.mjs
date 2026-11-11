@@ -1,10 +1,19 @@
 // BOT-B minimal re-runnable test (SYNTHETIC)
-// References BOT-A f6bea00
+// References BOT-A fixed commit f6bea00
 import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+
+const sourcePath = 'docs/bot-a/synthetic-inner-drive.mjs';
+if (!fs.existsSync(sourcePath)) {
+  console.error('FAIL: source not found at', sourcePath);
+  process.exit(1);
+}
 try {
-  const out = execSync('node ../bot-a-blueprints/synthetic-inner-drive.mjs', { encoding: 'utf8' });
-  if (!out.includes('EXIT=0') && !out.includes('"evidence_level": "SYNTHETIC"')) {
-    throw new Error('unexpected output');
+  const out = execSync('node ' + sourcePath, { encoding: 'utf8' });
+  // Stronger assertion: must contain both markers and exit 0
+  if (!out.includes('"evidence_level": "SYNTHETIC"') || !out.includes('EXIT=0')) {
+    console.error('FAIL: missing required markers');
+    process.exit(1);
   }
   console.log('BOT-B min test: PASS (synthetic)');
   console.log('EXIT=0');
