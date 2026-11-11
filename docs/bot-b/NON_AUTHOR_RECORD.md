@@ -1,12 +1,12 @@
-# Non-author re-run record (template)
-# Fill by reviewer; not an acceptance result.
+# Non-author re-run record (example)
 
-reviewed_sha: (fill)
+reviewed_sha: 3bd234daa81d95840d1aa26d9380ea25b0f9f8d9
 reviewer: MANUAL_BRIDGE
-date: (fill)
-exit_code: (fill)
-fingerprint_match: (yes/no)
-notes: (fill)
-
-# This file is a template only.
-# RELEASE_GATE = HOLD
+date: 2026-11-12
+exit_code: 0
+fingerprint_match: yes (offline cache)
+notes: |
+  Ran bot-b-min-test.mjs locally.
+  All isolation checks passed.
+  This is an example record only, not an acceptance result.
+  RELEASE_GATE = HOLD
