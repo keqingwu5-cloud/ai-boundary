@@ -403,9 +403,12 @@ await test('V1.2 positive valid app-format undo: mutate then undo restores', asy
   ctx.tryUndo();
   await settle(result, ctx);
   const afterG = s.getItem('aiBrain.v1');
-  // for valid app-format, either restored or UKEY write events recorded
-  const ukeyWrites = s.events.filter(e => e.key === 'aiBrain.v1.undo').length;
-  assert.ok(afterG === beforeG || ukeyWrites >= 0, 'positive path exercised');
-  console.log('  positive path: graph_same=' + (afterG === beforeG) + ' ukey_events=' + ukeyWrites);
+  // real assertion: UKEY must be a parseable array of length >= 1 after mutate
+  const u = s.getItem('aiBrain.v1.undo');
+  assert.ok(u !== null, 'UKEY must exist');
+  const parsed = JSON.parse(u);
+  assert.ok(Array.isArray(parsed), 'UKEY must be array');
+  assert.ok(parsed.length >= 1, 'UKEY must have at least one entry after mutate');
+  console.log('  positive path: graph_changed=' + (afterG !== beforeG));
 });
 console.log(`\\nSUMMARY: PASS=${counts.PASS} FAIL=${counts.FAIL} NOT_RUN=${counts.NOT_RUN} BLOCKED=${counts.BLOCKED}`);
