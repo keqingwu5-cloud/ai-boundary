@@ -1,0 +1,16 @@
+%% D01 System Overview (C4-like)
+%% Status: DESIGN_ONLY / UNVERIFIED where noted
+graph TD
+  subgraph Existing["Existing (CODE_CONNECTED or MOCK)"]
+    W001["W001 Safe Load<br/>#161 / research branch"]
+    R3["R3 regressions<br/>#158"]
+    GH["GitHub Issues/PRs<br/>#41 BLOCKED"]
+  end
+  subgraph Design["Design Only"]
+    BOTA["BOT-A Blueprints<br/>D01–D06"]
+    BOTB["BOT-B Inner Drive<br/>E01–E05"]
+    ACK["Cross-AI ACK<br/>#41 BLOCKED"]
+  end
+  W001 --> BOTA
+  BOTA --> BOTB
+  ACK -.->|UNVERIFIED| BOTB
