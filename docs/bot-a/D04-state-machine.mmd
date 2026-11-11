@@ -1,0 +1,11 @@
+%% D04 Execution and ACK state machine
+%% Status: DESIGN_ONLY
+stateDiagram-v2
+  [*] --> created
+  created --> sent
+  sent --> received: UNVERIFIED for cross-AI
+  received --> running
+  running --> completed
+  completed --> reviewed
+  reviewed --> [*]
+  note right of received: #41 BLOCKED
