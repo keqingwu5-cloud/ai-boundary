@@ -1,0 +1,19 @@
+name: BOT-B isolation checks
+on:
+  push:
+    branches: [research/bot-b-inner-drive-v0.1]
+  workflow_dispatch:
+
+jobs:
+  isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run isolation suite
+        run: |
+          node docs/bot-b/bot-b-min-test.mjs
+        env:
+          OFFLINE: '1'
