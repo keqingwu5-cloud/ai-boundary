@@ -18,9 +18,9 @@
 - Does not prove survival across real host reboot
 
 ## Fingerprint
-- Fetches content from fixed BOT-A commit `f6bea00` at runtime
-- Requires network access to GitHub
-- Evidence level: RUNTIME_FETCH_FROM_FIXED_COMMIT
+- Online mode: fetches from fixed BOT-A commit `f6bea00`
+- Offline mode: uses local `fingerprint-cache.txt` (set OFFLINE=1)
+- Evidence level: RUNTIME_FETCH or OFFLINE_CACHE
 
 ## Non-author record
 - Template only; not an acceptance result.
