@@ -132,10 +132,24 @@ try {
   if (existingUndoRaw !== null) {
     const parsed = JSON.parse(existingUndoRaw);
     if (Array.isArray(parsed)) {
-      undoStack = parsed;
-      // Decide BEFORE any save: if raw !== compact slice(-12) serialization, preserve
-      const compact = JSON.stringify(parsed.slice(-12));
-      if (existingUndoRaw !== compact) preserveExistingUndo = true;
+      let allValid = true;
+      for (const item of parsed) {
+        if (typeof item !== 'string') { allValid = false; break; }
+        try {
+          const snap = JSON.parse(item);
+          if (!snap || !Array.isArray(snap.brains) || !snap.brains.some(b => b && b.id === 'main')) {
+            allValid = false; break;
+          }
+        } catch(e) { allValid = false; break; }
+      }
+      if (allValid) {
+        undoStack = parsed;
+        const compact = JSON.stringify(parsed.slice(-12));
+        if (existingUndoRaw !== compact) preserveExistingUndo = true;
+      } else {
+        // invalid entries: preserve raw, do not load
+        preserveExistingUndo = true;
+      }
     } else {
       preserveExistingUndo = true;
     }
