@@ -11,13 +11,14 @@
 - Evidence level: KERNEL_MOUNT_NS
 
 ## STOP/revoke
-- Uses local filesystem flag.
-- Does not prove cross-process or cross-restart isolation.
-- Evidence level: LOCAL_ONLY
+- `stop-flag-test.mjs`: local filesystem flag (same process)
+- `stop-cross-process-test.mjs`: flag set in one node process, observed in another
+- Evidence level: CROSS_PROCESS (local filesystem)
+- Does not yet prove survival across host reboot or container restart
 
 ## Fingerprint
-- Now fetches content from fixed BOT-A commit `f6bea00` at runtime via raw.githubusercontent.com
-- Requires network access to GitHub; in strict netns this will fail (expected)
+- Fetches content from fixed BOT-A commit `f6bea00` at runtime
+- Requires network access to GitHub
 - Evidence level: RUNTIME_FETCH_FROM_FIXED_COMMIT
 
 ## Non-author record
