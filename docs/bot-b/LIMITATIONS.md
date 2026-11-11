@@ -5,6 +5,11 @@
 - `netns-isolation-test.mjs`: kernel network namespace via `unshare --net`
 - Evidence level: KERNEL_NETNS (when unshare succeeds)
 
+## mount namespace
+- `mount-ns-test.mjs`: kernel mount namespace via `unshare --mount`
+- Full private propagation requires additional `mount --make-rprivate`
+- Evidence level: KERNEL_MOUNT_NS
+
 ## STOP/revoke
 - Uses local filesystem flag.
 - Does not prove cross-process or cross-restart isolation.
