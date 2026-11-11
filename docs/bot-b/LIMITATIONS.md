@@ -1,9 +1,9 @@
 # Known limitations (BOT-B isolation hardening)
 
 ## network_calls
-- Current test only prints `network_calls: 0`.
-- There is no actual network-blocking mechanism (e.g. no proxy, no sandbox netns).
-- Evidence level: DECLARATION_ONLY
+- `network-block-test.mjs` intercepts `http.request` / `https.request` and counts calls.
+- This is an in-process override, not a kernel-level netns or proxy block.
+- Evidence level: IN_PROCESS_INTERCEPTION
 
 ## STOP/revoke
 - Uses local filesystem flag.
