@@ -29,8 +29,11 @@ run('node docs/bot-b/stop-flag-test.mjs', 'STOP');
 // 3. Fingerprint verification
 run('node docs/bot-b/fingerprint-verify.mjs', 'fingerprint');
 
-// 4. Network block
+// 4. Network block (in-process)
 run('node docs/bot-b/network-block-test.mjs', 'network');
 
-console.log('BOT-B min test: PASS (synthetic + STOP + fingerprint + network)');
+// 5. Kernel netns isolation
+run('node docs/bot-b/netns-isolation-test.mjs', 'netns');
+
+console.log('BOT-B min test: PASS (synthetic + STOP + fingerprint + network + netns)');
 console.log('EXIT=0');
