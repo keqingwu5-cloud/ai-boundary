@@ -16,8 +16,9 @@
 - Evidence level: LOCAL_ONLY
 
 ## Fingerprint
-- Compares against vendored copy of BOT-A files inside this branch.
-- Does not fetch from the original BOT-A commit at runtime.
+- Now fetches content from fixed BOT-A commit `f6bea00` at runtime via raw.githubusercontent.com
+- Requires network access to GitHub; in strict netns this will fail (expected)
+- Evidence level: RUNTIME_FETCH_FROM_FIXED_COMMIT
 
 ## Non-author record
 - Template only; not an acceptance result.
