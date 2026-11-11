@@ -1,9 +1,9 @@
 # Known limitations (BOT-B isolation hardening)
 
 ## network_calls
-- `network-block-test.mjs` intercepts `http.request` / `https.request` and counts calls.
-- This is an in-process override, not a kernel-level netns or proxy block.
-- Evidence level: IN_PROCESS_INTERCEPTION
+- `network-block-test.mjs`: in-process override of http/https.request
+- `netns-isolation-test.mjs`: kernel network namespace via `unshare --net`
+- Evidence level: KERNEL_NETNS (when unshare succeeds)
 
 ## STOP/revoke
 - Uses local filesystem flag.
