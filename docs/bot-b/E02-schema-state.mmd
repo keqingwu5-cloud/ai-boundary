@@ -1,0 +1,10 @@
+%% E02 Event/Work/ACK schema and state
+%% Status: DESIGN_ONLY
+stateDiagram-v2
+  [*] --> event
+  event --> candidate
+  candidate --> authorized
+  authorized --> executed
+  executed --> evidenced
+  evidenced --> reviewed
+  reviewed --> [*]
