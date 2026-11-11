@@ -1,0 +1,6 @@
+%% E03 Fault injection / retry / revoke
+%% Status: DESIGN_ONLY
+graph TD
+  STOP["STOP"] --> NORESTORE["no self-restore on restart"]
+  REVOKE["REVOKE"] --> NORESTORE
+  FAIL["write fail"] --> FAILCLOSED["fail closed"]
