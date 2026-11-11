@@ -1,0 +1,7 @@
+%% E04 Observe → review → kick → fix → writeback
+%% Status: DESIGN_ONLY
+graph LR
+  OBS["observe"] --> REV["review"]
+  REV -->|reject| KICK["kick"]
+  KICK --> FIX["fix"]
+  FIX --> OBS
