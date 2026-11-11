@@ -1,0 +1,19 @@
+{
+  "branch": "research/bot-b-inner-drive-v0.1",
+  "head": "d763926d43d818ed7e590f782755b1f1ee585633",
+  "date": "2026-11-12",
+  "status": "RESEARCH_CANDIDATE",
+  "release_gate": "HOLD",
+  "checks": [
+    {"name": "synthetic", "file": "docs/bot-a/synthetic-inner-drive.mjs", "level": "SYNTHETIC"},
+    {"name": "stop_local", "file": "docs/bot-b/stop-flag-test.mjs", "level": "LOCAL"},
+    {"name": "stop_cross_process", "file": "docs/bot-b/stop-cross-process-test.mjs", "level": "CROSS_PROCESS"},
+    {"name": "stop_cross_restart", "file": "docs/bot-b/stop-cross-restart-test.mjs", "level": "SIMULATED_RESTART"},
+    {"name": "fingerprint", "file": "docs/bot-b/fingerprint-verify.mjs", "level": "RUNTIME_FETCH_OR_OFFLINE"},
+    {"name": "network_block", "file": "docs/bot-b/network-block-test.mjs", "level": "IN_PROCESS"},
+    {"name": "netns", "file": "docs/bot-b/netns-isolation-test.mjs", "level": "KERNEL_NETNS"},
+    {"name": "mount_ns", "file": "docs/bot-b/mount-ns-test.mjs", "level": "KERNEL_MOUNT_NS"},
+    {"name": "non_author_record", "file": "docs/bot-b/NON_AUTHOR_RECORD.md", "level": "EXAMPLE_ONLY"},
+    {"name": "ci_workflow", "file": ".github/workflows/bot-b-isolation.yml", "level": "FILE_ONLY"}
+  ]
+}
