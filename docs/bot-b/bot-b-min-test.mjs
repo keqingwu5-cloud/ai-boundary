@@ -23,20 +23,23 @@ if (!syn.includes('"evidence_level": "SYNTHETIC"')) {
   process.exit(1);
 }
 
-// 2. STOP flag
+// 2. STOP flag (local)
 run('node docs/bot-b/stop-flag-test.mjs', 'STOP');
 
-// 3. Fingerprint verification
+// 3. STOP cross-process
+run('node docs/bot-b/stop-cross-process-test.mjs', 'STOP-cross');
+
+// 4. Fingerprint verification
 run('node docs/bot-b/fingerprint-verify.mjs', 'fingerprint');
 
-// 4. Network block (in-process)
+// 5. Network block (in-process)
 run('node docs/bot-b/network-block-test.mjs', 'network');
 
-// 5. Kernel netns isolation
+// 6. Kernel netns isolation
 run('node docs/bot-b/netns-isolation-test.mjs', 'netns');
 
-// 6. Mount namespace isolation
+// 7. Mount namespace isolation
 run('node docs/bot-b/mount-ns-test.mjs', 'mount');
 
-console.log('BOT-B min test: PASS (synthetic + STOP + fingerprint + network + netns + mount)');
+console.log('BOT-B min test: PASS (all isolation checks)');
 console.log('EXIT=0');
