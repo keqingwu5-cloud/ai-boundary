@@ -1,0 +1,6 @@
+%% D06 Task dependency / construction priority
+%% Status: DESIGN_ONLY
+graph TD
+  INV["Inventory + D01–D06"] --> LOOP["Minimal inner-drive loop"]
+  LOOP --> CHECK["Regulation + evidence total check"]
+  STOP["STOP/Revoke effective from start"] --> INV
