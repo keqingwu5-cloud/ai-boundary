@@ -1,27 +1,23 @@
-# BOT-B 隔離階段就緒確認（修正後）
+# BOT-B 隔離階段就緒確認
 
-**狀態**: READY_FOR_SUPERVISOR_REVIEW  
+**狀態**: IN_PROGRESS  
 **分支**: research/bot-b-inner-drive-v0.1  
-**HEAD**: 1d51efb80ecd615aec06c48f2d5ebac2ecafb67a  
+**測試基準**: f6bea00f26a46e5e29b3b8a827fa6a07d90d8899（BOT-A 固定 commit）  
 **日期**: 2026-11-12
 
 ## 本輪修正
-- 移除主測試語法錯誤
-- netns / mount 測試改為失敗即 FAIL
-- BOT-A 六張圖紙已從固定 commit 放入本分支
-- 證據清單與變更紀錄已同步至目前 HEAD
+- BOT-A 檔案已從 f6bea00 原樣還原
+- 文件不再寫入自身 HEAD，避免版本漂移
+- netns / mount 測試在無 sudo 環境標為 NOT_RUN
 
 ## 確認項目
+- [x] BOT-A 檔案與 f6bea00 一致
 - [x] 主測試語法正確
-- [x] 證據清單與驗證腳本
-- [x] 重現指南
-- [x] 變更紀錄
-- [x] 文件索引
+- [ ] CI 實際成功紀錄（待確認）
 - [ ] 非作者實際重跑（待上層安排）
-- [ ] CI 實際執行紀錄（待確認）
 
 ## 結論
-語法、測試邏輯與版本一致性問題已修正。  
+版本基準已固定為 f6bea00。  
 正式驗收與部署仍為 HOLD。
 
 **RELEASE_GATE = HOLD**
