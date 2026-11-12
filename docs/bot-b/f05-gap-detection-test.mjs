@@ -1,28 +1,33 @@
-// F05 gap detection test (SYNTHETIC)
-// Simulates: GitHub has an event, but local receiver has no record.
-// Asserts the gap is detected and not treated as received.
+// F05 gap detection test
+// Calls the formal module; includes counter-examples.
+import { detectGap } from './f05-gap-module.mjs';
 
-const githubEvents = [
-  { delivery_id: 'del-001', comment_id: 1001, body: 'test event' }
-];
-const localRecords = []; // empty: receiver missed it
-
-function detectGap(github, local) {
-  const gaps = [];
-  for (const ev of github) {
-    const found = local.find(r => r.delivery_id === ev.delivery_id);
-    if (!found) {
-      gaps.push({ delivery_id: ev.delivery_id, status: 'MISSING' });
-    }
-  }
-  return gaps;
-}
-
-const gaps = detectGap(githubEvents, localRecords);
-if (gaps.length === 0) {
-  console.error('FAIL: gap not detected');
+// Case 1: missing event -> must detect gap
+const github1 = [{ delivery_id: 'del-001', comment_id: 1001, body: 'test' }];
+const local1 = [];
+const gaps1 = detectGap(github1, local1);
+if (gaps1.length !== 1) {
+  console.error('FAIL: missing event not detected');
   process.exit(1);
 }
-console.log('gap detection: PASS');
-console.log('gaps:', JSON.stringify(gaps));
+
+// Case 2: already received -> must NOT report gap
+const github2 = [{ delivery_id: 'del-002', comment_id: 1002, body: 'ok' }];
+const local2 = [{ delivery_id: 'del-002', comment_id: 1002, body: 'ok' }];
+const gaps2 = detectGap(github2, local2);
+if (gaps2.length !== 0) {
+  console.error('FAIL: received event reported as gap');
+  process.exit(1);
+}
+
+// Case 3: same ID but different body -> must report gap
+const github3 = [{ delivery_id: 'del-003', comment_id: 1003, body: 'new' }];
+const local3 = [{ delivery_id: 'del-003', comment_id: 1003, body: 'old' }];
+const gaps3 = detectGap(github3, local3);
+if (gaps3.length !== 1) {
+  console.error('FAIL: content mismatch not detected');
+  process.exit(1);
+}
+
+console.log('f05 gap detection: PASS');
 console.log('EXIT=0');
