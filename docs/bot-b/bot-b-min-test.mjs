@@ -61,7 +61,10 @@ run('node docs/bot-b/mount-ns-test.mjs', 'mount');
 // 9. F05 gap detection
 run('node docs/bot-b/f05-gap-detection-test.mjs', 'f05-gap');
 
-// 10. Manifest verification
+// 10. Read-only source / isolated inbox reconciliation candidate
+run('node docs/bot-b/f05-source-reconcile-test.mjs', 'f05-source-reconcile');
+
+// 11. Manifest verification
 run('node docs/bot-b/verify-manifest.mjs', 'manifest');
 
 console.log('SUMMARY: PASS=' + passed + ' NOT_RUN=' + notRun);
