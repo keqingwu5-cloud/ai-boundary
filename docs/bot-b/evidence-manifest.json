@@ -1,10 +1,10 @@
 {
   "branch": "research/bot-b-inner-drive-v0.1",
-  "head": "4cd40372316c671da2bd6c2daf84c9e0439da1cb",
+  "baseline_sha": "f6bea00f26a46e5e29b3b8a827fa6a07d90d8899",
   "date": "2026-11-12",
-  "status": "RESEARCH_CANDIDATE",
+  "status": "IN_PROGRESS",
   "release_gate": "HOLD",
-  "notes": "Syntax error fixed; netns/mount fail on unshare failure; BOT-A diagrams vendored",
+  "notes": "BOT-A files restored from f6bea00; documents use baseline SHA only; namespace tests mark NOT_RUN without privilege",
   "checks": [
     {"name": "synthetic", "file": "docs/bot-a/synthetic-inner-drive.mjs", "level": "SYNTHETIC"},
     {"name": "stop_local", "file": "docs/bot-b/stop-flag-test.mjs", "level": "LOCAL"},
@@ -12,8 +12,8 @@
     {"name": "stop_cross_restart", "file": "docs/bot-b/stop-cross-restart-test.mjs", "level": "SIMULATED_RESTART"},
     {"name": "fingerprint", "file": "docs/bot-b/fingerprint-verify.mjs", "level": "RUNTIME_FETCH_OR_OFFLINE"},
     {"name": "network_block", "file": "docs/bot-b/network-block-test.mjs", "level": "IN_PROCESS"},
-    {"name": "netns", "file": "docs/bot-b/netns-isolation-test.mjs", "level": "KERNEL_NETNS"},
-    {"name": "mount_ns", "file": "docs/bot-b/mount-ns-test.mjs", "level": "KERNEL_MOUNT_NS"},
+    {"name": "netns", "file": "docs/bot-b/netns-isolation-test.mjs", "level": "KERNEL_NETNS_OR_NOT_RUN"},
+    {"name": "mount_ns", "file": "docs/bot-b/mount-ns-test.mjs", "level": "KERNEL_MOUNT_NS_OR_NOT_RUN"},
     {"name": "non_author_record", "file": "docs/bot-b/NON_AUTHOR_RECORD.md", "level": "EXAMPLE_ONLY"},
     {"name": "ci_workflow", "file": ".github/workflows/bot-b-isolation.yml", "level": "FILE_ONLY"}
   ]
