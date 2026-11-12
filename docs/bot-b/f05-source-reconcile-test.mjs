@@ -9,7 +9,7 @@ const raw={id:6811676695,body:'synthetic content',created_at:'2026-11-12T01:29:0
 const ev=normalizeGitHubComment(raw,repo,issue);
 const time='2026-11-12T03:00:00Z';
 const snapshot={schema:'firstbrain.source-snapshot.v1',source_origin:'GITHUB_REST',repo,issue,complete:true,observed_at:time,rows:[ev]};
-const inbox={schema:'firstbrain.inbox-snapshot.v1',origin:'ISOLATED_FILE_CANDIDATE',repo,issue,observed_at:time,records:[]};
+const inbox={schema:'firstbrain.inbox-snapshot.v1',origin:'ISOLATED_FILE_CANDIDATE',repo,issue,observed_at:time,complete:true,records:[]};
 const calc=(s=snapshot,i=inbox,now=time)=>assessSnapshot({snapshot:s,inbox:i,expectedCommentIds:[raw.id],now,graceMs:60000})[0].status;
 let n=0;
 const test=(name,fn)=>{fn();console.log('PASS',name);n++;};
@@ -26,7 +26,8 @@ test('source incomplete is not confirmed missing',()=>assert.equal(calc({...snap
 test('source not returned by complete snapshot is not auto-missing',()=>assert.equal(calc({...snapshot,rows:[]}), 'SOURCE_EVENT_NOT_FOUND_OR_NOT_VISIBLE'));
 test('snapshot time travel rejects comparison',()=>assert.equal(calc({...snapshot,observed_at:'2026-11-12T04:00:00Z'}),'SNAPSHOT_INCOMPARABLE'));
 test('before expiry is pending',()=>assert.equal(calc({...snapshot,observed_at:'2026-11-12T01:29:20Z'},{...inbox,observed_at:'2026-11-12T01:29:20Z'},'2026-11-12T01:29:20Z'),'PENDING_OR_SNAPSHOT_TOO_EARLY'));
-test('missing inbox with late snapshot is still pending',()=>assert.equal(calc(snapshot,{...inbox,observed_at:'2026-11-12T01:29:20Z'}),'PENDING_OR_SNAPSHOT_TOO_EARLY'));
+test('inbox snapshot taken before source snapshot is incomparable',()=>assert.equal(calc(snapshot,{...inbox,observed_at:'2026-11-12T01:29:20Z'}),'SNAPSHOT_INCOMPARABLE'));
+test('incomplete inbox snapshot does not prove absence',()=>assert.equal(calc(snapshot,{...inbox,complete:false}),'INBOX_UNVERIFIED'));
 const badFetch=async()=>({ok:false,status:403});
 await assert.rejects(fetchSourceSnapshot({repo,issue,fetchImpl:badFetch}),/SOURCE_UNVERIFIED/);
 const fixtureFetch=async()=>({ok:true,json:async()=>[raw]});
