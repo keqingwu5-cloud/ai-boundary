@@ -20,6 +20,10 @@ test('matching local record is NOT true receiver ACK',()=>assert.equal(calc(snap
 test('matching identity but wrong revision',()=>assert.equal(calc(snapshot,{...inbox,records:[{source_key:ev.source_key,revision:'2026-11-12T02:00:00Z',body_sha256:ev.body_sha256,persisted:true,persisted_at:time}]}),'MISMATCH_OR_CONFLICT'));
 test('matching identity but tampered content',()=>assert.equal(calc(snapshot,{...inbox,records:[{source_key:ev.source_key,revision:ev.revision,body_sha256:'0'.repeat(64),persisted:true,persisted_at:time}]}),'MISMATCH_OR_CONFLICT'));
 test('good record plus conflicting duplicate blocks',()=>assert.equal(calc(snapshot,{...inbox,records:[{source_key:ev.source_key,revision:ev.revision,body_sha256:ev.body_sha256,persisted:true,persisted_at:time},{source_key:ev.source_key,revision:ev.revision,body_sha256:'0'.repeat(64),persisted:true,persisted_at:time}]}),'MISMATCH_OR_CONFLICT'));
+test('future-dated local persistence is not proof of received',()=>assert.equal(calc(snapshot,{...inbox,records:[{source_key:ev.source_key,revision:ev.revision,body_sha256:ev.body_sha256,persisted:true,persisted_at:'2026-11-12T04:00:00Z'}]}),'INBOX_UNVERIFIED'));
+test('local persistence before source creation is conflict',()=>assert.equal(calc(snapshot,{...inbox,records:[{source_key:ev.source_key,revision:ev.revision,body_sha256:ev.body_sha256,persisted:true,persisted_at:'2026-11-12T00:00:00Z'}]}),'MISMATCH_OR_CONFLICT'));
+test('duplicate identical local rows are not silently accepted',()=>{const r={source_key:ev.source_key,revision:ev.revision,body_sha256:ev.body_sha256,persisted:true,persisted_at:time};assert.equal(calc(snapshot,{...inbox,records:[r,r]}),'DUPLICATE_LOCAL_RECORD');});
+test('source snapshot cannot predate its own revision',()=>assert.equal(calc({...snapshot,observed_at:'2026-11-12T01:00:00Z'}, {...inbox,observed_at:time}),'SOURCE_UNVERIFIED'));
 test('missing inbox not treated as missing event',()=>assert.equal(calc(snapshot,null),'INBOX_UNVERIFIED'));
 test('untrusted inbox without origin not accepted',()=>assert.equal(calc(snapshot,{...inbox,origin:'MOCK_UNKNOWN'}),'INBOX_UNVERIFIED'));
 test('source incomplete is not confirmed missing',()=>assert.equal(calc({...snapshot,complete:false}),'SOURCE_UNVERIFIED'));
@@ -47,12 +51,22 @@ try{
  const replay=spawnSync(process.execPath,args,{encoding:'utf8'});
  assert.equal(replay.status,0,replay.stderr);
  assert.equal(fs.readFileSync(auditFile,'utf8').trim().split('\n').length,1);
- console.log('PASS subprocess restart & duplicate audit suppression');n++;
+ console.log('PASS subprocess restart & identical snapshot deduplication');n++;
+ // A newly observed inbox snapshot for the same incident must not be hidden.
+ const laterInbox={...inbox,observed_at:'2026-11-12T03:01:00Z'};
+ fs.writeFileSync(inboxFile,JSON.stringify(laterInbox));
+ const repeatNewEvidence=spawnSync(process.execPath,args,{encoding:'utf8'});
+ assert.equal(repeatNewEvidence.status,0,repeatNewEvidence.stderr);
+ const repeatedRows=fs.readFileSync(auditFile,'utf8').trim().split('\n').map(JSON.parse);
+ assert.equal(repeatedRows.length,2);
+ assert.equal(repeatedRows[0].incident_id,repeatedRows[1].incident_id);
+ assert.notEqual(repeatedRows[0].audit_id,repeatedRows[1].audit_id);
+ console.log('PASS same incident from new snapshot creates new observation');n++;
  const match={source_key:ev.source_key,revision:ev.revision,body_sha256:ev.body_sha256,persisted:true,persisted_at:time};
  fs.writeFileSync(inboxFile,JSON.stringify({...inbox,records:[match]}));
  const recovered=spawnSync(process.execPath,args,{encoding:'utf8'});
  assert.equal(recovered.status,0,recovered.stderr);assert.match(recovered.stdout,/LOCAL_RECORD_MATCH_ONLY/);
- assert.equal(fs.readFileSync(auditFile,'utf8').trim().split('\n').length,2);
+ assert.equal(fs.readFileSync(auditFile,'utf8').trim().split('\n').length,3);
  console.log('PASS local matched-record transition does not claim ACK');n++;
  fs.rmSync(inboxFile);const missing=spawnSync(process.execPath,args,{encoding:'utf8'});
  assert.equal(missing.status,0,missing.stderr);assert.match(missing.stdout,/INBOX_UNVERIFIED/);
