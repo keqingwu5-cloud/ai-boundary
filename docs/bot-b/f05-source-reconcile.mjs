@@ -73,7 +73,10 @@ function validateSnapshot(snapshot) {
   for (const ev of snapshot.rows) {
     if (!object(ev) || ev.repository !== snapshot.repo || ev.issue_number !== snapshot.issue ||
       !integer(ev.comment_id) || ev.source_key !== `github:${snapshot.repo}#${snapshot.issue}:${ev.comment_id}` ||
-      !iso(ev.created_at) || !iso(ev.revision) || !/^[a-f0-9]{64}$/.test(ev.body_sha256 || '') ||
+      !iso(ev.created_at) || !iso(ev.revision) ||
+      Date.parse(ev.revision) > Date.parse(snapshot.observed_at) ||
+      Date.parse(ev.created_at) > Date.parse(ev.revision) ||
+      !/^[a-f0-9]{64}$/.test(ev.body_sha256 || '') ||
       ev.source_semantics !== 'CURRENT_COMMENT_STATE_ONLY' || keys.has(ev.source_key)) return false;
     keys.add(ev.source_key);
   }
@@ -89,7 +92,8 @@ function validateInbox(inbox, snapshot) {
       inbox.origin !== 'ISOLATED_FILE_CANDIDATE' || inbox.complete !== true) return false;
   return inbox.records.every(r => object(r) && typeof r.source_key === 'string' &&
     typeof r.revision === 'string' && /^[a-f0-9]{64}$/.test(r.body_sha256 || '') &&
-    r.persisted === true && typeof r.persisted_at === 'string' && iso(r.persisted_at));
+    r.persisted === true && typeof r.persisted_at === 'string' && iso(r.persisted_at) &&
+    Date.parse(r.persisted_at) <= Date.parse(inbox.observed_at));
 }
 
 export function assessSnapshot({ snapshot, inbox, expectedCommentIds, now, graceMs = 3 * 60 * 1000 }) {
@@ -111,9 +115,11 @@ export function assessSnapshot({ snapshot, inbox, expectedCommentIds, now, grace
     if (!ev) { res.push({ comment_id, status: 'SOURCE_EVENT_NOT_FOUND_OR_NOT_VISIBLE' }); continue; }
     const matchingKey = inbox.records.filter(x => x.source_key === ev.source_key);
     const consistent = matchingKey.length > 0 && matchingKey.every(r =>
-      r.revision === ev.revision && r.body_sha256 === ev.body_sha256);
+      r.revision === ev.revision && r.body_sha256 === ev.body_sha256 &&
+      Date.parse(r.persisted_at) >= Date.parse(ev.created_at));
     let status;
     if (matchingKey.length && !consistent) status = 'MISMATCH_OR_CONFLICT';
+    else if (matchingKey.length > 1) status = 'DUPLICATE_LOCAL_RECORD';
     else if (matchingKey.length && consistent) status = 'LOCAL_RECORD_MATCH_ONLY';
     else if (Date.parse(now) - Date.parse(ev.revision) >= graceMs &&
       Date.parse(inbox.observed_at) >= Date.parse(ev.revision) + graceMs) {
@@ -130,9 +136,19 @@ export function assessSnapshot({ snapshot, inbox, expectedCommentIds, now, grace
 export function appendAuditOnce(file, entry) {
   const payload = { schema: 'firstbrain.g0-audit.v1', evidence_level: 'ISOLATED_LOCAL_CANDIDATE',
     ...entry, grok_ack: null, release_gate: 'HOLD' };
-  const audit_id = sha256(JSON.stringify({source_key:payload.source_key, comment_id:payload.comment_id,
-    revision:payload.revision, body_sha256:payload.body_sha256, status:payload.status}));
-  const data = { ...payload, audit_id };
+  // One incident may be independently observed multiple times. Distinguish
+  // incident identity from a specific snapshot observation, and suppress only
+  // duplicate observations of the *same* source/inbox snapshots.
+  const incident_id = sha256(JSON.stringify({source_key:payload.source_key,
+    comment_id:payload.comment_id, revision:payload.revision,
+    body_sha256:payload.body_sha256, status:payload.status}));
+  const audit_id = sha256(JSON.stringify({incident_id,
+    source_origin:payload.source_origin, inbox_origin:payload.inbox_origin,
+    source_snapshot_at:payload.source_snapshot_at,
+    inbox_snapshot_at:payload.inbox_snapshot_at,
+    source_snapshot_sha256:payload.source_snapshot_sha256,
+    inbox_snapshot_sha256:payload.inbox_snapshot_sha256}));
+  const data = { ...payload, incident_id, audit_id };
   fs.mkdirSync(path.dirname(file), { recursive: true });
   if (fs.existsSync(file)) {
     const prior = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map(s => JSON.parse(s));
@@ -164,7 +180,13 @@ export async function main(argv = process.argv.slice(2)) {
     // Store *only* the limited status/evidence, never a source comment body.
     appendAuditOnce(flags.audit, { ...r, observed_at: now,
       source_origin: flags.source ? 'SUPPLIED_SNAPSHOT_UNATTESTED' : 'GITHUB_REST',
-      inbox_origin: inbox?.origin || 'UNVERIFIED', receiver_identity: 'NOT_VERIFIED' });
+      inbox_origin: inbox?.origin || 'UNVERIFIED', receiver_identity: 'NOT_VERIFIED',
+      source_snapshot_at: snapshot?.observed_at || null,
+      inbox_snapshot_at: inbox?.observed_at || null,
+      // Self-computed fingerprints distinguish observations, but are not
+      // independently signed provenance or proof of real receiver operation.
+      source_snapshot_sha256: sha256(JSON.stringify(snapshot)),
+      inbox_snapshot_sha256: inbox ? sha256(JSON.stringify(inbox)) : null });
   }
   console.log(JSON.stringify({ results, evidence_level: 'ISOLATED_LOCAL_CANDIDATE',
     autonomous_monitoring: false, real_grok_ack: false, release_gate:'HOLD' }));
