@@ -86,7 +86,7 @@ function validateInbox(inbox, snapshot) {
   if (!object(inbox) || inbox.schema !== 'firstbrain.inbox-snapshot.v1' ||
       !iso(inbox.observed_at) || !Array.isArray(inbox.records) ||
       inbox.repo !== snapshot.repo || inbox.issue !== snapshot.issue ||
-      inbox.origin !== 'ISOLATED_FILE_CANDIDATE') return false;
+      inbox.origin !== 'ISOLATED_FILE_CANDIDATE' || inbox.complete !== true) return false;
   return inbox.records.every(r => object(r) && typeof r.source_key === 'string' &&
     typeof r.revision === 'string' && /^[a-f0-9]{64}$/.test(r.body_sha256 || '') &&
     r.persisted === true && typeof r.persisted_at === 'string' && iso(r.persisted_at));
@@ -101,7 +101,10 @@ export function assessSnapshot({ snapshot, inbox, expectedCommentIds, now, grace
   if (Date.parse(snapshot.observed_at) > Date.parse(now)) return expectedCommentIds.map(comment_id => ({ comment_id, status: 'SNAPSHOT_INCOMPARABLE' }));
   const selected = new Map(snapshot.rows.map(e => [e.comment_id, e]));
   if (!inbox || !validateInbox(inbox, snapshot)) return expectedCommentIds.map(comment_id => ({ comment_id, status: 'INBOX_UNVERIFIED' }));
-  if (Date.parse(inbox.observed_at) > Date.parse(now)) return expectedCommentIds.map(comment_id => ({ comment_id, status: 'SNAPSHOT_INCOMPARABLE' }));
+  if (Date.parse(inbox.observed_at) > Date.parse(now) ||
+      Date.parse(inbox.observed_at) < Date.parse(snapshot.observed_at)) {
+    return expectedCommentIds.map(comment_id => ({ comment_id, status: 'SNAPSHOT_INCOMPARABLE' }));
+  }
   const res = [];
   for (const comment_id of [...new Set(expectedCommentIds)]) {
     const ev = selected.get(comment_id);
