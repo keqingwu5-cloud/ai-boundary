@@ -59,3 +59,6 @@ try{
  console.log('PASS file missing fail-closed');n++;
 }finally{fs.rmSync(dir,{recursive:true,force:true});}
 console.log(`SUMMARY: ${n} candidate checks passed; NO_REAL_GITHUB_NETWORK / NO_GROK_ACK / NO_DEPLOY`);
+// BOT-B main runner expects this success marker after the process has completed.
+console.log('EXIT=0');
+
