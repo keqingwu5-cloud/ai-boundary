@@ -1,8 +1,6 @@
 // F05 G-0: pure, fail-closed source-event / local-inbox reconciliation candidate.
 // This module does NOT subscribe to GitHub, verify webhook signatures, or ACK Grok.
 // A caller must provide trusted source snapshots and persisted receiver records.
-const fields = ['delivery_id', 'source', 'comment_id', 'revision', 'body'];
-
 function validSourceEvent(ev) {
   return ev !== null && typeof ev === 'object' &&
     typeof ev.delivery_id === 'string' && ev.delivery_id.trim() !== '' &&
