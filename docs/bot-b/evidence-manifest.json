@@ -1,9 +1,10 @@
 {
   "branch": "research/bot-b-inner-drive-v0.1",
-  "head": "d763926d43d818ed7e590f782755b1f1ee585633",
+  "head": "4cd40372316c671da2bd6c2daf84c9e0439da1cb",
   "date": "2026-11-12",
   "status": "RESEARCH_CANDIDATE",
   "release_gate": "HOLD",
+  "notes": "Syntax error fixed; netns/mount fail on unshare failure; BOT-A diagrams vendored",
   "checks": [
     {"name": "synthetic", "file": "docs/bot-a/synthetic-inner-drive.mjs", "level": "SYNTHETIC"},
     {"name": "stop_local", "file": "docs/bot-b/stop-flag-test.mjs", "level": "LOCAL"},
