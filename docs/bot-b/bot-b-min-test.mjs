@@ -19,18 +19,23 @@ function run(cmd, label) {
       console.error('FAIL:', label);
       process.exit(1);
     }
+    return out;
   } catch (e) {
     console.error('FAIL:', label, e.message);
     process.exit(1);
   }
 }
 
-// 1. Synthetic harness
+// 1. Synthetic harness (must contain evidence_level)
 if (!fs.existsSync('docs/bot-a/synthetic-inner-drive.mjs')) {
   console.error('FAIL: source not found');
   process.exit(1);
 }
-run('node docs/bot-a/synthetic-inner-drive.mjs', 'synthetic');
+const syn = run('node docs/bot-a/synthetic-inner-drive.mjs', 'synthetic');
+if (!syn.includes('"evidence_level": "SYNTHETIC"')) {
+  console.error('FAIL: missing evidence_level');
+  process.exit(1);
+}
 
 // 2. STOP local
 run('node docs/bot-b/stop-flag-test.mjs', 'STOP');
@@ -58,6 +63,7 @@ run('node docs/bot-b/verify-manifest.mjs', 'manifest');
 
 console.log('SUMMARY: PASS=' + passed + ' NOT_RUN=' + notRun);
 if (notRun > 0) {
-  console.log('NOTE: NOT_RUN items are not counted as PASS');
+  console.log('NOTE: NOT_RUN items present; CI green does not mean full acceptance');
+  process.exit(2);
 }
 console.log('EXIT=0');
