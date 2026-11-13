@@ -2,7 +2,7 @@
 
 **本文件的角色：** 讓人和多個 AI 能從同一張「現況 × 目標 × 缺口」地圖理解專案。它是**設計與現況導覽**，不創造第二套記憶／審批／事件權威，也不代表任何外部 AI 已收到、已執行或已核准。
 
-- 第 1–11 節為 2026-11-10 歷史基線；最新抽象接手與實跑結果見第 13 節，不把歷史狀態當成今日驗收。
+- 第 1–11 節為 2026-11-10 歷史基線；最新底層連結優先順序與結構見第 14 節；第 13 節保留先前接手與實跑結果，不把歷史狀態當成今日驗收。
 - 讀取日期：2026-11-10（Asia/Taipei）。寫入前基線：`main@d2ec331ea4fa68d5a2713f12f5d4706b8effb21a`。
 - 需求／狀態總索引：[Issue #150](https://github.com/keqingwu5-cloud/ai-boundary/issues/150)；跨 AI 審查與反證：[Issue #153](https://github.com/keqingwu5-cloud/ai-boundary/issues/153)；R3 根因與修復：[Issue #156](https://github.com/keqingwu5-cloud/ai-boundary/issues/156)；真正跨 AI ACK：[Issue #41](https://github.com/keqingwu5-cloud/ai-boundary/issues/41)。
 - 本文件來源是固定 SHA 的主幹檔案、README、`testenv/` 部署包與當前研究 Draft；**不把網頁上線 URL 的存在當作目前部署版本／真機安全已驗證**。
@@ -215,7 +215,7 @@ flowchart TD
 
 ## 十二、最新角色運作分工 V0.2（使用者 2026-11-10 決定）
 
-**本節是當前任務分工，優先於前面各節對 Gemini／GPT① 工程或審查角色的舊描述；不更改已完成工程和其作者的歷史歸屬。**
+**本節保留 2026-11-10 歷史分工；最新使用者分工見第 14 節 G：Gemini 核對技術條件與限制、BOT 工程實作與測試、Grok 去重與整合。不改歷史作者歸屬。**
 
 | 角色 | 主責 | 向下一站交付 |
 |---|---|---|
@@ -279,3 +279,113 @@ flowchart TD
 | 首個可用版本 | 提交實際 diff、可用功能、已知限制、必要驗證、回退方式與待批准動作 | 準備完整後請使用者審核 |
 
 目前未具備「整套系統已運轉」的證據。抽象層完成責任對應，本機流程已實跑並形成一個修補候選；其他工作保留原 owner、來源及未驗狀態。
+
+
+## 十四、底層連結結構 V0.4：完整循環優先（2026-11-13）
+
+**本節優先於第十節與第十三節 B 的施工順序。** 使用者已指定先完成底層連結完整結構化，優先沿用開源，再串通 AI → 輸出 → 審核 → 部署 → 啟動 → 回報 → 修正。這次是設計整合交付，不是已接線、已部署或新增發布授權。前面各節保留為歷史與來源。
+
+### A. 系統邊界與唯一責任
+
+六部分是責任，不新建六個服務。沿用原 #150 索引、#166 工程整合與 #41 真 ACK 邊界。本文件是設計導覽，不成為第二個 runtime 帳本。
+
+| 部分 | 操作入口與目的 | 權威寫入者（目標設計） | 輸出與相依 |
+|---|---|---|---|
+| 身份與權限 | 收件驗證、批准、撤權、派工前核對 | 授權服務；AI 原文不能寫入批准 | principal、scope、grant/version；依賴真身份 |
+| 任務與版本 | 登記任務、來源修訂、交付產物 | 任務/產物儲存接口；版本新增不覆蓋 | task_id、revision、artifact digest；沿用 R04 契約 |
+| 傳遞與收件 | 投遞、讀回、補收、去重 | inbox/outbox 儲存接口 | 已保存收件回執；收件不觸發執行 |
+| 狀態與保存 | 執行進度、中斷續接、查詢 | 流程引擎寫 runtime 狀態；應用儲存寫業務記錄 | engine_run_id 對應 task_id；避免兩邊各自改同一狀態 |
+| 審核與執行 | 審查固定產物、部署、啟動 | 審核者寫決定；受授權 executor 寫執行結果 | review、deployment、activation 各自回執 |
+| 回報與恢復 | 讀回結果、分類失敗、停止、對帳 | 執行端寫結果；整合視圖只投影 | result_ref、error、next_action；不得把顯示狀態當權威 |
+
+Hatchet 為**唯一優先試接候選**，尚未選定採用版本、安裝或替換現有 queue。其流程狀態與業務產物分開：引擎記錄調度/等待/重試，應用記錄任務、產物、審核與來源版本；視圖由 ID 關聯讀取，不複製成另一個可修改狀態帳本。先不疊加 Temporal 或 LangGraph。
+
+### B. 每個連結的契約
+
+| 連結 | 輸入與檢查 | 保存及回執 | 失敗去向 |
+|---|---|---|---|
+| 來源 → 收件 | source_key、revision、原文摘要；驗身份、重算 digest | R04 原來源修訂及獨立觀測；RECEIVED_STORED | 格式/身份拒絕；同版異內容 CONFLICT；不派工 |
+| 收件 → AI 任務 | 任務目標、限制、來源引用；另驗派工授權 | task_id、run_id、輸入版本、DISPATCH_ACCEPTED | 缺授權停 BLOCKED；保留已收件內容 |
+| AI → 交付產物 | 產物引用、來源版本、模型/工具來源標記 | immutable artifact_ref、digest、OUTPUT_STORED | 產物缺失或不可讀回不進入審核 |
+| 產物 → 審核 | 固定產物、差異、測試證據、已知限制 | review_id、reviewer、decision、綁定 digest | REJECTED/CHANGES_REQUESTED 返回原 task 的新 revision |
+| 審核 → 部署 | 通過的具體版本＋部署授權＋目標環境 | deployment_id、實際 artifact digest、環境、DEPLOYED | 已知失敗 FAILED；副作用不明 UNKNOWN，先對帳 |
+| 部署 → 啟動 | 已安裝版本、啟動授權、必要設定與健康檢查 | activation_id、runtime 身份、版本、STARTED | 啟動失敗保留部署記錄；不顯示 RUNNING |
+| 啟動 → 回報 | run_id、結果、錯誤、資源紀錄 | RESULT_STORED 與來源端獨立讀回 | ACK 遺失先查結果；不直接重做外部操作 |
+| 回報 → 修正/結案 | 預期與實際差異、原任務與產物引用 | ACCEPTED 或同 task 下的新 revision | 保留已完成結果，不另造無關母任務 |
+
+上述操作名稱與回執為**目標語義**，不是新增 HTTP route，也不是要求改名既有狀態。實作需建立原欄位對照，尤其不能直接覆蓋 R04 的 recordSourceRevision、version_ref、dispatch:false 契約；其完整最新原件仍待對照。
+
+### C. 最小共同資訊與版本綁定
+
+沿用第五節資訊包，新增內容以 adapter 映射，避免重寫既有 schema：
+
+- 關聯：project_id、task_id、event_id、correlation_id、causation_id；engine_run_id / attempt_id 不能代替穩定 task_id。
+- 版本：source_ref、source_revision、artifact_ref、artifact_digest、contract_version；digest 演算法及序列化方式須在契約固定，不能由不同端自由重算。
+- 身份：principal_ref、destination_ref、scope_ref；不在包內放密鑰。顯示角色名不等於驗證身份。
+- 決定：review_ref、approval_ref、approved_artifact_digest、environment、allowed_action、expiry/revocation_ref。審核通過與執行授權分開。
+- 回報：receipt_id、receipt_kind、status、evidence_ref、error_code、retry_class、observed_at。接收端時間是觀測，不覆蓋來源時間。
+- 所有狀態更新須帶預期 revision 或等效原子條件，拒絕過期 writer 覆寫。
+
+產物變更後，舊批准僅對舊 digest 有效。部署與啟動可同屬一個批准範圍，但必須明確列出 allowed_action，仍分別記錄結果。任務原文包含「已批准」不能產生 approval_ref。
+
+### D. 狀態分軸，避免一個完成覆蓋全部階段
+
+| 軸 | 目標狀態示例 | 不可推論 |
+|---|---|---|
+| 收件 | RECEIVED_STORED / CONFLICT / REJECTED | 收到 ≠ 已派工 |
+| 審核 | PENDING / APPROVED / CHANGES_REQUESTED / REJECTED | APPROVED ≠ 有部署權限 |
+| 部署 | NOT_DEPLOYED / DEPLOYING / DEPLOYED / FAILED / UNKNOWN | DEPLOYED ≠ 已啟動 |
+| 執行 | NOT_STARTED / RUNNING / SUCCEEDED / FAILED / UNKNOWN | SUCCEEDED ≠ 真 AI 身份已驗證或獨立驗收 |
+| 停止 | NONE / STOP_REQUESTED / STOP_CONFIRMED | 本機取消 ≠ 遠端副作用撤銷 |
+| 驗收 | UNREVIEWED / ACCEPTED / REJECTED | 作者自測 ≠ 非作者覆驗 |
+
+這些為設計投影；實作以原狀態機合法轉移映射，不能任意添加文字狀態繞過 guard。UNKNOWN 在對帳前不得走普通重派；本機執行已停止但遠端結果不明時，兩項資訊並存。
+
+### E. 傳遞、重試與重啟的最小規則
+
+1. **先保存再承認收件**：只有儲存交易成功才回 RECEIVED_STORED。若來源收件已成功但回執遺失，重送同版回既有收件 ID；新版新增修訂。
+2. **保存與投遞間不可留無法追查的空隙**：業務交易與待投遞記錄須具備原子 outbox 或經驗證的等效機制。引擎接收 run_id 成功後保存映射；超時先查既有 run，不盲目再建。
+3. **重送不等於重新執行**：事件去重鍵與執行冪等鍵分開；同 idempotency key 異 payload 拒絕。外部副作用仍需目的端冪等或對帳，不能把引擎恢復宣稱為外部 exactly-once。
+4. **重試按失敗分類**：確認未產生副作用的暫時錯誤才可有界重試；格式/授權錯誤待修正；結果不明進 reconciliation。
+5. **撤權與停止跨重啟保留**：新程序不得以 bootstrap 重建舊 grant；舊 attempt 不得借新 grant 完成。停止確認只能由具體執行端證據更新。
+6. **回復保留歷史**：代碼回退不等於資料回退；批准版本、停止記錄和未知結果均不得為通過測試而刪除。補償操作另記授權和結果。
+7. **大產物用引用**：流程事件只存必要摘要與受權限保護的產物引用；不把私人記憶或密鑰寫進流程歷史與公開日誌。
+
+此為必須滿足的行為設計，不預先指定另建消息佇列、資料庫或新服務。
+
+### F. 既有工程位置與證據範圍
+
+| 現有來源 | 放回結構的位置 | 已知證據／缺口 |
+|---|---|---|
+| R04 S0/S1 | 來源版本與純收件 | 使用者跨對話最新回報 ACCEPT_TECHNICAL，限本地合成；此輪未取得完整覆驗原件，不能宣稱已納入整合 |
+| #168 @ de83d07f4ec6d7cc616071b7e8307737950c0e2c | STOP/revoke 跨重啟、授權不可覆寫 | 本對話已執行本機修補與聚焦檢查；不代表 PG/遠端部署 |
+| #169 @ 959b24763eb13c65e07b153f283320fcf23f6600 | 共用 client、scope、接口能力檢查 | 5 項接口測試及舊 loop 回歸；新版路徑使用 recording store，不是持久化接通 |
+| #97 @ 3962de8b4ab2696b4764b10d802b979b182aa500 | intent/authorize/report、PG 候選 | 已讀接口；不能直接換入舊 FileStore；與開源引擎的責任重疊須先去重 |
+| Hatchet | 調度、等待、執行歷史與恢復候選 | 官方能力初選；未固定版本/部署設定、未實跑、未取代上述工程 |
+| #41 | 真接收者身份與 ACK | 仍不能以 connector 讀取、留言張貼或合成回執取代 |
+
+以上 SHA 是本對話查讀/產生的固定證據版本，不是聲稱所有遠端分支目前仍在同一 HEAD。進入實作前增量查差異。
+
+### G. 開源採用方式與下一個整合批次
+
+沿用先前官方查閱來源：
+- https://github.com/hatchet-dev/hatchet
+- https://docs.hatchet.run/self-hosting
+- https://docs.hatchet.run/v1/durable-execution
+
+初選依據：可自架、PostgreSQL 持久化、TypeScript/Python、生存於中斷的工作流及事件等待。這些是官方文件能力，不能取代本專案驗證。引擎不自動供應我們的 reviewer 身份、批准與 artifact 綁定、部署目標權限或真 AI 接入。
+
+下一批只做一條合成任務完整循環：
+1. Grok 核對現有成果，固定一個整合基準和 Hatchet 候選版本，列 KEEP/REPLACE/ADAPT；不要讓自建 queue 與 Hatchet 同時派送同一任務。
+2. BOT 沿既有隔離工程補 adapter：純收件 → 已授權流程啟動 → 合成交付 → 綁定版本的審核 → 本機隔離產物安裝/啟動 → 結果保存讀回。批准由測試身份提供，標 SYNTHETIC_APPROVAL；不冒充使用者批准或真 AI。
+3. 在同一批整合中檢查必要邊界：重送、版本變更、審核拒絕、停止及中斷恢復。以同一固定候選與原始輸出交付，不將不同 SHA 的 PASS 拼成全通。
+4. Gemini 核對沿用技術的適用條件及限制；GPT①維護此契約、來源與未解缺口。非作者審核依實際作者歸屬安排，不以角色名自證獨立。
+5. 先完成可審查候選，再於真部署、費用、新權限或正式資料涉及時集中交使用者決定。
+
+此處為更新工程規格，未向其他代理發布訊息，未證明其收件或已開工。沒有新增常駐程序或背景任務。
+
+### H. 本批完成與未完成
+
+- **已完成：結構設計與現有工程對照。** 已統一交接契約、狀態分軸、責任、重試與恢復規則，以及開源替換範圍。
+- **尚未完成：機器契約對照、Hatchet 接入、同版完整循環實測、真身份/來源/部署與啟動。**
+- 完成判準：同一 task_id、固定產物版本與整合候選，從收件走到結果讀回；中途停止或重啟有可查去向，結果返回原任務。這是目標，不是本次執行結果。
