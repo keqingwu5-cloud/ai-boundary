@@ -27,6 +27,23 @@
 
 ## 未驗與交付邊界
 
-FileStore 的 stale-lock 接管、雙程序競態、舊 Worker lease、PgStore、真 API、真 AI 身份、瀏覽器資料保存、正式部署與獨立非作者驗收均不由本結果證明。此修正只封住已重現的 bootstrap/覆寫路徑，R02 尚非全面結案。API/模型零呼叫；MOCK 帳本的 0 不是雲端報價。
+以下為首輪邊界；後續補驗見下一節。FileStore 的 stale-lock 接管、雙程序競態、舊 Worker lease、PgStore、真 API、真 AI 身份、瀏覽器資料保存、正式部署與獨立非作者驗收均不由本結果證明。此修正只封住已重現的 bootstrap/覆寫路徑，R02 尚非全面結案。API/模型零呼叫；MOCK 帳本的 0 不是雲端報價。
 
 需工程審查確認 createGrant 的契約變更與完整 R02 相依後再整合。main 未改、未部署、未建立常駐 BOT。回退候選時只還原程式；不得抹除停止記錄來讓任務通過。
+
+
+## 第二輪：呼叫端與舊任務授權邊界
+
+在候選 bf8eeadec4d22d5752261152a38031541ae79fad 上執行，未再改 production code。結果見 followup-run.json；新增可重現腳本 `node --test testenv/loop/r02-grant-boundary.test.cjs`。
+
+- 現有 run-tests：14 PASS、0 FAIL、4 NOT_RUN。risk-tests：10 PASS、0 FAIL、1 BLOCKED、2 NOT_RUN；其中 K1/K2 引用前組，不能相加當作獨立測試數。
+- 新增四個聚焦測試全部通過：STOP 與 revoke 各自阻擋舊 lease 的 execute/ack/fail，即使新 grant 已建立並重新開啟 store；新任務可正常完成。已過期 execution 不能借新 grant ACK。八個程序同時建立相同 ID 僅一個成功；STOP 後八次重建全數衝突且原記錄不變。
+- 核對本機 server、run-tests、risk-tests 的 createGrant 呼叫，未發現必須覆寫既有 ID 的更新用途；既有迴歸未出現此契約變更造成的失敗。這不是全倉庫所有外部消費者相容保證。
+- 既有風險腳本會呼叫 run-tests。以 MOCK、127.0.0.1:19874 與 TESTENV_CI_SKIP_R9=1 執行；R9 因重建目錄沒有歷史 orphan git metadata 而刻意跳過。原摘要中的 CI 字樣不是本次在 GitHub Actions 執行的證據，UNKNOWN SHA 由 source manifest 補足。Supabase INACTIVE 文字是既有測試描述，未重新查遠端狀態。
+- 執行後 19873、19874 均無服務監聽；真跨 AI 身份仍 BLOCKED，真 API、RLS、部署仍未驗。
+
+### 下一個整合卡點
+
+#97 固定來源 3962de8b4ab2696b4764b10d802b979b182aa500 的新版 worker 需要 receive/intent/authorize/execute/ack/fail/report；現有本機 loop client 只提供 receive/execute/ack/fail。因此不能只更換 worker 檔案宣稱已接新版。PG store 也沒有這個 FileStore createGrant 方法，本次結果不可外推到 PostgreSQL。下一個整合候選須對齊 client、授權與 intent/reconciliation 契約，再用同一任務驗證結果讀回；沿用原 #166 分工，未重做 R04 S0/S1。
+
+短時間八程序競爭不證明 stale-lock 接管與長時間崩潰恢復。阻擋 store 的完成寫入也不證明已送出的遠端副作用可取消。R02 仍待非作者工程審查，未全面結案。
