@@ -1,19 +1,42 @@
+# Isolated candidate checks only: no secrets, no deployment or provider calls.
+# The full isolation job intentionally fails closed if netns/mount are NOT_RUN.
 name: BOT-B isolation checks
 on:
   push:
-    branches: [research/bot-b-inner-drive-v0.1]
+    branches:
+      - research/bot-b-inner-drive-v0.1
+      - research/gpt1-f05-g0-review-implementation-v01
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   isolation:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run isolation suite
+      - name: Run isolation suite (NOT_RUN remains a failure)
+        run: node docs/bot-b/bot-b-min-test.mjs
+        env:
+          OFFLINE: '1'
+
+  f05-g0-candidate:
+    if: github.ref == 'refs/heads/research/gpt1-f05-g0-review-implementation-v01'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: F05 source-to-inbox candidate checks
         run: |
-          node docs/bot-b/bot-b-min-test.mjs
+          node docs/bot-b/f05-gap-detection-test.mjs
+          node docs/bot-b/f05-source-reconcile-test.mjs
         env:
           OFFLINE: '1'
