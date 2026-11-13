@@ -1,0 +1,391 @@
+{
+  "base_commit": "de83d07f4ec6d7cc616071b7e8307737950c0e2c",
+  "new_api_worker_commit": "3962de8b4ab2696b4764b10d802b979b182aa500",
+  "old_queue_commit": "a99f48a1cf3a848ef770b77701bf1e6283f11bad",
+  "scope": "LOCAL_AUTHENTICATED_CLIENT_AND_API_WITH_RECORDING_STORE_DOUBLE; LEGACY_FILESTORE_REGRESSION",
+  "new_source_blobs": {
+    "mainbrain-api.cjs": "1e1df7a15ebbe478bac73b5133c6be9aec03d0e2",
+    "polling-worker-candidate.cjs": "734f21bf930dfddd049d1d0e1603eefbae733552"
+  },
+  "candidate_sha256": {
+    "testenv/loop/local-worker-client.cjs": "fb1dfdc57e109494554163f026057162b312ff830009ce2ae91b8f2e5ce19f9c",
+    "testenv/loop/local-worker-client.test.cjs": "cf34cb67d21da037c17378c32e70afaa7957774d669eecd6d677f08f40be7681",
+    "testenv/loop/server.cjs": "60fa405104944ffe2cafc5a80d422fc1b08f0e5de869a265736eb9c069ebf3f2"
+  },
+  "focused_exit_code": 0,
+  "focused_stdout": "✔ new worker uses real API authentication and ordered intent/authorize/execute/ack (4.317822ms)\n✔ denied dispatch makes zero executor calls and uses separately scoped evidence report (2.185305ms)\n✔ execute scope cannot impersonate report scope (0.68938ms)\n✔ legacy API cannot be advertised as intent protocol (0.403352ms)\n✔ new API with an incomplete store rejects before task execution (0.276593ms)\nℹ tests 5\nℹ suites 0\nℹ pass 5\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 97.815215\n",
+  "focused_stderr": "",
+  "regression_exit_code": 0,
+  "suite": {
+    "started_at_taipei": "2026-11-13 12:50:34 Asia/Taipei",
+    "finished_at_taipei": "2026-11-13 12:50:37 Asia/Taipei",
+    "tip_sha_file": "UNKNOWN",
+    "tip_sha_live": "UNKNOWN",
+    "node": "v24.22.1",
+    "queue_wt_sha": "a99f48a",
+    "pr86_fix_sha": null,
+    "results": [
+      {
+        "id": "BOOT",
+        "status": "PASS",
+        "detail": {
+          "pid": 23,
+          "boot": "{\"ok\":true,\"port\":19874,\"mode\":\"MOCK\",\"grant_id\":\"grant-local-e2e-001\"}"
+        },
+        "at_taipei": "2026-11-13 12:50:34 Asia/Taipei"
+      },
+      {
+        "id": "unauthorized_rejection",
+        "status": "PASS",
+        "detail": {
+          "error": "UNAUTHORIZED"
+        },
+        "at_taipei": "2026-11-13 12:50:34 Asia/Taipei"
+      },
+      {
+        "id": "unauthorized_forged_token",
+        "status": "PASS",
+        "detail": {
+          "error": "UNAUTHORIZED"
+        },
+        "at_taipei": "2026-11-13 12:50:34 Asia/Taipei"
+      },
+      {
+        "id": "source_and_version_stamping",
+        "status": "PASS",
+        "detail": {
+          "event_id": "9fe63f3d-c436-453c-93d6-2bfe78f4065c",
+          "source": "origin-local",
+          "payload_version": "1",
+          "digest": "0b764f6c595799fa924d9380d9e5c044fc4014a76d8b339194e151f17eef42c5",
+          "result_kind": "MOCK"
+        },
+        "at_taipei": "2026-11-13 12:50:34 Asia/Taipei"
+      },
+      {
+        "id": "dedup_idempotency",
+        "status": "PASS",
+        "detail": {
+          "same": "8f70e34a-ee62-4fbe-947e-ec5cf41ceaac",
+          "conflict": {
+            "error": "IDEMPOTENCY_CONFLICT"
+          }
+        },
+        "at_taipei": "2026-11-13 12:50:34 Asia/Taipei"
+      },
+      {
+        "id": "retry",
+        "status": "PASS",
+        "detail": {
+          "event_id": "evt-retry-90410386",
+          "attempts": 2,
+          "mid_state": "queued"
+        },
+        "at_taipei": "2026-11-13 12:50:34 Asia/Taipei"
+      },
+      {
+        "id": "timeout_lease_reclaim",
+        "status": "PASS",
+        "detail": {
+          "oldAttempt": "be85926e-e1f4-44f6-b526-3f3947a9940f",
+          "newAttempt": "fee87d64-abe3-451f-a788-af235a9c4c37"
+        },
+        "at_taipei": "2026-11-13 12:50:35 Asia/Taipei"
+      },
+      {
+        "id": "restart_recovery",
+        "status": "PASS",
+        "detail": {
+          "event_id": "aec9d83d-8ef3-4f95-be20-2a76bf8883a7",
+          "state": "ack_received",
+          "result_kind": "MOCK"
+        },
+        "at_taipei": "2026-11-13 12:50:36 Asia/Taipei"
+      },
+      {
+        "id": "cost_cap",
+        "status": "PASS",
+        "detail": {
+          "event_id": "evt-cost-df895ea2",
+          "state": "failed",
+          "last_error": "cost_cap_exceeded"
+        },
+        "at_taipei": "2026-11-13 12:50:36 Asia/Taipei"
+      },
+      {
+        "id": "reporting",
+        "status": "PASS",
+        "detail": {
+          "totals": {
+            "events": 6,
+            "ack_received": 3,
+            "failed": 1,
+            "MOCK": 3,
+            "REAL": 0,
+            "total_cost_usd": 0.02
+          }
+        },
+        "at_taipei": "2026-11-13 12:50:36 Asia/Taipei"
+      },
+      {
+        "id": "e2e_submit_ack_readback",
+        "status": "PASS",
+        "detail": {
+          "event_id": "18863954-4cc5-486b-98ca-1d1252bdefcf",
+          "exact_match": true,
+          "instruction": "full-e2e-merlin-visible",
+          "output_sha256": "bd0c7ddb390cf34384663d7fb412366d60ce87762aa89242e1d0aadce295617f",
+          "lifecycle": "done",
+          "submit_cli_exit": 0
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "e2e_readback_content_mismatch_negative",
+        "status": "PASS",
+        "detail": {
+          "event_id": "evt-mismatch-efec27b5",
+          "verify_code": "EVENT_CONFLICT",
+          "verify_msg": "readback_result_mismatch:echo_payload_mismatch",
+          "get_integrity": "echo_payload_mismatch",
+          "get_verify_code": "EVENT_CONFLICT"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "state_machine_illegal_transition_negative",
+        "status": "PASS",
+        "detail": {
+          "queued_ack": "EVENT_CONFLICT",
+          "leased_ack_skip_execute": "EVENT_CONFLICT",
+          "leased_ack_msg": "invalid attempt, endpoint, state or expired lease",
+          "queued_execute": "EVENT_CONFLICT",
+          "executed_ack_without_result": "EVENT_CONFLICT",
+          "legal_done_lifecycle": "done"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "openai_real_executor",
+        "status": "NOT_RUN",
+        "detail": {
+          "reason": "Merlin policy: read-only plan only; no key create, no model request, no billing, not wired to execution",
+          "env_OPENAI_API_KEY": "UNSET"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "openai_paid_api_call",
+        "status": "NOT_RUN",
+        "detail": {
+          "reason": "forbidden without approval"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "supabase_wake",
+        "status": "NOT_RUN",
+        "detail": {
+          "reason": "project xsgtpcutpnniomlrqazs INACTIVE; wake needs Merlin approval"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "deploy_production",
+        "status": "NOT_RUN",
+        "detail": {
+          "reason": "needs Merlin approval"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "mock_real_separation",
+        "status": "PASS",
+        "detail": {
+          "MOCK": 7,
+          "REAL": 0
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      }
+    ],
+    "counts": {
+      "PASS": 14,
+      "FAIL": 0,
+      "BLOCKED": 0,
+      "NOT_RUN": 4
+    }
+  },
+  "risk_pack": {
+    "started_at_taipei": "2026-11-13 12:50:34 Asia/Taipei",
+    "finished_at_taipei": "2026-11-13 12:50:37 Asia/Taipei",
+    "tip_sha_file": "UNKNOWN",
+    "tip_sha_live": "",
+    "results": [
+      {
+        "id": "K1_content_readback_exact_match",
+        "status": "PASS",
+        "detail": {
+          "maps_to": "K1",
+          "tests": [
+            "e2e_submit_ack_readback",
+            "e2e_readback_content_mismatch_negative"
+          ],
+          "tip_sha_file": "UNKNOWN",
+          "suite_counts": {
+            "PASS": 14,
+            "FAIL": 0,
+            "BLOCKED": 0,
+            "NOT_RUN": 4
+          }
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "K2_no_skip_execute_to_complete",
+        "status": "PASS",
+        "detail": {
+          "maps_to": "K2",
+          "tests": [
+            "state_machine_illegal_transition_negative"
+          ],
+          "tip_sha_file": "UNKNOWN"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "R1_forged_endpoint_rejected",
+        "status": "PASS",
+        "detail": {
+          "execute_forged": "EVENT_CONFLICT",
+          "ack_forged": "EVENT_CONFLICT",
+          "rejects": 2,
+          "grant_id": "g-r1"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "R1_real_cross_ai_identity",
+        "status": "BLOCKED",
+        "detail": {
+          "reason": "Issue #41 real cross-AI / independent GPT② ACK still BLOCKED; local API identity ≠ ChatGPT read receipt"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "R2_replay_and_cross_task_reject",
+        "status": "PASS",
+        "detail": {
+          "old_attempt_ack": "EVENT_CONFLICT",
+          "wrong_version": "EVENT_CONFLICT",
+          "cross_event": "EVENT_CONFLICT",
+          "rejects": 3
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "R3_retry_side_effect_exactly_once",
+        "status": "PASS",
+        "detail": {
+          "first": "applied",
+          "second": "UNKNOWN_NEEDS_RECONCILIATION",
+          "executor_duplicate": "UNKNOWN_NEEDS_RECONCILIATION",
+          "claim_wired_in_executor": true
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "R4_stop_revoke_vs_complete_race",
+        "status": "PASS",
+        "detail": {
+          "stop_blocks_execute": "FORBIDDEN",
+          "revoke_blocks_ack": "FORBIDDEN",
+          "stop_status": "STOP_REQUESTED",
+          "final_state": "executed"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "R5_crash_inject_write_recovery",
+        "status": "PASS",
+        "detail": {
+          "after_execute_inject": "INJECTED_FAIL",
+          "mid_state": "leased",
+          "before_ack_inject": "INJECTED_FAIL",
+          "result_preserved": true,
+          "final": "ack_received"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "R6_result_binding_invalid_rejected",
+        "status": "PASS",
+        "detail": {
+          "invalid_flag": "EXECUTED_BUT_RESULT_INVALID",
+          "ack_invalid": "EXECUTED_BUT_RESULT_INVALID",
+          "ack_wrong_sha": "output_sha256_mismatch"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "R7_synthetic_two_store_isolation",
+        "status": "PASS",
+        "detail": {
+          "cross_get": null,
+          "wrong_project_enqueue": "FORBIDDEN",
+          "expired_grant": "FORBIDDEN",
+          "scope_execute": "FORBIDDEN",
+          "expired_execute": "FORBIDDEN"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "R7_real_supabase_rls",
+        "status": "NOT_RUN",
+        "detail": {
+          "reason": "real Supabase not connected; project INACTIVE; needs Merlin approval to wake"
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "R8_retry_cost_stop_limits",
+        "status": "PASS",
+        "detail": {
+          "terminal": "failed",
+          "cost_cap": "cost_cap_exceeded",
+          "stop_execute": "FORBIDDEN",
+          "stop_enqueue": "FORBIDDEN",
+          "revoke_execute": "FORBIDDEN",
+          "REAL_costs": 0
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      },
+      {
+        "id": "R9_coverage_manifest",
+        "status": "NOT_RUN",
+        "detail": {
+          "reason": "CI: R9 pin/ancestor check is local-orphan-git only; skipped in GitHub Actions (no secrets). pr86-fix soft-skip still applies locally."
+        },
+        "at_taipei": "2026-11-13 12:50:37 Asia/Taipei"
+      }
+    ],
+    "counts": {
+      "PASS": 10,
+      "FAIL": 0,
+      "BLOCKED": 1,
+      "NOT_RUN": 2
+    }
+  },
+  "regression_stdout": "[PASS] K1_content_readback_exact_match {\"maps_to\":\"K1\",\"tests\":[\"e2e_submit_ack_readback\",\"e2e_readback_content_mismatch_negative\"],\"tip_sha_file\":\"UNKNOWN\",\"suite_counts\":{\"PASS\":14,\"FAIL\":0,\"BLOCKED\":0,\"NOT_RUN\":4}}\n[PASS] K2_no_skip_execute_to_complete {\"maps_to\":\"K2\",\"tests\":[\"state_machine_illegal_transition_negative\"],\"tip_sha_file\":\"UNKNOWN\"}\n[PASS] R1_forged_endpoint_rejected {\"execute_forged\":\"EVENT_CONFLICT\",\"ack_forged\":\"EVENT_CONFLICT\",\"rejects\":2,\"grant_id\":\"g-r1\"}\n[BLOCKED] R1_real_cross_ai_identity {\"reason\":\"Issue #41 real cross-AI / independent GPT② ACK still BLOCKED; local API identity ≠ ChatGPT read receipt\"}\n[PASS] R2_replay_and_cross_task_reject {\"old_attempt_ack\":\"EVENT_CONFLICT\",\"wrong_version\":\"EVENT_CONFLICT\",\"cross_event\":\"EVENT_CONFLICT\",\"rejects\":3}\n[PASS] R3_retry_side_effect_exactly_once {\"first\":\"applied\",\"second\":\"UNKNOWN_NEEDS_RECONCILIATION\",\"executor_duplicate\":\"UNKNOWN_NEEDS_RECONCILIATION\",\"claim_wired_in_executor\":true}\n[PASS] R4_stop_revoke_vs_complete_race {\"stop_blocks_execute\":\"FORBIDDEN\",\"revoke_blocks_ack\":\"FORBIDDEN\",\"stop_status\":\"STOP_REQUESTED\",\"final_state\":\"executed\"}\n[PASS] R5_crash_inject_write_recovery {\"after_execute_inject\":\"INJECTED_FAIL\",\"mid_state\":\"leased\",\"before_ack_inject\":\"INJECTED_FAIL\",\"result_preserved\":true,\"final\":\"ack_received\"}\n[PASS] R6_result_binding_invalid_rejected {\"invalid_flag\":\"EXECUTED_BUT_RESULT_INVALID\",\"ack_invalid\":\"EXECUTED_BUT_RESULT_INVALID\",\"ack_wrong_sha\":\"output_sha256_mismatch\"}\n[PASS] R7_synthetic_two_store_isolation {\"cross_get\":null,\"wrong_project_enqueue\":\"FORBIDDEN\",\"expired_grant\":\"FORBIDDEN\",\"scope_execute\":\"FORBIDDEN\",\"expired_execute\":\"FORBIDDEN\"}\n[NOT_RUN] R7_real_supabase_rls {\"reason\":\"real Supabase not connected; project INACTIVE; needs Merlin approval to wake\"}\n[PASS] R8_retry_cost_stop_limits {\"terminal\":\"failed\",\"cost_cap\":\"cost_cap_exceeded\",\"stop_execute\":\"FORBIDDEN\",\"stop_enqueue\":\"FORBIDDEN\",\"revoke_execute\":\"FORBIDDEN\",\"REAL_costs\":0}\n[NOT_RUN] R9_coverage_manifest {\"reason\":\"CI: R9 pin/ancestor check is local-orphan-git only; skipped in GitHub Actions (no secrets). pr86-fix soft-skip still applies locally.\"}\n\n=== RISK PACK SUMMARY ===\n{\n  \"PASS\": 10,\n  \"FAIL\": 0,\n  \"BLOCKED\": 1,\n  \"NOT_RUN\": 2\n}\n",
+  "regression_stderr": "",
+  "r9": "Explicitly skipped locally via TESTENV_CI_SKIP_R9=1: reconstructed blob sources lack orphan git history. Not a CI run.",
+  "limitations": [
+    "Recording store is not PostgreSQL evidence",
+    "Inherited INACTIVE labels are not current remote status checks",
+    "K1/K2 overlap suite; do not sum into independent tests",
+    "No real AI/provider, persistent service, merge, deployment or independent review"
+  ],
+  "ports_closed": [
+    19873,
+    19874
+  ]
+}

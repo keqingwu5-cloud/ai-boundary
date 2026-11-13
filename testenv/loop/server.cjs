@@ -39,30 +39,6 @@ const server = createHttpServer({
   },
 });
 
-function workerTokenProvider(action) {
-  const scopeMap = {
-    receive: ['tasks:receive'],
-    execute: ['tasks:execute', 'tasks:ack'],
-    ack: ['tasks:ack'],
-    fail: ['tasks:execute'],
-  };
-  const scopes = scopeMap[action] || ['tasks:receive', 'tasks:execute', 'tasks:ack'];
-  return mintToken({ secret: cfg.WORKER_SECRET, endpoint_id: cfg.WORKER_ID, scopes });
-}
-
-// In-process authenticated client (avoids HTTP for worker loop reliability)
-function createLocalClient() {
-  const authHdr = async (action) => ({
-    authorization: 'Bearer ' + (await workerTokenProvider(action)),
-  });
-  return {
-    receive: async () => api.receive({ headers: await authHdr('receive'), body: {} }),
-    execute: async (p) => api.execute({ headers: await authHdr('execute'), body: p }),
-    ack: async (p) => api.ack({ headers: await authHdr('ack'), body: { ...p } }),
-    fail: async (p) => api.fail({ headers: await authHdr('fail'), body: p }),
-  };
-}
-
 if (cfg.EXECUTOR_MODE !== 'MOCK') {
   console.error('REFUSING to start: TESTENV_EXECUTOR_MODE must be MOCK (OpenAI REAL not authorized)');
   process.exit(2);
@@ -71,7 +47,11 @@ const performTask = createMockExecutor({ store, costPerMockUsd: 0 });
 // Keep stub referenced so wiring docs stay honest; never invoke.
 void createRealExecutorStub;
 
-const client = createLocalClient();
+const { createLocalWorkerClient } = require('./local-worker-client.cjs');
+const client = createLocalWorkerClient({
+  api, protocol: 'legacy',
+  tokenProvider: ({scopes}) => mintToken({secret: cfg.WORKER_SECRET, endpoint_id: cfg.WORKER_ID, scopes}),
+});
 const worker = createPollingWorker({
   client,
   performTask,
