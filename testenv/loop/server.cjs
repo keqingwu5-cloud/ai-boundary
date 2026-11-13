@@ -84,8 +84,12 @@ let listening = false;
 
 function ensureBootstrapGrant() {
   const snap = store.snapshot();
+  // Bootstrap is first-time setup, not renewal or reauthorization. Retain a
+  // stopped/revoked/expired row so the store's authorization gate rejects it.
+  const bootstrap = snap.grants?.['grant-local-e2e-001'];
+  if (bootstrap) return bootstrap;
   const existing = Object.values(snap.grants || {}).find(
-    (g) => g.task_id === 'TASK-LOCAL-E2E' && !g.stopped && !g.revoked_at
+    (g) => g.task_id === 'TASK-LOCAL-E2E'
   );
   if (existing) return existing;
   return store.createGrant({

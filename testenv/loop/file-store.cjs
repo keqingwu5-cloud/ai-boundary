@@ -210,6 +210,9 @@ function createFileStore({
     createGrant(g) {
       return withLock((db) => {
         const grant_id = g.grant_id || crypto.randomUUID();
+        if (Object.prototype.hasOwnProperty.call(db.grants, grant_id)) {
+          throw error('EVENT_CONFLICT', 'grant identity already exists; use a new grant for explicit authorization');
+        }
         const row = {
           grant_id,
           task_id: g.task_id,

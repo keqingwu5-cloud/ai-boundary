@@ -1,0 +1,362 @@
+{
+  "baseline": {
+    "scope": "EXISTING_MOCK_LOCAL_PROCESS_ONLY",
+    "source_main": "d2ec331ea4fa68d5a2713f12f5d4706b8effb21a",
+    "source_queue": "a99f48a1cf3a848ef770b77701bf1e6283f11bad",
+    "source_blob_verified": 11,
+    "external_ai_connected": false,
+    "paid_api_calls": 0,
+    "persistent_service_left_running": false,
+    "checks": [
+      {
+        "check": "submit-1",
+        "exit_code": 0
+      },
+      {
+        "check": "submit-2",
+        "exit_code": 0
+      },
+      {
+        "check": "submit-3",
+        "exit_code": 0
+      },
+      {
+        "check": "readback-after-restart",
+        "exit_code": 0
+      },
+      {
+        "check": "three-results-survive-process-restart",
+        "status": "PASS",
+        "events": 3
+      },
+      {
+        "check": "stopGrant",
+        "exit_code": 0
+      },
+      {
+        "check": "stopGrant-survives-restart",
+        "status": "FAIL",
+        "before": {
+          "grant_id": "grant-local-e2e-001",
+          "task_id": "TASK-LOCAL-E2E",
+          "source_endpoint_id": "origin-local",
+          "destination_endpoint_id": "worker-mock",
+          "allowed_actions": [
+            "send",
+            "receive",
+            "execute",
+            "ack"
+          ],
+          "max_attempts": 3,
+          "cost_cap_usd": 0.05,
+          "expires_at": "2026-11-20T04:33:55.439Z",
+          "stopped": true,
+          "revoked_at": null,
+          "created_at": "2026-11-13T04:33:55.439Z",
+          "stop_reason": "synthetic-restart-probe",
+          "stop_status": "STOP_REQUESTED",
+          "stopped_at": "2026-11-13T04:33:56.738Z"
+        },
+        "after": {
+          "grant_id": "grant-local-e2e-001",
+          "task_id": "TASK-LOCAL-E2E",
+          "source_endpoint_id": "origin-local",
+          "destination_endpoint_id": "worker-mock",
+          "allowed_actions": [
+            "send",
+            "receive",
+            "execute",
+            "ack"
+          ],
+          "max_attempts": 3,
+          "cost_cap_usd": 0.05,
+          "expires_at": "2026-11-20T04:33:56.790Z",
+          "stopped": false,
+          "revoked_at": null,
+          "created_at": "2026-11-13T04:33:56.791Z"
+        }
+      },
+      {
+        "check": "revokeGrant",
+        "exit_code": 0
+      },
+      {
+        "check": "revokeGrant-survives-restart",
+        "status": "FAIL",
+        "before": {
+          "grant_id": "grant-local-e2e-001",
+          "task_id": "TASK-LOCAL-E2E",
+          "source_endpoint_id": "origin-local",
+          "destination_endpoint_id": "worker-mock",
+          "allowed_actions": [
+            "send",
+            "receive",
+            "execute",
+            "ack"
+          ],
+          "max_attempts": 3,
+          "cost_cap_usd": 0.05,
+          "expires_at": "2026-11-20T04:33:56.790Z",
+          "stopped": false,
+          "revoked_at": "2026-11-13T04:33:57.040Z",
+          "created_at": "2026-11-13T04:33:56.791Z",
+          "revoke_reason": "synthetic-restart-probe"
+        },
+        "after": {
+          "grant_id": "grant-local-e2e-001",
+          "task_id": "TASK-LOCAL-E2E",
+          "source_endpoint_id": "origin-local",
+          "destination_endpoint_id": "worker-mock",
+          "allowed_actions": [
+            "send",
+            "receive",
+            "execute",
+            "ack"
+          ],
+          "max_attempts": 3,
+          "cost_cap_usd": 0.05,
+          "expires_at": "2026-11-20T04:33:57.091Z",
+          "stopped": false,
+          "revoked_at": null,
+          "created_at": "2026-11-13T04:33:57.092Z"
+        }
+      }
+    ]
+  },
+  "after": {
+    "overall": "PASS",
+    "scope": "EXISTING_MOCK_LOCAL_PROCESS_ONLY",
+    "source_main": "d2ec331ea4fa68d5a2713f12f5d4706b8effb21a",
+    "source_queue": "a99f48a1cf3a848ef770b77701bf1e6283f11bad",
+    "source_blobs_verified_before_patch": 11,
+    "modified_source_paths": [
+      "testenv/loop/server.cjs",
+      "testenv/loop/file-store.cjs"
+    ],
+    "external_ai_connected": false,
+    "paid_api_calls": 0,
+    "persistent_service_left_running": false,
+    "checks": [
+      {
+        "check": "submit-1",
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "status": "PASS"
+      },
+      {
+        "check": "submit-2",
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "status": "PASS"
+      },
+      {
+        "check": "submit-3",
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "status": "PASS"
+      },
+      {
+        "check": "readback-after-restart",
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "status": "PASS"
+      },
+      {
+        "check": "three-results-survive-process-restart",
+        "status": "PASS",
+        "events": 3
+      },
+      {
+        "check": "stopGrant",
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "status": "PASS"
+      },
+      {
+        "check": "stopGrant-survives-restart",
+        "status": "PASS",
+        "before": {
+          "grant_id": "grant-local-e2e-001",
+          "task_id": "TASK-LOCAL-E2E",
+          "source_endpoint_id": "origin-local",
+          "destination_endpoint_id": "worker-mock",
+          "allowed_actions": [
+            "send",
+            "receive",
+            "execute",
+            "ack"
+          ],
+          "max_attempts": 3,
+          "cost_cap_usd": 0.05,
+          "expires_at": "2026-11-20T04:35:46.662Z",
+          "stopped": true,
+          "revoked_at": null,
+          "created_at": "2026-11-13T04:35:46.662Z",
+          "stop_reason": "synthetic-restart-probe",
+          "stop_status": "STOP_REQUESTED",
+          "stopped_at": "2026-11-13T04:35:47.888Z"
+        },
+        "after": {
+          "grant_id": "grant-local-e2e-001",
+          "task_id": "TASK-LOCAL-E2E",
+          "source_endpoint_id": "origin-local",
+          "destination_endpoint_id": "worker-mock",
+          "allowed_actions": [
+            "send",
+            "receive",
+            "execute",
+            "ack"
+          ],
+          "max_attempts": 3,
+          "cost_cap_usd": 0.05,
+          "expires_at": "2026-11-20T04:35:46.662Z",
+          "stopped": true,
+          "revoked_at": null,
+          "created_at": "2026-11-13T04:35:46.662Z",
+          "stop_reason": "synthetic-restart-probe",
+          "stop_status": "STOP_REQUESTED",
+          "stopped_at": "2026-11-13T04:35:47.888Z"
+        }
+      },
+      {
+        "check": "submit-after-stopGrant",
+        "exit_code": 1,
+        "expected_exit_code": 1,
+        "status": "PASS"
+      },
+      {
+        "check": "revokeGrant",
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "status": "PASS"
+      },
+      {
+        "check": "revokeGrant-survives-restart",
+        "status": "PASS",
+        "before": {
+          "grant_id": "grant-local-e2e-001",
+          "task_id": "TASK-LOCAL-E2E",
+          "source_endpoint_id": "origin-local",
+          "destination_endpoint_id": "worker-mock",
+          "allowed_actions": [
+            "send",
+            "receive",
+            "execute",
+            "ack"
+          ],
+          "max_attempts": 3,
+          "cost_cap_usd": 0.05,
+          "expires_at": "2026-11-20T04:35:48.258Z",
+          "stopped": false,
+          "revoked_at": "2026-11-13T04:35:48.508Z",
+          "created_at": "2026-11-13T04:35:48.259Z",
+          "revoke_reason": "synthetic-restart-probe"
+        },
+        "after": {
+          "grant_id": "grant-local-e2e-001",
+          "task_id": "TASK-LOCAL-E2E",
+          "source_endpoint_id": "origin-local",
+          "destination_endpoint_id": "worker-mock",
+          "allowed_actions": [
+            "send",
+            "receive",
+            "execute",
+            "ack"
+          ],
+          "max_attempts": 3,
+          "cost_cap_usd": 0.05,
+          "expires_at": "2026-11-20T04:35:48.258Z",
+          "stopped": false,
+          "revoked_at": "2026-11-13T04:35:48.508Z",
+          "created_at": "2026-11-13T04:35:48.259Z",
+          "revoke_reason": "synthetic-restart-probe"
+        }
+      },
+      {
+        "check": "submit-after-revokeGrant",
+        "exit_code": 1,
+        "expected_exit_code": 1,
+        "status": "PASS"
+      },
+      {
+        "check": "duplicate-reject-new-grant-allowed",
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "status": "PASS"
+      },
+      {
+        "check": "submit-with-new-grant",
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "status": "PASS"
+      },
+      {
+        "check": "seed-expired",
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "status": "PASS"
+      },
+      {
+        "check": "submit-expired",
+        "exit_code": 1,
+        "expected_exit_code": 1,
+        "status": "PASS"
+      },
+      {
+        "check": "expired-grant-not-renewed",
+        "status": "PASS"
+      }
+    ]
+  },
+  "source_blobs": {
+    "testenv/loop/config.cjs": "c1b63510da1bd4e76ab5ee9c3f2217ad016117af",
+    "testenv/loop/mock-executor.cjs": "935cf6b76ac9849d6c8c191de45c11ef5cf901e1",
+    "testenv/loop/server.cjs": "008ba405d3d312d8a5969ebcd9badff7122133c7",
+    "testenv/loop/file-store.cjs": "710806e0dce18edc2c8c3b19242fa2c888aa18d8",
+    "testenv/loop/token.cjs": "1553cde18976d14d54a71a715465e5f31457b5f9",
+    "testenv/loop/submit.cjs": "dede4ffeda02431d609772893f4bc8f6dd1bc74b",
+    "testenv/loop/view.cjs": "d802a602346009044480056ebcc6c2f933439591",
+    "testenv/queue-wt/api/auth-adapter.cjs": "395caeb258e96ff42d02e654b2ce3b5681026cda",
+    "testenv/queue-wt/api/http-server.cjs": "3278aee680ad7a14c239e71858b3dde42154cf2e",
+    "testenv/queue-wt/api/polling-worker-candidate.cjs": "8d1c50ce2bc99f1ede3eeaed2d2f86ba7ccb3063",
+    "testenv/queue-wt/api/mainbrain-api.cjs": "812408dec745c15106eb888f4010938ab0c24523"
+  },
+  "candidate_sha256": {
+    "testenv/loop/server.cjs": "a88c3f932f0491135123493962268ae815c4cd9c49edc5b13da31df32d54125b",
+    "testenv/loop/file-store.cjs": "465ae2e10a22f3dd2bc9f47e3cbe2dc79b62c490e01edc241bd230c2cb0305d9",
+    "testenv/loop/r02-restart-check.py": "b0b06b693c69fcc2ff7204ba7de12fcc21218ea4681fe908c372b6a0f6ebcfce"
+  },
+  "raw_after": {
+    "submit-after-stopGrant.stderr": "{\n  \"step\": \"send\",\n  \"status\": 403,\n  \"error\": \"FORBIDDEN\"\n}\n",
+    "readback-after-restart.stdout": "{\n  \"viewed_at_taipei\": \"2026-11-13 12:35:47 Asia/Taipei\",\n  \"runtime\": {\n    \"pid\": 37,\n    \"host\": \"127.0.0.1\",\n    \"port\": 19873,\n    \"executor_mode\": \"MOCK\",\n    \"openai\": \"NOT_CONNECTED\",\n    \"grant_id\": \"grant-local-e2e-001\",\n    \"started_at_taipei\": \"2026-11-13 12:35:47 Asia/Taipei\",\n    \"origin_id\": \"origin-local\",\n    \"worker_id\": \"worker-mock\"\n  },\n  \"totals\": {\n    \"events\": 3,\n    \"ack_received\": 3,\n    \"failed\": 0,\n    \"MOCK\": 3,\n    \"REAL\": 0,\n    \"total_cost_usd\": 0\n  },\n  \"note\": \"REAL executor NOT_CONNECTED; OpenAI requests NOT_RUN\",\n  \"events\": [\n    {\n      \"event_id\": \"9957e127-e633-4668-9da3-cffe70e88228\",\n      \"task_id\": \"TASK-LOCAL-E2E\",\n      \"state\": \"ack_received\",\n      \"lifecycle\": \"done\",\n      \"result_kind\": \"MOCK\",\n      \"attempt_count\": 1,\n      \"payload\": {\n        \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n        \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n        \"label\": \"MOCK_LOOP\"\n      },\n      \"result\": {\n        \"mode\": \"MOCK\",\n        \"result_kind\": \"MOCK\",\n        \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n        \"echo\": {\n          \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n          \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n          \"label\": \"MOCK_LOOP\"\n        },\n        \"verified\": true,\n        \"note\": \"synthetic local execution; OpenAI NOT connected\",\n        \"output_sha256\": \"cca833db8108320b5093426dfef4bed65666604332dc29b04ff85fb7f5616ca9\"\n      },\n      \"last_error\": null,\n      \"updated_at\": \"2026-11-13T04:35:46.878Z\"\n    },\n    {\n      \"event_id\": \"e5585811-92d2-40a9-8925-9a453d61327a\",\n      \"task_id\": \"TASK-LOCAL-E2E\",\n      \"state\": \"ack_received\",\n      \"lifecycle\": \"done\",\n      \"result_kind\": \"MOCK\",\n      \"attempt_count\": 1,\n      \"payload\": {\n        \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n        \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n        \"label\": \"MOCK_LOOP\"\n      },\n      \"result\": {\n        \"mode\": \"MOCK\",\n        \"result_kind\": \"MOCK\",\n        \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n        \"echo\": {\n          \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n          \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n          \"label\": \"MOCK_LOOP\"\n        },\n        \"verified\": true,\n        \"note\": \"synthetic local execution; OpenAI NOT connected\",\n        \"output_sha256\": \"84c1f12a279d4b87f7dcda5c26b59fc5dd5916a5fd7203d97c57290ffcccdd82\"\n      },\n      \"last_error\": null,\n      \"updated_at\": \"2026-11-13T04:35:47.081Z\"\n    },\n    {\n      \"event_id\": \"62c7b835-2250-461f-b4c2-574a13ef7026\",\n      \"task_id\": \"TASK-LOCAL-E2E\",\n      \"state\": \"ack_received\",\n      \"lifecycle\": \"done\",\n      \"result_kind\": \"MOCK\",\n      \"attempt_count\": 1,\n      \"payload\": {\n        \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n        \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n        \"label\": \"MOCK_LOOP\"\n      },\n      \"result\": {\n        \"mode\": \"MOCK\",\n        \"result_kind\": \"MOCK\",\n        \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n        \"echo\": {\n          \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n          \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n          \"label\": \"MOCK_LOOP\"\n        },\n        \"verified\": true,\n        \"note\": \"synthetic local execution; OpenAI NOT connected\",\n        \"output_sha256\": \"34ac2650e668ed6c023cd8b4196f55d9a261938924b432869d65188f357dfebc\"\n      },\n      \"last_error\": null,\n      \"updated_at\": \"2026-11-13T04:35:47.284Z\"\n    }\n  ],\n  \"recent_logs\": [\n    {\n      \"id\": 1,\n      \"event_id\": \"9957e127-e633-4668-9da3-cffe70e88228\",\n      \"actor_endpoint_id\": \"origin-local\",\n      \"action\": \"queued\",\n      \"detail\": {\n        \"grant_id\": \"grant-local-e2e-001\"\n      },\n      \"created_at\": \"2026-11-13T04:35:46.741Z\"\n    },\n    {\n      \"id\": 2,\n      \"event_id\": \"9957e127-e633-4668-9da3-cffe70e88228\",\n      \"actor_endpoint_id\": \"worker-mock\",\n      \"action\": \"acked\",\n      \"detail\": {\n        \"attempt_id\": \"4de859b3-472e-479c-a543-04b03933b46a\"\n      },\n      \"created_at\": \"2026-11-13T04:35:46.876Z\"\n    },\n    {\n      \"id\": 3,\n      \"event_id\": \"9957e127-e633-4668-9da3-cffe70e88228\",\n      \"actor_endpoint_id\": \"worker-mock\",\n      \"action\": \"leased\",\n      \"detail\": {\n        \"attempt_id\": \"4de859b3-472e-479c-a543-04b03933b46a\",\n        \"attempt_count\": 1\n      },\n      \"created_at\": \"2026-11-13T04:35:46.876Z\"\n    },\n    {\n      \"id\": 4,\n      \"event_id\": \"9957e127-e633-4668-9da3-cffe70e88228\",\n      \"actor_endpoint_id\": null,\n      \"action\": \"side_effect_applied\",\n      \"detail\": {\n        \"key\": \"mock-exec:9957e127-e633-4668-9da3-cffe70e88228\",\n        \"event_id\": \"9957e127-e633-4668-9da3-cffe70e88228\",\n        \"attempt_id\": \"4de859b3-472e-479c-a543-04b03933b46a\",\n        \"status\": \"applied\",\n        \"duplicate\": false,\n        \"at\": \"2026-11-13T04:35:46.876Z\"\n      },\n      \"created_at\": \"2026-11-13T04:35:46.876Z\"\n    },\n    {\n      \"id\": 5,\n      \"event_id\": \"9957e127-e633-4668-9da3-cffe70e88228\",\n      \"actor_endpoint_id\": \"worker-mock\",\n      \"action\": \"executed\",\n      \"detail\": {\n        \"attempt_id\": \"4de859b3-472e-479c-a543-04b03933b46a\",\n        \"result_kind\": \"MOCK\"\n      },\n      \"created_at\": \"2026-11-13T04:35:46.877Z\"\n    },\n    {\n      \"id\": 6,\n      \"event_id\": \"9957e127-e633-4668-9da3-cffe70e88228\",\n      \"actor_endpoint_id\": \"worker-mock\",\n      \"action\": \"ack_received\",\n      \"detail\": {\n        \"attempt_id\": \"4de859b3-472e-479c-a543-04b03933b46a\"\n      },\n      \"created_at\": \"2026-11-13T04:35:46.878Z\"\n    },\n    {\n      \"id\": 7,\n      \"event_id\": \"e5585811-92d2-40a9-8925-9a453d61327a\",\n      \"actor_endpoint_id\": \"origin-local\",\n      \"action\": \"queued\",\n      \"detail\": {\n        \"grant_id\": \"grant-local-e2e-001\"\n      },\n      \"created_at\": \"2026-11-13T04:35:46.954Z\"\n    },\n    {\n      \"id\": 8,\n      \"event_id\": \"e5585811-92d2-40a9-8925-9a453d61327a\",\n      \"actor_endpoint_id\": \"worker-mock\",\n      \"action\": \"acked\",\n      \"detail\": {\n        \"attempt_id\": \"804064ad-4539-4ef1-82b9-6899e4579371\"\n      },\n      \"created_at\": \"2026-11-13T04:35:47.079Z\"\n    },\n    {\n      \"id\": 9,\n      \"event_id\": \"e5585811-92d2-40a9-8925-9a453d61327a\",\n      \"actor_endpoint_id\": \"worker-mock\",\n      \"action\": \"leased\",\n      \"detail\": {\n        \"attempt_id\": \"804064ad-4539-4ef1-82b9-6899e4579371\",\n        \"attempt_count\": 1\n      },\n      \"created_at\": \"2026-11-13T04:35:47.079Z\"\n    },\n    {\n      \"id\": 10,\n      \"event_id\": \"e5585811-92d2-40a9-8925-9a453d61327a\",\n      \"actor_endpoint_id\": null,\n      \"action\": \"side_effect_applied\",\n      \"detail\": {\n        \"key\": \"mock-exec:e5585811-92d2-40a9-8925-9a453d61327a\",\n        \"event_id\": \"e5585811-92d2-40a9-8925-9a453d61327a\",\n        \"attempt_id\": \"804064ad-4539-4ef1-82b9-6899e4579371\",\n        \"status\": \"applied\",\n        \"duplicate\": false,\n        \"at\": \"2026-11-13T04:35:47.080Z\"\n      },\n      \"created_at\": \"2026-11-13T04:35:47.080Z\"\n    },\n    {\n      \"id\": 11,\n      \"event_id\": \"e5585811-92d2-40a9-8925-9a453d61327a\",\n      \"actor_endpoint_id\": \"worker-mock\",\n      \"action\": \"executed\",\n      \"detail\": {\n        \"attempt_id\": \"804064ad-4539-4ef1-82b9-6899e4579371\",\n        \"result_kind\": \"MOCK\"\n      },\n      \"created_at\": \"2026-11-13T04:35:47.081Z\"\n    },\n    {\n      \"id\": 12,\n      \"event_id\": \"e5585811-92d2-40a9-8925-9a453d61327a\",\n      \"actor_endpoint_id\": \"worker-mock\",\n      \"action\": \"ack_received\",\n      \"detail\": {\n        \"attempt_id\": \"804064ad-4539-4ef1-82b9-6899e4579371\"\n      },\n      \"created_at\": \"2026-11-13T04:35:47.081Z\"\n    },\n    {\n      \"id\": 13,\n      \"event_id\": \"62c7b835-2250-461f-b4c2-574a13ef7026\",\n      \"actor_endpoint_id\": \"origin-local\",\n      \"action\": \"queued\",\n      \"detail\": {\n        \"grant_id\": \"grant-local-e2e-001\"\n      },\n      \"created_at\": \"2026-11-13T04:35:47.177Z\"\n    },\n    {\n      \"id\": 14,\n      \"event_id\": \"62c7b835-2250-461f-b4c2-574a13ef7026\",\n      \"actor_endpoint_id\": \"worker-mock\",\n      \"action\": \"acked\",\n      \"detail\": {\n        \"attempt_id\": \"9d99df59-4eba-45e1-b58c-b07c46a62e38\"\n      },\n      \"created_at\": \"2026-11-13T04:35:47.282Z\"\n    },\n    {\n      \"id\": 15,\n      \"event_id\": \"62c7b835-2250-461f-b4c2-574a13ef7026\",\n      \"actor_endpoint_id\": \"worker-mock\",\n      \"action\": \"leased\",\n      \"detail\": {\n        \"attempt_id\": \"9d99df59-4eba-45e1-b58c-b07c46a62e38\",\n        \"attempt_count\": 1\n      },\n      \"created_at\": \"2026-11-13T04:35:47.282Z\"\n    },\n    {\n      \"id\": 16,\n      \"event_id\": \"62c7b835-2250-461f-b4c2-574a13ef7026\",\n      \"actor_endpoint_id\": null,\n      \"action\": \"side_effect_applied\",\n      \"detail\": {\n        \"key\": \"mock-exec:62c7b835-2250-461f-b4c2-574a13ef7026\",\n        \"event_id\": \"62c7b835-2250-461f-b4c2-574a13ef7026\",\n        \"attempt_id\": \"9d99df59-4eba-45e1-b58c-b07c46a62e38\",\n        \"status\": \"applied\",\n        \"duplicate\": false,\n        \"at\": \"2026-11-13T04:35:47.283Z\"\n      },\n      \"created_at\": \"2026-11-13T04:35:47.283Z\"\n    },\n    {\n      \"id\": 17,\n      \"event_id\": \"62c7b835-2250-461f-b4c2-574a13ef7026\",\n      \"actor_endpoint_id\": \"worker-mock\",\n      \"action\": \"executed\",\n      \"detail\": {\n        \"attempt_id\": \"9d99df59-4eba-45e1-b58c-b07c46a62e38\",\n        \"result_kind\": \"MOCK\"\n      },\n      \"created_at\": \"2026-11-13T04:35:47.284Z\"\n    },\n    {\n      \"id\": 18,\n      \"event_id\": \"62c7b835-2250-461f-b4c2-574a13ef7026\",\n      \"actor_endpoint_id\": \"worker-mock\",\n      \"action\": \"ack_received\",\n      \"detail\": {\n        \"attempt_id\": \"9d99df59-4eba-45e1-b58c-b07c46a62e38\"\n      },\n      \"created_at\": \"2026-11-13T04:35:47.284Z\"\n    }\n  ]\n}\n",
+    "submit-after-revokeGrant.stderr": "{\n  \"step\": \"send\",\n  \"status\": 403,\n  \"error\": \"FORBIDDEN\"\n}\n",
+    "boot-explicit-new-grant.log": "{\"ok\":true,\"port\":19873,\"mode\":\"MOCK\",\"grant_id\":\"grant-local-e2e-001\"}\nshutting_down SIGTERM\n",
+    "boot-fresh-revoke.log": "{\"ok\":true,\"port\":19873,\"mode\":\"MOCK\",\"grant_id\":\"grant-local-e2e-001\"}\nshutting_down SIGTERM\n",
+    "seed-expired.stderr": "",
+    "submit-with-new-grant.stdout": "{\n  \"step\": \"send\",\n  \"ok\": true,\n  \"event_id\": \"f0621756-78c6-4e87-8857-28cec0460590\",\n  \"state\": \"queued\",\n  \"payload_digest\": \"f3d635dcf7c14a18d4ba404dfc032abeb7ff4df3754ded8fc9d1e213ef720f06\",\n  \"expected_result\": {\n    \"mode\": \"MOCK\",\n    \"result_kind\": \"MOCK\",\n    \"instruction\": \"EXPLICIT-NEW-GRANT-POSITIVE\",\n    \"echo\": {\n      \"instruction\": \"EXPLICIT-NEW-GRANT-POSITIVE\",\n      \"goal\": \"EXPLICIT-NEW-GRANT-POSITIVE\",\n      \"label\": \"MOCK_LOOP\"\n    },\n    \"verified\": true,\n    \"note\": \"synthetic local execution; OpenAI NOT connected\",\n    \"output_sha256\": \"fb53f9a9ac5393acef041c6e67a735dfd16c1fa21871b3c120352e74a56225b0\"\n  }\n}\n{\n  \"step\": \"status\",\n  \"event\": {\n    \"event_id\": \"f0621756-78c6-4e87-8857-28cec0460590\",\n    \"task_id\": \"TASK-LOCAL-E2E\",\n    \"source_endpoint_id\": \"origin-local\",\n    \"destination_endpoint_id\": \"worker-mock\",\n    \"idempotency_key\": \"idem-aabd13c199edc6036feda563\",\n    \"payload_version\": \"1\",\n    \"payload_digest\": \"f3d635dcf7c14a18d4ba404dfc032abeb7ff4df3754ded8fc9d1e213ef720f06\",\n    \"payload\": {\n      \"instruction\": \"EXPLICIT-NEW-GRANT-POSITIVE\",\n      \"goal\": \"EXPLICIT-NEW-GRANT-POSITIVE\",\n      \"label\": \"MOCK_LOOP\"\n    },\n    \"state\": \"ack_received\",\n    \"grant_id\": \"explicit-new-synthetic-grant\",\n    \"attempt_count\": 1,\n    \"current_attempt_id\": \"ffc779c0-eb71-49de-ac19-1d6400e31ce7\",\n    \"lease_until\": \"2026-11-13T04:36:19.121Z\",\n    \"next_attempt_at\": \"2026-11-13T04:35:48.977Z\",\n    \"created_at\": \"2026-11-13T04:35:48.977Z\",\n    \"updated_at\": \"2026-11-13T04:35:49.124Z\",\n    \"result_kind\": \"MOCK\",\n    \"result\": {\n      \"mode\": \"MOCK\",\n      \"result_kind\": \"MOCK\",\n      \"instruction\": \"EXPLICIT-NEW-GRANT-POSITIVE\",\n      \"echo\": {\n        \"instruction\": \"EXPLICIT-NEW-GRANT-POSITIVE\",\n        \"goal\": \"EXPLICIT-NEW-GRANT-POSITIVE\",\n        \"label\": \"MOCK_LOOP\"\n      },\n      \"verified\": true,\n      \"note\": \"synthetic local execution; OpenAI NOT connected\",\n      \"output_sha256\": \"fb53f9a9ac5393acef041c6e67a735dfd16c1fa21871b3c120352e74a56225b0\"\n    },\n    \"lifecycle\": \"done\",\n    \"last_error\": null,\n    \"result_bound_digest\": \"f3d635dcf7c14a18d4ba404dfc032abeb7ff4df3754ded8fc9d1e213ef720f06\",\n    \"result_bound_attempt\": \"ffc779c0-eb71-49de-ac19-1d6400e31ce7\",\n    \"result_integrity\": \"ok\"\n  }\n}\n{\n  \"step\": \"readback_exact_match\",\n  \"ok\": true,\n  \"event_id\": \"f0621756-78c6-4e87-8857-28cec0460590\",\n  \"lifecycle\": \"done\",\n  \"result\": {\n    \"mode\": \"MOCK\",\n    \"result_kind\": \"MOCK\",\n    \"instruction\": \"EXPLICIT-NEW-GRANT-POSITIVE\",\n    \"echo\": {\n      \"instruction\": \"EXPLICIT-NEW-GRANT-POSITIVE\",\n      \"goal\": \"EXPLICIT-NEW-GRANT-POSITIVE\",\n      \"label\": \"MOCK_LOOP\"\n    },\n    \"verified\": true,\n    \"note\": \"synthetic local execution; OpenAI NOT connected\",\n    \"output_sha256\": \"fb53f9a9ac5393acef041c6e67a735dfd16c1fa21871b3c120352e74a56225b0\"\n  }\n}\n",
+    "stopGrant.stdout": "{\"grant_id\":\"grant-local-e2e-001\",\"task_id\":\"TASK-LOCAL-E2E\",\"source_endpoint_id\":\"origin-local\",\"destination_endpoint_id\":\"worker-mock\",\"allowed_actions\":[\"send\",\"receive\",\"execute\",\"ack\"],\"max_attempts\":3,\"cost_cap_usd\":0.05,\"expires_at\":\"2026-11-20T04:35:46.662Z\",\"stopped\":true,\"revoked_at\":null,\"created_at\":\"2026-11-13T04:35:46.662Z\",\"stop_reason\":\"synthetic-restart-probe\",\"stop_status\":\"STOP_REQUESTED\",\"stopped_at\":\"2026-11-13T04:35:47.888Z\"}\n",
+    "readback-after-restart.stderr": "",
+    "boot-restart.log": "{\"ok\":true,\"port\":19873,\"mode\":\"MOCK\",\"grant_id\":\"grant-local-e2e-001\"}\nshutting_down SIGTERM\n",
+    "submit-with-new-grant.stderr": "",
+    "revokeGrant.stdout": "{\"grant_id\":\"grant-local-e2e-001\",\"task_id\":\"TASK-LOCAL-E2E\",\"source_endpoint_id\":\"origin-local\",\"destination_endpoint_id\":\"worker-mock\",\"allowed_actions\":[\"send\",\"receive\",\"execute\",\"ack\"],\"max_attempts\":3,\"cost_cap_usd\":0.05,\"expires_at\":\"2026-11-20T04:35:48.258Z\",\"stopped\":false,\"revoked_at\":\"2026-11-13T04:35:48.508Z\",\"created_at\":\"2026-11-13T04:35:48.259Z\",\"revoke_reason\":\"synthetic-restart-probe\"}\n",
+    "submit-expired.stdout": "",
+    "submit-1.stdout": "{\n  \"step\": \"send\",\n  \"ok\": true,\n  \"event_id\": \"9957e127-e633-4668-9da3-cffe70e88228\",\n  \"state\": \"queued\",\n  \"payload_digest\": \"b386bb6fbce33507513ea773bcf6019ce49fef3a220cc1837da972d04a0b1c19\",\n  \"expected_result\": {\n    \"mode\": \"MOCK\",\n    \"result_kind\": \"MOCK\",\n    \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n    \"echo\": {\n      \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n      \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n      \"label\": \"MOCK_LOOP\"\n    },\n    \"verified\": true,\n    \"note\": \"synthetic local execution; OpenAI NOT connected\",\n    \"output_sha256\": \"cca833db8108320b5093426dfef4bed65666604332dc29b04ff85fb7f5616ca9\"\n  }\n}\n{\n  \"step\": \"status\",\n  \"event\": {\n    \"event_id\": \"9957e127-e633-4668-9da3-cffe70e88228\",\n    \"task_id\": \"TASK-LOCAL-E2E\",\n    \"source_endpoint_id\": \"origin-local\",\n    \"destination_endpoint_id\": \"worker-mock\",\n    \"idempotency_key\": \"idem-fcb9ed27c9188ac4456f684a\",\n    \"payload_version\": \"1\",\n    \"payload_digest\": \"b386bb6fbce33507513ea773bcf6019ce49fef3a220cc1837da972d04a0b1c19\",\n    \"payload\": {\n      \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n      \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n      \"label\": \"MOCK_LOOP\"\n    },\n    \"state\": \"ack_received\",\n    \"grant_id\": \"grant-local-e2e-001\",\n    \"attempt_count\": 1,\n    \"current_attempt_id\": \"4de859b3-472e-479c-a543-04b03933b46a\",\n    \"lease_until\": \"2026-11-13T04:36:16.875Z\",\n    \"next_attempt_at\": \"2026-11-13T04:35:46.741Z\",\n    \"created_at\": \"2026-11-13T04:35:46.741Z\",\n    \"updated_at\": \"2026-11-13T04:35:46.878Z\",\n    \"result_kind\": \"MOCK\",\n    \"result\": {\n      \"mode\": \"MOCK\",\n      \"result_kind\": \"MOCK\",\n      \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n      \"echo\": {\n        \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n        \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n        \"label\": \"MOCK_LOOP\"\n      },\n      \"verified\": true,\n      \"note\": \"synthetic local execution; OpenAI NOT connected\",\n      \"output_sha256\": \"cca833db8108320b5093426dfef4bed65666604332dc29b04ff85fb7f5616ca9\"\n    },\n    \"lifecycle\": \"done\",\n    \"last_error\": null,\n    \"result_bound_digest\": \"b386bb6fbce33507513ea773bcf6019ce49fef3a220cc1837da972d04a0b1c19\",\n    \"result_bound_attempt\": \"4de859b3-472e-479c-a543-04b03933b46a\",\n    \"result_integrity\": \"ok\"\n  }\n}\n{\n  \"step\": \"readback_exact_match\",\n  \"ok\": true,\n  \"event_id\": \"9957e127-e633-4668-9da3-cffe70e88228\",\n  \"lifecycle\": \"done\",\n  \"result\": {\n    \"mode\": \"MOCK\",\n    \"result_kind\": \"MOCK\",\n    \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n    \"echo\": {\n      \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n      \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-1\",\n      \"label\": \"MOCK_LOOP\"\n    },\n    \"verified\": true,\n    \"note\": \"synthetic local execution; OpenAI NOT connected\",\n    \"output_sha256\": \"cca833db8108320b5093426dfef4bed65666604332dc29b04ff85fb7f5616ca9\"\n  }\n}\n",
+    "submit-3.stderr": "",
+    "seed-expired.stdout": "",
+    "submit-after-revokeGrant.stdout": "",
+    "duplicate-reject-new-grant-allowed.stdout": "duplicate grant rejected; new independent synthetic grant created\n",
+    "submit-2.stderr": "",
+    "submit-2.stdout": "{\n  \"step\": \"send\",\n  \"ok\": true,\n  \"event_id\": \"e5585811-92d2-40a9-8925-9a453d61327a\",\n  \"state\": \"queued\",\n  \"payload_digest\": \"eca7f9f797508eaae4d58079ff1ffeecd645b0727e215e3bd6ae311aa4cb9c2c\",\n  \"expected_result\": {\n    \"mode\": \"MOCK\",\n    \"result_kind\": \"MOCK\",\n    \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n    \"echo\": {\n      \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n      \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n      \"label\": \"MOCK_LOOP\"\n    },\n    \"verified\": true,\n    \"note\": \"synthetic local execution; OpenAI NOT connected\",\n    \"output_sha256\": \"84c1f12a279d4b87f7dcda5c26b59fc5dd5916a5fd7203d97c57290ffcccdd82\"\n  }\n}\n{\n  \"step\": \"status\",\n  \"event\": {\n    \"event_id\": \"e5585811-92d2-40a9-8925-9a453d61327a\",\n    \"task_id\": \"TASK-LOCAL-E2E\",\n    \"source_endpoint_id\": \"origin-local\",\n    \"destination_endpoint_id\": \"worker-mock\",\n    \"idempotency_key\": \"idem-ada23e26558ae8113f26931c\",\n    \"payload_version\": \"1\",\n    \"payload_digest\": \"eca7f9f797508eaae4d58079ff1ffeecd645b0727e215e3bd6ae311aa4cb9c2c\",\n    \"payload\": {\n      \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n      \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n      \"label\": \"MOCK_LOOP\"\n    },\n    \"state\": \"ack_received\",\n    \"grant_id\": \"grant-local-e2e-001\",\n    \"attempt_count\": 1,\n    \"current_attempt_id\": \"804064ad-4539-4ef1-82b9-6899e4579371\",\n    \"lease_until\": \"2026-11-13T04:36:17.079Z\",\n    \"next_attempt_at\": \"2026-11-13T04:35:46.954Z\",\n    \"created_at\": \"2026-11-13T04:35:46.954Z\",\n    \"updated_at\": \"2026-11-13T04:35:47.081Z\",\n    \"result_kind\": \"MOCK\",\n    \"result\": {\n      \"mode\": \"MOCK\",\n      \"result_kind\": \"MOCK\",\n      \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n      \"echo\": {\n        \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n        \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n        \"label\": \"MOCK_LOOP\"\n      },\n      \"verified\": true,\n      \"note\": \"synthetic local execution; OpenAI NOT connected\",\n      \"output_sha256\": \"84c1f12a279d4b87f7dcda5c26b59fc5dd5916a5fd7203d97c57290ffcccdd82\"\n    },\n    \"lifecycle\": \"done\",\n    \"last_error\": null,\n    \"result_bound_digest\": \"eca7f9f797508eaae4d58079ff1ffeecd645b0727e215e3bd6ae311aa4cb9c2c\",\n    \"result_bound_attempt\": \"804064ad-4539-4ef1-82b9-6899e4579371\",\n    \"result_integrity\": \"ok\"\n  }\n}\n{\n  \"step\": \"readback_exact_match\",\n  \"ok\": true,\n  \"event_id\": \"e5585811-92d2-40a9-8925-9a453d61327a\",\n  \"lifecycle\": \"done\",\n  \"result\": {\n    \"mode\": \"MOCK\",\n    \"result_kind\": \"MOCK\",\n    \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n    \"echo\": {\n      \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n      \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-2\",\n      \"label\": \"MOCK_LOOP\"\n    },\n    \"verified\": true,\n    \"note\": \"synthetic local execution; OpenAI NOT connected\",\n    \"output_sha256\": \"84c1f12a279d4b87f7dcda5c26b59fc5dd5916a5fd7203d97c57290ffcccdd82\"\n  }\n}\n",
+    "boot-expired.log": "{\"ok\":true,\"port\":19873,\"mode\":\"MOCK\",\"grant_id\":\"grant-local-e2e-001\"}\nshutting_down SIGTERM\n",
+    "submit-1.stderr": "",
+    "duplicate-reject-new-grant-allowed.stderr": "",
+    "boot-after-stopGrant.log": "{\"ok\":true,\"port\":19873,\"mode\":\"MOCK\",\"grant_id\":\"grant-local-e2e-001\"}\nshutting_down SIGTERM\n",
+    "stopGrant.stderr": "",
+    "submit-expired.stderr": "{\n  \"step\": \"send\",\n  \"status\": 403,\n  \"error\": \"FORBIDDEN\"\n}\n",
+    "boot-first.log": "{\"ok\":true,\"port\":19873,\"mode\":\"MOCK\",\"grant_id\":\"grant-local-e2e-001\"}\nshutting_down SIGTERM\n",
+    "revokeGrant.stderr": "",
+    "submit-after-stopGrant.stdout": "",
+    "boot-after-revokeGrant.log": "{\"ok\":true,\"port\":19873,\"mode\":\"MOCK\",\"grant_id\":\"grant-local-e2e-001\"}\nshutting_down SIGTERM\n",
+    "submit-3.stdout": "{\n  \"step\": \"send\",\n  \"ok\": true,\n  \"event_id\": \"62c7b835-2250-461f-b4c2-574a13ef7026\",\n  \"state\": \"queued\",\n  \"payload_digest\": \"ac99bf20c7d89381705e4c53be8fff53e2ce761828db6d0ce2f394665d1b7ca4\",\n  \"expected_result\": {\n    \"mode\": \"MOCK\",\n    \"result_kind\": \"MOCK\",\n    \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n    \"echo\": {\n      \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n      \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n      \"label\": \"MOCK_LOOP\"\n    },\n    \"verified\": true,\n    \"note\": \"synthetic local execution; OpenAI NOT connected\",\n    \"output_sha256\": \"34ac2650e668ed6c023cd8b4196f55d9a261938924b432869d65188f357dfebc\"\n  }\n}\n{\n  \"step\": \"status\",\n  \"event\": {\n    \"event_id\": \"62c7b835-2250-461f-b4c2-574a13ef7026\",\n    \"task_id\": \"TASK-LOCAL-E2E\",\n    \"source_endpoint_id\": \"origin-local\",\n    \"destination_endpoint_id\": \"worker-mock\",\n    \"idempotency_key\": \"idem-9c290518e48a8655ec151f14\",\n    \"payload_version\": \"1\",\n    \"payload_digest\": \"ac99bf20c7d89381705e4c53be8fff53e2ce761828db6d0ce2f394665d1b7ca4\",\n    \"payload\": {\n      \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n      \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n      \"label\": \"MOCK_LOOP\"\n    },\n    \"state\": \"ack_received\",\n    \"grant_id\": \"grant-local-e2e-001\",\n    \"attempt_count\": 1,\n    \"current_attempt_id\": \"9d99df59-4eba-45e1-b58c-b07c46a62e38\",\n    \"lease_until\": \"2026-11-13T04:36:17.282Z\",\n    \"next_attempt_at\": \"2026-11-13T04:35:47.177Z\",\n    \"created_at\": \"2026-11-13T04:35:47.177Z\",\n    \"updated_at\": \"2026-11-13T04:35:47.284Z\",\n    \"result_kind\": \"MOCK\",\n    \"result\": {\n      \"mode\": \"MOCK\",\n      \"result_kind\": \"MOCK\",\n      \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n      \"echo\": {\n        \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n        \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n        \"label\": \"MOCK_LOOP\"\n      },\n      \"verified\": true,\n      \"note\": \"synthetic local execution; OpenAI NOT connected\",\n      \"output_sha256\": \"34ac2650e668ed6c023cd8b4196f55d9a261938924b432869d65188f357dfebc\"\n    },\n    \"lifecycle\": \"done\",\n    \"last_error\": null,\n    \"result_bound_digest\": \"ac99bf20c7d89381705e4c53be8fff53e2ce761828db6d0ce2f394665d1b7ca4\",\n    \"result_bound_attempt\": \"9d99df59-4eba-45e1-b58c-b07c46a62e38\",\n    \"result_integrity\": \"ok\"\n  }\n}\n{\n  \"step\": \"readback_exact_match\",\n  \"ok\": true,\n  \"event_id\": \"62c7b835-2250-461f-b4c2-574a13ef7026\",\n  \"lifecycle\": \"done\",\n  \"result\": {\n    \"mode\": \"MOCK\",\n    \"result_kind\": \"MOCK\",\n    \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n    \"echo\": {\n      \"instruction\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n      \"goal\": \"SYNTHETIC-ABSTRACT-FLOW-3\",\n      \"label\": \"MOCK_LOOP\"\n    },\n    \"verified\": true,\n    \"note\": \"synthetic local execution; OpenAI NOT connected\",\n    \"output_sha256\": \"34ac2650e668ed6c023cd8b4196f55d9a261938924b432869d65188f357dfebc\"\n  }\n}\n"
+  }
+}
